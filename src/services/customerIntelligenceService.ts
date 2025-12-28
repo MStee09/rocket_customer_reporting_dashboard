@@ -78,8 +78,8 @@ export async function createProfile(
         products: [],
         key_markets: [],
         terminology: [],
-        created_by: userEmail,
-        updated_by: userEmail,
+        created_by: userId,
+        updated_by: userId,
       })
       .select()
       .single();
@@ -118,7 +118,7 @@ export async function updateProfile(
 ): Promise<CustomerIntelligenceProfile> {
   try {
     const dbUpdates: Record<string, any> = {
-      updated_by: userEmail,
+      updated_by: userId,
       updated_at: new Date().toISOString(),
     };
 
@@ -190,7 +190,7 @@ export async function addPriority(
       .from('customer_intelligence_profiles')
       .update({
         priorities: updatedPriorities,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -240,7 +240,7 @@ export async function removePriority(
       .from('customer_intelligence_profiles')
       .update({
         priorities: updatedPriorities,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -295,7 +295,7 @@ export async function addProduct(
       .from('customer_intelligence_profiles')
       .update({
         products: updatedProducts,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -346,7 +346,7 @@ export async function removeProduct(
       .from('customer_intelligence_profiles')
       .update({
         products: updatedProducts,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -400,7 +400,7 @@ export async function addTerminology(
       .from('customer_intelligence_profiles')
       .update({
         terminology: updatedTerminology,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -449,7 +449,7 @@ export async function removeTerminology(
       .from('customer_intelligence_profiles')
       .update({
         terminology: updatedTerminology,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -504,7 +504,7 @@ export async function addMarket(
       .from('customer_intelligence_profiles')
       .update({
         key_markets: updatedMarkets,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -553,7 +553,7 @@ export async function removeMarket(
       .from('customer_intelligence_profiles')
       .update({
         key_markets: updatedMarkets,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -601,7 +601,7 @@ export async function updateBenchmarkPeriod(
       .from('customer_intelligence_profiles')
       .update({
         benchmark_period: period,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -649,7 +649,7 @@ export async function updateAccountNotes(
       .from('customer_intelligence_profiles')
       .update({
         account_notes: notes,
-        updated_by: userEmail,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('customer_id', customerId)
@@ -780,7 +780,7 @@ export async function getAllProfiles(): Promise<
       .from('customer_intelligence_profiles')
       .select(`
         *,
-        customer:customers(customer_name)
+        customer:customer(customer_name)
       `)
       .order('updated_at', { ascending: false });
 

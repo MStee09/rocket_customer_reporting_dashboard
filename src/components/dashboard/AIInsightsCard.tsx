@@ -19,6 +19,7 @@ interface AIInsightsCardProps {
     start: Date;
     end: Date;
   };
+  className?: string;
 }
 
 interface Metrics {
@@ -46,7 +47,7 @@ interface InsightsResponse {
   generatedAt: string;
 }
 
-export function AIInsightsCard({ customerId, dateRange }: AIInsightsCardProps) {
+export function AIInsightsCard({ customerId, dateRange, className = '' }: AIInsightsCardProps) {
   const [data, setData] = useState<InsightsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +120,7 @@ export function AIInsightsCard({ customerId, dateRange }: AIInsightsCardProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl">
+      <div className={`bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl ${className}`}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
@@ -148,7 +149,7 @@ export function AIInsightsCard({ customerId, dateRange }: AIInsightsCardProps) {
 
   if (error || !data) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl">
+      <div className={`bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl ${className}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
@@ -175,7 +176,7 @@ export function AIInsightsCard({ customerId, dateRange }: AIInsightsCardProps) {
   const { current, changes } = metrics;
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl">
+    <div className={`bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">

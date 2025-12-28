@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DashboardWidgetCard } from '../components/DashboardWidgetCard';
 import { LayoutEditorModal } from '../components/LayoutEditorModal';
 import { AIReportWidget } from '../components/dashboard/AIReportWidget';
+import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
@@ -303,6 +304,17 @@ export function DashboardPage() {
           <div className="fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
             Widget added to dashboard successfully!
           </div>
+        )}
+
+        {effectiveCustomerId && (
+          <AIInsightsCard
+            customerId={effectiveCustomerId}
+            dateRange={{
+              start: new Date(startDate),
+              end: new Date(endDate),
+            }}
+            className="mb-6"
+          />
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">

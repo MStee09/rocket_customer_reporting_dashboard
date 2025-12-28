@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, DollarSign, LayoutGrid, Sparkles, BookOpen, Calendar, LucideIcon } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useCustomerMetrics } from '../hooks/useCustomerMetrics';
 import { getNotificationCounts } from '../services/learningNotificationService';
 
 interface SidebarProps {
@@ -15,14 +13,14 @@ interface NavItem {
   to: string;
   icon: LucideIcon;
   label: string;
-  adminOnly: boolean;
   badge?: number;
+  matchPaths?: string[];
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { isAdmin, isViewingAsCustomer, viewingCustomer } = useAuth();
-  const { metrics } = useCustomerMetrics();
   const [learningQueueCount, setLearningQueueCount] = useState(0);
+  const location = useLocation();
 
   useEffect(() => {
     async function loadPendingCount() {
@@ -34,41 +32,40 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const staticNavItems: NavItem[] = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
-    { to: '/shipments', icon: Package, label: 'Shipments', adminOnly: false },
-    { to: '/custom-reports', icon: FileText, label: 'Custom Reports', adminOnly: false },
-    { to: '/ai-studio', icon: Sparkles, label: 'AI Report Studio', adminOnly: false },
-    { to: '/scheduled-reports', icon: Calendar, label: 'Scheduled Reports', adminOnly: false },
-    { to: '/widget-library', icon: LayoutGrid, label: 'Widget Library', adminOnly: false },
-    { to: '/customers', icon: Users, label: 'Customers', adminOnly: true },
-    { to: '/carriers', icon: Building2, label: 'Carriers', adminOnly: true },
+  const mainNavItems: NavItem[] = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/shipments', icon: Truck, label: 'Shipments' },
+    {
+      to: '/analytics',
+      icon: BarChart3,
+      label: 'Analytics',
+      matchPaths: ['/analytics', '/ai-studio', '/custom-reports', '/widget-library']
+    },
+    {
+      to: '/reports',
+      icon: FileText,
+      label: 'Reports',
+      matchPaths: ['/reports', '/scheduled-reports']
+    },
+    { to: '/carriers', icon: Building2, label: 'Carriers' },
   ];
-
-  const dynamicMetricItems: NavItem[] = metrics
-    .filter((metric) => metric.sidebarSection !== 'reports')
-    .map((metric) => {
-      const IconComponent = (LucideIcons as any)[metric.icon] || DollarSign;
-      return {
-        to: metric.route,
-        icon: IconComponent,
-        label: metric.name,
-        adminOnly: false,
-      };
-    });
 
   const adminNavItems: NavItem[] = [
-    { to: '/users', icon: UserCog, label: 'User Management', adminOnly: true },
-    { to: '/knowledge-base', icon: BookOpen, label: 'AI Knowledge Base', adminOnly: true, badge: learningQueueCount },
-    { to: '/schema', icon: Database, label: 'Schema Explorer', adminOnly: true },
-    { to: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
+    { to: '/customers', icon: Users, label: 'Customers' },
+    { to: '/knowledge-base', icon: BookOpen, label: 'Knowledge Base', badge: learningQueueCount },
+    { to: '/users', icon: UserCog, label: 'User Management' },
+    { to: '/schema', icon: Database, label: 'Schema Explorer' },
+    { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 
-  const navItems = [...staticNavItems, ...dynamicMetricItems, ...adminNavItems];
+  const shouldShowAdmin = isAdmin() && !isViewingAsCustomer;
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || (isAdmin() && !isViewingAsCustomer)
-  );
+  const isActiveRoute = (item: NavItem) => {
+    if (item.matchPaths) {
+      return item.matchPaths.some(path => location.pathname.startsWith(path));
+    }
+    return location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+  };
 
   return (
     <>
@@ -119,14 +116,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {filteredNavItems.map((item) => (
+          {mainNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={onClose}
-              className={({ isActive }) =>
+              className={() =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive
+                  isActiveRoute(item)
                     ? 'bg-rocket-orange text-white'
                     : 'text-slate-200 hover:bg-rocket-navy-light hover:text-white'
                 }`
@@ -141,6 +138,43 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+
+          {shouldShowAdmin && (
+            <>
+              <div className="pt-6 pb-2">
+                <div className="flex items-center gap-2 px-2">
+                  <div className="flex-1 h-px bg-slate-600"></div>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Admin
+                  </span>
+                  <div className="flex-1 h-px bg-slate-600"></div>
+                </div>
+              </div>
+
+              {adminNavItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={onClose}
+                  className={() =>
+                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      isActiveRoute(item)
+                        ? 'bg-rocket-orange text-white'
+                        : 'text-slate-200 hover:bg-rocket-navy-light hover:text-white'
+                    }`
+                  }
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="font-medium flex-1">{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-rocket-navy-dark">

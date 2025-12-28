@@ -7,7 +7,8 @@ import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CarriersPage } from './pages/CarriersPage';
-import { ReportsPage } from './pages/ReportsPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { ReportsHubPage } from './pages/ReportsHubPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
 import { CustomReportsPage } from './pages/CustomReportsPage';
 import { CustomReportViewPage } from './pages/CustomReportViewPage';
@@ -90,15 +91,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="carriers"
-                element={
-                  <ProtectedRoute requireAdmin>
-                    <CarriersPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="reports" element={<ReportsPage />} />
+              <Route path="carriers" element={<CarriersPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
+              <Route path="reports" element={<ReportsHubPage />} />
               <Route
                 path="reports/avg-cost-per-unit"
                 element={

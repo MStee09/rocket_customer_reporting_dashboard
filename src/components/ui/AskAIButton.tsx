@@ -26,14 +26,15 @@ export function AskAIButton({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    sessionStorage.setItem(
-      'ai_studio_context',
-      JSON.stringify({
-        ...context,
-        suggestedPrompt,
-        timestamp: new Date().toISOString(),
-      })
-    );
+    const contextData = {
+      ...context,
+      suggestedPrompt,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log('AskAIButton: Storing context and navigating to AI Studio', contextData);
+
+    sessionStorage.setItem('ai_studio_context', JSON.stringify(contextData));
     navigate('/ai-studio', { state: { hasContext: true } });
   };
 
@@ -42,7 +43,7 @@ export function AskAIButton({
     return (
       <button
         onClick={handleClick}
-        className={`opacity-60 hover:opacity-100 transition-opacity cursor-pointer ${className}`}
+        className={`p-1.5 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer ${className}`}
         title="Ask AI about this"
       >
         <Sparkles className={`${iconSize} text-amber-500`} />

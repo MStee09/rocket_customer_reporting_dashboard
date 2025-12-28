@@ -198,23 +198,41 @@ export function AIReportStudioPage() {
   }, [loadReportFromUrl]);
 
   useEffect(() => {
-    if (location.state?.hasContext) {
+    const checkForContext = () => {
+      console.log('AI Studio: Checking for context...', { locationState: location.state });
       const contextStr = sessionStorage.getItem('ai_studio_context');
+      console.log('AI Studio: Context from sessionStorage:', contextStr);
+
       if (contextStr) {
         try {
           const context = JSON.parse(contextStr);
           const contextTime = new Date(context.timestamp).getTime();
-          if (Date.now() - contextTime < 5 * 60 * 1000) {
+          const isValid = Date.now() - contextTime < 5 * 60 * 1000;
+
+          console.log('AI Studio: Context parsed', { context, isValid, age: Date.now() - contextTime });
+
+          if (isValid) {
             setWidgetContext(context);
             setActiveTab('create');
+            sessionStorage.removeItem('ai_studio_context');
+            console.log('AI Studio: Widget context set successfully');
+          } else {
+            sessionStorage.removeItem('ai_studio_context');
+            console.log('AI Studio: Context expired, removed');
           }
-          sessionStorage.removeItem('ai_studio_context');
         } catch (e) {
           console.error('Failed to parse AI context:', e);
+          sessionStorage.removeItem('ai_studio_context');
         }
+      } else {
+        console.log('AI Studio: No context found in sessionStorage');
       }
+    };
+
+    if (location.state?.hasContext) {
+      checkForContext();
     }
-  }, [location.state]);
+  }, [location.state, location.key]);
 
   const executeReport = useCallback(async (report: AIReportDefinition) => {
     if (!effectiveCustomerId) return;

@@ -569,8 +569,8 @@ export function DashboardWidgetCard({
           </div>
           {isHeroWidget && <p className="text-xs text-slate-500 truncate">{widget.description}</p>}
         </div>
-        <div className="flex items-center gap-1">
-          {customerId && !isLoading && !error && data && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!isLoading && !error && data && customerId && (
             <AskAIButton
               context={{
                 type: 'widget',

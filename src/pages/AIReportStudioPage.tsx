@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Sparkles,
   FileText,
@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Table2,
   FolderOpen,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage, ChatInput, AddToDashboardModal, AIReportWidgetConfig } from '../components/ai-studio';
@@ -68,6 +69,7 @@ function getReportStats(report: SavedAIReport) {
 export function AIReportStudioPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, viewingCustomer, customers } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -78,6 +80,7 @@ export function AIReportStudioPage() {
   const [savedReports, setSavedReports] = useState<SavedAIReport[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [knowledgeContext, setKnowledgeContext] = useState<string>('');
+  const [widgetContext, setWidgetContext] = useState<any>(null);
   const [isChatCollapsed, setIsChatCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState<'chat' | 'preview'>('chat');
   const [isSaving, setIsSaving] = useState(false);
@@ -193,6 +196,25 @@ export function AIReportStudioPage() {
   useEffect(() => {
     loadReportFromUrl();
   }, [loadReportFromUrl]);
+
+  useEffect(() => {
+    if (location.state?.hasContext) {
+      const contextStr = sessionStorage.getItem('ai_studio_context');
+      if (contextStr) {
+        try {
+          const context = JSON.parse(contextStr);
+          const contextTime = new Date(context.timestamp).getTime();
+          if (Date.now() - contextTime < 5 * 60 * 1000) {
+            setWidgetContext(context);
+            setActiveTab('create');
+          }
+          sessionStorage.removeItem('ai_studio_context');
+        } catch (e) {
+          console.error('Failed to parse AI context:', e);
+        }
+      }
+    }
+  }, [location.state]);
 
   const executeReport = useCallback(async (report: AIReportDefinition) => {
     if (!effectiveCustomerId) return;
@@ -719,6 +741,22 @@ export function AIReportStudioPage() {
           {!hasReport ? (
             <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
               <div className="flex-1 overflow-y-auto p-4">
+                {widgetContext && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-blue-700">
+                        Analyzing: <span className="font-medium">{widgetContext.title}</span>
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setWidgetContext(null)}
+                      className="text-blue-500 hover:text-blue-700 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 {messages.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
@@ -816,6 +854,22 @@ export function AIReportStudioPage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4">
+                      {widgetContext && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm text-blue-700">
+                              Analyzing: <span className="font-medium">{widgetContext.title}</span>
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => setWidgetContext(null)}
+                            className="text-blue-500 hover:text-blue-700 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                       <div className="space-y-4">
                         {messages.map((message) => (
                           <ChatMessage

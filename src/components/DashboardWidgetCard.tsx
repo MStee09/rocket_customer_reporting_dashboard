@@ -13,6 +13,7 @@ import { executeCustomWidgetQuery } from '../utils/customWidgetExecutor';
 import { getColumnById } from '../config/reportColumns';
 import { useLookupTables } from '../hooks/useLookupTables';
 import { format } from 'date-fns';
+import { AskAIButton } from './ui/AskAIButton';
 
 interface DashboardWidgetCardProps {
   widget: WidgetDefinition | any;
@@ -568,15 +569,34 @@ export function DashboardWidgetCard({
           </div>
           {isHeroWidget && <p className="text-xs text-slate-500 truncate">{widget.description}</p>}
         </div>
-        {hasSourceReport && (
-          <button
-            onClick={handleViewSourceReport}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-emerald-600 transition-colors"
-            title="View full report"
-          >
-            <FileText className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {customerId && !isLoading && !error && data && (
+            <AskAIButton
+              context={{
+                type: 'widget',
+                title: widget.name,
+                data: data,
+                dateRange: {
+                  start: dateRange.start?.toISOString() || '',
+                  end: dateRange.end?.toISOString() || '',
+                },
+                customerId: parseInt(customerId),
+              }}
+              suggestedPrompt={`Analyze my ${widget.name} data and provide insights`}
+              variant="icon"
+              size="sm"
+            />
+          )}
+          {hasSourceReport && (
+            <button
+              onClick={handleViewSourceReport}
+              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-emerald-600 transition-colors"
+              title="View full report"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
       <div className={`${widget.type === 'map' ? '' : 'p-4'}`}>
         <WidgetErrorBoundary widgetName={widget.name}>

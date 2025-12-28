@@ -20,6 +20,7 @@ import { UserManagementPage } from './pages/UserManagementPage';
 import { SchemaExplorerPage } from './pages/SchemaExplorerPage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
 import { CustomerProfileEditorPage } from './pages/CustomerProfileEditorPage';
+import { CustomerProfileHistoryPage } from './pages/CustomerProfileHistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
@@ -141,6 +142,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAdmin>
                     <CustomerProfileEditorPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/customer-profiles/:customerId/history"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <CustomerProfileHistoryPage />
                   </ProtectedRoute>
                 }
               />

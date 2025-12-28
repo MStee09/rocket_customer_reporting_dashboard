@@ -20,6 +20,7 @@ import {
   FileType,
   FilePlus,
   Brain,
+  Lightbulb,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -40,6 +41,8 @@ import {
 import { KnowledgeDocumentEditor } from '../components/KnowledgeDocumentEditor';
 import { AIIntelligence } from '../components/knowledge/AIIntelligence';
 import { CustomerProfilesTab } from '../components/knowledge-base/CustomerProfilesTab';
+import { LearningQueueTab } from '../components/knowledge-base/LearningQueueTab';
+import { getNotificationCounts } from '../services/learningNotificationService';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -541,12 +544,14 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
 export function KnowledgeBasePage() {
   const { user, customers, isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles'>(() => {
+  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles' | 'learning'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'documents') return 'documents';
     if (tab === 'profiles') return 'profiles';
+    if (tab === 'learning') return 'learning';
     return 'intelligence';
   });
+  const [pendingCount, setPendingCount] = useState(0);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -557,7 +562,7 @@ export function KnowledgeBasePage() {
   const [showInactive, setShowInactive] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
-  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles') => {
+  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles' | 'learning') => {
     setActiveTab(tab);
     if (tab === 'intelligence') {
       setSearchParams({});
@@ -586,6 +591,16 @@ export function KnowledgeBasePage() {
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    async function loadPendingCount() {
+      const counts = await getNotificationCounts();
+      setPendingCount(counts.pending);
+    }
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleToggleActive = async (id: string, active: boolean) => {
     try {
@@ -704,12 +719,30 @@ export function KnowledgeBasePage() {
           <Users className="w-4 h-4" />
           Customer Profiles
         </button>
+        <button
+          onClick={() => handleTabChange('learning')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'learning'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Lightbulb className="w-4 h-4" />
+          Learning Queue
+          {pendingCount > 0 && (
+            <span className="px-1.5 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+              {pendingCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {activeTab === 'intelligence' ? (
         <AIIntelligence />
       ) : activeTab === 'profiles' ? (
         <CustomerProfilesTab />
+      ) : activeTab === 'learning' ? (
+        <LearningQueueTab />
       ) : (
         <>
           <div className="flex items-center justify-end gap-2">

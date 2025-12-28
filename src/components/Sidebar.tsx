@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Package, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, DollarSign, LayoutGrid, Sparkles, BookOpen, Calendar, LucideIcon } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCustomerMetrics } from '../hooks/useCustomerMetrics';
+import { getNotificationCounts } from '../services/learningNotificationService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -20,6 +22,17 @@ interface NavItem {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { isAdmin, isViewingAsCustomer, viewingCustomer } = useAuth();
   const { metrics } = useCustomerMetrics();
+  const [learningQueueCount, setLearningQueueCount] = useState(0);
+
+  useEffect(() => {
+    async function loadPendingCount() {
+      const counts = await getNotificationCounts();
+      setLearningQueueCount(counts.pending);
+    }
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const staticNavItems: NavItem[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
@@ -46,7 +59,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const adminNavItems: NavItem[] = [
     { to: '/users', icon: UserCog, label: 'User Management', adminOnly: true },
-    { to: '/knowledge-base', icon: BookOpen, label: 'AI Knowledge Base', adminOnly: true },
+    { to: '/knowledge-base', icon: BookOpen, label: 'AI Knowledge Base', adminOnly: true, badge: learningQueueCount },
     { to: '/schema', icon: Database, label: 'Schema Explorer', adminOnly: true },
     { to: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
   ];

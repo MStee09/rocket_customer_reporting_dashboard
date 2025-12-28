@@ -19,6 +19,7 @@ import { ScheduledReportsPage } from './pages/ScheduledReportsPage';
 import { UserManagementPage } from './pages/UserManagementPage';
 import { SchemaExplorerPage } from './pages/SchemaExplorerPage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
+import { CustomerProfileEditorPage } from './pages/CustomerProfileEditorPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
@@ -132,6 +133,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAdmin>
                     <KnowledgeBasePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/customer-profiles/:customerId/edit"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <CustomerProfileEditorPage />
                   </ProtectedRoute>
                 }
               />

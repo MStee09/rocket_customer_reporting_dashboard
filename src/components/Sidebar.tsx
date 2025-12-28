@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
+import { useSavedViews } from '../hooks/useSavedViews';
+import { SavedView } from '../types/customerIntelligence';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,8 +21,20 @@ interface NavItem {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { isAdmin, isViewingAsCustomer, viewingCustomer } = useAuth();
+  const { pinnedViews } = useSavedViews();
   const [learningQueueCount, setLearningQueueCount] = useState(0);
+  const [savedViewsExpanded, setSavedViewsExpanded] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const navigateToView = (view: SavedView) => {
+    onClose();
+    if (view.viewType === 'shipments') {
+      navigate('/shipments', { state: { savedView: view.viewConfig } });
+    } else if (view.viewType === 'report') {
+      navigate('/reports', { state: { savedView: view.viewConfig } });
+    }
+  };
 
   useEffect(() => {
     async function loadPendingCount() {
@@ -138,6 +152,38 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+
+          {pinnedViews.length > 0 && (
+            <div className="pt-4 mt-2 border-t border-slate-600">
+              <button
+                onClick={() => setSavedViewsExpanded(!savedViewsExpanded)}
+                className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors rounded-lg"
+              >
+                <span className="flex items-center gap-2">
+                  <Bookmark className="w-4 h-4" />
+                  Saved Views
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${savedViewsExpanded ? '' : '-rotate-90'}`}
+                />
+              </button>
+
+              {savedViewsExpanded && (
+                <div className="mt-1 space-y-1">
+                  {pinnedViews.map(view => (
+                    <button
+                      key={view.id}
+                      onClick={() => navigateToView(view)}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-300 hover:bg-rocket-navy-light hover:text-white rounded-lg transition-colors text-left"
+                    >
+                      <Pin className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                      <span className="truncate">{view.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {shouldShowAdmin && (
             <>

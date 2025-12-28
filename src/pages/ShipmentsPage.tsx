@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
   Package,
@@ -61,6 +61,7 @@ function getStatusConfig(status: string, isCompleted: boolean, isCancelled: bool
 
 export function ShipmentsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
   const { saveView } = useSavedViews();
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -70,6 +71,19 @@ export function ShipmentsPage() {
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
 
   const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all';
+
+  useEffect(() => {
+    const savedView = location.state?.savedView;
+    if (savedView) {
+      if (savedView.searchQuery !== undefined) {
+        setSearchQuery(savedView.searchQuery);
+      }
+      if (savedView.activeStatus !== undefined) {
+        setActiveStatus(savedView.activeStatus);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleSaveView = async (name: string, description: string, pin: boolean) => {
     await saveView({

@@ -10,9 +10,12 @@ import {
   ChevronRight,
   Loader2,
   X,
+  Bookmark,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSavedViews } from '../hooks/useSavedViews';
+import { SaveViewModal } from '../components/shipments/SaveViewModal';
 
 interface Shipment {
   load_id: number;
@@ -59,10 +62,27 @@ function getStatusConfig(status: string, isCompleted: boolean, isCancelled: bool
 export function ShipmentsPage() {
   const navigate = useNavigate();
   const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
+  const { saveView } = useSavedViews();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all';
+
+  const handleSaveView = async (name: string, description: string, pin: boolean) => {
+    await saveView({
+      name,
+      description: description || undefined,
+      viewType: 'shipments',
+      viewConfig: {
+        searchQuery,
+        activeStatus,
+      },
+      isPinned: pin,
+    });
+  };
 
   useEffect(() => {
     if (effectiveCustomerIds.length > 0) {
@@ -236,49 +256,61 @@ export function ShipmentsPage() {
         )}
       </div>
 
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        <StatusTab
-          label="All"
-          count={shipments.length}
-          active={activeStatus === 'all'}
-          onClick={() => setActiveStatus('all')}
-        />
-        <StatusTab
-          label="In Transit"
-          count={statusCounts['In Transit'] || 0}
-          active={activeStatus === 'In Transit'}
-          onClick={() => setActiveStatus('In Transit')}
-          color="blue"
-        />
-        <StatusTab
-          label="Pending Pickup"
-          count={statusCounts['Pending Pickup'] || 0}
-          active={activeStatus === 'Pending Pickup'}
-          onClick={() => setActiveStatus('Pending Pickup')}
-          color="orange"
-        />
-        <StatusTab
-          label="Delivered"
-          count={statusCounts['Delivered'] || 0}
-          active={activeStatus === 'Delivered'}
-          onClick={() => setActiveStatus('Delivered')}
-          color="green"
-        />
-        <StatusTab
-          label="Completed"
-          count={statusCounts['Completed'] || 0}
-          active={activeStatus === 'Completed'}
-          onClick={() => setActiveStatus('Completed')}
-          color="green"
-        />
-        {(statusCounts['Cancelled'] || 0) > 0 && (
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-2">
           <StatusTab
-            label="Cancelled"
-            count={statusCounts['Cancelled'] || 0}
-            active={activeStatus === 'Cancelled'}
-            onClick={() => setActiveStatus('Cancelled')}
-            color="red"
+            label="All"
+            count={shipments.length}
+            active={activeStatus === 'all'}
+            onClick={() => setActiveStatus('all')}
           />
+          <StatusTab
+            label="In Transit"
+            count={statusCounts['In Transit'] || 0}
+            active={activeStatus === 'In Transit'}
+            onClick={() => setActiveStatus('In Transit')}
+            color="blue"
+          />
+          <StatusTab
+            label="Pending Pickup"
+            count={statusCounts['Pending Pickup'] || 0}
+            active={activeStatus === 'Pending Pickup'}
+            onClick={() => setActiveStatus('Pending Pickup')}
+            color="orange"
+          />
+          <StatusTab
+            label="Delivered"
+            count={statusCounts['Delivered'] || 0}
+            active={activeStatus === 'Delivered'}
+            onClick={() => setActiveStatus('Delivered')}
+            color="green"
+          />
+          <StatusTab
+            label="Completed"
+            count={statusCounts['Completed'] || 0}
+            active={activeStatus === 'Completed'}
+            onClick={() => setActiveStatus('Completed')}
+            color="green"
+          />
+          {(statusCounts['Cancelled'] || 0) > 0 && (
+            <StatusTab
+              label="Cancelled"
+              count={statusCounts['Cancelled'] || 0}
+              active={activeStatus === 'Cancelled'}
+              onClick={() => setActiveStatus('Cancelled')}
+              color="red"
+            />
+          )}
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => setShowSaveViewModal(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors flex-shrink-0 ml-4"
+          >
+            <Bookmark className="w-4 h-4" />
+            Save View
+          </button>
         )}
       </div>
 
@@ -369,6 +401,13 @@ export function ShipmentsPage() {
           </div>
         )}
       </div>
+
+      <SaveViewModal
+        isOpen={showSaveViewModal}
+        onClose={() => setShowSaveViewModal(false)}
+        onSave={handleSaveView}
+        filterSummary={{ searchQuery, activeStatus }}
+      />
     </div>
   );
 }

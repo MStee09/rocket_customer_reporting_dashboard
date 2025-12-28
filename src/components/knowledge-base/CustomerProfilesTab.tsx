@@ -1,18 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Search,
-  Loader2,
-  Building2,
-  Plus,
-  Edit2,
-  History,
-  Target,
-  Package,
-  MapPin,
-  AlertCircle,
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Search, Loader2, Building2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import {
@@ -20,6 +8,7 @@ import {
   createProfile,
 } from '../../services/customerIntelligenceService';
 import type { CustomerIntelligenceProfile } from '../../types/customerIntelligence';
+import { CustomerProfileCard } from './CustomerProfileCard';
 
 interface CustomerWithProfile {
   customerId: number;
@@ -168,13 +157,14 @@ export function CustomerProfilesTab() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {customersWithProfiles.map((customer) => (
-                  <CustomerCard
+                  <CustomerProfileCard
                     key={customer.customerId}
-                    customer={customer}
-                    onEdit={handleEdit}
-                    onHistory={handleHistory}
-                    onSetup={handleSetup}
-                    isCreating={isCreating === customer.customerId}
+                    customer={{ customer_id: customer.customerId, customer_name: customer.customerName }}
+                    profile={customer.profile}
+                    onEdit={() => handleEdit(customer.customerId)}
+                    onViewHistory={() => handleHistory(customer.customerId)}
+                    onSetup={() => handleSetup(customer.customerId)}
+                    isSettingUp={isCreating === customer.customerId}
                   />
                 ))}
               </div>
@@ -188,134 +178,19 @@ export function CustomerProfilesTab() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {customersWithoutProfiles.map((customer) => (
-                  <CustomerCard
+                  <CustomerProfileCard
                     key={customer.customerId}
-                    customer={customer}
-                    onEdit={handleEdit}
-                    onHistory={handleHistory}
-                    onSetup={handleSetup}
-                    isCreating={isCreating === customer.customerId}
+                    customer={{ customer_id: customer.customerId, customer_name: customer.customerName }}
+                    profile={customer.profile}
+                    onEdit={() => handleEdit(customer.customerId)}
+                    onViewHistory={() => handleHistory(customer.customerId)}
+                    onSetup={() => handleSetup(customer.customerId)}
+                    isSettingUp={isCreating === customer.customerId}
                   />
                 ))}
               </div>
             </div>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface CustomerCardProps {
-  customer: CustomerWithProfile;
-  onEdit: (customerId: number) => void;
-  onHistory: (customerId: number) => void;
-  onSetup: (customerId: number) => void;
-  isCreating: boolean;
-}
-
-function CustomerCard({ customer, onEdit, onHistory, onSetup, isCreating }: CustomerCardProps) {
-  const { profile } = customer;
-
-  const prioritySummary = profile?.priorities?.slice(0, 3).map((p) => p.name).join(', ') || '';
-
-  const stats = profile
-    ? [
-        profile.products?.length > 0 ? `${profile.products.length} product${profile.products.length > 1 ? 's' : ''}` : null,
-        profile.keyMarkets?.length > 0 ? `${profile.keyMarkets.length} market${profile.keyMarkets.length > 1 ? 's' : ''}` : null,
-      ].filter(Boolean).join(' · ')
-    : '';
-
-  const updatedAgo = profile?.updatedAt
-    ? formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true })
-    : '';
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-900">{customer.customerName}</h4>
-            {profile ? (
-              <span className="text-xs text-green-600 font-medium">Profile configured</span>
-            ) : (
-              <span className="text-xs text-gray-400">No profile yet</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {profile ? (
-        <>
-          {prioritySummary && (
-            <div className="flex items-start gap-2 mb-2">
-              <Target className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-gray-600 line-clamp-1">
-                <span className="font-medium">Priorities:</span> {prioritySummary}
-              </p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
-            {profile.products?.length > 0 && (
-              <span className="flex items-center gap-1">
-                <Package className="w-3.5 h-3.5" />
-                {profile.products.length}
-              </span>
-            )}
-            {profile.keyMarkets?.length > 0 && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" />
-                {profile.keyMarkets.length}
-              </span>
-            )}
-            {updatedAgo && (
-              <span className="ml-auto">Updated {updatedAgo}</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(customer.customerId)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-            >
-              <Edit2 className="w-4 h-4" />
-              Edit
-            </button>
-            <button
-              onClick={() => onHistory(customer.customerId)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium"
-            >
-              <History className="w-4 h-4" />
-              History
-            </button>
-          </div>
-        </>
-      ) : (
-        <div className="pt-2">
-          <p className="text-sm text-gray-500 mb-4">
-            Set up a profile to teach the AI about this customer's priorities, products, and markets.
-          </p>
-          <button
-            onClick={() => onSetup(customer.customerId)}
-            disabled={isCreating}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4" />
-                Setup Profile
-              </>
-            )}
-          </button>
         </div>
       )}
     </div>

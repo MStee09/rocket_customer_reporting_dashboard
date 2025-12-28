@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, X, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Plus, X, Loader2, CheckCircle, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { addProduct, removeProduct } from '../../services/customerIntelligenceService';
+import { removeProduct, getProfile } from '../../services/customerIntelligenceService';
+import { AddProductModal } from './AddProductModal';
 import type { CustomerIntelligenceProfile, ProductMapping } from '../../types/customerIntelligence';
 
 interface ProductsSectionProps {
@@ -12,46 +13,9 @@ interface ProductsSectionProps {
 
 export function ProductsSection({ customerId, products, onUpdate }: ProductsSectionProps) {
   const { user } = useAuth();
-  const [isAdding, setIsAdding] = useState(false);
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    searchField: 'commodity_description',
-    keywords: '',
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
-
-  const handleAdd = async () => {
-    if (!user || !newProduct.name.trim() || !newProduct.keywords.trim()) return;
-
-    setIsSaving(true);
-    try {
-      const keywordsArray = newProduct.keywords.split(',').map((k) => k.trim()).filter(Boolean);
-      const updated = await addProduct(
-        customerId,
-        {
-          name: newProduct.name.trim(),
-          searchField: newProduct.searchField,
-          keywords: keywordsArray,
-          validated: false,
-          matchCount: 0,
-          matchPercent: 0,
-          sampleMatches: [],
-          validatedAt: new Date().toISOString(),
-          isSoftKnowledge: true,
-        },
-        user.id,
-        user.email || 'unknown'
-      );
-      onUpdate(updated);
-      setNewProduct({ name: '', searchField: 'commodity_description', keywords: '' });
-      setIsAdding(false);
-    } catch (err) {
-      console.error('Error adding product:', err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
   const handleRemove = async (productId: string) => {
     if (!user) return;
@@ -64,119 +28,109 @@ export function ProductsSection({ customerId, products, onUpdate }: ProductsSect
       console.error('Error removing product:', err);
     } finally {
       setRemovingId(null);
+      setConfirmRemoveId(null);
+    }
+  };
+
+  const handleProductAdded = async () => {
+    const profile = await getProfile(customerId);
+    if (profile) {
+      onUpdate(profile);
     }
   };
 
   return (
     <div className="space-y-4">
-      {products.length === 0 && !isAdding ? (
+      {products.length === 0 ? (
         <p className="text-sm text-gray-500 italic">No products defined yet.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {products.map((product) => (
             <div
               key={product.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+              className="group p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                {product.validated ? (
-                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{product.name}</span>
-                    {product.matchPercent > 0 && (
-                      <span className="text-xs text-gray-500">({product.matchPercent}% match)</span>
-                    )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-gray-900">{product.name}</span>
                   </div>
-                  <p className="text-sm text-gray-500 truncate">
-                    {product.searchField}: {product.keywords.join(', ')}
-                  </p>
+
+                  {product.isSoftKnowledge ? (
+                    <div className="flex items-center gap-1.5 text-sm text-amber-600">
+                      <Zap className="w-4 h-4" />
+                      <span>Soft knowledge - no database correlation</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {product.validated && (
+                        <div className="flex items-center gap-1.5 text-sm text-green-600">
+                          <CheckCircle className="w-4 h-4" />
+                          <span>
+                            Validated: {product.matchCount.toLocaleString()} shipments (
+                            {product.matchPercent}%)
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        Searches: <span className="font-medium">{product.searchField}</span> for "
+                        {product.keywords.join('", "')}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {confirmRemoveId === product.id ? (
+                    <>
+                      <span className="text-xs text-gray-500">Remove?</span>
+                      <button
+                        onClick={() => handleRemove(product.id)}
+                        disabled={removingId === product.id}
+                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                      >
+                        {removingId === product.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          'Yes'
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setConfirmRemoveId(null)}
+                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      >
+                        No
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmRemoveId(product.id)}
+                      className="p-1 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => handleRemove(product.id)}
-                disabled={removingId === product.id}
-                className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 flex-shrink-0 ml-2"
-              >
-                {removingId === product.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <X className="w-4 h-4" />
-                )}
-              </button>
             </div>
           ))}
         </div>
       )}
 
-      {isAdding ? (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-              <input
-                type="text"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                placeholder="e.g., Electronics"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search Field</label>
-              <select
-                value={newProduct.searchField}
-                onChange={(e) => setNewProduct({ ...newProduct, searchField: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="commodity_description">Commodity Description</option>
-                <option value="description">Description</option>
-                <option value="reference_number">Reference Number</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Keywords (comma-separated)</label>
-            <input
-              type="text"
-              value={newProduct.keywords}
-              onChange={(e) => setNewProduct({ ...newProduct, keywords: e.target.value })}
-              placeholder="e.g., laptop, computer, tablet"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div className="flex items-center gap-2 pt-2">
-            <button
-              onClick={handleAdd}
-              disabled={isSaving || !newProduct.name.trim() || !newProduct.keywords.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Add Product
-            </button>
-            <button
-              onClick={() => {
-                setIsAdding(false);
-                setNewProduct({ name: '', searchField: 'commodity_description', keywords: '' });
-              }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" />
-          Add Product
-        </button>
-      )}
+      <button
+        onClick={() => setIsModalOpen(true)}
+        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+      >
+        <Plus className="w-4 h-4" />
+        Add
+      </button>
+
+      <AddProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        customerId={customerId}
+        onProductAdded={handleProductAdded}
+      />
     </div>
   );
 }

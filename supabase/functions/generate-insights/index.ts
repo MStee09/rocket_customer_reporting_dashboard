@@ -28,19 +28,25 @@ Deno.serve(async (req: Request) => {
     const previousStart = new Date(currentStart.getTime() - duration - 86400000);
     const previousEnd = new Date(currentStart.getTime() - 86400000);
 
-    const { data: currentData } = await supabase
-      .from("shipment_report_view")
-      .select("retail, carrier_name, consignee_state, ship_date")
-      .eq("customer_id", customerId)
-      .gte("ship_date", dateRange.start)
-      .lte("ship_date", dateRange.end);
+    console.log('Fetching insights for customer:', customerId, 'dateRange:', dateRange);
 
-    const { data: previousData } = await supabase
+    const { data: currentData, error: currentError } = await supabase
       .from("shipment_report_view")
-      .select("retail, carrier_name, consignee_state")
+      .select("retail, mode_name, destination_state, pickup_date")
       .eq("customer_id", customerId)
-      .gte("ship_date", previousStart.toISOString().split("T")[0])
-      .lte("ship_date", previousEnd.toISOString().split("T")[0]);
+      .gte("pickup_date", dateRange.start)
+      .lte("pickup_date", dateRange.end);
+
+    console.log('Current data query result:', { count: currentData?.length, error: currentError });
+
+    const { data: previousData, error: previousError } = await supabase
+      .from("shipment_report_view")
+      .select("retail, mode_name, destination_state")
+      .eq("customer_id", customerId)
+      .gte("pickup_date", previousStart.toISOString().split("T")[0])
+      .lte("pickup_date", previousEnd.toISOString().split("T")[0]);
+
+    console.log('Previous data query result:', { count: previousData?.length, error: previousError });
 
     const current = calculateMetrics(currentData || []);
     const previous = calculateMetrics(previousData || []);
@@ -89,16 +95,16 @@ Deno.serve(async (req: Request) => {
 
 interface Shipment {
   retail?: number;
-  carrier_name?: string;
-  consignee_state?: string;
+  mode_name?: string;
+  destination_state?: string;
 }
 
 interface Metrics {
   totalSpend: number;
   shipmentCount: number;
   avgCostPerShipment: number;
-  topCarrier: string;
-  topCarrierPercent: number;
+  topMode: string;
+  topModePercent: number;
   topDestinationState: string;
 }
 
@@ -120,23 +126,23 @@ function calculateMetrics(shipments: Shipment[]): Metrics {
   const shipmentCount = shipments.length;
   const avgCostPerShipment = shipmentCount > 0 ? totalSpend / shipmentCount : 0;
 
-  const carrierCounts: Record<string, number> = {};
+  const modeCounts: Record<string, number> = {};
   const stateCounts: Record<string, number> = {};
 
   shipments.forEach((s) => {
-    if (s.carrier_name) carrierCounts[s.carrier_name] = (carrierCounts[s.carrier_name] || 0) + 1;
-    if (s.consignee_state) stateCounts[s.consignee_state] = (stateCounts[s.consignee_state] || 0) + 1;
+    if (s.mode_name) modeCounts[s.mode_name] = (modeCounts[s.mode_name] || 0) + 1;
+    if (s.destination_state) stateCounts[s.destination_state] = (stateCounts[s.destination_state] || 0) + 1;
   });
 
-  const topCarrier = Object.entries(carrierCounts).sort((a, b) => b[1] - a[1])[0];
+  const topMode = Object.entries(modeCounts).sort((a, b) => b[1] - a[1])[0];
   const topState = Object.entries(stateCounts).sort((a, b) => b[1] - a[1])[0];
 
   return {
     totalSpend,
     shipmentCount,
     avgCostPerShipment,
-    topCarrier: topCarrier?.[0] || "N/A",
-    topCarrierPercent: topCarrier ? Math.round((topCarrier[1] / shipmentCount) * 100) : 0,
+    topMode: topMode?.[0] || "N/A",
+    topModePercent: topMode ? Math.round((topMode[1] / shipmentCount) * 100) : 0,
     topDestinationState: topState?.[0] || "N/A",
   };
 }
@@ -168,7 +174,7 @@ Current period metrics:
 - Total spend: $${current.totalSpend.toLocaleString()}
 - Shipments: ${current.shipmentCount}
 - Avg cost/shipment: $${current.avgCostPerShipment.toFixed(0)}
-- Top carrier: ${current.topCarrier} (${current.topCarrierPercent}%)
+- Top mode: ${current.topMode} (${current.topModePercent}%)
 - Top destination: ${current.topDestinationState}
 
 Changes vs previous period:
@@ -203,5 +209,5 @@ Write naturally, mention significant changes (>5%), and relate to customer prior
 
 function generateSimpleInsights(current: Metrics, changes: Changes): string {
   const spendDirection = changes.spendChange > 0 ? "increased" : "decreased";
-  return `Your spend ${spendDirection} ${Math.abs(changes.spendChange)}% this period with ${current.shipmentCount} shipments totaling $${current.totalSpend.toLocaleString()}. ${current.topCarrier} handled ${current.topCarrierPercent}% of your freight.`;
+  return `Your spend ${spendDirection} ${Math.abs(changes.spendChange)}% this period with ${current.shipmentCount} shipments totaling $${current.totalSpend.toLocaleString()}. ${current.topMode} accounted for ${current.topModePercent}% of your freight.`;
 }

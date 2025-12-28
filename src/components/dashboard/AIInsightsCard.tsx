@@ -26,8 +26,8 @@ interface Metrics {
   totalSpend: number;
   shipmentCount: number;
   avgCostPerShipment: number;
-  topCarrier: string;
-  topCarrierPercent: number;
+  topMode: string;
+  topModePercent: number;
   topDestinationState: string;
 }
 
@@ -254,12 +254,12 @@ export function AIInsightsCard({ customerId, dateRange, className = '' }: AIInsi
         <div className="bg-slate-800/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Truck className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-slate-400 uppercase tracking-wide">Top Carrier</span>
+            <span className="text-xs text-slate-400 uppercase tracking-wide">Top Mode</span>
           </div>
-          <p className="text-xl font-bold truncate" title={current.topCarrier}>
-            {current.topCarrier}
+          <p className="text-xl font-bold truncate" title={current.topMode}>
+            {current.topMode}
           </p>
-          <p className="text-sm text-slate-400 mt-1">{current.topCarrierPercent}% of volume</p>
+          <p className="text-sm text-slate-400 mt-1">{current.topModePercent}% of volume</p>
         </div>
       </div>
     </div>

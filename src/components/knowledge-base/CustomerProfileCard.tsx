@@ -19,9 +19,7 @@ export function CustomerProfileCard({
   onSetup,
   isSettingUp = false,
 }: CustomerProfileCardProps) {
-  const priorityList = profile?.priorities?.slice(0, 3).map((p) => p.name).join(', ') || '';
-  const hasMorePriorities = (profile?.priorities?.length || 0) > 3;
-
+  const priorityList = profile?.priorities?.map((p) => p.name).join(', ') || '';
   const productCount = profile?.products?.length || 0;
   const marketCount = profile?.keyMarkets?.length || 0;
 
@@ -29,56 +27,47 @@ export function CustomerProfileCard({
     ? formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true })
     : '';
 
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="font-semibold text-gray-900 text-lg truncate">
-              {customer.customer_name}
-            </h4>
-
-            {profile ? (
-              <>
-                {priorityList && (
-                  <p className="text-sm text-gray-600 mt-1 truncate">
-                    {priorityList}
-                    {hasMorePriorities && '...'}
-                  </p>
+  if (profile) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex items-start gap-4 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-semibold text-gray-900 text-lg">
+                {customer.customer_name}
+              </h4>
+              {priorityList && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Priorities: {priorityList}
+                </p>
+              )}
+              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                {productCount > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Package className="w-4 h-4" />
+                    {productCount} product{productCount !== 1 ? 's' : ''}
+                  </span>
                 )}
-
-                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                  {productCount > 0 && (
-                    <span className="flex items-center gap-1">
-                      <Package className="w-3.5 h-3.5" />
-                      {productCount} product{productCount !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {marketCount > 0 && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {marketCount} market{marketCount !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {updatedAgo && (
-                    <span className="text-gray-400">
-                      Updated {updatedAgo}
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-400 italic mt-1">No profile yet</p>
-            )}
+                {marketCount > 0 && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {marketCount} market{marketCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {profile ? (
-            <>
+          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+            {updatedAgo && (
+              <span className="text-xs text-gray-400">
+                Updated {updatedAgo}
+              </span>
+            )}
+            <div className="flex items-center gap-2">
               <button
                 onClick={onEdit}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -93,26 +82,46 @@ export function CustomerProfileCard({
                 <History className="w-3.5 h-3.5" />
                 History
               </button>
-            </>
-          ) : (
-            <button
-              onClick={onSetup}
-              disabled={isSettingUp}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-            >
-              {isSettingUp ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Setting up...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5" />
-                  Setup
-                </>
-              )}
-            </button>
-          )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <Building2 className="w-5 h-5 text-gray-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="font-semibold text-gray-900 truncate">
+              {customer.customer_name}
+            </h4>
+            <p className="text-sm text-gray-400 italic mt-1">No profile yet</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={onSetup}
+            disabled={isSettingUp}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {isSettingUp ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Setting up...
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                Setup
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

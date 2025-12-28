@@ -1,130 +1,210 @@
-import { Link } from 'react-router-dom';
-import { Sparkles, FileText, LayoutGrid, BarChart3, TrendingUp, Database } from 'lucide-react';
-import { AppLayout } from '../components/AppLayout';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Sparkles, FileText, LayoutGrid, ArrowRight, Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { loadAIReports, SavedAIReport } from '../services/aiReportService';
+import { getSavedViews } from '../services/savedViewsService';
+import type { SavedView } from '../types/customerIntelligence';
+import { formatDistanceToNow } from 'date-fns';
+
+interface RecentReport {
+  id: string;
+  name: string;
+  type: 'AI Report' | 'Custom';
+  date: string;
+  path: string;
+}
 
 export function AnalyticsPage() {
+  const navigate = useNavigate();
+  const { user, selectedCustomerId } = useAuth();
+  const [recentReports, setRecentReports] = useState<RecentReport[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadRecentReports() {
+      if (!user || !selectedCustomerId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const [aiReports, savedViews] = await Promise.all([
+          loadAIReports(selectedCustomerId.toString()),
+          getSavedViews(user.id, selectedCustomerId),
+        ]);
+
+        const aiReportsFormatted: RecentReport[] = aiReports.map((report: SavedAIReport) => ({
+          id: report.id,
+          name: report.name,
+          type: 'AI Report' as const,
+          date: report.createdAt,
+          path: `/ai-reports/${report.id}`,
+        }));
+
+        const customReportsFormatted: RecentReport[] = savedViews
+          .filter((view: SavedView) => view.viewType === 'report')
+          .map((view: SavedView) => ({
+            id: view.id,
+            name: view.name,
+            type: 'Custom' as const,
+            date: view.updatedAt || view.createdAt,
+            path: `/custom-reports/${view.id}`,
+          }));
+
+        const allReports = [...aiReportsFormatted, ...customReportsFormatted]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 5);
+
+        setRecentReports(allReports);
+      } catch (error) {
+        console.error('Failed to load recent reports:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadRecentReports();
+  }, [user, selectedCustomerId]);
+
   const analyticsTools = [
     {
       title: 'AI Report Studio',
-      description: 'Generate custom reports with natural language. Ask questions and get instant insights.',
+      description: 'Describe what you want in plain English and let AI create it for you.',
       icon: Sparkles,
       path: '/ai-studio',
-      color: 'from-amber-500 to-orange-500',
-      iconBg: 'bg-amber-500/20',
-      iconColor: 'text-amber-400',
+      iconBg: 'bg-amber-100',
+      iconColor: 'text-amber-600',
+      hoverBg: 'hover:border-amber-200',
     },
     {
-      title: 'Custom Reports',
-      description: 'Build and save custom reports with advanced filtering and grouping options.',
+      title: 'Custom Report Builder',
+      description: 'Build reports by selecting columns, filters, groupings and visualizations.',
       icon: FileText,
       path: '/custom-reports',
-      color: 'from-blue-500 to-cyan-500',
-      iconBg: 'bg-blue-500/20',
-      iconColor: 'text-blue-400',
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-600',
+      hoverBg: 'hover:border-blue-200',
     },
     {
       title: 'Widget Library',
-      description: 'Browse and add pre-built widgets to your dashboard for quick insights.',
+      description: 'Browse pre-built widgets to add to your dashboard.',
       icon: LayoutGrid,
       path: '/widget-library',
-      color: 'from-violet-500 to-purple-500',
-      iconBg: 'bg-violet-500/20',
-      iconColor: 'text-violet-400',
+      iconBg: 'bg-violet-100',
+      iconColor: 'text-violet-600',
+      hoverBg: 'hover:border-violet-200',
     },
   ];
 
-  const quickStats = [
-    { label: 'Total Reports', value: '12', icon: FileText },
-    { label: 'Active Widgets', value: '8', icon: LayoutGrid },
-    { label: 'Data Sources', value: '3', icon: Database },
-  ];
-
   return (
-    <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-6 h-6 text-white" />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900">Analytics</h1>
+        <p className="text-slate-600 mt-1">Create reports and analyze your freight data</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {analyticsTools.map((tool) => (
+          <Link
+            key={tool.path}
+            to={tool.path}
+            className={`group bg-white rounded-lg border border-slate-200 p-6 transition-all ${tool.hoverBg} hover:shadow-md`}
+          >
+            <div className={`w-12 h-12 ${tool.iconBg} rounded-lg flex items-center justify-center mb-4`}>
+              <tool.icon className={`w-6 h-6 ${tool.iconColor}`} />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Analytics Hub</h1>
-              <p className="text-slate-600">
-                Explore your data with powerful analytics and reporting tools
-              </p>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">{tool.title}</h3>
+            <p className="text-sm text-slate-600 mb-4 leading-relaxed">{tool.description}</p>
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-600 group-hover:gap-3 transition-all">
+              <span>Open {tool.title === 'Widget Library' ? tool.title : tool.title.includes('Builder') ? 'Builder' : 'Studio'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Recent Reports</h2>
+          <Link
+            to="/reports"
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          >
+            View All
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="px-6 py-8 text-center text-slate-500">
+            <div className="inline-flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+              Loading reports...
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {quickStats.map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+        ) : recentReports.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-600 font-medium mb-1">No reports yet</p>
+            <p className="text-sm text-slate-500 mb-4">
+              Get started by creating your first report
+            </p>
+            <Link
+              to="/ai-studio"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600 font-medium">{stat.label}</p>
-                  <p className="text-3xl font-bold text-slate-900 mt-1">{stat.value}</p>
-                </div>
-                <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                  <stat.icon className="w-6 h-6 text-slate-600" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Analytics Tools</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {analyticsTools.map((tool) => (
-              <Link
-                key={tool.path}
-                to={tool.path}
-                className="group bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all duration-200 hover:border-slate-300"
+              <Sparkles className="w-4 h-4" />
+              Create with AI
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {recentReports.map((report) => (
+              <button
+                key={report.id}
+                onClick={() => navigate(report.path)}
+                className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
               >
-                <div className={`w-14 h-14 ${tool.iconBg} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <tool.icon className={`w-7 h-7 ${tool.iconColor}`} />
+                <div className="flex-shrink-0">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      report.type === 'AI Report'
+                        ? 'bg-amber-100 text-amber-600'
+                        : 'bg-blue-100 text-blue-600'
+                    }`}
+                  >
+                    <FileText className="w-5 h-5" />
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                  {tool.title}
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {tool.description}
-                </p>
-                <div className="flex items-center gap-2 mt-4 text-sm font-medium text-blue-600 group-hover:gap-3 transition-all">
-                  <span>Open Tool</span>
-                  <TrendingUp className="w-4 h-4" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-slate-900 truncate">{report.name}</h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        report.type === 'AI Report'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-blue-50 text-blue-700'
+                      }`}
+                    >
+                      {report.type}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <Calendar className="w-3 h-3" />
+                      {formatDistanceToNow(new Date(report.date), { addSuffix: true })}
+                    </span>
+                  </div>
                 </div>
-              </Link>
+                <div className="flex-shrink-0">
+                  <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    Open
+                  </button>
+                </div>
+              </button>
             ))}
           </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border border-slate-200 p-8">
-          <div className="flex items-start gap-6">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">
-                Need Help Getting Started?
-              </h3>
-              <p className="text-slate-700 mb-4">
-                Our AI Report Studio makes it easy to analyze your data. Just ask questions in plain English and get instant insights.
-              </p>
-              <Link
-                to="/ai-studio"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-              >
-                <Sparkles className="w-4 h-4" />
-                Try AI Studio
-              </Link>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
-    </AppLayout>
+    </div>
   );
 }

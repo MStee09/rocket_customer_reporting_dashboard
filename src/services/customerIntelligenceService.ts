@@ -780,7 +780,7 @@ export async function getAllProfiles(): Promise<
       .from('customer_intelligence_profiles')
       .select(`
         *,
-        customer:customer(customer_name)
+        customer:customer(company_name)
       `)
       .order('updated_at', { ascending: false });
 
@@ -791,7 +791,7 @@ export async function getAllProfiles(): Promise<
 
     return (data || []).map((row) => ({
       ...dbToProfile(row),
-      customerName: row.customer?.customer_name || 'Unknown',
+      customerName: row.customer?.company_name || 'Unknown',
     }));
   } catch (err) {
     console.error('Error in getAllProfiles:', err);

@@ -1,0 +1,290 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Download, Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import FilterSummary from './reports/FilterSummary';
+import { SimpleReportConfig } from '../types/reports';
+import { executeSimpleReport } from '../utils/simpleQueryBuilder';
+import { getColumnById } from '../config/reportColumns';
+import { exportToCSV } from '../utils/csvExport';
+import { format } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
+import { useLookupTables } from '../hooks/useLookupTables';
+
+interface SimpleReportViewerProps {
+  config: SimpleReportConfig;
+  customerId?: string;
+}
+
+export default function SimpleReportViewer({ config, customerId }: SimpleReportViewerProps) {
+  const { isAdmin, isViewingAsCustomer } = useAuth();
+  const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
+  const { lookups, loading: lookupsLoading } = useLookupTables();
+
+  const filteredConfig = useMemo(() => {
+    const filtered = { ...config };
+    filtered.columns = config.columns.filter(col => {
+      const columnDef = getColumnById(col.id);
+      if (columnDef?.adminOnly && !canSeeAdminColumns) {
+        return false;
+      }
+      return true;
+    });
+    return filtered;
+  }, [config, canSeeAdminColumns]);
+
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    loadData();
+  }, [filteredConfig, customerId]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await executeSimpleReport(filteredConfig, customerId);
+      setData(result);
+    } catch (err: any) {
+      console.error('Error loading report data:', err);
+      setError(err.message || 'Failed to load report data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSort = (columnId: string) => {
+    if (sortColumn === columnId) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(columnId);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortColumn || !data) return data;
+
+    const column = getColumnById(sortColumn);
+    if (!column) return data;
+
+    return [...data].sort((a, b) => {
+      const aVal = a[sortColumn];
+      const bVal = b[sortColumn];
+
+      if (aVal === null || aVal === undefined) return sortDirection === 'asc' ? 1 : -1;
+      if (bVal === null || bVal === undefined) return sortDirection === 'asc' ? -1 : 1;
+
+      if (column.type === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      if (column.type === 'date') {
+        return sortDirection === 'asc'
+          ? new Date(aVal).getTime() - new Date(bVal).getTime()
+          : new Date(bVal).getTime() - new Date(aVal).getTime();
+      }
+
+      const strA = String(aVal).toLowerCase();
+      const strB = String(bVal).toLowerCase();
+      if (sortDirection === 'asc') {
+        return strA.localeCompare(strB);
+      }
+      return strB.localeCompare(strA);
+    });
+  }, [data, sortColumn, sortDirection]);
+
+  const handleExport = () => {
+    if (!data || data.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    const csvData = data.map(row => {
+      const csvRow: Record<string, string> = {};
+      filteredConfig.columns.forEach(col => {
+        const columnDef = getColumnById(col.id);
+        csvRow[col.label] = formatValue(row[col.id], columnDef ? { type: columnDef.type, format: columnDef.format, id: columnDef.id } : undefined);
+      });
+      return csvRow;
+    });
+
+    exportToCSV(csvData, `${filteredConfig.name}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+  };
+
+  const formatValue = (value: any, columnDef?: { type?: string; format?: string; id?: string }): string => {
+    if (value === null || value === undefined) return 'N/A';
+
+    const type = columnDef?.type;
+    const formatType = columnDef?.format;
+    const columnId = columnDef?.id;
+
+    if (type === 'lookup' && lookups) {
+      const numVal = typeof value === 'number' ? value : parseInt(String(value), 10);
+      if (columnId === 'mode_id') {
+        return lookups.modes.get(numVal)?.code || lookups.modes.get(numVal)?.name || String(value);
+      }
+      if (columnId === 'status_id') {
+        return lookups.statuses.get(numVal)?.code || lookups.statuses.get(numVal)?.name || String(value);
+      }
+      if (columnId === 'equipment_type_id') {
+        return lookups.equipmentTypes.get(numVal)?.code || lookups.equipmentTypes.get(numVal)?.name || String(value);
+      }
+      return String(value);
+    }
+
+    switch (type) {
+      case 'number':
+        if (formatType === 'currency') {
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(value);
+        } else if (formatType === 'integer') {
+          return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+            useGrouping: false
+          }).format(value);
+        } else {
+          return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(value);
+        }
+      case 'date':
+        try {
+          return format(new Date(value), 'MMM dd, yyyy');
+        } catch {
+          return value;
+        }
+      case 'boolean':
+        return value ? 'Yes' : 'No';
+      default:
+        return String(value);
+    }
+  };
+
+  if (isLoading || lookupsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-red-200 p-12 text-center">
+        <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Error Loading Report</h3>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <button
+          onClick={loadData}
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
+        <TableIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-xl font-bold text-gray-800 mb-2">No Data Available</h3>
+        <p className="text-gray-600">
+          No data found matching your report criteria.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div data-report-content className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          {data.length} row{data.length !== 1 ? 's' : ''} returned
+        </div>
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+        >
+          <Download className="w-4 h-4" />
+          Export CSV
+        </button>
+      </div>
+
+      <FilterSummary filters={filteredConfig.filters || []} />
+
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                {filteredConfig.columns.map((col) => (
+                  <th
+                    key={col.id}
+                    onClick={() => handleSort(col.id)}
+                    className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{col.label}</span>
+                      {sortColumn === col.id ? (
+                        sortDirection === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <ArrowDown className="w-4 h-4 text-blue-600" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="w-4 h-4 text-gray-400" />
+                      )}
+                      {col.aggregation && (
+                        <span className="ml-1 text-blue-600 normal-case">({col.aggregation})</span>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {sortedData.map((row, rowIndex) => (
+                <tr key={rowIndex} className="hover:bg-gray-50 transition-colors">
+                  {filteredConfig.columns.map((col) => {
+                    const columnDef = getColumnById(col.id);
+                    const value = row[col.id];
+
+                    return (
+                      <td key={col.id} className="px-6 py-4 text-sm text-gray-900">
+                        {formatValue(value, columnDef ? { type: columnDef.type, format: columnDef.format, id: columnDef.id } : undefined)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {filteredConfig.isSummary && filteredConfig.groupBy && filteredConfig.groupBy.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Summary Report:</strong> Data is grouped by{' '}
+            {filteredConfig.groupBy.map(id => getColumnById(id)?.label).join(', ')}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

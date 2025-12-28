@@ -51,7 +51,7 @@ type SortDirection = 'asc' | 'desc';
 
 export function CarriersPage() {
   const navigate = useNavigate();
-  const { selectedCustomerId, isAdmin, effectiveCustomerIds } = useAuth();
+  const { effectiveCustomerId } = useAuth();
 
   const [datePreset, setDatePreset] = useState<DateRangePreset>('last30');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
@@ -75,10 +75,10 @@ export function CarriersPage() {
 
   useEffect(() => {
     loadCarrierData();
-  }, [selectedCustomerId, dateRange]);
+  }, [effectiveCustomerId, dateRange]);
 
   async function loadCarrierData() {
-    if (!selectedCustomerId) {
+    if (!effectiveCustomerId) {
       setLoading(false);
       return;
     }
@@ -94,14 +94,14 @@ export function CarriersPage() {
       let currentQuery = supabase
         .from('shipment_report_view')
         .select('carrier_name, carrier_id, retail, delivered_date, delivery_status')
-        .eq('customer_id', selectedCustomerId)
+        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', startDate)
         .lte('shipped_date', endDate);
 
       let prevQuery = supabase
         .from('shipment_report_view')
         .select('carrier_name, carrier_id, retail')
-        .eq('customer_id', selectedCustomerId)
+        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', prevStartDate)
         .lte('shipped_date', prevEndDate);
 
@@ -200,7 +200,7 @@ export function CarriersPage() {
   }
 
   async function loadMonthlyTrends(topCarriers: CarrierTrend[]) {
-    if (!selectedCustomerId || topCarriers.length === 0) return;
+    if (!effectiveCustomerId || topCarriers.length === 0) return;
 
     try {
       const startDate = new Date(dateRange.start);
@@ -209,7 +209,7 @@ export function CarriersPage() {
       const { data } = await supabase
         .from('shipment_report_view')
         .select('carrier_name, retail, shipped_date')
-        .eq('customer_id', selectedCustomerId)
+        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', startDate.toISOString().split('T')[0])
         .lte('shipped_date', dateRange.end.toISOString().split('T')[0])
         .in('carrier_name', topCarriers.map(c => c.carrier_name));

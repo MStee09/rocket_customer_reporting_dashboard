@@ -577,8 +577,8 @@ export function DashboardWidgetCard({
                 title: widget.name,
                 data: data,
                 dateRange: {
-                  start: dateRange.start?.toISOString() || '',
-                  end: dateRange.end?.toISOString() || '',
+                  start: dateRange.start || '',
+                  end: dateRange.end || '',
                 },
                 customerId: parseInt(customerId),
               }}

@@ -199,9 +199,7 @@ export function AIReportStudioPage() {
 
   useEffect(() => {
     const checkForContext = () => {
-      console.log('AI Studio: Checking for context...', { locationState: location.state });
       const contextStr = sessionStorage.getItem('ai_studio_context');
-      console.log('AI Studio: Context from sessionStorage:', contextStr);
 
       if (contextStr) {
         try {
@@ -209,23 +207,17 @@ export function AIReportStudioPage() {
           const contextTime = new Date(context.timestamp).getTime();
           const isValid = Date.now() - contextTime < 5 * 60 * 1000;
 
-          console.log('AI Studio: Context parsed', { context, isValid, age: Date.now() - contextTime });
-
           if (isValid) {
             setWidgetContext(context);
             setActiveTab('create');
             sessionStorage.removeItem('ai_studio_context');
-            console.log('AI Studio: Widget context set successfully');
           } else {
             sessionStorage.removeItem('ai_studio_context');
-            console.log('AI Studio: Context expired, removed');
           }
         } catch (e) {
           console.error('Failed to parse AI context:', e);
           sessionStorage.removeItem('ai_studio_context');
         }
-      } else {
-        console.log('AI Studio: No context found in sessionStorage');
       }
     };
 

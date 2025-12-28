@@ -32,8 +32,6 @@ export function AskAIButton({
       timestamp: new Date().toISOString(),
     };
 
-    console.log('AskAIButton: Storing context and navigating to AI Studio', contextData);
-
     sessionStorage.setItem('ai_studio_context', JSON.stringify(contextData));
     navigate('/ai-studio', { state: { hasContext: true } });
   };

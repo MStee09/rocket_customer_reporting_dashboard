@@ -191,16 +191,28 @@ export function ShipmentsPage() {
 
       if (!searchQuery) return true;
 
-      const query = searchQuery.toLowerCase();
-      return (
-        s.load_id.toString().includes(query) ||
-        s.po_reference?.toLowerCase().includes(query) ||
-        s.bol_number?.toLowerCase().includes(query) ||
-        s.reference_number?.toLowerCase().includes(query) ||
-        s.origin_city?.toLowerCase().includes(query) ||
-        s.destination_city?.toLowerCase().includes(query) ||
-        s.carrier_name?.toLowerCase().includes(query)
-      );
+      const query = searchQuery.toLowerCase().trim();
+      const searchTerms = query.split(/\s+/).filter(Boolean);
+
+      const searchableFields = [
+        s.load_id.toString(),
+        s.po_reference,
+        s.bol_number,
+        s.reference_number,
+        s.origin_city,
+        s.origin_state,
+        s.destination_city,
+        s.destination_state,
+        s.carrier_name,
+        s.mode_name,
+        statusKey,
+        s.origin_city && s.origin_state ? `${s.origin_city}, ${s.origin_state}` : null,
+        s.destination_city && s.destination_state ? `${s.destination_city}, ${s.destination_state}` : null,
+      ].filter(Boolean).map(f => f!.toLowerCase());
+
+      const combinedText = searchableFields.join(' ');
+
+      return searchTerms.every(term => combinedText.includes(term));
     });
   }, [shipments, searchQuery, activeStatus]);
 
@@ -256,7 +268,7 @@ export function ShipmentsPage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by Load #, BOL, PO #, Reference, or City..."
+          placeholder="Search shipments... (e.g., CA, Dallas, FedEx, In Transit)"
           className="w-full pl-12 pr-12 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
           autoFocus
         />

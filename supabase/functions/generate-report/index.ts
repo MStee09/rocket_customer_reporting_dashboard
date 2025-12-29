@@ -92,6 +92,17 @@ interface FeedbackTrigger {
   triggerPhrase: string;
 }
 
+interface DataProfile {
+  totalShipments: number;
+  stateCount: number;
+  carrierCount: number;
+  monthsOfData: number;
+  hasCanadaData: boolean;
+  topStates: string[];
+  topCarriers: string[];
+  avgShipmentsPerDay: number;
+}
+
 const COMPLAINT_PHRASES = [
   "not right", "not correct", "wrong", "doesn't look right",
   "numbers are off", "that's not what", "incorrect", "not accurate",
@@ -1116,11 +1127,112 @@ Once saved, you can export it to PDF anytime!"
 6. **Handle modifications smoothly** - Keep responses brief for simple changes
 `;
 
+const VISUALIZATION_SUGGESTIONS = `
+## PROACTIVE VISUALIZATION SUGGESTIONS
+
+You are a data visualization expert. When a user asks a vague or open-ended question, DON'T just pick a visualization - SUGGEST options based on their data characteristics.
+
+### When to Suggest (not just build):
+
+1. **Vague requests**: "Show me my data", "What does my shipping look like?", "Help me understand my freight"
+2. **Exploratory questions**: "What should I look at?", "What's interesting?", "Any insights?"
+3. **First-time users**: When there's no conversation history, offer guidance
+4. **After building a report**: Suggest related visualizations as follow-ups
+
+### How to Suggest:
+
+Analyze what you know about their data and offer 2-3 options:
+
+**Example 1 - Geographic data available:**
+User: "Show me my shipments"
+AI: "I can visualize your shipments several ways:
+
+- **Heat Map** - See which states receive the most shipments (you ship to 27 states)
+- **Bar Chart** - Compare your top 10 destinations by volume
+- **Trend Line** - See how your shipping volume has changed over time
+
+Which would be most useful for what you're trying to understand?"
+
+**Example 2 - Multiple carriers:**
+User: "Help me understand my carrier usage"
+AI: "Here are some ways to analyze your carriers:
+
+- **Radar Chart** - Compare your top carriers across cost, speed, and volume
+- **Pie Chart** - See what percentage of shipments each carrier handles
+- **Bar Chart** - Rank carriers by total spend or shipment count
+- **Bump Chart** - See how carrier rankings have changed month-to-month
+
+What aspect of carrier performance matters most to you?"
+
+**Example 3 - Time-based data:**
+User: "What's happening with my shipping?"
+AI: "I can show you different perspectives:
+
+- **Calendar Heatmap** - See your busiest shipping days
+- **Trend Line** - Track volume or spend over time
+- **Monthly Comparison** - Compare this month vs previous months
+
+Are you looking for patterns, trends, or specific time periods?"
+
+### Suggestion Rules:
+
+1. **Be specific about their data** - "you ship to 27 states", "you use 5 carriers", "you have 6 months of data"
+2. **Explain the value** - Why would they want each visualization?
+3. **Keep it to 2-4 options** - Don't overwhelm
+4. **End with a question** - Guide them to choose
+
+### After Building a Report - Suggest Follow-ups:
+
+After creating any report, suggest 1-2 related visualizations:
+
+"Here's your carrier spend breakdown.
+
+**You might also find useful:**
+- A heat map showing where each carrier delivers
+- A trend showing how carrier costs have changed over time
+
+Want me to create either of these?"
+
+### Data-Driven Suggestions:
+
+Base suggestions on what you know:
+
+| Data Characteristic | Suggest |
+|---------------------|---------|
+| Ships to 10+ states | Heat map, geographic analysis |
+| Uses 3+ carriers | Radar comparison, carrier breakdown |
+| 3+ months of data | Trend lines, bump charts |
+| High variance in costs | Outlier analysis, cost breakdown |
+| Multiple product types | Treemap, category breakdown |
+| Daily data available | Calendar heatmap |
+
+### DON'T Suggest When:
+
+- User is very specific: "Show me a bar chart of spend by carrier" - Just build it
+- User is refining: "Make it a pie chart instead" - Just change it
+- User asks a direct question: "What's my total spend?" - Just answer
+
+### Suggestion Format:
+
+Use this structure:
+\`\`\`
+I can show you this several ways:
+
+- **[Viz Type]** - [What it shows] ([specific data point about their data])
+- **[Viz Type]** - [What it shows] ([why it's relevant])
+- **[Viz Type]** - [What it shows] ([what they'd learn])
+
+[Question to guide their choice]
+\`\`\`
+`;
+
 const EXPERT_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
 
 ${CONVERSATIONAL_APPROACH}
 
 ${EXAMPLE_CONVERSATIONS}
+
+${VISUALIZATION_SUGGESTIONS}
 
 Your role:
 1. Have a natural conversation to understand what the user wants
@@ -1128,6 +1240,7 @@ Your role:
 3. Map their request to available database fields
 4. Generate clear, well-organized reports
 5. Explain insights in plain language
+6. Proactively suggest visualization options for vague requests
 
 You have deep expertise in:
 - Transportation and logistics terminology
@@ -1178,6 +1291,48 @@ async function fetchSchemaColumns(supabase: any): Promise<SchemaColumn[]> {
     .eq('view_name', 'shipment_report_view')
     .order('ordinal_position');
   return data || [];
+}
+
+async function fetchDataProfile(supabase: any, customerId: string): Promise<DataProfile | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_customer_data_profile', {
+      p_customer_id: customerId
+    });
+
+    if (error) {
+      console.error('Failed to fetch data profile:', error);
+      return null;
+    }
+
+    return data as DataProfile;
+  } catch (e) {
+    console.error('Error fetching data profile:', e);
+    return null;
+  }
+}
+
+function formatDataProfileContext(profile: DataProfile | null): string {
+  if (!profile || profile.totalShipments === 0) return '';
+
+  const topStatesStr = Array.isArray(profile.topStates)
+    ? profile.topStates.slice(0, 5).join(', ')
+    : '';
+  const topCarriersStr = Array.isArray(profile.topCarriers)
+    ? profile.topCarriers.slice(0, 3).join(', ')
+    : '';
+
+  return `
+CUSTOMER DATA PROFILE:
+- Total Shipments: ${profile.totalShipments.toLocaleString()}
+- Ships to ${profile.stateCount} states${profile.hasCanadaData ? ' (including Canadian provinces)' : ''}
+- Uses ${profile.carrierCount} carriers
+- Has ${profile.monthsOfData} months of data
+${topStatesStr ? `- Top destinations: ${topStatesStr}` : ''}
+${topCarriersStr ? `- Top carriers: ${topCarriersStr}` : ''}
+- Average ${profile.avgShipmentsPerDay.toFixed(1)} shipments per day
+
+Use this information to make specific, relevant visualization suggestions when the user asks vague or open-ended questions.
+`;
 }
 
 function buildDynamicSchemaContext(
@@ -1452,10 +1607,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const [unifiedKnowledge, knowledgeDocs, schemaColumns] = await Promise.all([
+    const [unifiedKnowledge, knowledgeDocs, schemaColumns, dataProfile] = await Promise.all([
       fetchUnifiedKnowledge(supabase, customerId),
       fetchKnowledgeDocuments(supabase, customerId),
       fetchSchemaColumns(supabase),
+      customerId ? fetchDataProfile(supabase, customerId) : Promise.resolve(null),
     ]);
 
     const fieldKnowledge = unifiedKnowledge.filter(k => k.knowledge_type === 'field');
@@ -1465,6 +1621,9 @@ Deno.serve(async (req: Request) => {
     console.log(`  - Fields: ${fieldKnowledge.length}, Terms: ${termKnowledge.length}`);
     console.log(`Loaded: ${knowledgeDocs.length} knowledge docs`);
     console.log(`Loaded: ${schemaColumns.length} schema columns`);
+    console.log(`Data profile: ${dataProfile ? `${dataProfile.totalShipments} shipments, ${dataProfile.stateCount} states, ${dataProfile.carrierCount} carriers` : 'not available'}`);
+
+    const dataProfileContext = formatDataProfileContext(dataProfile);
 
     const fieldContexts: FieldBusinessContext[] = fieldKnowledge.map(f => ({
       field_name: f.key,
@@ -1517,6 +1676,7 @@ Keep it brief and move on.`;
 
 ${accessContext}
 ${customerContext}
+${dataProfileContext}
 
 ${unifiedKnowledgeContext}
 

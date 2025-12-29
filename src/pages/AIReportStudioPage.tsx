@@ -11,7 +11,9 @@ import {
   ReportLibrary,
   ReportPreviewHeader,
   StudioHeader,
+  FollowUpSuggestions,
 } from '../components/ai-studio';
+import type { DataProfile } from '../components/ai-studio/SuggestedPrompts';
 import { ReportRenderer } from '../components/reports/studio';
 import {
   ChatMessage as ChatMessageType,
@@ -125,6 +127,7 @@ export function AIReportStudioPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -166,6 +169,24 @@ export function AIReportStudioPage() {
   }, [effectiveCustomerId]);
 
   useEffect(() => { loadKnowledgeContext(); }, [loadKnowledgeContext]);
+
+  const loadDataProfile = useCallback(async () => {
+    if (!effectiveCustomerId) return;
+    try {
+      const { data, error } = await supabase.rpc('get_customer_data_profile', {
+        p_customer_id: String(effectiveCustomerId)
+      });
+      if (error) {
+        console.error('Failed to load data profile:', error);
+        return;
+      }
+      setDataProfile(data as DataProfile);
+    } catch (error) {
+      console.error('Failed to load data profile:', error);
+    }
+  }, [effectiveCustomerId]);
+
+  useEffect(() => { loadDataProfile(); }, [loadDataProfile]);
 
   const executeReport = useCallback(async (report: AIReportDefinition) => {
     if (!effectiveCustomerId) return;
@@ -428,6 +449,7 @@ export function AIReportStudioPage() {
                 onSendMessage={handleSendMessage}
                 isGenerating={isGenerating}
                 messagesEndRef={messagesEndRef}
+                dataProfile={dataProfile}
               />
               <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
                 <ChatInput onSend={handleSendMessage} isLoading={isGenerating} placeholder="Describe your report..." />
@@ -515,6 +537,16 @@ export function AIReportStudioPage() {
                     )}
                     <div ref={reportRef} data-report-content className="p-6 bg-white">
                       <ReportRenderer report={currentReport} data={executedData} isLoading={false} onDateRangeChange={handleDateRangeChange} embedded />
+                      {executedData && currentReport && (
+                        <FollowUpSuggestions
+                          currentReportType={currentReport.sections[0]?.type || 'default'}
+                          groupBy={
+                            (currentReport.sections.find(s => s.type === 'chart') as { config?: { groupBy?: string } })?.config?.groupBy ||
+                            (currentReport.sections.find(s => s.type === 'table') as { config?: { groupBy?: string } })?.config?.groupBy
+                          }
+                          onSuggestionClick={handleSendMessage}
+                        />
+                      )}
                     </div>
                     {showSchedulePrompt && executedData && (
                       <div className="px-6 pb-6">

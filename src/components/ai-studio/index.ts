@@ -7,4 +7,5 @@ export { SuggestedPrompts } from './SuggestedPrompts';
 export { ReportLibrary } from './ReportLibrary';
 export { ReportPreviewHeader } from './ReportPreviewHeader';
 export { StudioHeader } from './StudioHeader';
+export { FollowUpSuggestions } from './FollowUpSuggestions';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';

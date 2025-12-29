@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/dateUtils';
+import { Card } from '../ui/Card';
 
 interface CustomerActivity {
   customerId: number;
@@ -83,7 +84,7 @@ export function CustomerActivityTable({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="px-6 py-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-500 flex items-center justify-center">
             <Users className="w-5 h-5 text-white" />
@@ -96,13 +97,13 @@ export function CustomerActivityTable({
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="px-6 py-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-500 flex items-center justify-center">
             <Users className="w-5 h-5 text-white" />
@@ -113,12 +114,12 @@ export function CustomerActivityTable({
           </div>
         </div>
         <div className="text-center py-8 text-slate-500">No customer data available</div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+    <Card variant="elevated" padding="none" className="overflow-hidden">
       <div className="px-6 py-4 border-b flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-slate-500 flex items-center justify-center">
           <Users className="w-5 h-5 text-white" />
@@ -186,6 +187,6 @@ export function CustomerActivityTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }

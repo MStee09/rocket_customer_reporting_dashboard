@@ -18,6 +18,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { SavedAIReport } from '../../services/aiReportService';
+import { Card } from '../ui/Card';
 
 interface SavedReportsModalProps {
   isOpen: boolean;
@@ -179,9 +180,12 @@ export function SavedReportsModal({
                 const isDeleting = deleteConfirm === report.id;
 
                 return (
-                  <div
+                  <Card
                     key={report.id}
-                    className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-blue-300 hover:shadow-lg transition-all duration-200"
+                    variant="default"
+                    padding="none"
+                    hover={true}
+                    className="group overflow-hidden"
                   >
                     <div className="p-5">
                       <div className="flex items-start gap-3 mb-3">
@@ -284,7 +288,7 @@ export function SavedReportsModal({
                         </div>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>

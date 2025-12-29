@@ -1,4 +1,5 @@
 import { Clock, Package, Truck, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface Shipment {
   load_id: number;
@@ -69,9 +70,12 @@ export function ShipmentRow({ shipment, onClick, showFinancials }: ShipmentRowPr
   const mode = formatMode(shipment.mode_name);
 
   return (
-    <div
+    <Card
+      variant="default"
+      padding="sm"
+      hover={true}
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
+      className="group"
     >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -126,6 +130,6 @@ export function ShipmentRow({ shipment, onClick, showFinancials }: ShipmentRowPr
           <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

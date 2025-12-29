@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { chartColors, formatValue } from './colors';
 import { getTheme, ReportTheme } from './reportTheme';
+import { Card } from '../../ui/Card';
 
 export interface ChartDataPoint {
   name: string;
@@ -230,15 +231,12 @@ export function ReportChart({
     }
   };
 
-  const containerClasses = compact
-    ? 'bg-white rounded-lg border border-gray-200 p-3 shadow-sm'
-    : 'bg-white rounded-xl border border-gray-200 p-5 shadow-sm';
   const titleClasses = compact
     ? 'text-sm font-semibold text-gray-900 mb-2'
     : 'text-lg font-semibold text-gray-900 mb-4';
 
   return (
-    <div className={containerClasses}>
+    <Card variant="default" padding={compact ? 'sm' : 'md'}>
       {title && (
         <h3 className={titleClasses}>{title}</h3>
       )}
@@ -247,6 +245,6 @@ export function ReportChart({
           {renderChart()}
         </ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   );
 }

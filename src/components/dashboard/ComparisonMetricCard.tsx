@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { ReactNode } from 'react';
+import { Card } from '../ui/Card';
 
 interface ComparisonMetricCardProps {
   title: string;
@@ -40,7 +41,7 @@ export function ComparisonMetricCard({
   const isNegative = positiveDirection === 'up' ? change < 0 : change > 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+    <Card variant="default" padding="md">
       <div className="flex items-center gap-2 mb-3">
         {icon && (
           <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
@@ -69,6 +70,6 @@ export function ComparisonMetricCard({
          <Minus className="w-4 h-4" />}
         <span>{change > 0 ? '+' : ''}{change.toFixed(1)}% vs comparison</span>
       </div>
-    </div>
+    </Card>
   );
 }

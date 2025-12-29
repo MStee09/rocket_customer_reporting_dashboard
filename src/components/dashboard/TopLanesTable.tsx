@@ -1,5 +1,6 @@
 import { Loader2, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../../utils/dateUtils';
+import { Card } from '../ui/Card';
 
 interface LaneData {
   origin: string;
@@ -17,28 +18,28 @@ interface TopLanesTableProps {
 export function TopLanesTable({ data, isLoading }: TopLanesTableProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Top 10 Lanes</h2>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Top 10 Lanes</h2>
         <div className="flex items-center justify-center h-96 text-slate-500">
           No lane data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-4 h-4 text-slate-600" />
         <h2 className="text-lg font-bold text-slate-800">Top 10 Lanes</h2>
@@ -67,6 +68,6 @@ export function TopLanesTable({ data, isLoading }: TopLanesTableProps) {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }

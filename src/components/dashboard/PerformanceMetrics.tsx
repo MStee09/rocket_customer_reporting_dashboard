@@ -1,4 +1,5 @@
 import { Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface PerformanceMetricsProps {
   onTimePercentage?: number;
@@ -13,28 +14,28 @@ export function PerformanceMetrics({
 }: PerformanceMetricsProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Performance Metrics</h2>
         <div className="flex items-center justify-center h-32">
           <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (onTimePercentage === undefined && avgTransitDays === undefined) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Performance Metrics</h2>
         <div className="flex items-center justify-center h-32 text-slate-500">
           No performance data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <h2 className="text-xl font-bold text-slate-800 mb-6">Performance Metrics</h2>
       <div className="grid md:grid-cols-2 gap-6">
         {onTimePercentage !== undefined && (
@@ -66,6 +67,6 @@ export function PerformanceMetrics({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

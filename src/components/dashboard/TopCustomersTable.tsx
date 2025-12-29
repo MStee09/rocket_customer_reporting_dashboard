@@ -1,6 +1,7 @@
 import { Building2 } from 'lucide-react';
 import { CustomerData } from '../../hooks/useDashboardData';
 import { formatCurrency } from '../../utils/dateUtils';
+import { Card } from '../ui/Card';
 
 interface TopCustomersTableProps {
   data: CustomerData[];
@@ -11,7 +12,7 @@ interface TopCustomersTableProps {
 export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCustomersTableProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <Card variant="default" padding="lg">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Building2 className="w-5 h-5 text-blue-600" />
@@ -23,13 +24,13 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
             <div key={i} className="h-12 bg-slate-100 rounded"></div>
           ))}
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <Card variant="default" padding="lg">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-blue-100 rounded-lg">
             <Building2 className="w-5 h-5 text-blue-600" />
@@ -39,12 +40,12 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
         <div className="text-center py-8 text-slate-500">
           No customer data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+    <Card variant="default" padding="none" className="overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
           <Building2 className="w-5 h-5 text-white" />
@@ -89,6 +90,6 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
           ))}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }

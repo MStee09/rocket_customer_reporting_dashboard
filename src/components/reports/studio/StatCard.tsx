@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { formatValue } from './colors';
 import { getTheme, ReportTheme } from './reportTheme';
+import { Card } from '../../ui/Card';
 
 const iconMap = {
   dollar: DollarSign,
@@ -65,7 +66,7 @@ export function StatCard({
 
   if (compact) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+      <Card variant="default" padding="sm">
         <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <p data-stat-label className="text-gray-500 text-xs font-medium truncate">{label}</p>
@@ -83,12 +84,12 @@ export function StatCard({
             </div>
           )}
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <Card variant="default" padding="md" hover={true}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p data-stat-label className="text-gray-500 text-sm font-medium truncate">{label}</p>
@@ -127,6 +128,6 @@ export function StatCard({
           <span className="text-gray-400 text-xs">vs previous period</span>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

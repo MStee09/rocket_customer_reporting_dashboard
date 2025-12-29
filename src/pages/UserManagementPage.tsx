@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Users, Edit2, Loader2, X, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatDate } from '../utils/dateUtils';
+import { Card } from '../components/ui/Card';
 
 interface User {
   id: string;
@@ -177,7 +178,7 @@ export function UserManagementPage() {
         <p className="text-slate-600 mt-1">Manage user roles and customer access</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+      <Card variant="elevated" padding="none">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
@@ -305,7 +306,7 @@ export function UserManagementPage() {
             </p>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

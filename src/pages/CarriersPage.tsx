@@ -13,6 +13,7 @@ import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ColumnConfig } from '../services/exportService';
+import { Card } from '../components/ui/Card';
 
 interface CarrierMetrics {
   carrier_name: string;
@@ -369,7 +370,7 @@ export function CarriersPage() {
 
       {summaryMetrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">Active Carriers</p>
@@ -381,9 +382,9 @@ export function CarriersPage() {
                 <Truck className="w-6 h-6 text-blue-600" />
               </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-600">Total Spend</p>
@@ -401,9 +402,9 @@ export function CarriersPage() {
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-600">Avg/Shipment</p>
@@ -422,9 +423,9 @@ export function CarriersPage() {
                 <Package className="w-6 h-6 text-amber-600" />
               </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-600">On-Time</p>
@@ -442,11 +443,11 @@ export function CarriersPage() {
                 <Clock className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <Card variant="outlined" padding="none">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Carrier Comparison</h2>
           <button
@@ -560,11 +561,11 @@ export function CarriersPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {carriers.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Spend by Carrier</h3>
             {pieData.length > 0 && (
               <ResponsiveContainer width="100%" height={300}>
@@ -586,9 +587,9 @@ export function CarriersPage() {
                 </PieChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <Card variant="outlined" padding="lg">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Monthly Carrier Trend</h3>
             {monthlyData.length > 0 && (
               <ResponsiveContainer width="100%" height={300}>
@@ -627,7 +628,7 @@ export function CarriersPage() {
                 </LineChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </Card>
         </div>
       )}
 

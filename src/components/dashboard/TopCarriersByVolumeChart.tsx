@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Card } from '../ui/Card';
 
 interface CarrierVolumeData {
   name: string;
@@ -22,17 +23,17 @@ interface TopCarriersByVolumeChartProps {
 export function TopCarriersByVolumeChart({ data, isLoading }: TopCarriersByVolumeChartProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="flex items-center justify-center h-[350px]">
           <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-5 h-5 text-green-600" />
           <h2 className="text-xl font-bold text-slate-800">Top 10 Carriers by Volume</h2>
@@ -40,12 +41,12 @@ export function TopCarriersByVolumeChart({ data, isLoading }: TopCarriersByVolum
         <div className="flex items-center justify-center h-[350px] text-slate-500">
           No carrier data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-5 h-5 text-green-600" />
         <h2 className="text-xl font-bold text-slate-800">Top 10 Carriers by Volume</h2>
@@ -59,6 +60,6 @@ export function TopCarriersByVolumeChart({ data, isLoading }: TopCarriersByVolum
           <Bar dataKey="count" fill="#10b981" />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Loader2 } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface CarrierData {
   name: string;
@@ -16,28 +17,28 @@ const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 export function CarrierMixChart({ data, isLoading }: CarrierMixChartProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Carrier Mix</h2>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Carrier Mix</h2>
         <div className="flex items-center justify-center h-96 text-slate-500">
           No carrier data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <h2 className="text-xl font-bold text-slate-800 mb-6">Carrier Mix</h2>
       <ResponsiveContainer width="100%" height={400}>
         <PieChart>
@@ -63,6 +64,6 @@ export function CarrierMixChart({ data, isLoading }: CarrierMixChartProps) {
           />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

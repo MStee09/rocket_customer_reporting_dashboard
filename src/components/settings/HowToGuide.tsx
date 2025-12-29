@@ -4,6 +4,7 @@ import {
   BookOpen, Lightbulb, Brain, Calculator, Tags,
   ChevronDown, ChevronRight
 } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface Section {
   id: string;
@@ -476,7 +477,7 @@ export function HowToGuide() {
           const isExpanded = expandedSection === section.id;
 
           return (
-            <div key={section.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+            <Card key={section.id} variant="default" padding="none" className="overflow-hidden">
               <button
                 onClick={() => setExpandedSection(isExpanded ? null : section.id)}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
@@ -503,7 +504,7 @@ export function HowToGuide() {
                   />
                 </div>
               )}
-            </div>
+            </Card>
           );
         })}
       </div>

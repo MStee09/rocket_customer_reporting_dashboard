@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShipmentFlowMap } from './ShipmentFlowMap';
 import { CostPerStateMap } from './CostPerStateMap';
 import { StateData } from '../../hooks/useDashboardData';
+import { Card } from '../ui/Card';
 
 interface CombinedMapViewProps {
   effectiveCustomerIds: number[];
@@ -27,7 +28,7 @@ export function CombinedMapView({
   const [activeView, setActiveView] = useState<MapView>('flow');
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+    <Card variant="elevated" padding="none" className="overflow-hidden">
       <div className="border-b border-slate-200">
         <div className="flex">
           <button
@@ -66,6 +67,6 @@ export function CombinedMapView({
           <CostPerStateMap data={stateData} isLoading={stateLoading} />
         )}
       </div>
-    </div>
+    </Card>
   );
 }

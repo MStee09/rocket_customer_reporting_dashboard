@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Card } from '../ui/Card';
 
 interface CustomerVolumeData {
   name: string;
@@ -22,17 +23,17 @@ interface TopCustomersByVolumeChartProps {
 export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVolumeChartProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="flex items-center justify-center h-[350px]">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5 text-blue-600" />
           <h2 className="text-xl font-bold text-slate-800">Top 10 Customers by Volume</h2>
@@ -40,12 +41,12 @@ export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVol
         <div className="flex items-center justify-center h-[350px] text-slate-500">
           No customer data available
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <div className="flex items-center gap-2 mb-4">
         <BarChart3 className="w-5 h-5 text-blue-600" />
         <h2 className="text-xl font-bold text-slate-800">Top 10 Customers by Volume</h2>
@@ -59,6 +60,6 @@ export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVol
           <Bar dataKey="count" fill="#3b82f6" />
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

@@ -1,5 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface MonthlyDataPoint {
   month: string;
@@ -15,28 +16,28 @@ interface MonthlySpendChartProps {
 export function MonthlySpendChart({ data, isLoading }: MonthlySpendChartProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
         </div>
-      </div>
+      </Card>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+      <Card variant="elevated" padding="lg">
         <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
         <div className="flex items-center justify-center h-96 text-slate-500">
           No data available for selected period
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+    <Card variant="elevated" padding="lg">
       <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data}>
@@ -73,6 +74,6 @@ export function MonthlySpendChart({ data, isLoading }: MonthlySpendChartProps) {
           />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </Card>
   );
 }

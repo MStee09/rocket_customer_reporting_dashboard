@@ -5,6 +5,7 @@ import { ReportRenderer } from '../components/reports/studio';
 import { supabase } from '../lib/supabase';
 import { AIReportDefinition, ExecutedReportData } from '../types/aiReport';
 import { executeReportData } from '../services/reportDataExecutor';
+import { Card } from '../components/ui/Card';
 
 interface SharedReport {
   id: string;
@@ -279,7 +280,7 @@ export function SharedReportPage() {
 
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <Card variant="default" padding="none">
               {data.length === 0 ? (
                 <div className="px-6 py-12 text-center text-gray-500">
                   No data available for this date range
@@ -316,7 +317,7 @@ export function SharedReportPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
         </main>
 
@@ -400,14 +401,14 @@ export function SharedReportPage() {
             </div>
           )}
           <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <Card variant="default" padding="md">
               <ReportRenderer
                 report={definitionWithDefaults}
                 data={executedData}
                 isLoading={false}
                 embedded={true}
               />
-            </div>
+            </Card>
           </div>
         </div>
       </main>

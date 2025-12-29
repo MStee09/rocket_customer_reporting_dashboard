@@ -2,6 +2,7 @@ import { Filter } from 'lucide-react';
 import { ColumnFilter, DateRangeValue, NumberRangeValue } from '../../types/filters';
 import { getColumnById } from '../../config/reportColumns';
 import { useLookupTables } from '../../hooks/useLookupTables';
+import { Card } from '../ui/Card';
 
 interface FilterSummaryProps {
   filters: ColumnFilter[];
@@ -117,7 +118,7 @@ export default function FilterSummary({ filters, compact = false, className = ''
   }
 
   return (
-    <div className={`bg-blue-50 border border-blue-200 rounded-lg p-3 ${className}`}>
+    <Card variant="subtle" padding="sm" className={`border-blue-200 bg-blue-50 ${className}`}>
       <div className="flex items-center gap-2 mb-2">
         <Filter className="w-4 h-4 text-blue-600" />
         <span className="text-sm font-medium text-blue-900">
@@ -134,6 +135,6 @@ export default function FilterSummary({ filters, compact = false, className = ''
           </span>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Lock, Save, Loader2, HelpCircle, BookOpen, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Card } from '../components/ui/Card';
 
 type Tab = 'profile' | 'how-to';
 
@@ -87,7 +88,7 @@ export function SettingsPage() {
 
       {activeTab === 'profile' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+          <Card variant="elevated" padding="lg">
             <div className="flex items-center gap-2 mb-6">
               <User className="w-5 h-5 text-rocket-600" />
               <h2 className="text-xl font-bold text-slate-800">User Profile</h2>
@@ -140,9 +141,9 @@ export function SettingsPage() {
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+          <Card variant="elevated" padding="lg">
             <div className="flex items-center gap-2 mb-6">
               <Lock className="w-5 h-5 text-green-600" />
               <h2 className="text-xl font-bold text-slate-800">Change Password</h2>
@@ -213,19 +214,19 @@ export function SettingsPage() {
                 Password must be at least 8 characters long
               </p>
             </form>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+          <Card variant="elevated" padding="lg">
             <h2 className="text-xl font-bold text-slate-800 mb-4">Preferences</h2>
             <p className="text-slate-600 text-sm">
               User preferences are automatically saved as you use the application.
             </p>
-          </div>
+          </Card>
         </div>
       )}
 
       {activeTab === 'how-to' && (
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
+        <Card variant="elevated" padding="lg">
           <div className="text-center max-w-xl mx-auto">
             <div className="w-16 h-16 bg-rocket-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <BookOpen className="w-8 h-8 text-rocket-600" />
@@ -264,7 +265,7 @@ export function SettingsPage() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

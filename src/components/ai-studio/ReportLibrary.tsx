@@ -12,6 +12,7 @@ import {
   Table2,
 } from 'lucide-react';
 import { SavedAIReport } from '../../services/aiReportService';
+import { Card } from '../ui/Card';
 
 type SortOption = 'newest' | 'oldest' | 'name';
 
@@ -152,10 +153,13 @@ export function ReportLibrary({
               const accent = accentColors[index % accentColors.length];
 
               return (
-                <div
+                <Card
                   key={report.id}
-                  className="group bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer flex"
+                  variant="default"
+                  padding="none"
+                  hover={true}
                   onClick={() => navigate(`/ai-reports/${report.id}`)}
+                  className="group overflow-hidden cursor-pointer flex"
                 >
                   <div className={`w-1 ${accent} flex-shrink-0`} />
 
@@ -254,7 +258,7 @@ export function ReportLibrary({
                       )}
                     </div>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>

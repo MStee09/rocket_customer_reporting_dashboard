@@ -1,6 +1,7 @@
 import { User, Bot, AlertCircle, Check } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
 import { AIReportDefinition } from '../../types/aiReport';
+import { Card } from '../ui/Card';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -116,7 +117,7 @@ function ReportCard({ report, onPreview, onSave }: ReportCardProps) {
   const uniqueTypes = [...new Set(sectionTypes)];
 
   return (
-    <div className="mt-3 bg-white border border-gray-200 rounded-xl p-4 shadow-sm text-left">
+    <Card variant="default" padding="md" className="mt-3 text-left">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-gray-900 truncate">{report.name}</h4>
@@ -164,7 +165,7 @@ function ReportCard({ report, onPreview, onSave }: ReportCardProps) {
           </button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 

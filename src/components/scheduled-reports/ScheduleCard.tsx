@@ -17,6 +17,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { ScheduledReport, ScheduledReportRun } from '../../types/scheduledReports';
+import { Card } from '../ui/Card';
 
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -114,10 +115,10 @@ export function ScheduleCard({
   onToggleSelect,
 }: ScheduleCardProps) {
   return (
-    <div
-      className={`bg-white border rounded-xl overflow-hidden ${
-        isSelected ? 'ring-2 ring-blue-500' : ''
-      }`}
+    <Card
+      variant="default"
+      padding="none"
+      className={`overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
     >
       <div className="p-4">
         <div className="flex items-start justify-between">
@@ -277,6 +278,6 @@ export function ScheduleCard({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

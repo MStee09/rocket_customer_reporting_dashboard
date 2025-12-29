@@ -1,6 +1,7 @@
 import { CheckCircle2, Database, Calculator, Layers, BarChart3, AlertCircle } from 'lucide-react';
 import { ReportBuilderState } from '../../types/reports';
 import { TABLE_METADATA } from '../../config/reportBuilderMetadata';
+import { Card } from '../ui/Card';
 
 interface PreviewStepProps {
   state: ReportBuilderState;
@@ -88,7 +89,7 @@ export function PreviewStep({ state }: PreviewStepProps) {
       )}
 
       <div className="space-y-4">
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
             <h4 className="font-semibold text-slate-800">Report Information</h4>
           </div>
@@ -102,9 +103,9 @@ export function PreviewStep({ state }: PreviewStepProps) {
               <p className="text-slate-700">{state.description || <span className="text-red-500">Not set</span>}</p>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <Database className="w-4 h-4 text-slate-600" />
             <h4 className="font-semibold text-slate-800">Data Source</h4>
@@ -144,9 +145,9 @@ export function PreviewStep({ state }: PreviewStepProps) {
               {getCalculationSummary()}
             </p>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <Layers className="w-4 h-4 text-slate-600" />
             <h4 className="font-semibold text-slate-800">Grouping</h4>
@@ -181,9 +182,9 @@ export function PreviewStep({ state }: PreviewStepProps) {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-slate-600" />
             <h4 className="font-semibold text-slate-800">Visualization</h4>
@@ -191,7 +192,7 @@ export function PreviewStep({ state }: PreviewStepProps) {
           <div className="p-4">
             <p className="text-slate-900 capitalize">{state.visualization.replace('_', ' ')}</p>
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { ExecutedReportData } from '../../types/aiReport';
 import { AIReportWidgetConfig } from '../ai-studio/AddToDashboardModal';
 import { ReportRenderer } from '../reports/studio/ReportRenderer';
+import { Card } from '../ui/Card';
 
 interface AIReportWidgetProps {
   config: AIReportWidgetConfig;
@@ -133,7 +134,7 @@ export function AIReportWidget({ config, customerId, isAdmin = false, onRemove }
   };
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${sizeClasses[config.size]}`}>
+    <Card variant="default" padding="none" className={`overflow-hidden ${sizeClasses[config.size]}`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <h3 className="font-medium text-gray-900 truncate flex-1">{config.title}</h3>
         <div className="flex items-center gap-1">
@@ -226,6 +227,6 @@ export function AIReportWidget({ config, customerId, isAdmin = false, onRemove }
           Last updated: {lastRefresh.toLocaleTimeString()}
         </p>
       </div>
-    </div>
+    </Card>
   );
 }

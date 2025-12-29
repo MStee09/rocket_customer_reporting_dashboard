@@ -1,4 +1,5 @@
 import { Filter, Search } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface Customer {
   customer_id: number;
@@ -35,7 +36,7 @@ export function ScheduleFilters({
   showCustomerFilter = true,
 }: ScheduleFiltersProps) {
   return (
-    <div className="bg-white border rounded-xl p-4 mb-6">
+    <Card variant="default" padding="md" className="mb-6">
       <div className="flex items-center gap-2 mb-3">
         <Filter className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Filters</span>
@@ -113,6 +114,6 @@ export function ScheduleFilters({
           </button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

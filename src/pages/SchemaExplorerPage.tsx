@@ -3,6 +3,7 @@ import { Database, Table, Loader2, Copy, CheckCircle2, List } from 'lucide-react
 import { supabase } from '../lib/supabase';
 import { fetchTablesAndViews, fetchTableData } from '../lib/database';
 import { TableMetadata } from '../types/database';
+import { Card } from '../components/ui/Card';
 
 type TabId = 'tables' | 'lookups';
 
@@ -103,7 +104,7 @@ function TablesTab() {
   return (
     <div className="grid md:grid-cols-4 gap-6">
       <div className="md:col-span-1">
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-4">
+        <Card variant="elevated" padding="md">
           <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
             <Database className="w-5 h-5 text-blue-600" />
             Tables & Views
@@ -127,30 +128,30 @@ function TablesTab() {
               </button>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="md:col-span-3">
         {selectedTable ? (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+            <Card variant="elevated" padding="lg">
               <h2 className="text-2xl font-bold text-slate-800 mb-2">{selectedTable}</h2>
               <p className="text-slate-600">
                 {tables.find((t) => t.name === selectedTable)?.type === 'view'
                   ? 'Database View'
                   : 'Database Table'}
               </p>
-            </div>
+            </Card>
 
             {isLoadingTable ? (
-              <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+              <Card variant="elevated" padding="lg">
                 <div className="flex items-center justify-center py-10">
                   <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                 </div>
-              </div>
+              </Card>
             ) : (
               <>
-                <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+                <Card variant="elevated" padding="lg">
                   <h3 className="text-lg font-bold text-slate-800 mb-4">Columns</h3>
                   {tableData?.columns && tableData.columns.length > 0 ? (
                     <div className="overflow-x-auto">
@@ -187,9 +188,9 @@ function TablesTab() {
                   ) : (
                     <p className="text-slate-500">No columns found</p>
                   )}
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+                <Card variant="elevated" padding="lg">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-slate-800">Example Query</h3>
                     <button
@@ -212,15 +213,17 @@ function TablesTab() {
                   <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg overflow-x-auto text-sm">
                     <code>{getExampleQuery(selectedTable)}</code>
                   </pre>
-                </div>
+                </Card>
               </>
             )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-12 text-center">
-            <Database className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">Select a table to view details</p>
-          </div>
+          <Card variant="elevated" padding="lg">
+            <div className="text-center">
+              <Database className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500">Select a table to view details</p>
+            </div>
+          </Card>
         )}
       </div>
     </div>
@@ -338,7 +341,7 @@ function LookupCard({
   columns: LookupCardColumn[];
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <Card variant="outlined" padding="none">
       <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
         <div className="flex justify-between items-start">
           <div>
@@ -388,6 +391,6 @@ function LookupCard({
       <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
         {data.length} records
       </div>
-    </div>
+    </Card>
   );
 }

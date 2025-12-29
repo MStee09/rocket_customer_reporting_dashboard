@@ -1,4 +1,5 @@
 import { LucideIcon, Loader2 } from 'lucide-react';
+import { Card } from '../ui/Card';
 
 interface MetricCardProps {
   label: string;
@@ -19,9 +20,6 @@ export function MetricCard({
   isLoading,
   onClick,
 }: MetricCardProps) {
-  const baseClasses = 'bg-white rounded-xl shadow-lg border border-slate-200 p-6 transition-shadow text-left';
-  const interactiveClasses = onClick ? 'cursor-pointer hover:shadow-xl' : '';
-
   const content = (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -45,13 +43,15 @@ export function MetricCard({
     </>
   );
 
-  if (onClick) {
-    return (
-      <button className={`${baseClasses} ${interactiveClasses}`} onClick={onClick}>
-        {content}
-      </button>
-    );
-  }
-
-  return <div className={baseClasses}>{content}</div>;
+  return (
+    <Card
+      variant="elevated"
+      padding="lg"
+      hover={!!onClick}
+      onClick={onClick}
+      className="text-left"
+    >
+      {content}
+    </Card>
+  );
 }

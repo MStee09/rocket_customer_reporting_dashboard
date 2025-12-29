@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { formatValue } from './colors';
+import { Card } from '../../ui/Card';
 
 export interface TableColumn {
   key: string;
@@ -102,16 +103,13 @@ export function ReportTable({
   const displayData = maxRows ? sortedData.slice(0, maxRows) : sortedData;
   const hasMore = maxRows && data.length > maxRows;
 
-  const containerClasses = compact
-    ? 'bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden'
-    : 'bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden';
   const headerPadding = compact ? 'px-3 py-2' : 'px-5 py-4';
   const cellPadding = compact ? 'px-3 py-2' : 'px-5 py-3';
   const titleClasses = compact ? 'text-sm font-semibold text-gray-900' : 'text-lg font-semibold text-gray-900';
   const textSize = compact ? 'text-xs' : 'text-sm';
 
   return (
-    <div className={containerClasses}>
+    <Card variant="default" padding="none" className="overflow-hidden">
       {title && (
         <div className={`${headerPadding} border-b border-gray-200`}>
           <h3 className={titleClasses}>{title}</h3>
@@ -190,6 +188,6 @@ export function ReportTable({
           </button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

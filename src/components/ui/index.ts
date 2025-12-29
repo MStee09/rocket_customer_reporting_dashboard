@@ -6,7 +6,7 @@ export { Badge } from './Badge';
 
 export { Skeleton, SkeletonCard, SkeletonTable } from './Skeleton';
 
-export { Card, CardHeader, CardBody, CardFooter } from './Card';
+export { Card, CardHeader, CardTitle, CardDescription, CardBody, CardFooter } from './Card';
 
 export { Modal } from './Modal';
 

@@ -12,6 +12,7 @@ import {
 } from '../components/scheduled-reports';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Card } from '../components/ui/Card';
 
 interface Customer {
   customer_id: number;
@@ -416,52 +417,58 @@ export function ScheduledReportsPage() {
       )}
 
       {schedules.length === 0 ? (
-        <div className="bg-white border rounded-xl p-12 text-center">
-          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No scheduled reports</h3>
-          <p className="text-gray-500 mb-6">
-            Go to any saved report and click "Schedule" to set up automatic delivery.
-          </p>
-          <button
-            onClick={() => navigate('/ai-studio')}
-            className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white rounded-lg"
-          >
-            View Reports
-          </button>
-        </div>
-      ) : filteredSchedules.length === 0 ? (
-        activeTab === 'admin' && adminSchedules.length === 0 ? (
-          <div className="bg-white border rounded-xl p-12 text-center">
-            <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Admin Reports Yet</h3>
-            <p className="text-gray-500 mb-6 max-w-md mx-auto">
-              Admin reports are internal reports for Go Rocket team members.
-              Create cross-customer analytics and summaries.
+        <Card variant="outlined" padding="lg">
+          <div className="text-center">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No scheduled reports</h3>
+            <p className="text-gray-500 mb-6">
+              Go to any saved report and click "Schedule" to set up automatic delivery.
             </p>
             <button
-              onClick={() => setShowCreateAdminReport(true)}
-              className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
+              onClick={() => navigate('/ai-studio')}
+              className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white rounded-lg"
             >
-              <Plus className="h-4 w-4" />
-              Create Your First Admin Report
+              View Reports
             </button>
           </div>
-        ) : (
-          <div className="bg-white border rounded-xl p-12 text-center">
-            <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No matching schedules</h3>
-            <p className="text-gray-500 mb-4">
-              No scheduled reports match your current filters.
-            </p>
-            {activeFiltersCount > 0 && (
+        </Card>
+      ) : filteredSchedules.length === 0 ? (
+        activeTab === 'admin' && adminSchedules.length === 0 ? (
+          <Card variant="outlined" padding="lg">
+            <div className="text-center">
+              <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Admin Reports Yet</h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                Admin reports are internal reports for Go Rocket team members.
+                Create cross-customer analytics and summaries.
+              </p>
               <button
-                onClick={clearFilters}
-                className="text-rocket-600 hover:text-rocket-700 font-medium"
+                onClick={() => setShowCreateAdminReport(true)}
+                className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700"
               >
-                Clear all filters
+                <Plus className="h-4 w-4" />
+                Create Your First Admin Report
               </button>
-            )}
-          </div>
+            </div>
+          </Card>
+        ) : (
+          <Card variant="outlined" padding="lg">
+            <div className="text-center">
+              <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No matching schedules</h3>
+              <p className="text-gray-500 mb-4">
+                No scheduled reports match your current filters.
+              </p>
+              {activeFiltersCount > 0 && (
+                <button
+                  onClick={clearFilters}
+                  className="text-rocket-600 hover:text-rocket-700 font-medium"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </Card>
         )
       ) : (
         <div className="space-y-4">

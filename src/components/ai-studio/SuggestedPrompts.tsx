@@ -1,6 +1,7 @@
 import { FileText, Sparkles, X, Loader2 } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
 import { ChatMessage } from './ChatMessage';
+import { Card } from '../ui/Card';
 
 const SUGGESTIONS = [
   'Show me total spend by transportation mode',
@@ -63,11 +64,13 @@ export function SuggestedPrompts({
 
           <div className="grid gap-3 max-w-lg mx-auto">
             {SUGGESTIONS.map((suggestion, index) => (
-              <button
+              <Card
                 key={index}
-                onClick={() => onSendMessage(suggestion)}
-                disabled={isGenerating}
-                className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50/30 transition-all group shadow-sm"
+                variant="default"
+                padding="md"
+                hover={true}
+                onClick={() => !isGenerating && onSendMessage(suggestion)}
+                className="w-full text-left disabled:opacity-50 group"
               >
                 <div className="flex items-start gap-3">
                   <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500 flex-shrink-0 mt-0.5" />
@@ -75,7 +78,7 @@ export function SuggestedPrompts({
                     {suggestion}
                   </span>
                 </div>
-              </button>
+              </Card>
             ))}
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
   NotesTab,
   HistoryTab,
 } from '../components/shipment-detail';
+import { Card } from '../components/ui/Card';
 
 interface TabConfig {
   id: string;
@@ -259,7 +260,7 @@ export function ShipmentDetailPage() {
         Back to Shipments
       </button>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+      <Card variant="default" padding="lg" className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -304,7 +305,7 @@ export function ShipmentDetailPage() {
             Print
           </button>
         </div>
-      </div>
+      </Card>
 
       <div className="border-b border-slate-200 mb-6 print:hidden">
         <div className="flex gap-1 overflow-x-auto pb-px">
@@ -324,7 +325,7 @@ export function ShipmentDetailPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <Card variant="default" padding="none">
         {activeTab === 'overview' && (
           <OverviewTab data={data} showFinancials={showFinancials} />
         )}
@@ -347,7 +348,7 @@ export function ShipmentDetailPage() {
         {activeTab === 'history' && (
           <HistoryTab shipment={data.shipment} detail={data.detail} />
         )}
-      </div>
+      </Card>
     </div>
   );
 }

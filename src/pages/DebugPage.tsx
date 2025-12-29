@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { verifyActiveCustomers } from '../utils/customerValidation';
+import { Card } from '../components/ui/Card';
 
 export function DebugPage() {
   const { user, isAdmin, effectiveCustomerIds, customers, viewingAsCustomerId, isViewingAsCustomer } = useAuth();
@@ -179,7 +180,7 @@ export function DebugPage() {
       <h1 className="text-3xl font-bold mb-6">Debug Information</h1>
 
       <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <Card variant="default" padding="lg">
           <h2 className="text-xl font-semibold mb-4">Current User State</h2>
           <pre className="bg-gray-50 p-4 rounded overflow-auto text-sm">
             {JSON.stringify({
@@ -192,9 +193,9 @@ export function DebugPage() {
               customersCount: customers.length,
             }, null, 2)}
           </pre>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <Card variant="default" padding="lg">
           <h2 className="text-xl font-semibold mb-4">Database Diagnostic Info</h2>
           {diagnostic ? (
             <pre className="bg-gray-50 p-4 rounded overflow-auto text-sm">
@@ -203,16 +204,16 @@ export function DebugPage() {
           ) : (
             <p>Loading...</p>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <Card variant="default" padding="lg">
           <h2 className="text-xl font-semibold mb-4">Customers Array</h2>
           <pre className="bg-gray-50 p-4 rounded overflow-auto text-sm">
             {JSON.stringify(customers, null, 2)}
           </pre>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <Card variant="default" padding="lg">
           <h2 className="text-xl font-semibold mb-4">Shipments Query Result (no date filter)</h2>
           {loading ? (
             <p>Loading...</p>
@@ -224,9 +225,9 @@ export function DebugPage() {
               </pre>
             </>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <Card variant="default" padding="lg">
           <h2 className="text-xl font-semibold mb-4">Customer Verification</h2>
           <p className="text-gray-600 mb-4">
             All customers with shipment counts. This verifies customer_id accuracy.
@@ -273,10 +274,10 @@ export function DebugPage() {
           >
             Run Customer Verification (Check Console)
           </button>
-        </div>
+        </Card>
 
         {isAdmin() && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <Card variant="default" padding="lg">
             <h2 className="text-xl font-semibold mb-4">Seed DECKED Custom Report</h2>
             <p className="text-gray-600 mb-4">
               Click the button below to seed the Average Cost Per Unit report for DECKED (Customer ID: 4586648)
@@ -295,7 +296,7 @@ export function DebugPage() {
                 {seedMessage}
               </div>
             )}
-          </div>
+          </Card>
         )}
 
         <button

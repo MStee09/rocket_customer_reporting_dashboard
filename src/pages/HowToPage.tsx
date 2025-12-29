@@ -35,6 +35,7 @@ import {
   ContactSupportContent,
   FAQContent
 } from './HowToContent';
+import { Card } from '../components/ui/Card';
 
 interface DocSection {
   id: string;
@@ -268,7 +269,7 @@ export function HowToPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex gap-8">
           <nav className="w-72 shrink-0">
-            <div className="bg-white rounded-xl border shadow-sm sticky top-24">
+            <Card variant="default" padding="none" className="sticky top-24">
               <div className="p-4 border-b">
                 <h2 className="font-semibold text-gray-900">Contents</h2>
               </div>
@@ -312,11 +313,11 @@ export function HowToPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </nav>
 
           <main className="flex-1 min-w-0">
-            <div className="bg-white rounded-xl border shadow-sm p-8">
+            <Card variant="default" padding="lg">
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
                 <span>{currentSection?.title}</span>
                 <ChevronRight className="w-4 h-4" />
@@ -343,7 +344,7 @@ export function HowToPage() {
                   onNavigate={navigateTo}
                 />
               </div>
-            </div>
+            </Card>
           </main>
         </div>
       </div>

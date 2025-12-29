@@ -181,7 +181,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
   if (isLoading || lookupsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -245,15 +245,15 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
                       <span>{col.label}</span>
                       {sortColumn === col.id ? (
                         sortDirection === 'asc' ? (
-                          <ArrowUp className="w-4 h-4 text-blue-600" />
+                          <ArrowUp className="w-4 h-4 text-rocket-600" />
                         ) : (
-                          <ArrowDown className="w-4 h-4 text-blue-600" />
+                          <ArrowDown className="w-4 h-4 text-rocket-600" />
                         )
                       ) : (
                         <ArrowUpDown className="w-4 h-4 text-gray-400" />
                       )}
                       {col.aggregation && (
-                        <span className="ml-1 text-blue-600 normal-case">({col.aggregation})</span>
+                        <span className="ml-1 text-rocket-600 normal-case">({col.aggregation})</span>
                       )}
                     </div>
                   </th>
@@ -281,8 +281,8 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
       </div>
 
       {filteredConfig.isSummary && filteredConfig.groupBy && filteredConfig.groupBy.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
+        <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4">
+          <p className="text-sm text-rocket-800">
             <strong>Summary Report:</strong> Data is grouped by{' '}
             {filteredConfig.groupBy.map(id => getColumnById(id)?.label).join(', ')}
           </p>

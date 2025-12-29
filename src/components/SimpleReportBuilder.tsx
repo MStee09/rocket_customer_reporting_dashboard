@@ -247,7 +247,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                 type="checkbox"
                 checked={state.isSummary}
                 onChange={toggleSummaryMode}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
+                className="w-4 h-4 text-rocket-600 border-gray-300 rounded focus:ring-rocket-500"
               />
               <span className="text-sm font-medium text-gray-700">Summary Mode</span>
             </label>
@@ -295,7 +295,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                             className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
                               isColumnSelected(column.id)
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                : 'hover:bg-blue-50 text-gray-700'
+                                : 'hover:bg-rocket-50 text-gray-700'
                             }`}
                           >
                             <Plus className="w-3 h-3" />
@@ -319,7 +319,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                 {(totalActiveFilters > 0 || totalSorts > 0) && (
                   <div className="flex items-center gap-2">
                     {totalActiveFilters > 0 && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                      <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-rocket-100 text-rocket-700 rounded-full">
                         <Filter className="w-3 h-3" />
                         {totalActiveFilters}
                       </span>
@@ -375,7 +375,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                                 type="checkbox"
                                 checked={isGrouped}
                                 onChange={() => toggleGroupBy(column.id)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
+                                className="w-4 h-4 text-rocket-600 border-gray-300 rounded focus:ring-rocket-500"
                               />
                               <span className="text-xs text-gray-600">Group</span>
                             </label>
@@ -419,12 +419,12 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
               )}
 
               {state.isSummary && state.selectedColumns.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-800">
+                <div className="mt-4 p-3 bg-rocket-50 border border-rocket-200 rounded-lg">
+                  <p className="text-xs text-rocket-800">
                     <strong>Summary Mode:</strong> Check "Group" on columns to group by, and choose aggregations for numeric columns
                   </p>
                   {state.groupByColumns.length > 0 && (
-                    <p className="text-xs text-blue-700 mt-2">
+                    <p className="text-xs text-rocket-700 mt-2">
                       Grouping by: {state.groupByColumns.map(id => getColumnById(id)?.label).join(', ')}
                     </p>
                   )}

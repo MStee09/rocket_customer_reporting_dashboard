@@ -24,8 +24,8 @@ export function EmptyReportState({ onBuildReport, onDescribeWithAI }: EmptyRepor
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-12 text-center">
-      <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <FileText className="w-10 h-10 text-blue-600" />
+      <div className="w-20 h-20 bg-rocket-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <FileText className="w-10 h-10 text-rocket-600" />
       </div>
 
       <h3 className="text-2xl font-bold text-slate-800 mb-3">

@@ -453,7 +453,7 @@ function renderMarkdown(content: string): string {
     .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-slate-800 mt-4 mb-2">$1</h2>')
     .replace(/^### (.*$)/gm, '<h3 class="font-medium text-slate-700 mt-3 mb-1">$1</h3>')
     .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800">$1</strong>')
-    .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-blue-300 pl-3 py-1 my-2 text-slate-600 italic bg-blue-50 rounded-r">$1</blockquote>')
+    .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-rocket-300 pl-3 py-1 my-2 text-slate-600 italic bg-rocket-50 rounded-r">$1</blockquote>')
     .replace(/^- (.*$)/gm, '<li class="ml-4 text-slate-600">$1</li>')
     .replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc space-y-1 my-2">$&</ul>')
     .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 text-slate-600"><span class="font-medium text-slate-700">$1.</span> $2</li>')
@@ -482,8 +482,8 @@ export function HowToGuide() {
                 onClick={() => setExpandedSection(isExpanded ? null : section.id)}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
               >
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Icon className="w-5 h-5 text-blue-600" />
+                <div className="p-2 bg-rocket-50 rounded-lg">
+                  <Icon className="w-5 h-5 text-rocket-600" />
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-slate-800">{section.title}</div>

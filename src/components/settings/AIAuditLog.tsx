@@ -134,7 +134,7 @@ export function AIAuditLog() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as FilterStatus)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
           >
             <option value="flagged">Flagged Issues</option>
             <option value="ok">Recent Reports</option>
@@ -147,7 +147,7 @@ export function AIAuditLog() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rocket-600"></div>
         </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -168,7 +168,7 @@ export function AIAuditLog() {
                   setExpandedConversation(false);
                 }}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-                  selectedLog?.id === log.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  selectedLog?.id === log.id ? 'border-rocket-500 bg-rocket-50' : 'border-gray-200'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -252,7 +252,7 @@ export function AIAuditLog() {
                 <div className="space-y-1">
                   <button
                     onClick={() => setExpandedConversation(!expandedConversation)}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                    className="flex items-center gap-1 text-sm text-rocket-600 hover:text-rocket-800"
                   >
                     {expandedConversation ? (
                       <ChevronDown className="w-4 h-4" />
@@ -268,7 +268,7 @@ export function AIAuditLog() {
                           key={i}
                           className={`p-2 rounded text-sm ${
                             msg.role === 'user'
-                              ? 'bg-blue-50 text-blue-900'
+                              ? 'bg-rocket-50 text-rocket-900'
                               : 'bg-white text-gray-700'
                           }`}
                         >

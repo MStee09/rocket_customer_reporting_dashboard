@@ -106,7 +106,7 @@ export function BusinessGlossaryTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -138,7 +138,7 @@ export function BusinessGlossaryTab() {
 
       <div className="grid grid-cols-5 gap-4 mb-6">
         <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-600">{globalTerms.length}</div>
+          <div className="text-2xl font-bold text-rocket-600">{globalTerms.length}</div>
           <div className="text-sm text-slate-500">Global Terms</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -169,12 +169,12 @@ export function BusinessGlossaryTab() {
           placeholder="Search terms..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+          className="border border-slate-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
         />
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
         >
           <option value="all">All Categories</option>
           {categories.map(cat => (
@@ -184,7 +184,7 @@ export function BusinessGlossaryTab() {
         <select
           value={viewMode}
           onChange={(e) => setViewMode(e.target.value as 'global' | 'customer' | 'all')}
-          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
         >
           <option value="all">All Terms</option>
           <option value="global">Global Only</option>
@@ -195,7 +195,7 @@ export function BusinessGlossaryTab() {
       {(viewMode === 'all' || viewMode === 'global') && (
         <div className="mb-8">
           <h4 className="font-medium mb-2 flex items-center gap-2 text-slate-800">
-            <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+            <span className="w-3 h-3 bg-rocket-500 rounded-full"></span>
             Global Terms ({filteredGlobal.length})
           </h4>
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -225,7 +225,7 @@ export function BusinessGlossaryTab() {
                       <td className="px-4 py-3 text-slate-600 max-w-md truncate">{term.definition}</td>
                       <td className="px-4 py-3">
                         {term.category && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                          <span className="px-2 py-1 bg-rocket-100 text-rocket-700 rounded text-xs font-medium">
                             {term.category}
                           </span>
                         )}
@@ -248,7 +248,7 @@ export function BusinessGlossaryTab() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEdit(term, 'global')}
-                            className="text-blue-600 hover:underline"
+                            className="text-rocket-600 hover:underline"
                           >
                             Edit
                           </button>
@@ -317,7 +317,7 @@ export function BusinessGlossaryTab() {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleEdit(term, 'customer')}
-                          className="text-blue-600 hover:underline"
+                          className="text-rocket-600 hover:underline"
                         >
                           Edit
                         </button>
@@ -411,7 +411,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
                 type="text"
                 value={formData.customer_id}
                 onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
-                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="e.g., DECKED"
               />
             </div>
@@ -423,7 +423,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
               type="text"
               value={formData.term}
               onChange={(e) => setFormData(prev => ({ ...prev, term: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               placeholder="e.g., LTL"
             />
           </div>
@@ -433,7 +433,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
             <textarea
               value={formData.definition}
               onChange={(e) => setFormData(prev => ({ ...prev, definition: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               placeholder="What this term means..."
             />
           </div>
@@ -443,7 +443,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
             <select
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
             >
               <option value="">Select category...</option>
               {categoryOptions.map(cat => (
@@ -458,7 +458,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
               type="text"
               value={formData.aliases}
               onChange={(e) => setFormData(prev => ({ ...prev, aliases: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               placeholder="e.g., Less Than Truckload, less-than-truckload"
             />
           </div>
@@ -468,7 +468,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
             <textarea
               value={formData.ai_instructions}
               onChange={(e) => setFormData(prev => ({ ...prev, ai_instructions: e.target.value }))}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               placeholder="How should AI use this term?"
             />
             <p className="text-xs text-slate-500 mt-1">
@@ -482,7 +482,7 @@ function GlossaryTermEditor({ term, type, onClose, onSave }: GlossaryTermEditorP
               id="isActive"
               checked={formData.is_active}
               onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-rocket-500"
+              className="w-4 h-4 text-rocket-600 rounded focus:ring-rocket-500"
             />
             <label htmlFor="isActive" className="text-sm text-slate-700">Active</label>
           </div>

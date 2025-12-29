@@ -36,7 +36,7 @@ export class WidgetErrorBoundary extends Component<Props, State> {
           </p>
           <button
             onClick={() => this.setState({ hasError: false })}
-            className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+            className="text-xs text-rocket-600 hover:text-rocket-700 hover:underline"
           >
             Retry
           </button>

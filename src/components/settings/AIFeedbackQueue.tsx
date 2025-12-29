@@ -101,7 +101,7 @@ export function AIFeedbackQueue() {
       case 'frustration':
         return <XCircle className="w-4 h-4 text-red-500" />;
       case 'clarification':
-        return <MessageSquare className="w-4 h-4 text-blue-500" />;
+        return <MessageSquare className="w-4 h-4 text-rocket-500" />;
       case 'data_issue':
         return <Database className="w-4 h-4 text-yellow-500" />;
       default:
@@ -134,7 +134,7 @@ export function AIFeedbackQueue() {
         );
       case 'reviewed':
         return (
-          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-rocket-100 text-rocket-800">
             Reviewed
           </span>
         );
@@ -180,7 +180,7 @@ export function AIFeedbackQueue() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as FilterStatus)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
           >
             <option value="pending_review">Pending Review ({pendingCount})</option>
             <option value="all">All Feedback</option>
@@ -273,7 +273,7 @@ export function AIFeedbackQueue() {
                               key={idx}
                               className={`text-sm p-2 rounded ${
                                 msg.role === 'user'
-                                  ? 'bg-blue-50 text-blue-900'
+                                  ? 'bg-rocket-50 text-rocket-900'
                                   : 'bg-gray-50 text-gray-700'
                               }`}
                             >
@@ -304,7 +304,7 @@ export function AIFeedbackQueue() {
                               value={notesText}
                               onChange={(e) => setNotesText(e.target.value)}
                               placeholder="Add notes about what was learned or how to improve..."
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                               rows={3}
                             />
                             <div className="flex gap-2">
@@ -338,7 +338,7 @@ export function AIFeedbackQueue() {
                                 setEditingNotes(item.id);
                                 setNotesText(item.admin_notes || '');
                               }}
-                              className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                              className="px-3 py-1.5 bg-rocket-100 text-rocket-700 rounded-lg text-sm font-medium hover:bg-rocket-200 transition-colors"
                             >
                               Add Notes & Review
                             </button>

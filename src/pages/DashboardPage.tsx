@@ -10,6 +10,7 @@ import {
   ComparisonMetrics,
   AIReportsSection,
   WidgetGrid,
+  AIInsightsPanel,
 } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
@@ -415,6 +416,8 @@ export function DashboardPage() {
           }
         `}</style>
       </div>
+
+      <AIInsightsPanel />
     </div>
   );
 }

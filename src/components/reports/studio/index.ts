@@ -22,8 +22,8 @@ export type { ReportChartProps, ChartDataPoint } from './ReportChart';
 export { ReportTable } from './ReportTable';
 export type { ReportTableProps, TableColumn } from './ReportTable';
 
-export { DateRangeSelector, getDateRangeFromPreset } from './DateRangeSelector';
-export type { DateRangeSelectorProps, DateRangePreset, DateRange } from './DateRangeSelector';
+export { DateRangeSelector, getDateRangeFromPreset, getComparisonDates } from './DateRangeSelector';
+export type { DateRangeSelectorProps, DateRangePreset, DateRange, ComparisonConfig, ComparisonType } from './DateRangeSelector';
 
 export { ReportContainer, ReportSection, ReportGrid } from './ReportContainer';
 export type { ReportContainerProps, ReportSectionProps, ReportGridProps } from './ReportContainer';

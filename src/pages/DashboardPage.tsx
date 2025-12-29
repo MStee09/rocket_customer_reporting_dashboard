@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { RefreshCw, Layout, Sparkles } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
+import { RefreshCw, Layout, Sparkles, GitCompare } from 'lucide-react';
+import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays, subYears } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardWidgetCard } from '../components/DashboardWidgetCard';
 import { LayoutEditorModal } from '../components/LayoutEditorModal';
@@ -17,10 +17,20 @@ import { loadCustomWidget, loadAllCustomWidgets } from '../config/widgets/custom
 import { supabase } from '../lib/supabase';
 import { getGlobalWidgets } from '../config/widgetLibrary';
 
+type ComparisonType = 'previous' | 'lastYear' | 'custom';
+
+interface ComparisonConfig {
+  enabled: boolean;
+  type: ComparisonType;
+  customRange?: { start: Date; end: Date };
+}
+
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('last6months');
+  const [comparison, setComparison] = useState<ComparisonConfig | null>(null);
+  const [showComparisonDropdown, setShowComparisonDropdown] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [saveNotification, setSaveNotification] = useState(false);
   const [addWidgetNotification, setAddWidgetNotification] = useState(false);
@@ -216,8 +226,39 @@ export function DashboardPage() {
     return {
       start: format(start, 'yyyy-MM-dd'),
       end: format(end, 'yyyy-MM-dd'),
+      startObj: start,
+      endObj: end,
     };
   }, [dateRange]);
+
+  const comparisonDates = useMemo(() => {
+    if (!comparison?.enabled) return null;
+
+    const currentStart = new Date(startDate);
+    const currentEnd = new Date(endDate);
+
+    if (comparison.type === 'custom' && comparison.customRange) {
+      return {
+        start: format(comparison.customRange.start, 'yyyy-MM-dd'),
+        end: format(comparison.customRange.end, 'yyyy-MM-dd'),
+      };
+    }
+
+    if (comparison.type === 'lastYear') {
+      return {
+        start: format(subYears(currentStart, 1), 'yyyy-MM-dd'),
+        end: format(subYears(currentEnd, 1), 'yyyy-MM-dd'),
+      };
+    }
+
+    const duration = currentEnd.getTime() - currentStart.getTime();
+    const dayInMs = 86400000;
+
+    return {
+      start: format(new Date(currentStart.getTime() - duration - dayInMs), 'yyyy-MM-dd'),
+      end: format(new Date(currentStart.getTime() - dayInMs), 'yyyy-MM-dd'),
+    };
+  }, [comparison, startDate, endDate]);
 
   const handleSaveLayout = async (newOrder: string[], newSizes: Record<string, WidgetSizeLevel>) => {
     const success = await saveLayout(newOrder, newSizes);
@@ -277,6 +318,108 @@ export function DashboardPage() {
               <option value="next90">Next 90 Days</option>
               <option value="upcoming">Upcoming (Next Year)</option>
             </select>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowComparisonDropdown(!showComparisonDropdown)}
+                className={`px-4 py-2 border rounded-lg flex items-center gap-2 text-sm transition-colors ${
+                  comparison?.enabled
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <GitCompare className="w-4 h-4" />
+                {comparison?.enabled ? (
+                  comparison.type === 'previous' ? 'vs Previous Period' :
+                  comparison.type === 'lastYear' ? 'vs Last Year' : 'vs Custom'
+                ) : 'Compare'}
+              </button>
+
+              {showComparisonDropdown && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-50 p-3">
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={comparison?.enabled || false}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setComparison({ enabled: true, type: 'previous' });
+                          } else {
+                            setComparison(null);
+                          }
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-slate-700">Enable comparison</span>
+                    </label>
+
+                    {comparison?.enabled && (
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          Compare to
+                        </label>
+                        <select
+                          value={comparison.type}
+                          onChange={(e) => setComparison({
+                            ...comparison,
+                            type: e.target.value as ComparisonType
+                          })}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="previous">Previous Period</option>
+                          <option value="lastYear">Same Period Last Year</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
+
+                        {comparison.type === 'custom' && (
+                          <div className="space-y-2 pt-2">
+                            <input
+                              type="date"
+                              value={comparison.customRange?.start?.toISOString().split('T')[0] || ''}
+                              onChange={(e) => setComparison({
+                                ...comparison,
+                                customRange: {
+                                  start: new Date(e.target.value),
+                                  end: comparison.customRange?.end || new Date()
+                                }
+                              })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            <input
+                              type="date"
+                              value={comparison.customRange?.end?.toISOString().split('T')[0] || ''}
+                              onChange={(e) => setComparison({
+                                ...comparison,
+                                customRange: {
+                                  start: comparison.customRange?.start || new Date(),
+                                  end: new Date(e.target.value)
+                                }
+                              })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        )}
+
+                        {comparisonDates && (
+                          <div className="pt-2 text-xs text-slate-500">
+                            Comparing: {comparisonDates.start} to {comparisonDates.end}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setShowComparisonDropdown(false)}
+                      className="w-full mt-2 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
@@ -340,6 +483,7 @@ export function DashboardPage() {
                   widget={widget}
                   customerId={customerId?.toString()}
                   dateRange={{ start: startDate, end: endDate }}
+                  comparisonDateRange={comparisonDates || undefined}
                   isEditing={false}
                   isCustomWidget={isCustom}
                   sizeLevel={sizeLevel}

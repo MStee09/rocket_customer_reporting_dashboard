@@ -19,6 +19,7 @@ interface DashboardWidgetCardProps {
   widget: WidgetDefinition | any;
   customerId: string | undefined;
   dateRange: DateRange;
+  comparisonDateRange?: DateRange;
   isEditing: boolean;
   isCustomWidget?: boolean;
   sizeLevel?: WidgetSizeLevel;
@@ -55,6 +56,7 @@ export function DashboardWidgetCard({
   widget,
   customerId,
   dateRange,
+  comparisonDateRange,
   isEditing,
   isCustomWidget = false,
   sizeLevel = 'default',

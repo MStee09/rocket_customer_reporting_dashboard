@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -81,6 +81,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     return location.pathname === item.to || location.pathname.startsWith(item.to + '/');
   };
 
+  const navItemClasses = (isActive: boolean) => {
+    if (isActive) {
+      return 'flex items-center gap-3 px-4 py-2.5 rounded-md text-white bg-white/10 border-l-[3px] border-rocket-500 shadow-sm';
+    }
+    return 'flex items-center gap-3 px-4 py-2.5 rounded-md text-charcoal-300 hover:text-white hover:bg-white/10 transition-all duration-150';
+  };
+
   return (
     <>
       {isOpen && (
@@ -91,24 +98,26 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-charcoal-800 text-white w-64 flex flex-col z-50 transform transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 left-0 h-screen bg-gradient-to-b from-charcoal-800 to-charcoal-900 text-white w-64 flex flex-col z-50 transform transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="p-6 border-b border-rocket-navy-dark">
+        <div className="p-6 border-b border-charcoal-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-rocket-orange rounded-lg flex items-center justify-center">
-                <Rocket className="w-6 h-6 text-white" />
-              </div>
+              <img
+                src="/rocket-logo.png"
+                alt="Rocket Shipping"
+                className="h-10 w-auto"
+              />
               <div>
-                <h1 className="font-bold text-lg">Rocket Shipping</h1>
-                <p className="text-xs text-slate-300">Freight Reporting</p>
+                <h1 className="font-bold text-lg text-white">Rocket Shipping</h1>
+                <p className="text-xs text-charcoal-400">Freight Dashboard</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="lg:hidden p-1 hover:bg-charcoal-800-light rounded transition-colors"
+              className="lg:hidden p-1 hover:bg-white/10 rounded transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -116,10 +125,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {isViewingAsCustomer && viewingCustomer && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-orange-500/20 border border-orange-500/40 rounded-lg">
+          <div className="mx-4 mt-4 px-4 py-3 bg-coral-500/20 border border-coral-500/40 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-orange-400" />
-              <span className="text-xs font-semibold text-orange-300 uppercase tracking-wide">
+              <Users className="w-4 h-4 text-coral-400" />
+              <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
                 Viewing As
               </span>
             </div>
@@ -129,24 +138,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         )}
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {mainNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={onClose}
-              className={() =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActiveRoute(item)
-                    ? 'bg-rocket-orange text-white'
-                    : 'text-slate-200 hover:bg-charcoal-800-light hover:text-white'
-                }`
-              }
+              className={() => navItemClasses(isActiveRoute(item))}
             >
               <item.icon className="w-5 h-5" />
               <span className="font-medium flex-1">{item.label}</span>
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                <span className="px-2 py-0.5 bg-rocket-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
                   {item.badge}
                 </span>
               )}
@@ -154,10 +157,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           ))}
 
           {pinnedViews.length > 0 && (
-            <div className="pt-4 mt-2 border-t border-slate-600">
+            <div className="pt-4 mt-2 border-t border-charcoal-700">
               <button
                 onClick={() => setSavedViewsExpanded(!savedViewsExpanded)}
-                className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors rounded-lg"
+                className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-charcoal-400 hover:text-white transition-colors rounded-lg"
               >
                 <span className="flex items-center gap-2">
                   <Bookmark className="w-4 h-4" />
@@ -174,9 +177,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <button
                       key={view.id}
                       onClick={() => navigateToView(view)}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-300 hover:bg-charcoal-800-light hover:text-white rounded-lg transition-colors text-left"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-charcoal-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors text-left"
                     >
-                      <Pin className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                      <Pin className="w-3 h-3 text-rocket-400 flex-shrink-0" />
                       <span className="truncate">{view.name}</span>
                     </button>
                   ))}
@@ -189,11 +192,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <>
               <div className="pt-6 pb-2">
                 <div className="flex items-center gap-2 px-2">
-                  <div className="flex-1 h-px bg-slate-600"></div>
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <div className="flex-1 h-px bg-charcoal-700"></div>
+                  <span className="text-xs font-semibold text-charcoal-500 uppercase tracking-wider">
                     Admin
                   </span>
-                  <div className="flex-1 h-px bg-slate-600"></div>
+                  <div className="flex-1 h-px bg-charcoal-700"></div>
                 </div>
               </div>
 
@@ -202,18 +205,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   key={item.to}
                   to={item.to}
                   onClick={onClose}
-                  className={() =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActiveRoute(item)
-                        ? 'bg-rocket-orange text-white'
-                        : 'text-slate-200 hover:bg-charcoal-800-light hover:text-white'
-                    }`
-                  }
+                  className={() => navItemClasses(isActiveRoute(item))}
                 >
                   <item.icon className="w-5 h-5" />
                   <span className="font-medium flex-1">{item.label}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                    <span className="px-2 py-0.5 bg-rocket-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
                       {item.badge}
                     </span>
                   )}
@@ -223,16 +220,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           )}
         </nav>
 
-        <div className="p-4 border-t border-rocket-navy-dark">
+        <div className="p-4 border-t border-charcoal-700">
           <NavLink
             to="/settings/how-to"
             onClick={onClose}
-            className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-charcoal-800-light hover:text-white rounded-lg transition-colors mb-3"
+            className="flex items-center gap-2 px-3 py-2 text-charcoal-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors mb-3"
           >
             <HelpCircle className="w-4 h-4" />
             <span className="text-sm font-medium">Help & Docs</span>
           </NavLink>
-          <div className="text-xs text-slate-300 text-center">
+          <div className="text-xs text-charcoal-500 text-center">
             Version 1.0.0
           </div>
         </div>

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { User, Lock, Save, Loader2, HelpCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Lock, Save, Loader2, HelpCircle, BookOpen, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { HowToGuide } from '../components/settings/HowToGuide';
 
 type Tab = 'profile' | 'how-to';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { user, role, customers } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [newPassword, setNewPassword] = useState('');
@@ -223,7 +224,48 @@ export function SettingsPage() {
         </div>
       )}
 
-      {activeTab === 'how-to' && <HowToGuide />}
+      {activeTab === 'how-to' && (
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
+          <div className="text-center max-w-xl mx-auto">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-8 h-8 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-3">
+              Documentation & Guides
+            </h2>
+            <p className="text-slate-600 mb-6">
+              Learn how to use every feature of the Rocket Shipping dashboard with our
+              comprehensive documentation. From basic navigation to advanced analytics
+              and reporting, we've got you covered.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              <div className="p-4 bg-slate-50 rounded-lg text-left">
+                <h3 className="font-semibold text-slate-800 mb-1">Getting Started</h3>
+                <p className="text-sm text-slate-600">Dashboard basics and navigation</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg text-left">
+                <h3 className="font-semibold text-slate-800 mb-1">Shipment Management</h3>
+                <p className="text-sm text-slate-600">Track and manage your shipments</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg text-left">
+                <h3 className="font-semibold text-slate-800 mb-1">Analytics & Reports</h3>
+                <p className="text-sm text-slate-600">Create insights and custom reports</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg text-left">
+                <h3 className="font-semibold text-slate-800 mb-1">Admin Features</h3>
+                <p className="text-sm text-slate-600">User management and configuration</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/settings/how-to')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Open Full Documentation
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

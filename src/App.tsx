@@ -23,6 +23,7 @@ import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
 import { CustomerProfileEditorPage } from './pages/CustomerProfileEditorPage';
 import { CustomerProfileHistoryPage } from './pages/CustomerProfileHistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { HowToPage } from './pages/HowToPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
 import { AppLayout } from './components/AppLayout';
@@ -155,6 +156,7 @@ function App() {
                 element={<Navigate to="/knowledge-base?tab=learning" replace />}
               />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/how-to" element={<HowToPage />} />
               <Route path="debug" element={<DebugPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />

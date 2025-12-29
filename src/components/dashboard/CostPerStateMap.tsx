@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Annotation, ZoomableGroup } from 'react-simple-maps';
-import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, X } from 'lucide-react';
+import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, ChevronRight, ChevronDown } from 'lucide-react';
 import { StateData } from '../../hooks/useDashboardData';
 
 interface CostPerStateMapProps {
@@ -204,16 +204,31 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-slate-200 flex items-center justify-between">
-        {outliers.length > 0 ? (
-          <div className="flex items-center gap-2 bg-amber-50 px-2 py-1 rounded">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <div className="text-xs text-amber-800">
-              <span className="font-semibold">{outliers.length} outlier{outliers.length > 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3">
+          {outliers.length > 0 && (
+            <div className="flex items-center gap-2 bg-amber-50 px-2 py-1 rounded">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <div className="text-xs text-amber-800">
+                <span className="font-semibold">{outliers.length} outlier{outliers.length > 1 ? 's' : ''}</span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div />
-        )}
+          )}
+
+          {insights.length > 0 && (
+            <button
+              onClick={() => setShowAIInsights(!showAIInsights)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            >
+              {showAIInsights ? (
+                <ChevronDown className="w-4 h-4 text-slate-500" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              )}
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-medium text-slate-600">AI Insights</span>
+            </button>
+          )}
+        </div>
 
         <button
           onClick={() => setShowSettings(!showSettings)}
@@ -235,15 +250,25 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
             />
             Show state labels
           </label>
-          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showAIInsights}
-              onChange={(e) => setShowAIInsights(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            AI insights
-          </label>
+        </div>
+      )}
+
+      {showAIInsights && insights.length > 0 && (
+        <div className="flex-shrink-0 px-4 py-2 bg-slate-50 border-b border-slate-200">
+          <div className="flex flex-wrap gap-2">
+            {insights.slice(0, 4).map((insight, i) => (
+              <div
+                key={i}
+                className={`text-xs px-2 py-1 rounded ${
+                  insight.type === 'warning' ? 'bg-amber-100 text-amber-800' :
+                  insight.type === 'success' ? 'bg-green-100 text-green-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}
+              >
+                {insight.message}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -364,45 +389,6 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                 {((hoveredStateData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
               </span>
               <span className="text-slate-500"> vs avg ({formatCurrency(meanCost)})</span>
-            </div>
-          </div>
-        )}
-
-        {showAIInsights && insights.length > 0 && (
-          <div className="absolute top-4 left-4 max-w-xs bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-10">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-semibold text-slate-700">AI Insights</span>
-              </div>
-              <button
-                onClick={() => setShowAIInsights(false)}
-                className="p-0.5 rounded hover:bg-slate-100 transition-colors"
-                title="Close"
-              >
-                <X className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {insights.slice(0, 4).map((insight, i) => (
-                <div
-                  key={i}
-                  className={`text-xs p-2 rounded ${
-                    insight.type === 'warning' ? 'bg-amber-50 text-amber-800' :
-                    insight.type === 'success' ? 'bg-green-50 text-green-800' :
-                    'bg-blue-50 text-blue-800'
-                  }`}
-                >
-                  {insight.message}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-slate-100">
-              <div className="text-xs text-slate-500">
-                Which regions cost the most to serve?
-              </div>
             </div>
           </div>
         )}

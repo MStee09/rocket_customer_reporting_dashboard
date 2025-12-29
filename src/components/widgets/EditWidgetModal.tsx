@@ -50,7 +50,7 @@ const ICON_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = [
-  { name: 'Blue', value: 'bg-blue-500' },
+  { name: 'Rocket', value: 'bg-rocket-500' },
   { name: 'Emerald', value: 'bg-emerald-500' },
   { name: 'Amber', value: 'bg-amber-500' },
   { name: 'Rose', value: 'bg-rose-500' },
@@ -75,7 +75,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
   const [name, setName] = useState(widget.name || '');
   const [description, setDescription] = useState(widget.description || '');
   const [selectedIcon, setSelectedIcon] = useState(widget.display?.icon || widget.icon || 'BarChart3');
-  const [selectedColor, setSelectedColor] = useState(widget.display?.iconColor || widget.iconColor || 'bg-blue-500');
+  const [selectedColor, setSelectedColor] = useState(widget.display?.iconColor || widget.iconColor || 'bg-rocket-500');
   const [selectedSize, setSelectedSize] = useState(widget.display?.defaultSize || widget.defaultSize || 'medium');
   const [visibility, setVisibility] = useState<'private' | 'all_customers' | 'admin_only'>(
     widget.visibility?.type || 'private'
@@ -300,12 +300,12 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
               <div key={s.num} className="flex items-center">
                 <button
                   onClick={() => setStep(s.num)}
-                  className={`flex items-center gap-2 ${step >= s.num ? 'text-blue-600' : 'text-slate-400'}`}
+                  className={`flex items-center gap-2 ${step >= s.num ? 'text-rocket-600' : 'text-charcoal-300'}`}
                 >
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
                     step > s.num ? 'bg-rocket-600 text-white' :
-                    step === s.num ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-600' :
-                    'bg-slate-200 text-slate-500'
+                    step === s.num ? 'bg-rocket-100 text-rocket-600 ring-2 ring-rocket-600' :
+                    'bg-charcoal-200 text-charcoal-500'
                   }`}>
                     {step > s.num ? <CheckCircle className="w-4 h-4" /> : s.num}
                   </div>
@@ -353,7 +353,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                   <h4 className="font-medium text-slate-900">Visibility</h4>
                   <div className="space-y-2">
                     <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
-                      <input type="radio" name="visibility" checked={visibility === 'private'} onChange={() => setVisibility('private')} className="text-blue-600" />
+                      <input type="radio" name="visibility" checked={visibility === 'private'} onChange={() => setVisibility('private')} className="text-rocket-600" />
                       <Lock className="w-4 h-4 text-slate-500" />
                       <div className="flex-1">
                         <div className="font-medium text-slate-900">Private</div>
@@ -361,7 +361,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       </div>
                     </label>
                     <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
-                      <input type="radio" name="visibility" checked={visibility === 'all_customers'} onChange={() => setVisibility('all_customers')} className="text-blue-600" />
+                      <input type="radio" name="visibility" checked={visibility === 'all_customers'} onChange={() => setVisibility('all_customers')} className="text-rocket-600" />
                       <Globe className="w-4 h-4 text-slate-500" />
                       <div className="flex-1">
                         <div className="font-medium text-slate-900">All Customers</div>
@@ -369,7 +369,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       </div>
                     </label>
                     <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition">
-                      <input type="radio" name="visibility" checked={visibility === 'admin_only'} onChange={() => setVisibility('admin_only')} className="text-blue-600" />
+                      <input type="radio" name="visibility" checked={visibility === 'admin_only'} onChange={() => setVisibility('admin_only')} className="text-rocket-600" />
                       <Shield className="w-4 h-4 text-slate-500" />
                       <div className="flex-1">
                         <div className="font-medium text-slate-900">Admin Only</div>
@@ -547,7 +547,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                                 setTableColumns(tableColumns.filter(c => c !== col.id));
                               }
                             }}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
+                            className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
                           />
                           <span className="text-sm text-slate-700">{col.label}</span>
                         </label>
@@ -586,12 +586,12 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                         onClick={() => setSelectedIcon(option.name)}
                         className={`p-3 rounded-lg border-2 transition ${
                           selectedIcon === option.name
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-rocket-500 bg-rocket-50'
                             : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <IconComponent className={`w-5 h-5 mx-auto ${
-                          selectedIcon === option.name ? 'text-blue-600' : 'text-slate-500'
+                          selectedIcon === option.name ? 'text-rocket-600' : 'text-slate-500'
                         }`} />
                       </button>
                     );
@@ -606,7 +606,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       key={option.value}
                       onClick={() => setSelectedColor(option.value)}
                       className={`w-10 h-10 rounded-lg ${option.value} flex items-center justify-center transition ring-offset-2 ${
-                        selectedColor === option.value ? 'ring-2 ring-blue-500' : ''
+                        selectedColor === option.value ? 'ring-2 ring-rocket-500' : ''
                       }`}
                     >
                       {selectedColor === option.value && (

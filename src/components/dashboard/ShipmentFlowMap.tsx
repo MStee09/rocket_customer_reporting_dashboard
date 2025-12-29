@@ -678,14 +678,17 @@ export function ShipmentFlowMap({
                     {showLabels && zoom > 1.2 && (
                       <text
                         textAnchor="middle"
-                        y={-size - 4}
-                        fontSize={7 / zoom}
-                        fontWeight="600"
+                        dominantBaseline="middle"
+                        y={(-size - 4) * zoom}
+                        transform={`scale(${1 / zoom})`}
+                        fontSize={8}
+                        fontWeight={600}
                         fill="#1e293b"
                         style={{
                           pointerEvents: 'none',
                           userSelect: 'none',
                           textShadow: '0 1px 2px rgba(255,255,255,0.8)',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
                         }}
                       >
                         {location.stateCode}
@@ -718,13 +721,16 @@ export function ShipmentFlowMap({
                     {showLabels && zoom > 1.5 && (
                       <text
                         textAnchor="middle"
-                        y={-size - 3}
-                        fontSize={6 / zoom}
-                        fontWeight="500"
+                        dominantBaseline="middle"
+                        y={(-size - 3) * zoom}
+                        transform={`scale(${1 / zoom})`}
+                        fontSize={7}
+                        fontWeight={500}
                         fill="#64748b"
                         style={{
                           pointerEvents: 'none',
                           userSelect: 'none',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
                         }}
                       >
                         {location.stateCode}

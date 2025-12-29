@@ -571,17 +571,22 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
               if (isSmallRegion && zoom < 2) return null;
               if (code === 'AK' || code === 'HI') return null;
 
+              const hasData = !!regionData;
+
               return (
                 <Marker key={code} coordinates={coordinates}>
                   <text
                     textAnchor="middle"
-                    fontSize={zoom > 1.5 ? 8 : 6}
-                    fontWeight="600"
-                    fill={regionData ? '#ffffff' : '#94a3b8'}
+                    dominantBaseline="middle"
+                    transform={`scale(${1 / zoom})`}
+                    fontSize={isSmallRegion ? 7 : 8}
+                    fontWeight={600}
+                    fill={hasData ? '#ffffff' : '#94a3b8'}
                     style={{
                       pointerEvents: 'none',
                       userSelect: 'none',
-                      textShadow: regionData ? '0 1px 2px rgba(0,0,0,0.5)' : 'none'
+                      textShadow: hasData ? '0 1px 2px rgba(0,0,0,0.6)' : 'none',
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
                     }}
                   >
                     {code}

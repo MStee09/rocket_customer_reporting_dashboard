@@ -355,7 +355,7 @@ export function ShipmentsPage() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <Loader2 className="w-10 h-10 text-rocket-600 animate-spin" />
         </div>
       </div>
     );
@@ -417,7 +417,7 @@ export function ShipmentsPage() {
             <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No shipments found</p>
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-blue-600 hover:underline mt-2">
+              <button onClick={() => setSearchQuery('')} className="text-rocket-600 hover:underline mt-2">
                 Clear search
               </button>
             )}

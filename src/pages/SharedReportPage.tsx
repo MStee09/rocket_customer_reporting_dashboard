@@ -395,7 +395,7 @@ export function SharedReportPage() {
           {isExecuting && (
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
               <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
                 <span className="text-gray-700">Loading data...</span>
               </div>
             </div>

@@ -257,7 +257,7 @@ export function ReportsHubPage() {
             >
               {tab.label}
               {tab.count !== undefined && (
-                <span className={`ml-2 ${activeTab === tab.key ? 'text-blue-100' : 'text-slate-400'}`}>
+                <span className={`ml-2 ${activeTab === tab.key ? 'text-rocket-100' : 'text-slate-400'}`}>
                   {tab.count}
                 </span>
               )}
@@ -444,7 +444,7 @@ export function ReportsHubPage() {
                           className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                             report.type === 'ai'
                               ? 'bg-amber-100 text-amber-600'
-                              : 'bg-blue-100 text-blue-600'
+                              : 'bg-rocket-100 text-rocket-600'
                           }`}
                         >
                           {report.type === 'ai' ? (
@@ -461,7 +461,7 @@ export function ReportsHubPage() {
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                               report.type === 'ai'
                                 ? 'bg-amber-50 text-amber-700'
-                                : 'bg-blue-50 text-blue-700'
+                                : 'bg-rocket-50 text-rocket-700'
                             }`}
                           >
                             {report.type === 'ai' ? 'AI Report' : 'Custom'}

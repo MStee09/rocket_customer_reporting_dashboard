@@ -523,14 +523,19 @@ export function ReportsHubPage() {
 
       {scheduleModalOpen && (
         <ScheduleBuilderModal
-          reportToSchedule={reportToSchedule}
-          existingSchedule={editingSchedule}
+          isOpen={scheduleModalOpen}
+          report={reportToSchedule ? {
+            id: reportToSchedule.id,
+            name: reportToSchedule.name,
+            type: reportToSchedule.type as 'ai_report' | 'custom_report',
+          } : undefined}
+          existingSchedule={editingSchedule || undefined}
           onClose={() => {
             setScheduleModalOpen(false);
             setReportToSchedule(null);
             setEditingSchedule(null);
           }}
-          onSuccess={() => {
+          onSave={() => {
             loadAllReports();
             setScheduleModalOpen(false);
             setReportToSchedule(null);

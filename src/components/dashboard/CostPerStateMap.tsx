@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ComposableMap, Geographies, Geography, Annotation, ZoomableGroup } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, ChevronRight, ChevronDown } from 'lucide-react';
 import { StateData } from '../../hooks/useDashboardData';
 
@@ -8,7 +8,8 @@ interface CostPerStateMapProps {
   isLoading?: boolean;
 }
 
-const geoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
+const usGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
+const canadaGeoUrl = 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson';
 
 const STATE_NAMES: { [key: string]: string } = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
@@ -22,6 +23,41 @@ const STATE_NAMES: { [key: string]: string } = {
   SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
   VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
 };
+
+const CANADIAN_PROVINCES: { [key: string]: string } = {
+  AB: 'Alberta',
+  BC: 'British Columbia',
+  MB: 'Manitoba',
+  NB: 'New Brunswick',
+  NL: 'Newfoundland and Labrador',
+  NS: 'Nova Scotia',
+  NT: 'Northwest Territories',
+  NU: 'Nunavut',
+  ON: 'Ontario',
+  PE: 'Prince Edward Island',
+  QC: 'Quebec',
+  SK: 'Saskatchewan',
+  YT: 'Yukon',
+};
+
+const CANADA_NAME_TO_CODE: { [key: string]: string } = {
+  'Alberta': 'AB',
+  'British Columbia': 'BC',
+  'Manitoba': 'MB',
+  'New Brunswick': 'NB',
+  'Newfoundland and Labrador': 'NL',
+  'Nova Scotia': 'NS',
+  'Northwest Territories': 'NT',
+  'Nunavut': 'NU',
+  'Ontario': 'ON',
+  'Prince Edward Island': 'PE',
+  'Quebec': 'QC',
+  'Saskatchewan': 'SK',
+  'Yukon': 'YT',
+  'Yukon Territory': 'YT',
+};
+
+const ALL_REGION_NAMES: { [key: string]: string } = { ...STATE_NAMES, ...CANADIAN_PROVINCES };
 
 const NAME_TO_CODE: { [key: string]: string } = Object.entries(STATE_NAMES).reduce(
   (acc, [code, name]) => {
@@ -51,6 +87,27 @@ const STATE_COORDINATES: { [key: string]: [number, number] } = {
   WI: [-89.6165, 43.7844], WY: [-107.2903, 43.0760],
 };
 
+const CANADIAN_PROVINCE_COORDINATES: { [key: string]: [number, number] } = {
+  AB: [-114.0, 55.0],
+  BC: [-125.0, 54.0],
+  MB: [-98.0, 56.0],
+  NB: [-66.0, 46.5],
+  NL: [-57.0, 53.0],
+  NS: [-63.0, 45.0],
+  NT: [-119.0, 64.0],
+  NU: [-95.0, 70.0],
+  ON: [-85.0, 50.0],
+  PE: [-63.0, 46.3],
+  QC: [-72.0, 52.0],
+  SK: [-106.0, 55.0],
+  YT: [-135.0, 64.0],
+};
+
+const ALL_REGION_COORDINATES: { [key: string]: [number, number] } = {
+  ...STATE_COORDINATES,
+  ...CANADIAN_PROVINCE_COORDINATES
+};
+
 const COLOR_SCALE = ['#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
 
 function generateInsights(data: StateData[], stats: { min: number; max: number; mean: number; outliers: string[] }) {
@@ -69,8 +126,8 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
   const westCoast = ['CA', 'OR', 'WA'];
   const eastCoast = ['NY', 'NJ', 'MA', 'FL', 'GA', 'NC', 'VA'];
 
-  const getRegionAvg = (states: string[]) => {
-    const regionData = data.filter(d => states.includes(d.stateCode));
+  const getRegionAvg = (regions: string[]) => {
+    const regionData = data.filter(d => regions.includes(d.stateCode));
     if (regionData.length < 2) return null;
     return regionData.reduce((sum, d) => sum + d.avgCost, 0) / regionData.length;
   };
@@ -87,6 +144,19 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
     });
   }
 
+  const canadaData = data.filter(d => CANADIAN_PROVINCES[d.stateCode]);
+  const usData = data.filter(d => STATE_NAMES[d.stateCode]);
+
+  if (canadaData.length > 0 && usData.length > 0) {
+    const canadaAvg = canadaData.reduce((sum, d) => sum + d.avgCost, 0) / canadaData.length;
+    const usAvg = usData.reduce((sum, d) => sum + d.avgCost, 0) / usData.length;
+    const diff = ((canadaAvg - usAvg) / usAvg * 100).toFixed(0);
+    insights.push({
+      type: 'info',
+      message: `Canada avg ${Number(diff) >= 0 ? '+' : ''}${diff}% vs US avg`,
+    });
+  }
+
   const sorted = [...data].sort((a, b) => b.avgCost - a.avgCost);
   if (sorted.length >= 2) {
     insights.push({
@@ -99,10 +169,12 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
     });
   }
 
-  if (data.length < 25) {
+  const usCount = data.filter(d => STATE_NAMES[d.stateCode]).length;
+  const caCount = data.filter(d => CANADIAN_PROVINCES[d.stateCode]).length;
+  if (usCount < 25 || caCount > 0) {
     insights.push({
       type: 'info',
-      message: `Data coverage: ${data.length} of 50 states (${(data.length / 50 * 100).toFixed(0)}%)`,
+      message: `Coverage: ${usCount}/50 US states${caCount > 0 ? `, ${caCount}/13 provinces` : ''}`,
     });
   }
 
@@ -110,15 +182,19 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
 }
 
 export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
-  const [hoveredState, setHoveredState] = useState<string | null>(null);
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [center, setCenter] = useState<[number, number]>([-96, 38]);
+  const [center, setCenter] = useState<[number, number]>([-98, 48]);
   const [showSettings, setShowSettings] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showAIInsights, setShowAIInsights] = useState(true);
 
-  const stateDataMap = useMemo(() => {
+  const hasCanadianData = useMemo(() => {
+    return data.some(d => CANADIAN_PROVINCES[d.stateCode]);
+  }, [data]);
+
+  const regionDataMap = useMemo(() => {
     return new Map(data.map(d => [d.stateCode, d]));
   }, [data]);
 
@@ -152,14 +228,14 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
       return COLOR_SCALE[4];
     };
 
-    const outlierStates = data.filter(d => d.isOutlier).map(d => d.stateCode);
+    const outlierRegions = data.filter(d => d.isOutlier).map(d => d.stateCode);
 
     return {
       colorScale: getColor,
       minCost: min,
       maxCost: max,
       meanCost: mean,
-      outliers: outlierStates,
+      outliers: outlierRegions,
       thresholds: [min, p20, p40, p60, p80, max],
     };
   }, [data]);
@@ -169,8 +245,11 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
     return generateInsights(data, { min: minCost, max: maxCost, mean: meanCost, outliers });
   }, [data, minCost, maxCost, meanCost, outliers]);
 
-  const noDataCount = 50 - data.length;
-  const hoveredStateData = hoveredState ? stateDataMap.get(hoveredState) : null;
+  const usDataCount = data.filter(d => STATE_NAMES[d.stateCode]).length;
+  const caDataCount = data.filter(d => CANADIAN_PROVINCES[d.stateCode]).length;
+  const noDataCount = (50 - usDataCount) + (hasCanadianData ? (13 - caDataCount) : 0);
+
+  const hoveredRegionData = hoveredRegion ? regionDataMap.get(hoveredRegion) : null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -196,7 +275,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
   if (data.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center text-slate-500">
-        No state data available
+        No regional data available
       </div>
     );
   }
@@ -248,7 +327,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
               onChange={(e) => setShowLabels(e.target.checked)}
               className="rounded border-slate-300"
             />
-            Show state labels
+            Show region labels
           </label>
         </div>
       )}
@@ -256,7 +335,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
       {showAIInsights && insights.length > 0 && (
         <div className="flex-shrink-0 px-4 py-2 bg-slate-50 border-b border-slate-200">
           <div className="flex flex-wrap gap-2">
-            {insights.slice(0, 4).map((insight, i) => (
+            {insights.slice(0, 5).map((insight, i) => (
               <div
                 key={i}
                 className={`text-xs px-2 py-1 rounded ${
@@ -273,7 +352,14 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
       )}
 
       <div className="flex-1 relative min-h-0" onMouseMove={handleMouseMove}>
-        <ComposableMap projection="geoAlbersUsa" style={{ width: '100%', height: '100%' }}>
+        <ComposableMap
+          projection="geoMercator"
+          projectionConfig={{
+            scale: 220,
+            center: [-98, 50],
+          }}
+          style={{ width: '100%', height: '100%' }}
+        >
           <ZoomableGroup
             zoom={zoom}
             center={center}
@@ -281,15 +367,55 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
               setCenter(coordinates);
               setZoom(newZoom);
             }}
-            minZoom={0.8}
-            maxZoom={4}
+            minZoom={0.5}
+            maxZoom={6}
           >
-            <Geographies geography={geoUrl}>
+            <Geographies geography={canadaGeoUrl}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const provinceName = geo.properties.name;
+                  const provinceCode = CANADA_NAME_TO_CODE[provinceName];
+                  const regionData = provinceCode ? regionDataMap.get(provinceCode) : null;
+                  const fillColor = regionData ? colorScale(regionData.avgCost) : '#e2e8f0';
+                  const isOutlier = provinceCode && outliers.includes(provinceCode);
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={fillColor}
+                      stroke={isOutlier ? '#ef4444' : '#ffffff'}
+                      strokeWidth={isOutlier ? 2 : 0.5}
+                      style={{
+                        default: { outline: 'none' },
+                        hover: {
+                          fill: regionData ? fillColor : '#e2e8f0',
+                          outline: 'none',
+                          opacity: regionData ? 0.8 : 1,
+                          cursor: regionData ? 'pointer' : 'default',
+                        },
+                        pressed: { outline: 'none' },
+                      }}
+                      onMouseEnter={() => {
+                        if (regionData && provinceCode) {
+                          setHoveredRegion(provinceCode);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredRegion(null);
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+
+            <Geographies geography={usGeoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const stateName = geo.properties.name;
                   const stateCode = NAME_TO_CODE[stateName];
-                  const stateData = stateCode ? stateDataMap.get(stateCode) : null;
+                  const stateData = stateCode ? regionDataMap.get(stateCode) : null;
                   const fillColor = stateData ? colorScale(stateData.avgCost) : '#e2e8f0';
                   const isOutlier = stateCode && outliers.includes(stateCode);
 
@@ -312,11 +438,11 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                       }}
                       onMouseEnter={() => {
                         if (stateData && stateCode) {
-                          setHoveredState(stateCode);
+                          setHoveredRegion(stateCode);
                         }
                       }}
                       onMouseLeave={() => {
-                        setHoveredState(null);
+                        setHoveredRegion(null);
                       }}
                     />
                   );
@@ -324,34 +450,35 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
               }
             </Geographies>
 
-            {showLabels && Object.entries(STATE_COORDINATES).map(([code, coordinates]) => {
-              const stateData = stateDataMap.get(code);
-              const isSmallState = ['CT', 'DE', 'DC', 'MA', 'MD', 'NH', 'NJ', 'RI', 'VT'].includes(code);
+            {showLabels && Object.entries(ALL_REGION_COORDINATES).map(([code, coordinates]) => {
+              const regionData = regionDataMap.get(code);
+              const isSmallRegion = ['CT', 'DE', 'DC', 'MA', 'MD', 'NH', 'NJ', 'RI', 'VT', 'PE', 'NS', 'NB'].includes(code);
 
-              if (isSmallState && zoom < 1.5) return null;
+              if (isSmallRegion && zoom < 2) return null;
+              if (code === 'AK' || code === 'HI') return null;
 
               return (
-                <Annotation key={code} subject={coordinates} dx={0} dy={0}>
+                <Marker key={code} coordinates={coordinates}>
                   <text
                     textAnchor="middle"
-                    fontSize={zoom > 1.5 ? 10 : 8}
+                    fontSize={zoom > 1.5 ? 8 : 6}
                     fontWeight="600"
-                    fill={stateData ? '#ffffff' : '#94a3b8'}
+                    fill={regionData ? '#ffffff' : '#94a3b8'}
                     style={{
                       pointerEvents: 'none',
                       userSelect: 'none',
-                      textShadow: stateData ? '0 1px 2px rgba(0,0,0,0.5)' : 'none'
+                      textShadow: regionData ? '0 1px 2px rgba(0,0,0,0.5)' : 'none'
                     }}
                   >
                     {code}
                   </text>
-                </Annotation>
+                </Marker>
               );
             })}
           </ZoomableGroup>
         </ComposableMap>
 
-        {hoveredStateData && (
+        {hoveredRegionData && (
           <div
             className="fixed bg-white px-4 py-3 rounded-lg shadow-xl border border-slate-200 pointer-events-none z-50"
             style={{
@@ -362,9 +489,9 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
           >
             <div className="flex items-center justify-between mb-1">
               <span className="font-semibold text-slate-800">
-                {STATE_NAMES[hoveredStateData.stateCode] || hoveredStateData.stateCode}
+                {ALL_REGION_NAMES[hoveredRegionData.stateCode] || hoveredRegionData.stateCode}
               </span>
-              {outliers.includes(hoveredStateData.stateCode) && (
+              {outliers.includes(hoveredRegionData.stateCode) && (
                 <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
                   Outlier
                 </span>
@@ -372,21 +499,21 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
             </div>
 
             <div className="text-2xl font-bold text-slate-900 mb-1">
-              {formatCurrency(hoveredStateData.avgCost)}
+              {formatCurrency(hoveredRegionData.avgCost)}
             </div>
 
             <div className="text-xs text-slate-500 mb-2">
-              {hoveredStateData.shipmentCount.toLocaleString()} shipments
+              {hoveredRegionData.shipmentCount.toLocaleString()} shipments
             </div>
 
             <div className="pt-2 border-t border-slate-100 text-xs">
               <span className={
-                hoveredStateData.avgCost > meanCost
+                hoveredRegionData.avgCost > meanCost
                   ? 'text-red-600 font-medium'
                   : 'text-green-600 font-medium'
               }>
-                {hoveredStateData.avgCost > meanCost ? '+' : ''}
-                {((hoveredStateData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
+                {hoveredRegionData.avgCost > meanCost ? '+' : ''}
+                {((hoveredRegionData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
               </span>
               <span className="text-slate-500"> vs avg ({formatCurrency(meanCost)})</span>
             </div>
@@ -395,14 +522,14 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
         <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-10">
           <button
-            onClick={() => setZoom((z) => Math.min(z * 1.5, 4))}
+            onClick={() => setZoom((z) => Math.min(z * 1.5, 6))}
             className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
             title="Zoom In"
           >
             <Plus className="w-4 h-4 text-slate-700" />
           </button>
           <button
-            onClick={() => setZoom((z) => Math.max(z / 1.5, 0.8))}
+            onClick={() => setZoom((z) => Math.max(z / 1.5, 0.5))}
             className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
             title="Zoom Out"
           >
@@ -411,7 +538,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
           <button
             onClick={() => {
               setZoom(1);
-              setCenter([-96, 38]);
+              setCenter([-98, 48]);
             }}
             className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
             title="Reset View"
@@ -427,7 +554,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
           {noDataCount > 0 && (
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded bg-slate-200 border border-slate-300" />
-              <span className="text-xs text-slate-400">{noDataCount} states no data</span>
+              <span className="text-xs text-slate-400">{noDataCount} regions no data</span>
             </div>
           )}
         </div>

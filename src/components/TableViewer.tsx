@@ -56,7 +56,7 @@ export function TableViewer({ tableName, tableType }: TableViewerProps) {
     return (
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-12">
         <div className="flex flex-col items-center justify-center gap-4">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
           <p className="text-slate-600 font-medium">Loading data from {tableName}...</p>
         </div>
       </div>
@@ -101,18 +101,18 @@ export function TableViewer({ tableName, tableType }: TableViewerProps) {
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+      <div className="bg-gradient-to-r from-charcoal-800 to-charcoal-900 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-white">{tableName}</h3>
-            <p className="text-blue-100 text-sm mt-1">
+            <p className="text-charcoal-300 text-sm mt-1">
               Showing rows {startRow}-{endRow} of {tableData.totalCount.toLocaleString()} • {tableData.columns.length} columns
             </p>
           </div>
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="p-2 bg-blue-500 hover:bg-blue-400 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 bg-charcoal-700 hover:bg-charcoal-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh data"
           >
             <RefreshCw className={`w-5 h-5 text-white ${isLoading ? 'animate-spin' : ''}`} />

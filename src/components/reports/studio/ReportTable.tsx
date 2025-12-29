@@ -181,7 +181,7 @@ export function ReportTable({
         <div className={`${cellPadding} border-t border-gray-200 bg-gray-50`}>
           <button
             onClick={onViewAll}
-            className={`${textSize} text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1`}
+            className={`${textSize} text-rocket-600 hover:text-rocket-700 font-medium flex items-center gap-1`}
           >
             View all {data.length} rows
             <ChevronRight className={compact ? 'w-3 h-3' : 'w-4 h-4'} />

@@ -17,7 +17,7 @@ export function TableCard({ table, isSelected, onClick }: TableCardProps) {
         w-full text-left p-4 rounded-lg border-2 transition-all
         hover:shadow-md hover:scale-[1.02] active:scale-[0.98]
         ${isSelected
-          ? 'border-blue-500 bg-blue-50 shadow-lg'
+          ? 'border-rocket-500 bg-rocket-50 shadow-lg'
           : 'border-slate-200 bg-white hover:border-slate-300'
         }
       `}
@@ -26,12 +26,12 @@ export function TableCard({ table, isSelected, onClick }: TableCardProps) {
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className={`
             mt-0.5 p-2 rounded-lg shrink-0
-            ${isView ? 'bg-emerald-100' : 'bg-blue-100'}
+            ${isView ? 'bg-emerald-100' : 'bg-charcoal-100'}
           `}>
             {isView ? (
-              <Eye className={`w-5 h-5 ${isView ? 'text-emerald-600' : 'text-blue-600'}`} />
+              <Eye className={`w-5 h-5 ${isView ? 'text-emerald-600' : 'text-charcoal-600'}`} />
             ) : (
-              <Table className={`w-5 h-5 ${isView ? 'text-emerald-600' : 'text-blue-600'}`} />
+              <Table className={`w-5 h-5 ${isView ? 'text-emerald-600' : 'text-charcoal-600'}`} />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -43,7 +43,7 @@ export function TableCard({ table, isSelected, onClick }: TableCardProps) {
                 px-2 py-0.5 rounded text-xs font-medium
                 ${isView
                   ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-blue-100 text-blue-700'
+                  : 'bg-charcoal-100 text-charcoal-700'
                 }
               `}>
                 {isView ? 'View' : 'Table'}

@@ -121,7 +121,7 @@ export function DashboardPage() {
         name: w.name,
         description: w.description || '',
         type: w.type || 'kpi',
-        iconColor: w.display?.iconColor || w.iconColor || 'bg-blue-500',
+        iconColor: w.display?.iconColor || w.iconColor || 'bg-rocket-600',
         category: 'custom' as string,
       }));
 

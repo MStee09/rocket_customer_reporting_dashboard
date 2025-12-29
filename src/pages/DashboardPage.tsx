@@ -1,15 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { RefreshCw, Layout, Sparkles, GitCompare } from 'lucide-react';
+import { RefreshCw, Layout, Sparkles, GitCompare, DollarSign, Package, TrendingUp, Truck } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays, subYears } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardWidgetCard } from '../components/DashboardWidgetCard';
 import { LayoutEditorModal } from '../components/LayoutEditorModal';
 import { AIReportWidget } from '../components/dashboard/AIReportWidget';
 import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
+import { ComparisonMetricCard } from '../components/dashboard/ComparisonMetricCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
+import { useComparisonStats } from '../hooks/useComparisonStats';
 import { widgetLibrary, getEffectiveColSpan, getScaleFactor } from '../config/widgetLibrary';
 import { WidgetSizeLevel } from '../types/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
@@ -260,6 +262,40 @@ export function DashboardPage() {
     };
   }, [comparison, startDate, endDate]);
 
+  const { currentStats, comparisonStats, isLoading: comparisonLoading } = useComparisonStats(
+    effectiveCustomerIds,
+    isAdmin(),
+    isViewingAsCustomer,
+    startDate,
+    endDate,
+    comparisonDates?.start || null,
+    comparisonDates?.end || null
+  );
+
+  const dateRangeLabel = useMemo(() => {
+    const rangeLabels: Record<string, string> = {
+      last7: 'Last 7 Days',
+      last30: 'Last 30 Days',
+      last90: 'Last 90 Days',
+      last6months: 'Last 6 Months',
+      lastyear: 'Last Year',
+      thisMonth: 'This Month',
+      thisQuarter: 'This Quarter',
+      thisYear: 'This Year',
+      next30: 'Next 30 Days',
+      next90: 'Next 90 Days',
+      upcoming: 'Upcoming',
+    };
+    return rangeLabels[dateRange] || dateRange;
+  }, [dateRange]);
+
+  const comparisonLabel = useMemo(() => {
+    if (!comparison?.enabled) return '';
+    if (comparison.type === 'previous') return 'Previous Period';
+    if (comparison.type === 'lastYear') return 'Last Year';
+    return 'Custom Period';
+  }, [comparison]);
+
   const handleSaveLayout = async (newOrder: string[], newSizes: Record<string, WidgetSizeLevel>) => {
     const success = await saveLayout(newOrder, newSizes);
     if (success) {
@@ -458,6 +494,51 @@ export function DashboardPage() {
             }}
             className="mb-6"
           />
+        )}
+
+        {comparison?.enabled && currentStats && comparisonStats && !comparisonLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <ComparisonMetricCard
+              title="Total Spend"
+              currentValue={currentStats.totalSpend}
+              currentLabel={dateRangeLabel}
+              comparisonValue={comparisonStats.totalSpend}
+              comparisonLabel={comparisonLabel}
+              format="currency"
+              positiveDirection="up"
+              icon={<DollarSign className="w-4 h-4" />}
+            />
+            <ComparisonMetricCard
+              title="Shipments"
+              currentValue={currentStats.shipmentCount}
+              currentLabel={dateRangeLabel}
+              comparisonValue={comparisonStats.shipmentCount}
+              comparisonLabel={comparisonLabel}
+              format="number"
+              positiveDirection="up"
+              icon={<Package className="w-4 h-4" />}
+            />
+            <ComparisonMetricCard
+              title="Avg Cost/Shipment"
+              currentValue={currentStats.avgCostPerShipment}
+              currentLabel={dateRangeLabel}
+              comparisonValue={comparisonStats.avgCostPerShipment}
+              comparisonLabel={comparisonLabel}
+              format="currency"
+              positiveDirection="down"
+              icon={<TrendingUp className="w-4 h-4" />}
+            />
+            <ComparisonMetricCard
+              title="In Transit"
+              currentValue={currentStats.inTransit}
+              currentLabel={dateRangeLabel}
+              comparisonValue={comparisonStats.inTransit}
+              comparisonLabel={comparisonLabel}
+              format="number"
+              positiveDirection="up"
+              icon={<Truck className="w-4 h-4" />}
+            />
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">

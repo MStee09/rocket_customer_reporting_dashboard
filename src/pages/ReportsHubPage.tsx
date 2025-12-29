@@ -61,7 +61,7 @@ function getNextRunDisplay(nextRun: string | null): string {
 
 export function ReportsHubPage() {
   const navigate = useNavigate();
-  const { user, selectedCustomerId } = useAuth();
+  const { user, effectiveCustomerId } = useAuth();
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,10 +79,10 @@ export function ReportsHubPage() {
 
   useEffect(() => {
     loadAllReports();
-  }, [user, selectedCustomerId]);
+  }, [user, effectiveCustomerId]);
 
   async function loadAllReports() {
-    if (!user || !selectedCustomerId) {
+    if (!user || !effectiveCustomerId) {
       setLoading(false);
       return;
     }
@@ -92,10 +92,10 @@ export function ReportsHubPage() {
         supabase
           .from('scheduled_reports')
           .select('*')
-          .eq('customer_id', selectedCustomerId)
+          .eq('customer_id', effectiveCustomerId)
           .order('created_at', { ascending: false }),
-        loadAIReports(selectedCustomerId.toString()),
-        getSavedViews(user.id, selectedCustomerId),
+        loadAIReports(effectiveCustomerId.toString()),
+        getSavedViews(user.id, effectiveCustomerId),
       ]);
 
       if (schedulesData.data) {
@@ -163,13 +163,13 @@ export function ReportsHubPage() {
   }, [scheduledReports, activeTab, searchQuery]);
 
   async function handleDeleteReport(report: ReportItem) {
-    if (!selectedCustomerId) return;
+    if (!effectiveCustomerId) return;
 
     if (!confirm(`Are you sure you want to delete "${report.name}"?`)) return;
 
     try {
       if (report.type === 'ai') {
-        await deleteAIReport(selectedCustomerId.toString(), report.id);
+        await deleteAIReport(effectiveCustomerId.toString(), report.id);
         setAIReports(aiReports.filter((r) => r.id !== report.id));
       } else {
         await deleteSavedView(report.id);

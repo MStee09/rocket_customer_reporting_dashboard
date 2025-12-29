@@ -16,6 +16,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
+import { ExportMenu } from '../components/ui/ExportMenu';
+import { ColumnConfig } from '../services/exportService';
 
 interface Shipment {
   load_id: number;
@@ -179,6 +181,29 @@ export function ShipmentsPage() {
     return counts;
   }, [shipments]);
 
+  const shipmentExportColumns: ColumnConfig[] = useMemo(() => {
+    const baseColumns: ColumnConfig[] = [
+      { key: 'load_id', header: 'Load ID', format: 'number', width: 10 },
+      { key: 'pickup_date', header: 'Pickup Date', format: 'date', width: 12 },
+      { key: 'delivery_date', header: 'Delivery Date', format: 'date', width: 12 },
+      { key: 'origin_city', header: 'Origin City', format: 'text', width: 15 },
+      { key: 'origin_state', header: 'Origin State', format: 'text', width: 10 },
+      { key: 'destination_city', header: 'Dest City', format: 'text', width: 15 },
+      { key: 'destination_state', header: 'Dest State', format: 'text', width: 10 },
+      { key: 'carrier_name', header: 'Carrier', format: 'text', width: 20 },
+      { key: 'mode_name', header: 'Mode', format: 'text', width: 12 },
+      { key: 'status', header: 'Status', format: 'text', width: 12 },
+      { key: 'po_reference', header: 'PO Reference', format: 'text', width: 15 },
+      { key: 'reference_number', header: 'Reference', format: 'text', width: 15 },
+    ];
+
+    if (isAdmin() && !isViewingAsCustomer) {
+      baseColumns.push({ key: 'customer_charge', header: 'Cost', format: 'currency', width: 12 });
+    }
+
+    return baseColumns;
+  }, [isAdmin, isViewingAsCustomer]);
+
   const filteredShipments = useMemo(() => {
     return shipments.filter((s) => {
       let statusKey = s.status;
@@ -215,6 +240,24 @@ export function ShipmentsPage() {
       return searchTerms.every(term => combinedText.includes(term));
     });
   }, [shipments, searchQuery, activeStatus]);
+
+  const shipmentExportData = useMemo(() => {
+    return filteredShipments.map(s => ({
+      load_id: s.load_id,
+      pickup_date: s.pickup_date,
+      delivery_date: s.delivery_date,
+      origin_city: s.origin_city,
+      origin_state: s.origin_state,
+      destination_city: s.destination_city,
+      destination_state: s.destination_state,
+      carrier_name: s.carrier_name || '',
+      mode_name: s.mode_name || '',
+      status: s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status,
+      po_reference: s.po_reference || '',
+      reference_number: s.reference_number || '',
+      customer_charge: s.customer_charge
+    }));
+  }, [filteredShipments]);
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return null;
@@ -329,15 +372,24 @@ export function ShipmentsPage() {
           )}
         </div>
 
-        {hasActiveFilters && (
-          <button
-            onClick={() => setShowSaveViewModal(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors flex-shrink-0 ml-4"
-          >
-            <Bookmark className="w-4 h-4" />
-            Save View
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+          <ExportMenu
+            data={shipmentExportData}
+            columns={shipmentExportColumns}
+            filename="shipments"
+            title="Shipment Export"
+            disabled={filteredShipments.length === 0}
+          />
+          {hasActiveFilters && (
+            <button
+              onClick={() => setShowSaveViewModal(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
+            >
+              <Bookmark className="w-4 h-4" />
+              Save View
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="text-sm text-gray-500 mb-4">

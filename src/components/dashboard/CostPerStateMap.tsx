@@ -319,6 +319,29 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
     return Math.round((index / sorted.length) * 100);
   };
 
+  const getTooltipPosition = (mouseX: number, mouseY: number) => {
+    const tooltipWidth = 260;
+    const tooltipHeight = 200;
+    const padding = 20;
+    const offset = 15;
+
+    let x = mouseX + offset;
+    let y = mouseY + offset;
+
+    if (x + tooltipWidth + padding > window.innerWidth) {
+      x = mouseX - tooltipWidth - offset;
+    }
+
+    if (y + tooltipHeight + padding > window.innerHeight) {
+      y = mouseY - tooltipHeight - offset;
+    }
+
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    return { x, y };
+  };
+
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -601,9 +624,10 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
           <div
             className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 pointer-events-none z-50 overflow-hidden"
             style={{
-              left: `${tooltipPos.x + 15}px`,
-              top: `${tooltipPos.y + 15}px`,
+              left: `${getTooltipPosition(tooltipPos.x, tooltipPos.y).x}px`,
+              top: `${getTooltipPosition(tooltipPos.x, tooltipPos.y).y}px`,
               minWidth: '220px',
+              maxWidth: '260px',
             }}
           >
             <div className={`px-4 py-2.5 border-b ${

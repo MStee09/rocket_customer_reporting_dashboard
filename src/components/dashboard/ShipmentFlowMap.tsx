@@ -241,8 +241,13 @@ export function ShipmentFlowMap({
   const [showSettings, setShowSettings] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const customerIdsKey = (effectiveCustomerIds ?? []).join(',');
+
+  const handleMouseMove = (event: React.MouseEvent) => {
+    setTooltipPos({ x: event.clientX, y: event.clientY });
+  };
 
   useEffect(() => {
     loadMapData();
@@ -397,6 +402,27 @@ export function ShipmentFlowMap({
         const opacity = 0.3 + (route.shipmentCount / maxShipments) * 0.7;
         return `rgba(249, 115, 22, ${opacity})`;
     }
+  };
+
+  const getTooltipPosition = (baseX: number, baseY: number, width: number, height: number) => {
+    const padding = 20;
+    const offset = 15;
+
+    let x = baseX + offset;
+    let y = baseY + offset;
+
+    if (x + width + padding > window.innerWidth) {
+      x = baseX - width - offset;
+    }
+
+    if (y + height + padding > window.innerHeight) {
+      y = baseY - height - offset;
+    }
+
+    x = Math.max(padding, x);
+    y = Math.max(padding, y);
+
+    return { x, y };
   };
 
   if (isLoading) {
@@ -575,7 +601,7 @@ export function ShipmentFlowMap({
         </div>
       )}
 
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0" onMouseMove={handleMouseMove}>
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
@@ -743,7 +769,15 @@ export function ShipmentFlowMap({
         </ComposableMap>
 
         {hoveredRoute && (
-          <div className="absolute top-4 right-4 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden text-xs z-10 min-w-[220px]">
+          <div
+            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden text-xs z-50 pointer-events-none"
+            style={{
+              left: `${getTooltipPosition(tooltipPos.x, tooltipPos.y, 240, 200).x}px`,
+              top: `${getTooltipPosition(tooltipPos.x, tooltipPos.y, 240, 200).y}px`,
+              minWidth: '220px',
+              maxWidth: '240px',
+            }}
+          >
             <div className={`px-4 py-2.5 border-b ${
               hoveredRoute.isCrossBorder ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'
             }`}>
@@ -788,7 +822,15 @@ export function ShipmentFlowMap({
         )}
 
         {hoveredLocation && !hoveredRoute && (
-          <div className="absolute top-4 left-4 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden text-xs z-10 min-w-[180px]">
+          <div
+            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden text-xs z-50 pointer-events-none"
+            style={{
+              left: `${getTooltipPosition(tooltipPos.x, tooltipPos.y, 200, 220).x}px`,
+              top: `${getTooltipPosition(tooltipPos.x, tooltipPos.y, 200, 220).y}px`,
+              minWidth: '180px',
+              maxWidth: '200px',
+            }}
+          >
             <div className={`px-4 py-2.5 border-b ${
               hoveredLocation.country === 'CA' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'
             }`}>

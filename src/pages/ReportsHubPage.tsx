@@ -6,11 +6,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportService';
-import { getSavedViews, deleteSavedView } from '../services/savedViewsService';
-import type { SavedView } from '../types/customerIntelligence';
+import { useCustomerReports } from '../hooks/useCustomerReports';
 import { supabase } from '../lib/supabase';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
 import { formatDistanceToNow, format } from 'date-fns';
+import { ReportConfig } from '../types/reports';
 
 type FilterTab = 'all' | 'ai' | 'custom' | 'scheduled';
 
@@ -62,6 +62,7 @@ function getNextRunDisplay(nextRun: string | null): string {
 export function ReportsHubPage() {
   const navigate = useNavigate();
   const { user, effectiveCustomerId } = useAuth();
+  const { reports: customReportsFromStorage, isLoading: customReportsLoading, deleteReport: deleteCustomReport } = useCustomerReports();
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,7 +70,6 @@ export function ReportsHubPage() {
 
   const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
   const [aiReports, setAIReports] = useState<SavedAIReport[]>([]);
-  const [customReports, setCustomReports] = useState<SavedView[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -88,14 +88,13 @@ export function ReportsHubPage() {
     }
 
     try {
-      const [schedulesData, aiReportsData, savedViewsData] = await Promise.all([
+      const [schedulesData, aiReportsData] = await Promise.all([
         supabase
           .from('scheduled_reports')
           .select('*')
           .eq('customer_id', effectiveCustomerId)
           .order('created_at', { ascending: false }),
         loadAIReports(effectiveCustomerId.toString()),
-        getSavedViews(user.id, effectiveCustomerId),
       ]);
 
       if (schedulesData.data) {
@@ -103,7 +102,6 @@ export function ReportsHubPage() {
       }
 
       setAIReports(aiReportsData);
-      setCustomReports(savedViewsData.filter((v) => v.viewType === 'report'));
     } catch (error) {
       console.error('Failed to load reports:', error);
     } finally {
@@ -120,7 +118,7 @@ export function ReportsHubPage() {
         date: report.createdAt,
         path: `/ai-reports/${report.id}`,
       })),
-      ...customReports.map((report) => ({
+      ...customReportsFromStorage.map((report) => ({
         id: report.id,
         name: report.name,
         type: 'custom' as const,
@@ -130,7 +128,7 @@ export function ReportsHubPage() {
     ];
 
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [aiReports, customReports]);
+  }, [aiReports, customReportsFromStorage]);
 
   const filteredReports = useMemo(() => {
     let filtered = reportItems;
@@ -172,8 +170,7 @@ export function ReportsHubPage() {
         await deleteAIReport(effectiveCustomerId.toString(), report.id);
         setAIReports(aiReports.filter((r) => r.id !== report.id));
       } else {
-        await deleteSavedView(report.id);
-        setCustomReports(customReports.filter((r) => r.id !== report.id));
+        await deleteCustomReport(report.id);
       }
       setMenuOpen(null);
     } catch (error) {
@@ -233,9 +230,11 @@ export function ReportsHubPage() {
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
     { key: 'all', label: 'All' },
     { key: 'ai', label: 'AI Reports', count: aiReports.length },
-    { key: 'custom', label: 'Custom Reports', count: customReports.length },
+    { key: 'custom', label: 'Custom Reports', count: customReportsFromStorage.length },
     { key: 'scheduled', label: 'Scheduled', count: scheduledReports.length },
   ];
+
+  const isLoading = loading || customReportsLoading;
 
   return (
     <div className="space-y-6">
@@ -280,7 +279,7 @@ export function ReportsHubPage() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="inline-flex items-center gap-2 text-slate-500">
             <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>

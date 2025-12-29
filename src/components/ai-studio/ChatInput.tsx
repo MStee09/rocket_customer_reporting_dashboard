@@ -51,7 +51,7 @@ export function ChatInput({
             <button
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rocket-50 text-rocket-700 text-sm rounded-full hover:bg-rocket-100 transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5" />
               {suggestion}
@@ -60,7 +60,7 @@ export function ChatInput({
         </div>
       )}
 
-      <div className="relative flex items-end gap-2 bg-white border border-gray-200 rounded-2xl p-2 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+      <div className="relative flex items-end gap-2 bg-white border border-gray-200 rounded-2xl p-2 shadow-sm focus-within:border-rocket-500 focus-within:ring-2 focus-within:ring-rocket-100 transition-all">
         <textarea
           ref={textareaRef}
           value={message}

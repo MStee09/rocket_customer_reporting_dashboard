@@ -103,9 +103,9 @@ export function SavedReportsModal({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-teal-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-rocket-50 to-amber-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rocket-500 to-rocket-600 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -152,7 +152,7 @@ export function SavedReportsModal({
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-4" />
+              <Loader2 className="w-8 h-8 animate-spin text-rocket-500 mb-4" />
               <p className="text-gray-500">Loading reports...</p>
             </div>
           ) : filteredAndSortedReports.length === 0 ? (
@@ -189,11 +189,11 @@ export function SavedReportsModal({
                   >
                     <div className="p-5">
                       <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-teal-100 flex items-center justify-center flex-shrink-0">
-                          <IconComponent className="w-5 h-5 text-blue-600" />
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-rocket-100 to-amber-100 flex items-center justify-center flex-shrink-0">
+                          <IconComponent className="w-5 h-5 text-rocket-600" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-rocket-600 transition-colors">
                             {report.name}
                           </h3>
                           <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
@@ -258,7 +258,7 @@ export function SavedReportsModal({
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => onView(report)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors"
                           >
                             <Eye className="w-4 h-4" />
                             View

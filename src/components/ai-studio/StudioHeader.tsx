@@ -43,7 +43,7 @@ export function StudioHeader({
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rocket-500 to-rocket-600 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div className="hidden sm:block">
@@ -98,7 +98,7 @@ export function StudioHeader({
           onClick={() => onTabChange('create')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'create'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -109,7 +109,7 @@ export function StudioHeader({
           onClick={() => onTabChange('library')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'library'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -118,7 +118,7 @@ export function StudioHeader({
           {savedReportsCount > 0 && (
             <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
               activeTab === 'library'
-                ? 'bg-blue-100 text-blue-600'
+                ? 'bg-rocket-100 text-rocket-600'
                 : 'bg-gray-100 text-gray-600'
             }`}>
               {savedReportsCount}

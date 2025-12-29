@@ -168,7 +168,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="text-xl font-semibold flex items-center gap-2">
-              <LayoutDashboard className="w-5 h-5 text-blue-600" />
+              <LayoutDashboard className="w-5 h-5 text-rocket-600" />
               Add to Dashboard
             </h2>
             <p className="text-sm text-gray-500 mt-1">Select which sections to display in your widget</p>
@@ -194,7 +194,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                   key={section.id}
                   className={`flex items-center gap-2 p-3 rounded-lg mb-2 border transition-all ${
                     section.included
-                      ? 'bg-blue-50 border-blue-200'
+                      ? 'bg-rocket-50 border-rocket-200'
                       : 'bg-gray-50 border-gray-200 opacity-60'
                   }`}
                 >
@@ -311,7 +311,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                   type="text"
                   value={config.title}
                   onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none"
                   placeholder="Widget title"
                 />
               </div>
@@ -330,7 +330,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                       onClick={() => setConfig({ ...config, size: value as 'small' | 'medium' | 'wide' | 'full' })}
                       className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm transition-all ${
                         config.size === value
-                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          ? 'bg-rocket-50 border-rocket-300 text-rocket-700'
                           : 'border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -346,7 +346,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                 <select
                   value={config.refreshInterval}
                   onChange={(e) => setConfig({ ...config, refreshInterval: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none"
                 >
                   <option value={0}>Manual only</option>
                   <option value={15}>Every 15 min</option>

@@ -68,12 +68,12 @@ export function ReportPreviewHeader({
                   onTitleChange(report.name || 'Untitled Report');
                 }
               }}
-              className="font-semibold text-gray-900 border-b-2 border-blue-500 outline-none bg-transparent w-full"
+              className="font-semibold text-gray-900 border-b-2 border-rocket-500 outline-none bg-transparent w-full"
               autoFocus
             />
           ) : (
             <h2
-              className="font-semibold text-gray-900 truncate cursor-pointer hover:text-blue-600 flex items-center gap-2 group"
+              className="font-semibold text-gray-900 truncate cursor-pointer hover:text-rocket-600 flex items-center gap-2 group"
               onClick={() => onEditTitle(true)}
               title="Click to edit title"
             >

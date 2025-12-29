@@ -22,7 +22,7 @@ export function ChatMessage({
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isUser ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+          isUser ? 'bg-rocket-100 text-rocket-600' : 'bg-gray-100 text-gray-600'
         }`}
       >
         {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -142,7 +142,7 @@ function ReportCard({ report, onPreview, onSave }: ReportCardProps) {
             {type.replace('-', ' ')}
           </span>
         ))}
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-xs">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-rocket-50 text-rocket-600 text-xs">
           {report.sections?.length || 0} sections
         </span>
       </div>

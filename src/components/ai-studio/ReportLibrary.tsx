@@ -111,7 +111,7 @@ export function ReportLibrary({
       <div className="flex-1 overflow-y-auto p-6">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-4" />
+            <Loader2 className="w-8 h-8 animate-spin text-rocket-500 mb-4" />
             <p className="text-gray-500">Loading your reports...</p>
           </div>
         ) : filteredAndSortedReports.length === 0 ? (
@@ -144,7 +144,7 @@ export function ReportLibrary({
               const stats = getReportStats(report);
               const isDeleting = deleteConfirm === report.id;
               const accentColors = [
-                'bg-blue-500',
+                'bg-rocket-500',
                 'bg-emerald-500',
                 'bg-amber-500',
                 'bg-rose-500',
@@ -166,7 +166,7 @@ export function ReportLibrary({
                   <div className="flex-1 min-w-0">
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <h3 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                        <h3 className="font-medium text-gray-900 truncate group-hover:text-rocket-600 transition-colors">
                           {report.name}
                         </h3>
                         <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
@@ -228,7 +228,7 @@ export function ReportLibrary({
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate(`/ai-reports/${report.id}`); }}
-                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            className="text-xs text-rocket-600 hover:text-rocket-700 font-medium"
                           >
                             View
                           </button>

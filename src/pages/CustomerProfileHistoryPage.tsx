@@ -35,7 +35,7 @@ function getChangeColor(changeType: ProfileHistoryEntry['changeType']) {
     case 'remove':
       return 'bg-red-100 text-red-700 border-red-200';
     case 'modify':
-      return 'bg-blue-100 text-blue-700 border-blue-200';
+      return 'bg-rocket-100 text-rocket-700 border-rocket-200';
     case 'create':
       return 'bg-amber-100 text-amber-700 border-amber-200';
     default:
@@ -228,7 +228,7 @@ export function CustomerProfileHistoryPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-3" />
+          <Loader2 className="w-10 h-10 text-rocket-600 animate-spin mx-auto mb-3" />
           <p className="text-gray-600">Loading history...</p>
         </div>
       </div>

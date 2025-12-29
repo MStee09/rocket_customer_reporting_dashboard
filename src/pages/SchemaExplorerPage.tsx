@@ -29,7 +29,7 @@ export function SchemaExplorerPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-3 flex items-center gap-2 border-b-2 transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-500 text-blue-600 font-medium'
+                ? 'border-rocket-500 text-rocket-600 font-medium'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -96,7 +96,7 @@ function TablesTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -106,7 +106,7 @@ function TablesTab() {
       <div className="md:col-span-1">
         <Card variant="elevated" padding="md">
           <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Database className="w-5 h-5 text-blue-600" />
+            <Database className="w-5 h-5 text-rocket-600" />
             Tables & Views
           </h2>
           <div className="space-y-1 max-h-[600px] overflow-y-auto">
@@ -116,7 +116,7 @@ function TablesTab() {
                 onClick={() => setSelectedTable(table.name)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 ${
                   selectedTable === table.name
-                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    ? 'bg-rocket-50 text-rocket-700 font-medium'
                     : 'text-slate-700 hover:bg-slate-50'
                 }`}
               >
@@ -146,7 +146,7 @@ function TablesTab() {
             {isLoadingTable ? (
               <Card variant="elevated" padding="lg">
                 <div className="flex items-center justify-center py-10">
-                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-rocket-600 animate-spin" />
                 </div>
               </Card>
             ) : (
@@ -195,7 +195,7 @@ function TablesTab() {
                     <h3 className="text-lg font-bold text-slate-800">Example Query</h3>
                     <button
                       onClick={() => copyToClipboard(getExampleQuery(selectedTable))}
-                      className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-3 py-1 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors"
                     >
                       {copied ? (
                         <>
@@ -266,18 +266,18 @@ function LookupTablesTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-rocket-50 border border-rocket-200 rounded-xl p-4">
+        <p className="text-sm text-rocket-800">
           <strong>About Lookup Tables:</strong> These tables provide the display values for ID fields in
-          reports and widgets. When you see <code className="bg-blue-100 px-1 rounded">mode_id = 2</code>,
-          the lookup table translates it to <code className="bg-blue-100 px-1 rounded">LTL</code>.
+          reports and widgets. When you see <code className="bg-rocket-100 px-1 rounded">mode_id = 2</code>,
+          the lookup table translates it to <code className="bg-rocket-100 px-1 rounded">LTL</code>.
         </p>
       </div>
 
@@ -348,7 +348,7 @@ function LookupCard({
             <h3 className="font-semibold text-slate-900">{title}</h3>
             <p className="text-sm text-slate-500">{description}</p>
           </div>
-          <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-mono">
+          <div className="text-xs bg-rocket-100 text-rocket-700 px-2 py-1 rounded font-mono">
             {fieldMapping}
           </div>
         </div>
@@ -370,7 +370,7 @@ function LookupCard({
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`px-4 py-2 ${col.mono ? 'font-mono text-xs text-slate-500' : ''} ${col.highlight ? 'font-semibold text-blue-600' : ''}`}
+                    className={`px-4 py-2 ${col.mono ? 'font-mono text-xs text-slate-500' : ''} ${col.highlight ? 'font-semibold text-rocket-600' : ''}`}
                   >
                     {col.boolean ? (
                       row[col.key] ? (

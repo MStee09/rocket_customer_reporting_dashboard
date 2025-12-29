@@ -115,7 +115,7 @@ export function CustomerProfileEditorPage() {
   if (isLoading) {
     return (
       <div className="p-12 text-center">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+        <Loader2 className="w-8 h-8 text-rocket-600 animate-spin mx-auto mb-4" />
         <p className="text-gray-500">Loading profile...</p>
       </div>
     );
@@ -177,8 +177,8 @@ export function CustomerProfileEditorPage() {
           title="Products They Ship"
           description="Product types and how they map to shipment data"
           icon={Package}
-          iconColor="text-blue-500"
-          iconBg="bg-blue-50"
+          iconColor="text-rocket-500"
+          iconBg="bg-rocket-50"
         >
           <ProductsSection
             customerId={customer.customer_id}

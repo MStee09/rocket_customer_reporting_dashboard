@@ -177,7 +177,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
           <div
             className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
               dragActive
-                ? 'border-blue-500 bg-blue-50'
+                ? 'border-rocket-500 bg-rocket-50'
                 : file
                 ? 'border-green-500 bg-green-50'
                 : 'border-gray-300 hover:border-gray-400'
@@ -211,7 +211,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                 <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 mb-2">
                   Drag and drop your file here, or{' '}
-                  <label className="text-blue-600 hover:text-blue-700 cursor-pointer">
+                  <label className="text-rocket-600 hover:text-rocket-700 cursor-pointer">
                     browse
                     <input
                       type="file"
@@ -409,7 +409,7 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
   return (
     <>
       <tr
-        className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+        className="hover:bg-rocket-50/50 cursor-pointer transition-colors"
         onClick={() => onEdit(document.id)}
       >
         <td className="px-6 py-4">
@@ -418,7 +418,7 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
               <FileText className="w-5 h-5 text-gray-500" />
             </div>
             <div className="min-w-0">
-              <p className="font-medium text-gray-900 truncate hover:text-blue-600 transition-colors">{document.title}</p>
+              <p className="font-medium text-gray-900 truncate hover:text-rocket-600 transition-colors">{document.title}</p>
               {document.description && (
                 <p className="text-sm text-gray-500 truncate">{document.description}</p>
               )}
@@ -436,7 +436,7 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
               document.scope === 'global'
-                ? 'bg-blue-100 text-blue-700'
+                ? 'bg-rocket-100 text-rocket-700'
                 : 'bg-teal-100 text-teal-700'
             }`}
           >
@@ -674,7 +674,7 @@ export function KnowledgeBasePage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rocket-500 to-teal-500 flex items-center justify-center">
           <BookOpen className="w-6 h-6 text-white" />
         </div>
         <div>
@@ -769,7 +769,7 @@ export function KnowledgeBasePage() {
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-sm text-gray-500">Global</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.global}</p>
+          <p className="text-2xl font-bold text-rocket-600">{stats.global}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-200">
           <p className="text-sm text-gray-500">Customer-Specific</p>

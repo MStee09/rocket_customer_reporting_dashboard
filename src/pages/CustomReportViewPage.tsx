@@ -12,7 +12,8 @@ import {
   AlertCircle,
   LayoutGrid,
   Pencil,
-  Download
+  Download,
+  Mail
 } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +42,7 @@ import { ScheduledReport } from '../types/scheduledReports';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
+import { EmailReportModal } from '../components/reports/EmailReportModal';
 
 type DatePreset = 'last30' | 'last90' | 'last6months' | 'lastyear' | 'custom';
 
@@ -61,6 +63,8 @@ export function CustomReportViewPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
   const [retryCount, setRetryCount] = useState(0);
 
   const newReportFromState = (location.state as { newReport?: any })?.newReport;
@@ -310,6 +314,14 @@ export function CustomReportViewPage() {
               Export PDF
             </button>
             <button
+              onClick={() => setShowEmailModal(true)}
+              disabled={reportData.length === 0}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Mail className="w-4 h-4" />
+              Email
+            </button>
+            <button
               onClick={() => setShowSaveAsWidgetModal(true)}
               className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
             >
@@ -340,7 +352,7 @@ export function CustomReportViewPage() {
           </div>
         </div>
 
-        <SimpleReportViewer config={simpleReportConfig} customerId={customerId?.toString()} />
+        <SimpleReportViewer config={simpleReportConfig} customerId={customerId?.toString()} onDataLoad={setReportData} />
 
         {showSchedulePrompt && (
           <div className="mt-6">
@@ -395,6 +407,14 @@ export function CustomReportViewPage() {
             }}
           />
         )}
+
+        <EmailReportModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          reportName={report.name}
+          reportData={reportData}
+          reportType="custom"
+        />
       </div>
     );
   }

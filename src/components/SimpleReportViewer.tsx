@@ -12,9 +12,10 @@ import { ColumnConfig } from '../services/exportService';
 interface SimpleReportViewerProps {
   config: SimpleReportConfig;
   customerId?: string;
+  onDataLoad?: (data: Record<string, unknown>[]) => void;
 }
 
-export default function SimpleReportViewer({ config, customerId }: SimpleReportViewerProps) {
+export default function SimpleReportViewer({ config, customerId, onDataLoad }: SimpleReportViewerProps) {
   const { isAdmin, isViewingAsCustomer } = useAuth();
   const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
   const { lookups, loading: lookupsLoading } = useLookupTables();
@@ -48,6 +49,7 @@ export default function SimpleReportViewer({ config, customerId }: SimpleReportV
     try {
       const result = await executeSimpleReport(filteredConfig, customerId);
       setData(result);
+      onDataLoad?.(result);
     } catch (err: any) {
       console.error('Error loading report data:', err);
       setError(err.message || 'Failed to load report data');

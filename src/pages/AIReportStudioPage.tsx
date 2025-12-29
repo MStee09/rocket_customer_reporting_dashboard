@@ -23,6 +23,7 @@ import {
   FolderOpen,
   X,
   ArrowLeft,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage, ChatInput, AddToDashboardModal, AIReportWidgetConfig } from '../components/ai-studio';
@@ -48,6 +49,7 @@ import { exportReportToPDF } from '../utils/pdfExport';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
+import { EmailReportModal } from '../components/reports/EmailReportModal';
 
 const SUGGESTIONS = [
   'Show me total spend by transportation mode',
@@ -168,6 +170,7 @@ export function AIReportStudioPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -1064,6 +1067,16 @@ export function AIReportStudioPage() {
                           formats={['csv', 'excel']}
                         />
                       )}
+                      {hasExportableData && (
+                        <button
+                          onClick={() => setShowEmailModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Email Report"
+                        >
+                          <Mail className="w-4 h-4" />
+                          <span className="hidden sm:inline">Email</span>
+                        </button>
+                      )}
                       <button
                         onClick={handleAddToDashboardClick}
                         disabled={dashboardAddSuccess || isSaving}
@@ -1175,6 +1188,16 @@ export function AIReportStudioPage() {
             createdBy: currentReport.createdBy,
           }}
           onAdd={handleAddToDashboard}
+        />
+      )}
+
+      {hasExportableData && (
+        <EmailReportModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          reportName={editableTitle || currentReport?.name || 'AI Report'}
+          reportData={exportableData.data}
+          reportType="ai"
         />
       )}
     </div>

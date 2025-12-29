@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, ArrowUpDown, Sparkles, Loader2,
-  Truck, DollarSign, Package, Clock
+  Truck, DollarSign, Package, Clock, Mail
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,6 +10,9 @@ import { formatCurrency } from '../utils/dateUtils';
 import { TrendIndicator } from '../components/ui/TrendIndicator';
 import { DateRangeSelector, DateRangePreset, DateRange, getDateRangeFromPreset } from '../components/reports/studio/DateRangeSelector';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ExportMenu } from '../components/ui/ExportMenu';
+import { EmailReportModal } from '../components/reports/EmailReportModal';
+import { ColumnConfig } from '../services/exportService';
 
 interface CarrierMetrics {
   carrier_name: string;
@@ -61,6 +64,7 @@ export function CarriersPage() {
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetrics | null>(null);
   const [sortField, setSortField] = useState<SortField>('total_spend');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const dateRange = useMemo(() => {
     return customDateRange || getDateRangeFromPreset(datePreset);
@@ -273,6 +277,28 @@ export function CarriersPage() {
       }));
   }, [carriers]);
 
+  const carrierExportColumns: ColumnConfig[] = useMemo(() => [
+    { key: 'carrier_name', header: 'Carrier', format: 'text', width: 25 },
+    { key: 'shipment_count', header: 'Shipments', format: 'number', width: 12 },
+    { key: 'total_spend', header: 'Total Spend', format: 'currency', width: 15 },
+    { key: 'avg_cost', header: 'Avg Cost/Shipment', format: 'currency', width: 15 },
+    { key: 'market_share', header: 'Market Share %', format: 'number', width: 12 },
+    { key: 'trend_pct', header: 'Trend vs Prior %', format: 'number', width: 15 },
+    { key: 'prev_spend', header: 'Prior Period Spend', format: 'currency', width: 15 },
+  ], []);
+
+  const carrierExportData = useMemo(() => {
+    return sortedCarriers.map(c => ({
+      carrier_name: c.carrier_name,
+      shipment_count: c.shipment_count,
+      total_spend: c.total_spend,
+      avg_cost: c.avg_cost,
+      market_share: parseFloat(c.market_share.toFixed(1)),
+      trend_pct: parseFloat(c.trend_pct.toFixed(1)),
+      prev_spend: c.prev_spend,
+    }));
+  }, [sortedCarriers]);
+
   function handleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -314,14 +340,31 @@ export function CarriersPage() {
           <h1 className="text-3xl font-bold text-slate-900">Carrier Performance</h1>
           <p className="text-slate-600 mt-1">Analyze carrier metrics and compare performance</p>
         </div>
-        <DateRangeSelector
-          value={datePreset}
-          customRange={customDateRange}
-          onChange={(preset, dates) => {
-            setDatePreset(preset);
-            setCustomDateRange(dates);
-          }}
-        />
+        <div className="flex items-center gap-3">
+          <DateRangeSelector
+            value={datePreset}
+            customRange={customDateRange}
+            onChange={(preset, dates) => {
+              setDatePreset(preset);
+              setCustomDateRange(dates);
+            }}
+          />
+          <ExportMenu
+            data={carrierExportData}
+            columns={carrierExportColumns}
+            filename="carrier-performance"
+            title="Carrier Performance Report"
+            disabled={carriers.length === 0}
+          />
+          <button
+            onClick={() => setShowEmailModal(true)}
+            disabled={carriers.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            Email
+          </button>
+        </div>
       </div>
 
       {summaryMetrics && (
@@ -587,6 +630,14 @@ export function CarriersPage() {
           </div>
         </div>
       )}
+
+      <EmailReportModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        reportName="Carrier Performance Report"
+        reportData={carrierExportData}
+        reportType="custom"
+      />
     </div>
   );
 }

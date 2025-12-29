@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, FileText, BarChart3, Trash2, Users, Calendar } from 'lucide-react';
+import { Loader2, Plus, FileText, BarChart3, Trash2, Users, Calendar, ArrowLeft } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { EmptyReportState } from '../components/EmptyReportState';
 import SimpleReportBuilder from '../components/SimpleReportBuilder';
@@ -107,9 +107,18 @@ export function CustomReportsPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">Custom Reports</h1>
-          <p className="text-slate-600 mt-1">Create and manage your custom reports</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/analytics')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Back to Analytics"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">Custom Reports</h1>
+            <p className="text-slate-600 mt-1">Create and manage your custom reports</p>
+          </div>
         </div>
 
         {reports.length > 0 && (

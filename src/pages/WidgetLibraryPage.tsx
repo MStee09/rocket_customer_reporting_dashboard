@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   LayoutGrid,
@@ -8,6 +9,7 @@ import {
   Users as UsersIcon,
   CheckCircle,
   AlertCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { WidgetLibraryCard } from '../components/widgets/WidgetLibraryCard';
@@ -29,6 +31,7 @@ interface Tab {
 }
 
 export const WidgetLibraryPage = () => {
+  const navigate = useNavigate();
   const { isAdmin, effectiveCustomerId, user, isViewingAsCustomer, viewingCustomer } = useAuth();
   const supabase = useSupabase();
   const currentUserId = user?.id;
@@ -221,12 +224,21 @@ export const WidgetLibraryPage = () => {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Widget Library</h1>
-          <p className="text-slate-600">
-            Browse and manage dashboard widgets
-            {isAdmin() && ' • Admin View'}
-          </p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/analytics')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Back to Analytics"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Widget Library</h1>
+            <p className="text-slate-600">
+              Browse and manage dashboard widgets
+              {isAdmin() && ' • Admin View'}
+            </p>
+          </div>
         </div>
         {isAdmin() && activeTab !== 'customer_created' && (
           <button

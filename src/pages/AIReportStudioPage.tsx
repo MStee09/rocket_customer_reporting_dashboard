@@ -24,6 +24,7 @@ import {
   Table2,
   FolderOpen,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage, ChatInput, AddToDashboardModal, AIReportWidgetConfig } from '../components/ai-studio';
@@ -479,6 +480,13 @@ export function AIReportStudioPage() {
       <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/analytics')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to Analytics"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>

@@ -86,7 +86,7 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-rocket-500 to-rocket-600 rounded-lg flex items-center justify-center">
               <Copy className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -121,14 +121,14 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
           </div>
 
           {/* Info Banner */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4">
             <div className="flex gap-3">
-              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <Info className="w-5 h-5 text-rocket-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h3 className="font-semibold text-blue-900 mb-1">
+                <h3 className="font-semibold text-rocket-800 mb-1">
                   Original widget remains unchanged
                 </h3>
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-rocket-700">
                   A new copy will be created as a system widget. The customer's original widget will stay
                   in their private collection and won't be modified.
                 </p>

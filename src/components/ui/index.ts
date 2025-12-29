@@ -8,6 +8,12 @@ export { Skeleton, SkeletonCard, SkeletonTable } from './Skeleton';
 
 export { Card, CardHeader, CardBody, CardFooter } from './Card';
 
+export { Modal } from './Modal';
+
+export { Drawer } from './Drawer';
+
+export { Tabs } from './Tabs';
+
 export { EmptyState } from './EmptyState';
 
 export { TrendIndicator } from './TrendIndicator';

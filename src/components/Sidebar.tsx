@@ -105,13 +105,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-6 border-b border-charcoal-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-rocket-500 to-rocket-600 rounded-lg flex items-center justify-center shadow-lg">
-                <Rocket className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="font-bold text-lg text-white">Rocket Shipping</h1>
-                <p className="text-xs text-charcoal-400">Freight Dashboard</p>
-              </div>
+              <img
+                src="/logo-with_words copy.png"
+                alt="Rocket Shipping"
+                className="h-12 w-auto"
+              />
             </div>
             <button
               onClick={onClose}

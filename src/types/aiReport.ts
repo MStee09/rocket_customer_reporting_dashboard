@@ -65,7 +65,8 @@ export type ReportSection =
   | CategoryGridSection
   | ChartSection
   | TableSection
-  | HeaderSection;
+  | HeaderSection
+  | MapSection;
 
 export type ReportSectionType =
   | 'hero'
@@ -73,7 +74,8 @@ export type ReportSectionType =
   | 'category-grid'
   | 'chart'
   | 'table'
-  | 'header';
+  | 'header'
+  | 'map';
 
 export type MetricAggregation = 'sum' | 'avg' | 'count' | 'countDistinct' | 'min' | 'max';
 export type MetricFormat = 'currency' | 'number' | 'percent';
@@ -162,7 +164,16 @@ export interface CategoryGridSection {
   };
 }
 
-export type ChartType = 'bar' | 'line' | 'pie' | 'area';
+export type ChartType =
+  | 'bar'
+  | 'line'
+  | 'pie'
+  | 'area'
+  | 'treemap'
+  | 'radar'
+  | 'calendar'
+  | 'bump'
+  | 'waterfall';
 
 export interface ChartSection {
   type: 'chart';
@@ -174,6 +185,23 @@ export interface ChartSection {
     colors?: string[];
     height?: number;
     horizontal?: boolean;
+    secondaryGroupBy?: string;
+  };
+}
+
+export type MapType = 'choropleth' | 'flow' | 'cluster' | 'arc';
+
+export interface MapSection {
+  type: 'map';
+  config: {
+    title?: string;
+    mapType: MapType;
+    metric: MetricConfig;
+    groupBy: string;
+    showLabels?: boolean;
+    showLegend?: boolean;
+    height?: number;
+    flowField?: string;
   };
 }
 

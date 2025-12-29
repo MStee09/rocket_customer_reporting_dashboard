@@ -19,6 +19,9 @@ export type { SectionHeaderProps } from './SectionHeader';
 export { ReportChart } from './ReportChart';
 export type { ReportChartProps, ChartDataPoint } from './ReportChart';
 
+export { ReportMap } from './ReportMap';
+export type { ReportMapProps, MapDataPoint } from './ReportMap';
+
 export { ReportTable } from './ReportTable';
 export type { ReportTableProps, TableColumn } from './ReportTable';
 

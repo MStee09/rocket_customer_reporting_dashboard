@@ -5,6 +5,7 @@ import {
   ExecutedReportData,
   DateRangeType,
   ReportTheme,
+  MapSection,
 } from '../../../types/aiReport';
 import { HeroMetric, HeroIcon } from './HeroMetric';
 import { StatRow } from './StatRow';
@@ -15,6 +16,7 @@ import { ReportChart, ChartDataPoint } from './ReportChart';
 import { ReportTable, TableColumn } from './ReportTable';
 import { ReportContainer } from './ReportContainer';
 import { DateRangeSelector, DateRange } from './DateRangeSelector';
+import { ReportMap, MapDataPoint } from './ReportMap';
 
 interface MetricResult {
   label: string;
@@ -278,6 +280,22 @@ function SectionRenderer({ section, data, error, theme, compact = false }: Secti
           compact={compact}
         />
       );
+
+    case 'map': {
+      const mapSection = section as MapSection;
+      const mapData = data as MapDataPoint[] | null;
+
+      return (
+        <ReportMap
+          type={mapSection.config.mapType}
+          data={mapData || []}
+          title={mapSection.config.title}
+          height={compact ? Math.min(mapSection.config.height || 300, 300) : mapSection.config.height}
+          format={mapSection.config.metric.format}
+          compact={compact}
+        />
+      );
+    }
 
     default:
       return null;

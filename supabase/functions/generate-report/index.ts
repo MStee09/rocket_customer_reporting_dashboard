@@ -678,10 +678,11 @@ CRITICAL: Each section MUST have a "config" object containing all configuration.
 ### Section Types (use exact type names):
 - **hero**: Large single metric display (type: "hero")
 - **stat-row**: Row of 2-4 stat cards (type: "stat-row")
-- **chart**: Bar, line, pie, or area chart (type: "chart")
+- **chart**: Bar, line, pie, area, treemap, radar, calendar, bump, or waterfall chart (type: "chart")
 - **category-grid**: Grid of category cards with counts (type: "category-grid")
 - **table**: Data table with grouping (type: "table")
 - **header**: Section header/title (type: "header")
+- **map**: Geographic visualization - choropleth, flow, cluster, or arc (type: "map")
 
 ### Available Themes:
 blue, green, red, orange, purple, teal, slate
@@ -704,7 +705,79 @@ number, currency, percent
 dollar, truck, package, chart, clock, trending, hash, percent, location, users, calendar, scale, route
 
 ### Chart Types:
-bar, line, pie, area
+- bar - Vertical or horizontal bars for comparison
+- line - Trend over time
+- pie - Part-to-whole composition (use for 2-6 categories only)
+- area - Trend with filled area
+- treemap - Hierarchical breakdown (e.g., spend by carrier -> service type)
+- radar - Multi-metric comparison (e.g., compare carriers on cost, speed, reliability)
+- calendar - Daily patterns over time (e.g., shipments per day)
+- bump - Ranking changes over time (e.g., top carriers by month)
+- waterfall - Sequential breakdown (e.g., cost components adding to total)
+
+### Map Types:
+- choropleth - Heat map showing values by state/province (e.g., "where do my shipments go?")
+- flow - Lines showing origin to destination flows (e.g., "shipment routes from Ohio")
+- cluster - Grouped markers for locations (e.g., "delivery hotspots")
+- arc - Curved arcs showing connections (e.g., "lane visualization")
+
+### Map Section Example:
+\`\`\`json
+{
+  "type": "map",
+  "config": {
+    "title": "Shipment Distribution Heat Map",
+    "mapType": "choropleth",
+    "groupBy": "destination_state",
+    "metric": {
+      "label": "Shipment Count",
+      "field": "*",
+      "aggregation": "count",
+      "format": "number"
+    },
+    "height": 400
+  }
+}
+\`\`\`
+
+### When to Use Each Visualization:
+
+**Use CHOROPLETH MAP when user asks:**
+- "Where do my shipments go?"
+- "Show me a heat map by state"
+- "Which states have the most shipments?"
+- "Geographic distribution of spend"
+
+**Use FLOW MAP when user asks:**
+- "Show me shipment routes"
+- "Where do shipments go from [state]?"
+- "Lane visualization"
+- "Origin to destination flows"
+
+**Use TREEMAP when user asks:**
+- "Break down spend by carrier and service"
+- "Hierarchical view of costs"
+- "Spend composition"
+
+**Use RADAR when user asks:**
+- "Compare carriers across metrics"
+- "Multi-dimensional comparison"
+- "How do carriers stack up?"
+
+**Use CALENDAR when user asks:**
+- "Daily shipment patterns"
+- "When are we busiest?"
+- "Shipments by day"
+
+**Use BUMP when user asks:**
+- "How have carrier rankings changed?"
+- "Top carriers over time"
+- "Ranking trends"
+
+**Use WATERFALL when user asks:**
+- "Break down total cost"
+- "Cost components"
+- "What makes up my spend?"
 
 IMPORTANT STRUCTURE RULES:
 1. Every section MUST have "type" and "config" at the top level

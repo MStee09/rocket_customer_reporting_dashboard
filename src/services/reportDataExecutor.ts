@@ -9,6 +9,7 @@ import {
   CategoryGridSection,
   ChartSection,
   TableSection,
+  MapSection,
   Categorization,
   NumericCategorization,
   CalculatedField,
@@ -201,6 +202,16 @@ async function executeSectionQuery(
 
     case 'header':
       return null;
+
+    case 'map':
+      return executeMapQuery(
+        supabase,
+        section as MapSection,
+        customerId,
+        dateRange,
+        isAdmin,
+        calculatedFields
+      );
 
     default:
       return null;
@@ -901,4 +912,112 @@ function aggregateGroupData(
 
 function aggregateArray(values: number[], agg: MetricAggregation): number {
   return aggregateNumericValues(values, agg as AggregationType);
+}
+
+interface MapDataPoint {
+  stateCode?: string;
+  origin?: string;
+  destination?: string;
+  value: number;
+  shipmentCount?: number;
+}
+
+async function executeMapQuery(
+  supabase: SupabaseClient,
+  section: MapSection,
+  customerId: string,
+  dateRange: DateRange,
+  _isAdmin: boolean,
+  calculatedFields?: CalculatedField[]
+): Promise<MapDataPoint[]> {
+  const config = section.config;
+
+  let query = supabase.from(REPORT_VIEW).select('*');
+
+  query = query.eq('customer_id', customerId);
+
+  query = query
+    .gte('pickup_date', dateRange.start.toISOString().split('T')[0])
+    .lte('pickup_date', dateRange.end.toISOString().split('T')[0]);
+
+  const { data, error } = await query;
+
+  if (error || !data || data.length === 0) {
+    return [];
+  }
+
+  const processedData = data.map(row => applyCalculatedFields(row, calculatedFields));
+
+  if (config.mapType === 'choropleth') {
+    const stateField = config.groupBy || 'destination_state';
+    const groups: Record<string, { values: number[]; count: number }> = {};
+
+    processedData.forEach((row) => {
+      const stateCode = String(row[stateField] || '');
+      if (!stateCode || stateCode === 'null' || stateCode === 'undefined') return;
+
+      if (!groups[stateCode]) {
+        groups[stateCode] = { values: [], count: 0 };
+      }
+      groups[stateCode].values.push(Number(row[config.metric.field]) || 0);
+      groups[stateCode].count += 1;
+    });
+
+    return Object.entries(groups).map(([stateCode, group]) => ({
+      stateCode,
+      value: aggregateArray(group.values, config.metric.aggregation),
+      shipmentCount: group.count,
+    }));
+  }
+
+  if (config.mapType === 'flow' || config.mapType === 'arc') {
+    const groups: Record<string, { values: number[]; count: number }> = {};
+
+    processedData.forEach((row) => {
+      const origin = String(row['origin_state'] || '');
+      const destination = String(row['destination_state'] || '');
+      if (!origin || !destination) return;
+
+      const key = `${origin}|${destination}`;
+      if (!groups[key]) {
+        groups[key] = { values: [], count: 0 };
+      }
+      groups[key].values.push(Number(row[config.metric.field]) || 0);
+      groups[key].count += 1;
+    });
+
+    return Object.entries(groups).map(([key, group]) => {
+      const [origin, destination] = key.split('|');
+      return {
+        origin,
+        destination,
+        value: aggregateArray(group.values, config.metric.aggregation),
+        shipmentCount: group.count,
+      };
+    });
+  }
+
+  if (config.mapType === 'cluster') {
+    const stateField = config.groupBy || 'destination_state';
+    const groups: Record<string, { values: number[]; count: number }> = {};
+
+    processedData.forEach((row) => {
+      const stateCode = String(row[stateField] || '');
+      if (!stateCode) return;
+
+      if (!groups[stateCode]) {
+        groups[stateCode] = { values: [], count: 0 };
+      }
+      groups[stateCode].values.push(Number(row[config.metric.field]) || 0);
+      groups[stateCode].count += 1;
+    });
+
+    return Object.entries(groups).map(([stateCode, group]) => ({
+      stateCode,
+      value: aggregateArray(group.values, config.metric.aggregation),
+      shipmentCount: group.count,
+    }));
+  }
+
+  return [];
 }

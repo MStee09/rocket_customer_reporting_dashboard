@@ -243,7 +243,7 @@ export function HowToPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-rocket-100 rounded-lg">
                 <Book className="w-6 h-6 text-rocket-600" />
               </div>
               <div>
@@ -324,7 +324,7 @@ export function HowToPage() {
                 <span className="text-gray-900 font-medium">{currentSubsection?.title}</span>
               </div>
 
-              <div className="prose prose-blue max-w-none">
+              <div className="prose prose-rocket max-w-none">
                 {currentSubsection?.content}
               </div>
 

@@ -336,7 +336,7 @@ export const WidgetLibraryPage = () => {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="text-blue-600 hover:underline"
+              className="text-rocket-600 hover:underline"
             >
               Clear search
             </button>

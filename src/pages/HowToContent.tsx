@@ -14,7 +14,7 @@ interface FeatureCardProps {
 export function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
     <div className="flex gap-3 p-4 bg-gray-50 rounded-lg border">
-      <div className="p-2 bg-blue-100 rounded-lg h-fit">
+      <div className="p-2 bg-rocket-100 rounded-lg h-fit">
         {icon}
       </div>
       <div>
@@ -33,14 +33,14 @@ interface CalloutProps {
 export function Callout({ type, children }: CalloutProps) {
   const styles = {
     tip: 'bg-green-50 border-green-200 text-green-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800',
+    info: 'bg-rocket-50 border-rocket-200 text-rocket-800',
     warning: 'bg-amber-50 border-amber-200 text-amber-800',
     example: 'bg-slate-50 border-slate-200 text-slate-800',
   };
 
   const icons = {
     tip: <Info className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />,
-    info: <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />,
+    info: <Info className="w-5 h-5 text-rocket-600 flex-shrink-0 mt-0.5" />,
     warning: <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />,
     example: <Info className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />,
   };
@@ -95,22 +95,22 @@ export function OverviewContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">What You Can Do</h2>
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <FeatureCard
-          icon={<LayoutDashboard className="w-5 h-5 text-blue-600" />}
+          icon={<LayoutDashboard className="w-5 h-5 text-rocket-600" />}
           title="View Real-Time Metrics"
           description="See shipment counts, spend, and performance at a glance"
         />
         <FeatureCard
-          icon={<Truck className="w-5 h-5 text-blue-600" />}
+          icon={<Truck className="w-5 h-5 text-rocket-600" />}
           title="Track Shipments"
           description="Search, filter, and view detailed shipment information"
         />
         <FeatureCard
-          icon={<Sparkles className="w-5 h-5 text-blue-600" />}
+          icon={<Sparkles className="w-5 h-5 text-rocket-600" />}
           title="Generate AI Reports"
           description="Ask questions in plain English and get instant insights"
         />
         <FeatureCard
-          icon={<Calendar className="w-5 h-5 text-blue-600" />}
+          icon={<Calendar className="w-5 h-5 text-rocket-600" />}
           title="Schedule Reports"
           description="Automate recurring reports delivered to your inbox"
         />
@@ -540,7 +540,7 @@ export function AskAIContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How to Use</h2>
 
       <Step number={1} title="Find the Sparkle Icon">
-        Find the <Sparkles className="w-4 h-4 inline text-blue-600" /> sparkle icon on any widget or metric.
+        Find the <Sparkles className="w-4 h-4 inline text-rocket-600" /> sparkle icon on any widget or metric.
       </Step>
 
       <Step number={2} title="Click It">
@@ -699,7 +699,7 @@ export function FilteringContent() {
           </thead>
           <tbody>
             <tr>
-              <td className="p-3 border"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">In Transit</span></td>
+              <td className="p-3 border"><span className="px-2 py-1 bg-rocket-100 text-rocket-700 rounded text-sm">In Transit</span></td>
               <td className="p-3 border">Shipments currently being transported</td>
             </tr>
             <tr>
@@ -931,9 +931,9 @@ export function AnalyticsHubContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Available Tools</h2>
 
       <div className="space-y-4 mb-6">
-        <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+        <div className="p-4 bg-gradient-to-r from-rocket-50 to-rocket-100 rounded-lg border border-rocket-200">
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-5 h-5 text-blue-600" />
+            <Sparkles className="w-5 h-5 text-rocket-600" />
             <h4 className="font-semibold text-gray-900">AI Report Studio</h4>
           </div>
           <p className="text-gray-600 text-sm">
@@ -1029,28 +1029,28 @@ export function AIStudioContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Tips for Better Results</h2>
       <div className="space-y-3 mb-6">
         <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <Sparkles className="w-5 h-5 text-rocket-500 mt-0.5" />
           <div>
             <span className="font-medium">Be Specific</span>
             <p className="text-sm text-gray-600">Include time frames and metrics in your questions</p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <Sparkles className="w-5 h-5 text-rocket-500 mt-0.5" />
           <div>
             <span className="font-medium">Name Carriers or Lanes</span>
             <p className="text-sm text-gray-600">"Old Dominion" instead of "that carrier"</p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <Sparkles className="w-5 h-5 text-rocket-500 mt-0.5" />
           <div>
             <span className="font-medium">Ask for Comparisons</span>
             <p className="text-sm text-gray-600">"Compare X to Y" for side-by-side analysis</p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <Sparkles className="w-5 h-5 text-rocket-500 mt-0.5" />
           <div>
             <span className="font-medium">Request Specific Formats</span>
             <p className="text-sm text-gray-600">"Show as a bar chart" or "Give me a table"</p>
@@ -1120,7 +1120,7 @@ export function CustomReportsContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Report Actions</h2>
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Download className="w-5 h-5 text-blue-600" />
+          <Download className="w-5 h-5 text-rocket-600" />
           <div>
             <span className="font-medium">Export</span>
             <p className="text-sm text-gray-500">Download as CSV, Excel, or PDF</p>
@@ -1187,7 +1187,7 @@ export function ScheduledReportsContent() {
 
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Clock className="w-5 h-5 text-blue-600" />
+          <Clock className="w-5 h-5 text-rocket-600" />
           <div>
             <span className="font-medium">Pause/Resume</span>
             <p className="text-sm text-gray-500">Temporarily stop a schedule without deleting it</p>
@@ -1450,7 +1450,7 @@ export function KnowledgeBaseContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Use Cases</h2>
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <BookOpen className="w-5 h-5 text-blue-600" />
+          <BookOpen className="w-5 h-5 text-rocket-600" />
           <div>
             <span className="font-medium">Rate sheets</span>
             <p className="text-sm text-gray-500">Help AI understand pricing</p>
@@ -1503,9 +1503,9 @@ export function LearningQueueContent() {
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How It Works</h2>
 
       <div className="space-y-4 mb-6">
-        <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Zap className="w-5 h-5 text-blue-600" />
+        <div className="flex items-start gap-3 p-4 bg-rocket-50 rounded-lg">
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <Zap className="w-5 h-5 text-rocket-600" />
           </div>
           <div>
             <h4 className="font-medium text-gray-900">1. User asks a question</h4>
@@ -1593,7 +1593,7 @@ export function UserManagementContent() {
             <tr>
               <td className="p-3 border">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
+                  <Users className="w-4 h-4 text-rocket-600" />
                   <strong>Admin</strong>
                 </div>
               </td>

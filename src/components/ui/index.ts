@@ -20,3 +20,4 @@ export { TrendIndicator } from './TrendIndicator';
 
 export { ExportMenu } from './ExportMenu';
 export { AskAIButton } from './AskAIButton';
+export { ToastProvider, useToast } from './Toast';

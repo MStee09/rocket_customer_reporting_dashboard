@@ -28,6 +28,7 @@ import { DebugPage } from './pages/DebugPage';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
+import { ToastProvider } from './components/ui/Toast';
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -68,6 +69,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <ToastProvider>
           <Routes>
             <Route path="/login" element={<LoginRedirect />} />
             <Route path="/shared/reports/:token" element={<SharedReportPage />} />
@@ -157,6 +159,7 @@ function App() {
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

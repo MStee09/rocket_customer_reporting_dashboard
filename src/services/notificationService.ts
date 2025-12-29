@@ -9,16 +9,22 @@ export type NotificationType =
   | 'learning_queue'
   | 'system';
 
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
+
 export interface Notification {
   id: string;
   user_id: string;
   type: string;
   title: string;
   message: string | null;
+  priority: NotificationPriority;
+  is_read: boolean;
+  action_url?: string | null;
+  action_label?: string | null;
+  metadata?: Record<string, unknown> | null;
   scheduled_report_id?: string | null;
   scheduled_run_id?: string | null;
   report_url?: string | null;
-  is_read: boolean;
   read_at?: string | null;
   created_at: string;
 }
@@ -28,6 +34,10 @@ export interface CreateNotificationParams {
   type: NotificationType;
   title: string;
   message?: string;
+  priority?: NotificationPriority;
+  actionUrl?: string;
+  actionLabel?: string;
+  metadata?: Record<string, unknown>;
   reportUrl?: string;
   scheduledReportId?: string;
   scheduledRunId?: string;
@@ -58,7 +68,10 @@ export async function getNotifications(
     return [];
   }
 
-  return data || [];
+  return (data || []).map(n => ({
+    ...n,
+    priority: n.priority || 'medium'
+  }));
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {
@@ -84,6 +97,10 @@ export async function createNotification(params: CreateNotificationParams): Prom
       type: params.type,
       title: params.title,
       message: params.message || null,
+      priority: params.priority || 'medium',
+      action_url: params.actionUrl || null,
+      action_label: params.actionLabel || null,
+      metadata: params.metadata || null,
       report_url: params.reportUrl || null,
       scheduled_report_id: params.scheduledReportId || null,
       scheduled_run_id: params.scheduledRunId || null,
@@ -183,7 +200,11 @@ export function subscribeToNotifications(
         filter: `user_id=eq.${userId}`
       },
       (payload) => {
-        onNotification(payload.new as Notification);
+        const notif = payload.new as Notification;
+        onNotification({
+          ...notif,
+          priority: notif.priority || 'medium'
+        });
       }
     )
     .subscribe();
@@ -202,6 +223,10 @@ export async function createBulkNotifications(
     type: params.type,
     title: params.title,
     message: params.message || null,
+    priority: params.priority || 'medium',
+    action_url: params.actionUrl || null,
+    action_label: params.actionLabel || null,
+    metadata: params.metadata || null,
     report_url: params.reportUrl || null,
     scheduled_report_id: params.scheduledReportId || null,
     scheduled_run_id: params.scheduledRunId || null,
@@ -244,7 +269,10 @@ export async function getNotificationsByType(
     return [];
   }
 
-  return data || [];
+  return (data || []).map(n => ({
+    ...n,
+    priority: n.priority || 'medium'
+  }));
 }
 
 export async function getRecentNotifications(
@@ -266,5 +294,8 @@ export async function getRecentNotifications(
     return [];
   }
 
-  return data || [];
+  return (data || []).map(n => ({
+    ...n,
+    priority: n.priority || 'medium'
+  }));
 }

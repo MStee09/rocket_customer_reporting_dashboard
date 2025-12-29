@@ -219,10 +219,10 @@ export function ShipmentDetailPage() {
   };
 
   const originAddress = data?.addresses.find(
-    (a) => a.address_type === 'origin' || a.address_type === 'pickup'
+    (a) => a.address_type === 1 || a.address_type === 'origin' || a.address_type === 'pickup'
   );
   const destAddress = data?.addresses.find(
-    (a) => a.address_type === 'destination' || a.address_type === 'delivery'
+    (a) => a.address_type === 2 || a.address_type === 'destination' || a.address_type === 'delivery'
   );
 
   if (isLoading) {

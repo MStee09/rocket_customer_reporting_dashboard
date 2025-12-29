@@ -162,12 +162,12 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
               <div key={addr.shipment_address_id} className="flex items-start gap-3">
                 <div
                   className={`px-2 py-1 rounded text-xs font-medium shrink-0 ${
-                    addr.address_type === 'origin' || addr.address_type === 'pickup'
+                    addr.address_type === 1 || addr.address_type === 'origin' || addr.address_type === 'pickup'
                       ? 'bg-emerald-100 text-emerald-700'
                       : 'bg-blue-100 text-blue-700'
                   }`}
                 >
-                  {addr.address_type === 'origin' || addr.address_type === 'pickup'
+                  {addr.address_type === 1 || addr.address_type === 'origin' || addr.address_type === 'pickup'
                     ? 'Shipper'
                     : 'Consignee'}
                 </div>

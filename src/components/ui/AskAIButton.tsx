@@ -54,7 +54,7 @@ export function AskAIButton({
     return (
       <button
         onClick={handleClick}
-        className={`${textSize} text-blue-600 hover:text-blue-700 hover:underline transition-colors ${className}`}
+        className={`${textSize} text-rocket-600 hover:text-rocket-700 hover:underline transition-colors ${className}`}
       >
         Ask AI about this
       </button>
@@ -67,7 +67,7 @@ export function AskAIButton({
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center gap-1.5 ${buttonSize} bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow ${className}`}
+      className={`flex items-center gap-1.5 ${buttonSize} bg-gradient-to-r from-rocket-600 to-rocket-700 hover:from-rocket-700 hover:to-rocket-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow ${className}`}
     >
       <Sparkles className={iconSize} />
       Ask AI

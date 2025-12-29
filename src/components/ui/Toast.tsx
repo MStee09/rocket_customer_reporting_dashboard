@@ -108,14 +108,14 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
     success: <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />,
     error: <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />,
     warning: <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />,
-    info: <Info className="w-5 h-5 text-blue-500 flex-shrink-0" />,
+    info: <Info className="w-5 h-5 text-sky-500 flex-shrink-0" />,
   };
 
   const backgrounds = {
     success: 'bg-emerald-50 border-emerald-200',
     error: 'bg-red-50 border-red-200',
     warning: 'bg-amber-50 border-amber-200',
-    info: 'bg-blue-50 border-blue-200',
+    info: 'bg-sky-50 border-sky-200',
   };
 
   return (

@@ -17,21 +17,21 @@ interface RecentReport {
 
 export function AnalyticsPage() {
   const navigate = useNavigate();
-  const { user, selectedCustomerId } = useAuth();
+  const { user, effectiveCustomerId } = useAuth();
   const [recentReports, setRecentReports] = useState<RecentReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadRecentReports() {
-      if (!user || !selectedCustomerId) {
+      if (!user || !effectiveCustomerId) {
         setLoading(false);
         return;
       }
 
       try {
         const [aiReports, savedViews] = await Promise.all([
-          loadAIReports(selectedCustomerId.toString()),
-          getSavedViews(user.id, selectedCustomerId),
+          loadAIReports(effectiveCustomerId.toString()),
+          getSavedViews(user.id, effectiveCustomerId),
         ]);
 
         const aiReportsFormatted: RecentReport[] = aiReports.map((report: SavedAIReport) => ({
@@ -65,7 +65,7 @@ export function AnalyticsPage() {
     }
 
     loadRecentReports();
-  }, [user, selectedCustomerId]);
+  }, [user, effectiveCustomerId]);
 
   const analyticsTools = [
     {

@@ -20,6 +20,7 @@
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.344.0",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.449",
@@ -28,7 +29,8 @@
     "react-grid-layout": "^2.1.0",
     "react-router-dom": "^7.10.1",
     "react-simple-maps": "^3.0.0",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

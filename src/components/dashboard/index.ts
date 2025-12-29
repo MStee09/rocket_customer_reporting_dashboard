@@ -20,3 +20,4 @@ export { DashboardHeader } from './DashboardHeader';
 export { ComparisonMetrics } from './ComparisonMetrics';
 export { AIReportsSection } from './AIReportsSection';
 export { WidgetGrid } from './WidgetGrid';
+export { WidgetCard } from './WidgetCard';

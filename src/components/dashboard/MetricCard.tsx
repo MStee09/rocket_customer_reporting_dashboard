@@ -1,12 +1,14 @@
-import { LucideIcon, Loader2 } from 'lucide-react';
-import { Card } from '../ui/Card';
+import { LucideIcon, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface MetricCardProps {
   label: string;
   value: string | number;
-  subValue?: string;
+  trend?: {
+    value: number;
+    positive: boolean;
+  };
   icon: LucideIcon;
-  color: string;
+  iconColor?: 'orange' | 'gold' | 'coral' | 'charcoal' | 'success' | 'info';
   isLoading?: boolean;
   onClick?: () => void;
 }
@@ -14,44 +16,67 @@ interface MetricCardProps {
 export function MetricCard({
   label,
   value,
-  subValue,
+  trend,
   icon: Icon,
-  color,
+  iconColor = 'orange',
   isLoading,
   onClick,
 }: MetricCardProps) {
-  const content = (
-    <>
-      <div className="flex items-center justify-between mb-4">
-        <div className={`${color} w-12 h-12 rounded-lg flex items-center justify-center`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-      </div>
-      <h3 className="text-sm font-medium text-slate-600 mb-1">{label}</h3>
-      {isLoading ? (
-        <div className="flex items-center py-2">
-          <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-        </div>
-      ) : (
-        <>
-          <p className="text-3xl font-bold text-slate-800">
-            {typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-          {subValue && <p className="text-sm text-green-600 mt-1">{subValue}</p>}
-        </>
-      )}
-    </>
-  );
+  const iconColors = {
+    orange: 'bg-gradient-to-br from-rocket-400 to-rocket-600',
+    gold: 'bg-gradient-to-br from-rocket-300 to-rocket-500',
+    coral: 'bg-gradient-to-br from-coral-400 to-coral-600',
+    charcoal: 'bg-gradient-to-br from-charcoal-600 to-charcoal-800',
+    success: 'bg-gradient-to-br from-success to-success-dark',
+    info: 'bg-gradient-to-br from-info to-info-dark',
+  };
 
   return (
-    <Card
-      variant="elevated"
-      padding="lg"
-      hover={!!onClick}
+    <div
       onClick={onClick}
-      className="text-left"
+      className={`
+        bg-white rounded-lg border border-charcoal-200
+        p-5
+        transition-all duration-200
+        ${onClick ? 'cursor-pointer hover:shadow-md hover:border-charcoal-300' : ''}
+      `}
     >
-      {content}
-    </Card>
+      <div className={`
+        w-11 h-11 rounded-lg
+        flex items-center justify-center
+        ${iconColors[iconColor]}
+        shadow-sm
+      `}>
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+
+      <p className="mt-4 text-sm font-medium text-charcoal-500">
+        {label}
+      </p>
+
+      {isLoading ? (
+        <div className="flex items-center mt-1 h-9">
+          <Loader2 className="w-5 h-5 text-charcoal-400 animate-spin" />
+        </div>
+      ) : (
+        <p className="mt-1 text-2xl font-bold text-charcoal-900 tabular-nums">
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </p>
+      )}
+
+      {trend && !isLoading && (
+        <div className={`
+          mt-2 flex items-center gap-1 text-xs font-medium
+          ${trend.positive ? 'text-success' : 'text-danger'}
+        `}>
+          {trend.positive ? (
+            <TrendingUp className="w-3.5 h-3.5" />
+          ) : (
+            <TrendingDown className="w-3.5 h-3.5" />
+          )}
+          <span>{Math.abs(trend.value)}% vs last period</span>
+        </div>
+      )}
+    </div>
   );
 }

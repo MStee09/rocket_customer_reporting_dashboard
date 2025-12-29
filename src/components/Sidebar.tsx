@@ -108,8 +108,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <img
                 src="/logo-with_words copy.png"
                 alt="Rocket Shipping"
-                className="h-12 w-auto"
+                className="h-10 w-auto"
               />
+              <div>
+                <h1 className="font-bold text-lg text-white">Rocket Shipping</h1>
+                <p className="text-xs text-charcoal-400">Freight Dashboard</p>
+              </div>
             </div>
             <button
               onClick={onClose}

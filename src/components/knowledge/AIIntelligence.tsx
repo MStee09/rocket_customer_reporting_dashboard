@@ -236,7 +236,7 @@ export function AIIntelligence() {
                       {item.knowledge_type}
                     </span>
                     {item.scope === 'customer' && (
-                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                      <span className="text-xs px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded">
                         Customer: {item.customer_id}
                       </span>
                     )}
@@ -358,7 +358,7 @@ export function AIIntelligence() {
                             {item.key}
                           </code>
                           {item.scope === 'customer' && (
-                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                            <span className="text-xs px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded">
                               {item.customer_id}
                             </span>
                           )}

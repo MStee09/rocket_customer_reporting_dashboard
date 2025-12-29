@@ -11,6 +11,7 @@ import {
   Loader2,
   X,
   Bookmark,
+  Mail,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,26 +19,59 @@ import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
+import { EmailReportModal } from '../components/reports/EmailReportModal';
 
 interface Shipment {
   load_id: number;
+  pro_number: string;
   pickup_date: string | null;
   delivery_date: string | null;
+  expected_delivery_date: string | null;
+  reference_number: string | null;
+  bol_number: string | null;
+  po_reference: string | null;
+  origin_company: string;
   origin_city: string;
   origin_state: string;
+  origin_zip: string;
+  origin_country: string;
+  origin_contact: string;
+  origin_phone: string;
+  destination_company: string;
   destination_city: string;
   destination_state: string;
+  destination_zip: string;
+  destination_country: string;
+  destination_contact: string;
+  destination_phone: string;
+  carrier_name: string;
+  driver_name: string;
+  driver_phone: string;
+  truck_number: string;
+  trailer_number: string;
+  mode_name: string;
+  equipment_name: string;
   status: string;
   status_id: number | null;
-  carrier_name: string | null;
-  total_weight: number | null;
-  customer_charge: number | null;
-  po_reference: string | null;
-  bol_number: string | null;
-  reference_number: string | null;
-  mode_name: string | null;
+  status_description: string;
   is_completed: boolean;
   is_cancelled: boolean;
+  total_weight: number;
+  total_pieces: number;
+  total_packages: number;
+  number_of_pallets: number;
+  linear_feet: number;
+  miles: number;
+  is_stackable: boolean;
+  is_palletized: boolean;
+  has_hazmat: boolean;
+  item_descriptions: string;
+  commodities: string;
+  freight_classes: string;
+  customer_charge: number;
+  shipment_value: number;
+  created_date: string | null;
+  priority: number;
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: typeof Clock }> = {
@@ -71,6 +105,7 @@ export function ShipmentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all';
 
@@ -115,14 +150,52 @@ export function ShipmentsPage() {
         load_id,
         pickup_date,
         delivery_date,
+        expected_delivery_date,
         reference_number,
         bol_number,
         po_reference,
         retail,
-        shipment_status:status_id(status_id, status_name, is_completed, is_cancelled),
-        carrier:rate_carrier_id(carrier_name),
+        miles,
+        number_of_pallets,
+        linear_feet,
+        shipment_value,
+        priority,
+        is_stackable,
+        is_palletized,
+        created_date,
+        shipment_status:status_id(status_id, status_name, status_description, is_completed, is_cancelled),
+        carrier:rate_carrier_id(carrier_id, carrier_name),
         shipment_mode:mode_id(mode_name),
-        addresses:shipment_address(stop_number, address_type, city, state)
+        equipment:equipment_type_id(equipment_name),
+        addresses:shipment_address(
+          stop_number,
+          address_type,
+          company_name,
+          city,
+          state,
+          postal_code,
+          country,
+          contact_name,
+          contact_phone
+        ),
+        carrier_info:shipment_carrier(
+          carrier_name,
+          pro_number,
+          driver_name,
+          driver_phone,
+          truck_number,
+          trailer_number
+        ),
+        items:shipment_item(
+          description,
+          commodity,
+          freight_class,
+          quantity,
+          weight,
+          package_type,
+          number_of_packages,
+          is_hazmat
+        )
       `);
 
     if (!isAdmin() || isViewingAsCustomer) {
@@ -141,26 +214,68 @@ export function ShipmentsPage() {
       const enrichedData: Shipment[] = data.map((shipment: any) => {
         const pickup = shipment.addresses?.find((a: any) => a.address_type === 1) || shipment.addresses?.[0];
         const delivery = shipment.addresses?.find((a: any) => a.address_type === 2) || shipment.addresses?.[shipment.addresses?.length - 1];
+        const carrierInfo = shipment.carrier_info?.[0];
+        const items = shipment.items || [];
+
+        const totalWeight = items.reduce((sum: number, item: any) => sum + (item.weight || 0), 0);
+        const totalPieces = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+        const totalPackages = items.reduce((sum: number, item: any) => sum + (item.number_of_packages || 0), 0);
+        const itemDescriptions = items.map((i: any) => i.description).filter(Boolean).join('; ');
+        const commodities = [...new Set(items.map((i: any) => i.commodity).filter(Boolean))].join(', ');
+        const freightClasses = [...new Set(items.map((i: any) => i.freight_class).filter(Boolean))].join(', ');
+        const hasHazmat = items.some((i: any) => i.is_hazmat);
 
         return {
           load_id: shipment.load_id,
+          pro_number: carrierInfo?.pro_number || '',
           pickup_date: shipment.pickup_date,
           delivery_date: shipment.delivery_date,
+          expected_delivery_date: shipment.expected_delivery_date,
           reference_number: shipment.reference_number,
           bol_number: shipment.bol_number,
           po_reference: shipment.po_reference,
+          origin_company: pickup?.company_name || '',
           origin_city: pickup?.city || '',
           origin_state: pickup?.state || '',
+          origin_zip: pickup?.postal_code || '',
+          origin_country: pickup?.country || '',
+          origin_contact: pickup?.contact_name || '',
+          origin_phone: pickup?.contact_phone || '',
+          destination_company: delivery?.company_name || '',
           destination_city: delivery?.city || '',
           destination_state: delivery?.state || '',
+          destination_zip: delivery?.postal_code || '',
+          destination_country: delivery?.country || '',
+          destination_contact: delivery?.contact_name || '',
+          destination_phone: delivery?.contact_phone || '',
+          carrier_name: carrierInfo?.carrier_name || shipment.carrier?.carrier_name || '',
+          driver_name: carrierInfo?.driver_name || '',
+          driver_phone: carrierInfo?.driver_phone || '',
+          truck_number: carrierInfo?.truck_number || '',
+          trailer_number: carrierInfo?.trailer_number || '',
+          mode_name: shipment.shipment_mode?.mode_name || '',
+          equipment_name: shipment.equipment?.equipment_name || '',
           status: shipment.shipment_status?.status_name || 'Unknown',
           status_id: shipment.shipment_status?.status_id,
+          status_description: shipment.shipment_status?.status_description || '',
           is_completed: shipment.shipment_status?.is_completed || false,
           is_cancelled: shipment.shipment_status?.is_cancelled || false,
-          carrier_name: shipment.carrier?.carrier_name || null,
-          mode_name: shipment.shipment_mode?.mode_name || null,
-          customer_charge: shipment.retail,
-          total_weight: null,
+          total_weight: totalWeight,
+          total_pieces: totalPieces,
+          total_packages: totalPackages,
+          number_of_pallets: shipment.number_of_pallets || 0,
+          linear_feet: shipment.linear_feet || 0,
+          miles: shipment.miles || 0,
+          is_stackable: shipment.is_stackable || false,
+          is_palletized: shipment.is_palletized || false,
+          has_hazmat: hasHazmat,
+          item_descriptions: itemDescriptions,
+          commodities: commodities,
+          freight_classes: freightClasses,
+          customer_charge: shipment.retail || 0,
+          shipment_value: shipment.shipment_value || 0,
+          created_date: shipment.created_date,
+          priority: shipment.priority || 0,
         };
       });
 
@@ -183,22 +298,54 @@ export function ShipmentsPage() {
 
   const shipmentExportColumns: ColumnConfig[] = useMemo(() => {
     const baseColumns: ColumnConfig[] = [
-      { key: 'load_id', header: 'Load ID', format: 'number', width: 10 },
+      { key: 'load_id', header: 'Load ID', format: 'text', width: 12 },
+      { key: 'pro_number', header: 'PRO Number', format: 'text', width: 15 },
+      { key: 'reference_number', header: 'Reference #', format: 'text', width: 15 },
+      { key: 'bol_number', header: 'BOL #', format: 'text', width: 15 },
+      { key: 'po_reference', header: 'PO Reference', format: 'text', width: 15 },
       { key: 'pickup_date', header: 'Pickup Date', format: 'date', width: 12 },
       { key: 'delivery_date', header: 'Delivery Date', format: 'date', width: 12 },
+      { key: 'expected_delivery_date', header: 'Expected Delivery', format: 'date', width: 12 },
+      { key: 'origin_company', header: 'Origin Company', format: 'text', width: 25 },
       { key: 'origin_city', header: 'Origin City', format: 'text', width: 15 },
-      { key: 'origin_state', header: 'Origin State', format: 'text', width: 10 },
+      { key: 'origin_state', header: 'Origin State', format: 'text', width: 8 },
+      { key: 'origin_zip', header: 'Origin ZIP', format: 'text', width: 10 },
+      { key: 'origin_country', header: 'Origin Country', format: 'text', width: 8 },
+      { key: 'origin_contact', header: 'Origin Contact', format: 'text', width: 20 },
+      { key: 'origin_phone', header: 'Origin Phone', format: 'text', width: 15 },
+      { key: 'destination_company', header: 'Dest Company', format: 'text', width: 25 },
       { key: 'destination_city', header: 'Dest City', format: 'text', width: 15 },
-      { key: 'destination_state', header: 'Dest State', format: 'text', width: 10 },
-      { key: 'carrier_name', header: 'Carrier', format: 'text', width: 20 },
-      { key: 'mode_name', header: 'Mode', format: 'text', width: 12 },
-      { key: 'status', header: 'Status', format: 'text', width: 12 },
-      { key: 'po_reference', header: 'PO Reference', format: 'text', width: 15 },
-      { key: 'reference_number', header: 'Reference', format: 'text', width: 15 },
+      { key: 'destination_state', header: 'Dest State', format: 'text', width: 8 },
+      { key: 'destination_zip', header: 'Dest ZIP', format: 'text', width: 10 },
+      { key: 'destination_country', header: 'Dest Country', format: 'text', width: 8 },
+      { key: 'destination_contact', header: 'Dest Contact', format: 'text', width: 20 },
+      { key: 'destination_phone', header: 'Dest Phone', format: 'text', width: 15 },
+      { key: 'carrier_name', header: 'Carrier', format: 'text', width: 25 },
+      { key: 'mode_name', header: 'Mode', format: 'text', width: 15 },
+      { key: 'equipment_name', header: 'Equipment Type', format: 'text', width: 15 },
+      { key: 'driver_name', header: 'Driver', format: 'text', width: 20 },
+      { key: 'driver_phone', header: 'Driver Phone', format: 'text', width: 15 },
+      { key: 'truck_number', header: 'Truck #', format: 'text', width: 12 },
+      { key: 'trailer_number', header: 'Trailer #', format: 'text', width: 12 },
+      { key: 'status', header: 'Status', format: 'text', width: 15 },
+      { key: 'total_weight', header: 'Weight (lbs)', format: 'number', width: 12 },
+      { key: 'total_pieces', header: 'Pieces', format: 'number', width: 8 },
+      { key: 'total_packages', header: 'Packages', format: 'number', width: 10 },
+      { key: 'number_of_pallets', header: 'Pallets', format: 'number', width: 8 },
+      { key: 'linear_feet', header: 'Linear Feet', format: 'number', width: 10 },
+      { key: 'miles', header: 'Miles', format: 'number', width: 8 },
+      { key: 'freight_classes', header: 'Freight Class', format: 'text', width: 12 },
+      { key: 'commodities', header: 'Commodity', format: 'text', width: 20 },
+      { key: 'item_descriptions', header: 'Item Descriptions', format: 'text', width: 40 },
+      { key: 'has_hazmat', header: 'Hazmat', format: 'text', width: 8 },
+      { key: 'created_date', header: 'Created Date', format: 'date', width: 12 },
     ];
 
     if (isAdmin() && !isViewingAsCustomer) {
-      baseColumns.push({ key: 'customer_charge', header: 'Cost', format: 'currency', width: 12 });
+      baseColumns.push(
+        { key: 'customer_charge', header: 'Customer Charge', format: 'currency', width: 15 },
+        { key: 'shipment_value', header: 'Declared Value', format: 'currency', width: 15 }
+      );
     }
 
     return baseColumns;
@@ -244,18 +391,48 @@ export function ShipmentsPage() {
   const shipmentExportData = useMemo(() => {
     return filteredShipments.map(s => ({
       load_id: s.load_id,
+      pro_number: s.pro_number,
+      reference_number: s.reference_number || '',
+      bol_number: s.bol_number || '',
+      po_reference: s.po_reference || '',
       pickup_date: s.pickup_date,
       delivery_date: s.delivery_date,
+      expected_delivery_date: s.expected_delivery_date,
+      origin_company: s.origin_company,
       origin_city: s.origin_city,
       origin_state: s.origin_state,
+      origin_zip: s.origin_zip,
+      origin_country: s.origin_country,
+      origin_contact: s.origin_contact,
+      origin_phone: s.origin_phone,
+      destination_company: s.destination_company,
       destination_city: s.destination_city,
       destination_state: s.destination_state,
-      carrier_name: s.carrier_name || '',
-      mode_name: s.mode_name || '',
+      destination_zip: s.destination_zip,
+      destination_country: s.destination_country,
+      destination_contact: s.destination_contact,
+      destination_phone: s.destination_phone,
+      carrier_name: s.carrier_name,
+      mode_name: s.mode_name,
+      equipment_name: s.equipment_name,
+      driver_name: s.driver_name,
+      driver_phone: s.driver_phone,
+      truck_number: s.truck_number,
+      trailer_number: s.trailer_number,
       status: s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status,
-      po_reference: s.po_reference || '',
-      reference_number: s.reference_number || '',
-      customer_charge: s.customer_charge
+      total_weight: s.total_weight,
+      total_pieces: s.total_pieces,
+      total_packages: s.total_packages,
+      number_of_pallets: s.number_of_pallets,
+      linear_feet: s.linear_feet,
+      miles: s.miles,
+      freight_classes: s.freight_classes,
+      commodities: s.commodities,
+      item_descriptions: s.item_descriptions,
+      has_hazmat: s.has_hazmat ? 'Yes' : 'No',
+      created_date: s.created_date,
+      customer_charge: s.customer_charge,
+      shipment_value: s.shipment_value,
     }));
   }, [filteredShipments]);
 
@@ -380,6 +557,14 @@ export function ShipmentsPage() {
             title="Shipment Export"
             disabled={filteredShipments.length === 0}
           />
+          <button
+            onClick={() => setShowEmailModal(true)}
+            disabled={filteredShipments.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            Email
+          </button>
           {hasActiveFilters && (
             <button
               onClick={() => setShowSaveViewModal(true)}
@@ -485,6 +670,14 @@ export function ShipmentsPage() {
         onClose={() => setShowSaveViewModal(false)}
         onSave={handleSaveView}
         filterSummary={{ searchQuery, activeStatus }}
+      />
+
+      <EmailReportModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        reportName="Shipments Export"
+        reportData={shipmentExportData}
+        reportType="shipments"
       />
     </div>
   );

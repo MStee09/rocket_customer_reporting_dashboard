@@ -26,16 +26,16 @@ export const WidgetHistoryTab = ({ widget }: WidgetHistoryTabProps) => {
 
                 <div className={`absolute left-0 top-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                   v.isCurrent
-                    ? 'bg-blue-500 border-blue-500'
+                    ? 'bg-rocket-500 border-rocket-500'
                     : 'bg-white border-slate-300'
                 }`}>
                   {v.isCurrent && <div className="w-2 h-2 bg-white rounded-full" />}
                 </div>
 
-                <div className={`p-4 rounded-xl ${v.isCurrent ? 'bg-blue-50 border border-blue-200' : 'bg-slate-50 border border-slate-200'}`}>
+                <div className={`p-4 rounded-xl ${v.isCurrent ? 'bg-rocket-50 border border-rocket-200' : 'bg-slate-50 border border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`font-semibold ${v.isCurrent ? 'text-blue-900' : 'text-slate-900'}`}>
-                      v{v.version} {v.isCurrent && <span className="font-normal text-blue-600">(current)</span>}
+                    <span className={`font-semibold ${v.isCurrent ? 'text-rocket-900' : 'text-slate-900'}`}>
+                      v{v.version} {v.isCurrent && <span className="font-normal text-rocket-600">(current)</span>}
                     </span>
                     <span className="text-sm text-slate-500">{v.timestamp}</span>
                   </div>
@@ -48,11 +48,11 @@ export const WidgetHistoryTab = ({ widget }: WidgetHistoryTabProps) => {
 
                   {!v.isCurrent && (
                     <div className="flex items-center gap-3 mt-3">
-                      <button className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <button className="text-xs text-rocket-600 hover:text-rocket-700 flex items-center gap-1">
                         <Eye className="w-3 h-3" />
                         View
                       </button>
-                      <button className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <button className="text-xs text-rocket-600 hover:text-rocket-700 flex items-center gap-1">
                         <RotateCcw className="w-3 h-3" />
                         Restore
                       </button>

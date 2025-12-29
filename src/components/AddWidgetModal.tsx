@@ -92,7 +92,7 @@ export function AddWidgetModal({
                     onClick={() => setSelectedCategory(category)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        ? 'bg-rocket-50 text-rocket-700 font-medium'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -132,7 +132,7 @@ export function AddWidgetModal({
                       className={`p-4 border rounded-xl text-left transition-all ${
                         isOnDashboard
                           ? 'border-green-200 bg-green-50 cursor-not-allowed opacity-75'
-                          : 'border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer'
+                          : 'border-slate-200 hover:border-rocket-500 hover:shadow-md cursor-pointer'
                       }`}
                     >
                       <div className="flex items-start gap-3 mb-3">
@@ -150,7 +150,7 @@ export function AddWidgetModal({
                             widget.size === 'hero'
                               ? 'bg-purple-100 text-purple-700'
                               : widget.size === 'large'
-                              ? 'bg-blue-100 text-blue-700'
+                              ? 'bg-rocket-100 text-rocket-700'
                               : widget.size === 'wide'
                               ? 'bg-cyan-100 text-cyan-700'
                               : widget.size === 'tall'

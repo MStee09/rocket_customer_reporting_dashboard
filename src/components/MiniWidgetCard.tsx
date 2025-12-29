@@ -76,8 +76,8 @@ export function MiniWidgetCard({ widget, sizeLevel = 'default', index, onCycleSi
         flex items-center gap-3 p-3 rounded-xl border-2
         transition-all cursor-grab active:cursor-grabbing
         ${isDragging
-          ? 'bg-blue-50 border-blue-400 shadow-xl scale-[1.02]'
-          : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}
+          ? 'bg-rocket-50 border-rocket-400 shadow-xl scale-[1.02]'
+          : 'bg-white border-slate-200 hover:border-rocket-300 hover:shadow-md'}
       `}
       {...attributes}
       {...listeners}
@@ -100,9 +100,9 @@ export function MiniWidgetCard({ widget, sizeLevel = 'default', index, onCycleSi
 
       <div className="flex items-center gap-2 flex-shrink-0">
         <div className="flex gap-0.5">
-          <div className={`w-3 h-2 rounded-sm ${colSpan >= 2 ? 'bg-blue-500' : 'bg-slate-200'}`} />
-          <div className={`w-3 h-2 rounded-sm ${colSpan >= 4 ? 'bg-blue-500' : 'bg-slate-200'}`} />
-          <div className={`w-3 h-2 rounded-sm ${colSpan >= 6 ? 'bg-blue-500' : 'bg-slate-200'}`} />
+          <div className={`w-3 h-2 rounded-sm ${colSpan >= 2 ? 'bg-rocket-500' : 'bg-slate-200'}`} />
+          <div className={`w-3 h-2 rounded-sm ${colSpan >= 4 ? 'bg-rocket-500' : 'bg-slate-200'}`} />
+          <div className={`w-3 h-2 rounded-sm ${colSpan >= 6 ? 'bg-rocket-500' : 'bg-slate-200'}`} />
         </div>
         <span className="text-xs text-slate-500 w-8">
           {getWidthLabel()}
@@ -110,7 +110,7 @@ export function MiniWidgetCard({ widget, sizeLevel = 'default', index, onCycleSi
       </div>
 
       {sizeLevel && sizeLevel !== 'default' && (
-        <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full font-medium flex-shrink-0">
+        <span className="px-2 py-0.5 text-xs bg-rocket-100 text-rocket-700 rounded-full font-medium flex-shrink-0">
           {sizeLevel === 'large' ? 'L' : sizeLevel === 'xlarge' ? 'XL' : 'Full'}
         </span>
       )}

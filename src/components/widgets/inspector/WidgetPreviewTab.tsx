@@ -215,7 +215,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
         <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <div className="w-8 h-8 border-2 border-rocket-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-sm text-slate-500">Loading preview...</p>
             </div>
           ) : error ? (

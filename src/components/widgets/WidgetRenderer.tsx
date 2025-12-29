@@ -243,7 +243,7 @@ export const WidgetRenderer: React.FC<WidgetRenderProps> = ({
       const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
       return (
         <div className={`flex flex-col items-center justify-center ${className}`} style={{ height }}>
-          <div className="text-4xl font-bold text-blue-600">
+          <div className="text-4xl font-bold text-rocket-600">
             {formatValue(total)}
           </div>
           {title && <div className="text-slate-500 mt-2 text-sm">{title}</div>}

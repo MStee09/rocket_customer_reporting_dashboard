@@ -123,26 +123,26 @@ export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated
   return (
     <div className="space-y-6">
 
-      <div className="p-5 bg-blue-50 border border-blue-200 rounded-xl">
-        <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+      <div className="p-5 bg-rocket-50 border border-rocket-200 rounded-xl">
+        <h3 className="text-sm font-semibold text-rocket-900 mb-3 flex items-center gap-2">
           <Eye className="w-4 h-4" />
           What This Widget Shows
         </h3>
 
-        <p className="text-sm text-blue-800 mb-4">{whatItShows.summary}</p>
+        <p className="text-sm text-rocket-800 mb-4">{whatItShows.summary}</p>
 
         {whatItShows.columns && whatItShows.columns.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">
+            <h4 className="text-xs font-semibold text-rocket-700 uppercase tracking-wide mb-2">
               Data Displayed
             </h4>
             <ul className="space-y-1.5">
               {whatItShows.columns.map((col, i) => (
                 <li key={i} className="text-sm flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
+                  <span className="w-1.5 h-1.5 bg-rocket-500 rounded-full mt-1.5 flex-shrink-0" />
                   <span>
-                    <span className="font-medium text-blue-900">{col.name}</span>
-                    <span className="text-blue-700"> — {col.description}</span>
+                    <span className="font-medium text-rocket-900">{col.name}</span>
+                    <span className="text-rocket-700"> — {col.description}</span>
                   </span>
                 </li>
               ))}
@@ -152,14 +152,14 @@ export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated
 
         {whatItShows.filters && whatItShows.filters.length > 0 && (
           <div className="mb-4">
-            <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+            <h4 className="text-xs font-semibold text-rocket-700 uppercase tracking-wide mb-2 flex items-center gap-1">
               <Filter className="w-3 h-3" />
               Filters Applied
             </h4>
             <ul className="space-y-1">
               {whatItShows.filters.map((filter, i) => (
-                <li key={i} className="text-sm text-blue-800 flex items-center gap-2">
-                  <span className="w-1 h-1 bg-blue-400 rounded-full" />
+                <li key={i} className="text-sm text-rocket-800 flex items-center gap-2">
+                  <span className="w-1 h-1 bg-rocket-400 rounded-full" />
                   {filter}
                 </li>
               ))}
@@ -171,34 +171,34 @@ export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated
           <div className="flex flex-wrap gap-4 mb-4">
             {whatItShows.sortedBy && (
               <div className="text-sm flex items-center gap-1">
-                <ArrowUpDown className="w-3 h-3 text-blue-700" />
-                <span className="text-blue-700">Sorted by:</span>
-                <span className="text-blue-900 font-medium">{whatItShows.sortedBy}</span>
+                <ArrowUpDown className="w-3 h-3 text-rocket-700" />
+                <span className="text-rocket-700">Sorted by:</span>
+                <span className="text-rocket-900 font-medium">{whatItShows.sortedBy}</span>
               </div>
             )}
             {whatItShows.limit && (
               <div className="text-sm flex items-center gap-1">
-                <Hash className="w-3 h-3 text-blue-700" />
-                <span className="text-blue-700">Limit:</span>
-                <span className="text-blue-900 font-medium">{whatItShows.limit}</span>
+                <Hash className="w-3 h-3 text-rocket-700" />
+                <span className="text-rocket-700">Limit:</span>
+                <span className="text-rocket-900 font-medium">{whatItShows.limit}</span>
               </div>
             )}
           </div>
         )}
 
-        <div className="pt-3 border-t border-blue-200 space-y-2">
+        <div className="pt-3 border-t border-rocket-200 space-y-2">
           <div className="flex items-center gap-2">
             {dataMode === 'static' ? (
               <>
                 <Camera className="w-4 h-4 text-amber-600" />
-                <span className="text-sm text-blue-800">
+                <span className="text-sm text-rocket-800">
                   Snapshot from {widget.snapshotDate ? formatDate(widget.snapshotDate) : 'creation time'}
                 </span>
               </>
             ) : (
               <>
                 <RefreshCw className="w-4 h-4 text-green-600" />
-                <span className="text-sm text-blue-800">
+                <span className="text-sm text-rocket-800">
                   Updates automatically with new data
                 </span>
               </>

@@ -84,12 +84,12 @@ export const WidgetUsageTab = ({ widget }: WidgetUsageTabProps) => {
         </div>
       )}
 
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+      <div className="p-4 bg-rocket-50 border border-rocket-200 rounded-xl">
         <div className="flex items-start gap-3">
-          <TrendingUp className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <TrendingUp className="w-5 h-5 text-rocket-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-blue-800">Usage Analytics</p>
-            <p className="text-sm text-blue-700 mt-1">
+            <p className="font-medium text-rocket-800">Usage Analytics</p>
+            <p className="text-sm text-rocket-700 mt-1">
               This tab shows how the widget is being used across customers.
               Data includes load counts, performance metrics, and which customers have added this widget to their dashboard.
             </p>

@@ -99,7 +99,7 @@ export const WidgetQueryTab = ({ widget }: WidgetQueryTabProps) => {
               <ul className="mt-2 space-y-1">
                 {queryInfo.columns.map((col, i) => (
                   <li key={i} className="text-sm font-mono text-slate-700 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0" />
+                    <span className="w-1.5 h-1.5 bg-rocket-500 rounded-full flex-shrink-0" />
                     {col}
                   </li>
                 ))}

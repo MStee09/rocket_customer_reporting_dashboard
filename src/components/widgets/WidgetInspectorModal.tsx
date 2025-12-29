@@ -72,7 +72,7 @@ export const WidgetInspectorModal = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-semibold text-slate-900">{widget.name}</h2>
                 {isSystem && (
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex items-center gap-1">
+                  <span className="text-xs px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded-full flex items-center gap-1">
                     <Lock className="w-3 h-3" />
                     System
                   </span>
@@ -97,7 +97,7 @@ export const WidgetInspectorModal = ({
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-rocket-500 text-rocket-600'
                     : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
                 }`}
               >

@@ -117,8 +117,8 @@ const SortableMiniWidget = ({
         flex items-center gap-2
         ${isDragging ? 'opacity-50' : ''}
         ${isSelected
-          ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200'
-          : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm'}
+          ? 'border-rocket-500 bg-rocket-50 shadow-md ring-2 ring-rocket-200'
+          : 'border-slate-200 bg-white hover:border-rocket-300 hover:shadow-sm'}
         cursor-grab active:cursor-grabbing
       `}
       onClick={onClick}
@@ -134,7 +134,7 @@ const SortableMiniWidget = ({
       </span>
 
       {sizeLevel && sizeLevel !== 'default' && (
-        <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded flex-shrink-0">
+        <span className="text-xs px-1.5 py-0.5 bg-rocket-100 text-rocket-600 rounded flex-shrink-0">
           {sizeLevel === 'large' ? 'L' : sizeLevel === 'xlarge' ? 'XL' : 'Full'}
         </span>
       )}
@@ -154,7 +154,7 @@ const DragPreview = ({ widget, colSpan }: DragPreviewProps) => {
   return (
     <div className={`
       ${widthClass} h-14
-      rounded-lg border-2 border-blue-500 bg-blue-50 shadow-xl
+      rounded-lg border-2 border-rocket-500 bg-rocket-50 shadow-xl
       p-3 flex items-center gap-2
       opacity-90
     `}>
@@ -313,8 +313,8 @@ export function LayoutEditorModal({
       <div className="fixed inset-6 md:inset-10 lg:inset-16 z-50 flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="px-6 py-4 border-b bg-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Layout className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-rocket-100 rounded-xl flex items-center justify-center">
+              <Layout className="w-5 h-5 text-rocket-600" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Customize Layout</h2>
@@ -409,8 +409,8 @@ export function LayoutEditorModal({
             <div className="absolute inset-0 bg-white z-10 flex flex-col">
               <div className="px-6 py-4 border-b flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Plus className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-rocket-100 rounded-xl flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-rocket-600" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Add Widget</h2>
@@ -453,7 +453,7 @@ export function LayoutEditorModal({
                         <button
                           key={widget.id}
                           onClick={() => addWidget(widget.id)}
-                          className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 hover:shadow-md transition text-left"
+                          className="p-4 border border-slate-200 rounded-xl hover:border-rocket-500 hover:shadow-md transition text-left"
                         >
                           <div className="flex items-center gap-3 mb-2">
                             <div className={`w-10 h-10 rounded-lg ${widget.iconColor || 'bg-slate-400'} flex items-center justify-center`}>
@@ -535,7 +535,7 @@ export function LayoutEditorModal({
                           className={`
                             px-2 py-2 text-xs font-medium rounded-md transition
                             ${currentSize === size
-                              ? 'bg-white text-blue-600 shadow-sm'
+                              ? 'bg-white text-rocket-600 shadow-sm'
                               : 'text-slate-600 hover:bg-white/50'}
                           `}
                         >
@@ -547,7 +547,7 @@ export function LayoutEditorModal({
                   {localSizes[selectedWidget!] && localSizes[selectedWidget!] !== 'default' && (
                     <button
                       onClick={() => resetSize(selectedWidget!)}
-                      className="mt-2 text-sm text-blue-600 hover:underline"
+                      className="mt-2 text-sm text-rocket-600 hover:underline"
                     >
                       Reset to auto size
                     </button>
@@ -558,7 +558,7 @@ export function LayoutEditorModal({
                   <label className="text-sm font-medium text-slate-700 mb-2 block">Width Preview</label>
                   <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-blue-500 rounded-full transition-all"
+                      className="h-full bg-rocket-500 rounded-full transition-all"
                       style={{
                         width: `${(getWidgetColSpan(selectedWidgetData, localSizes[selectedWidget!]) / 3) * 100}%`
                       }}

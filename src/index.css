@@ -4,7 +4,10 @@
 
 @layer base {
   body {
-    @apply font-sans text-charcoal-800 antialiased;
+    font-family: Inter, system-ui, sans-serif;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 

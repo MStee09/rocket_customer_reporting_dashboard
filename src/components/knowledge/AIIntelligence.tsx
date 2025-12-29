@@ -191,7 +191,7 @@ export function AIIntelligence() {
               <p className="text-sm text-gray-500">Active Knowledge</p>
               <p className="text-2xl font-bold">{stats.active}</p>
             </div>
-            <Brain className="w-8 h-8 text-blue-200" />
+            <Brain className="w-8 h-8 text-rocket-600" />
           </div>
         </div>
 

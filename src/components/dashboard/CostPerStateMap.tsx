@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Annotation, ZoomableGroup } from 'react-simple-maps';
-import { Loader2, AlertTriangle, Plus, Minus, RotateCcw } from 'lucide-react';
+import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb } from 'lucide-react';
 import { StateData } from '../../hooks/useDashboardData';
 
 interface CostPerStateMapProps {
@@ -51,62 +51,133 @@ const STATE_COORDINATES: { [key: string]: [number, number] } = {
   WI: [-89.6165, 43.7844], WY: [-107.2903, 43.0760],
 };
 
+const COLOR_SCALE = ['#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+
+function generateInsights(data: StateData[], stats: { min: number; max: number; mean: number; outliers: string[] }) {
+  const insights: { type: 'warning' | 'info' | 'success'; message: string }[] = [];
+
+  if (stats.outliers.length > 0) {
+    const outlierData = data.filter(d => stats.outliers.includes(d.stateCode));
+    const avgOutlierCost = outlierData.reduce((sum, d) => sum + d.avgCost, 0) / outlierData.length;
+    const percentAbove = ((avgOutlierCost - stats.mean) / stats.mean * 100).toFixed(0);
+    insights.push({
+      type: 'warning',
+      message: `${stats.outliers.length} outlier${stats.outliers.length > 1 ? 's' : ''}: ${stats.outliers.slice(0, 4).join(', ')}${stats.outliers.length > 4 ? '...' : ''} are ${percentAbove}% above average`,
+    });
+  }
+
+  const westCoast = ['CA', 'OR', 'WA'];
+  const eastCoast = ['NY', 'NJ', 'MA', 'FL', 'GA', 'NC', 'VA'];
+
+  const getRegionAvg = (states: string[]) => {
+    const regionData = data.filter(d => states.includes(d.stateCode));
+    if (regionData.length < 2) return null;
+    return regionData.reduce((sum, d) => sum + d.avgCost, 0) / regionData.length;
+  };
+
+  const westAvg = getRegionAvg(westCoast);
+  const eastAvg = getRegionAvg(eastCoast);
+
+  if (westAvg && eastAvg && Math.abs(westAvg - eastAvg) / stats.mean > 0.1) {
+    const higher = westAvg > eastAvg ? 'West Coast' : 'East Coast';
+    const diff = Math.abs(westAvg - eastAvg);
+    insights.push({
+      type: 'info',
+      message: `Regional pattern: ${higher} $${diff.toFixed(0)} higher avg cost`,
+    });
+  }
+
+  const sorted = [...data].sort((a, b) => b.avgCost - a.avgCost);
+  if (sorted.length >= 2) {
+    insights.push({
+      type: 'warning',
+      message: `Highest: ${sorted[0].stateCode} ($${sorted[0].avgCost.toFixed(0)})`,
+    });
+    insights.push({
+      type: 'success',
+      message: `Lowest: ${sorted[sorted.length - 1].stateCode} ($${sorted[sorted.length - 1].avgCost.toFixed(0)})`,
+    });
+  }
+
+  if (data.length < 25) {
+    insights.push({
+      type: 'info',
+      message: `Data coverage: ${data.length} of 50 states (${(data.length / 50 * 100).toFixed(0)}%)`,
+    });
+  }
+
+  return insights;
+}
+
 export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
   const [hoveredState, setHoveredState] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState<[number, number]>([-96, 38]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showLabels, setShowLabels] = useState(true);
+  const [showAIInsights, setShowAIInsights] = useState(true);
 
   const stateDataMap = useMemo(() => {
     return new Map(data.map(d => [d.stateCode, d]));
   }, [data]);
 
-  const { colorScale, minCost, maxCost, outliers } = useMemo(() => {
+  const { colorScale, minCost, maxCost, meanCost, outliers, thresholds } = useMemo(() => {
     if (data.length === 0) {
-      return { colorScale: () => '#e2e8f0', minCost: 0, maxCost: 0, outliers: [] };
+      return {
+        colorScale: () => '#e2e8f0',
+        minCost: 0,
+        maxCost: 0,
+        meanCost: 0,
+        outliers: [] as string[],
+        thresholds: [0, 0, 0, 0, 0]
+      };
     }
 
     const costs = data.map(d => d.avgCost).sort((a, b) => a - b);
     const min = costs[0];
     const max = costs[costs.length - 1];
+    const mean = costs.reduce((a, b) => a + b, 0) / costs.length;
 
-    const p20 = costs[Math.floor(costs.length * 0.2)];
-    const p40 = costs[Math.floor(costs.length * 0.4)];
-    const p60 = costs[Math.floor(costs.length * 0.6)];
-    const p80 = costs[Math.floor(costs.length * 0.8)];
+    const p20 = costs[Math.floor(costs.length * 0.2)] || min;
+    const p40 = costs[Math.floor(costs.length * 0.4)] || min;
+    const p60 = costs[Math.floor(costs.length * 0.6)] || min;
+    const p80 = costs[Math.floor(costs.length * 0.8)] || min;
 
     const getColor = (cost: number) => {
-      if (cost <= p20) return '#10b981';
-      if (cost <= p40) return '#84cc16';
-      if (cost <= p60) return '#eab308';
-      if (cost <= p80) return '#f97316';
-      return '#ef4444';
+      if (cost <= p20) return COLOR_SCALE[0];
+      if (cost <= p40) return COLOR_SCALE[1];
+      if (cost <= p60) return COLOR_SCALE[2];
+      if (cost <= p80) return COLOR_SCALE[3];
+      return COLOR_SCALE[4];
     };
 
-    const outlierStates = data.filter(d => d.isOutlier);
+    const outlierStates = data.filter(d => d.isOutlier).map(d => d.stateCode);
 
     return {
       colorScale: getColor,
       minCost: min,
       maxCost: max,
+      meanCost: mean,
       outliers: outlierStates,
+      thresholds: [min, p20, p40, p60, p80, max],
     };
   }, [data]);
 
-  const dataPercentage = useMemo(() => {
-    if (data.length === 0) return 0;
-    const totalStates = 51;
-    return Math.round((data.length / totalStates) * 100);
-  }, [data]);
+  const insights = useMemo(() => {
+    if (data.length === 0) return [];
+    return generateInsights(data, { min: minCost, max: maxCost, mean: meanCost, outliers });
+  }, [data, minCost, maxCost, meanCost, outliers]);
 
+  const noDataCount = 50 - data.length;
   const hoveredStateData = hoveredState ? stateDataMap.get(hoveredState) : null;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(value);
   };
 
@@ -132,18 +203,47 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {outliers.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-800 flex-shrink-0" />
-          <div className="text-xs text-amber-800">
-            <span className="font-semibold">{outliers.length} outlier{outliers.length > 1 ? 's' : ''}:</span>{' '}
-            {outliers.map((o, idx) => (
-              <span key={o.stateCode}>
-                {o.stateCode} ({formatCurrency(o.avgCost)})
-                {idx < outliers.length - 1 ? ', ' : ''}
-              </span>
-            ))}
+      <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-slate-200 flex items-center justify-between">
+        {outliers.length > 0 ? (
+          <div className="flex items-center gap-2 bg-amber-50 px-2 py-1 rounded">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <div className="text-xs text-amber-800">
+              <span className="font-semibold">{outliers.length} outlier{outliers.length > 1 ? 's' : ''}</span>
+            </div>
           </div>
+        ) : (
+          <div />
+        )}
+
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="p-1.5 rounded hover:bg-slate-100 transition-colors"
+          title="Settings"
+        >
+          <Settings className="w-4 h-4 text-slate-500" />
+        </button>
+      </div>
+
+      {showSettings && (
+        <div className="flex-shrink-0 px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showLabels}
+              onChange={(e) => setShowLabels(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Show state labels
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showAIInsights}
+              onChange={(e) => setShowAIInsights(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            AI insights
+          </label>
         </div>
       )}
 
@@ -166,14 +266,15 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                   const stateCode = NAME_TO_CODE[stateName];
                   const stateData = stateCode ? stateDataMap.get(stateCode) : null;
                   const fillColor = stateData ? colorScale(stateData.avgCost) : '#e2e8f0';
+                  const isOutlier = stateCode && outliers.includes(stateCode);
 
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       fill={fillColor}
-                      stroke="#ffffff"
-                      strokeWidth={0.5}
+                      stroke={isOutlier ? '#ef4444' : '#ffffff'}
+                      strokeWidth={isOutlier ? 2 : 0.5}
                       style={{
                         default: { outline: 'none' },
                         hover: {
@@ -197,21 +298,25 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                 })
               }
             </Geographies>
-            {Object.entries(STATE_COORDINATES).map(([code, coordinates]) => {
+
+            {showLabels && Object.entries(STATE_COORDINATES).map(([code, coordinates]) => {
               const stateData = stateDataMap.get(code);
+              const isSmallState = ['CT', 'DE', 'DC', 'MA', 'MD', 'NH', 'NJ', 'RI', 'VT'].includes(code);
+
+              if (isSmallState && zoom < 1.5) return null;
+
               return (
-                <Annotation
-                  key={code}
-                  subject={coordinates}
-                  dx={0}
-                  dy={0}
-                >
+                <Annotation key={code} subject={coordinates} dx={0} dy={0}>
                   <text
                     textAnchor="middle"
-                    fontSize={8}
+                    fontSize={zoom > 1.5 ? 10 : 8}
                     fontWeight="600"
                     fill={stateData ? '#ffffff' : '#94a3b8'}
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    style={{
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      textShadow: stateData ? '0 1px 2px rgba(0,0,0,0.5)' : 'none'
+                    }}
                   >
                     {code}
                   </text>
@@ -223,20 +328,72 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
         {hoveredStateData && (
           <div
-            className="fixed bg-white px-3 py-2 rounded-lg shadow-lg border border-slate-200 pointer-events-none z-50"
+            className="fixed bg-white px-4 py-3 rounded-lg shadow-xl border border-slate-200 pointer-events-none z-50"
             style={{
-              left: `${tooltipPos.x + 10}px`,
-              top: `${tooltipPos.y + 10}px`,
+              left: `${tooltipPos.x + 15}px`,
+              top: `${tooltipPos.y + 15}px`,
+              maxWidth: '250px',
             }}
           >
-            <div className="font-semibold text-slate-800 text-sm">
-              {STATE_NAMES[hoveredStateData.stateCode] || hoveredStateData.stateCode}
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-slate-800">
+                {STATE_NAMES[hoveredStateData.stateCode] || hoveredStateData.stateCode}
+              </span>
+              {outliers.includes(hoveredStateData.stateCode) && (
+                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
+                  Outlier
+                </span>
+              )}
             </div>
-            <div className="text-base font-bold text-slate-900">
+
+            <div className="text-2xl font-bold text-slate-900 mb-1">
               {formatCurrency(hoveredStateData.avgCost)}
             </div>
-            <div className="text-xs text-slate-600">
-              Shipments: {hoveredStateData.shipmentCount}
+
+            <div className="text-xs text-slate-500 mb-2">
+              {hoveredStateData.shipmentCount.toLocaleString()} shipments
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 text-xs">
+              <span className={
+                hoveredStateData.avgCost > meanCost
+                  ? 'text-red-600 font-medium'
+                  : 'text-green-600 font-medium'
+              }>
+                {hoveredStateData.avgCost > meanCost ? '+' : ''}
+                {((hoveredStateData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
+              </span>
+              <span className="text-slate-500"> vs avg ({formatCurrency(meanCost)})</span>
+            </div>
+          </div>
+        )}
+
+        {showAIInsights && insights.length > 0 && (
+          <div className="absolute top-4 left-4 max-w-xs bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-10">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              <span className="text-xs font-semibold text-slate-700">AI Insights</span>
+            </div>
+
+            <div className="space-y-2">
+              {insights.slice(0, 4).map((insight, i) => (
+                <div
+                  key={i}
+                  className={`text-xs p-2 rounded ${
+                    insight.type === 'warning' ? 'bg-amber-50 text-amber-800' :
+                    insight.type === 'success' ? 'bg-green-50 text-green-800' :
+                    'bg-blue-50 text-blue-800'
+                  }`}
+                >
+                  {insight.message}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-slate-100">
+              <div className="text-xs text-slate-500">
+                Which regions cost the most to serve?
+              </div>
             </div>
           </div>
         )}
@@ -270,13 +427,40 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
       </div>
 
       <div className="flex-shrink-0 px-4 py-3 border-t border-slate-200 bg-white">
-        <div className="flex items-center justify-between mb-1">
-          <div className="text-xs text-slate-600 font-medium">Low</div>
-          <div className="text-xs text-slate-600 font-medium">High</div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-slate-700">Avg Cost per Shipment</span>
+          {noDataCount > 0 && (
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded bg-slate-200 border border-slate-300" />
+              <span className="text-xs text-slate-400">{noDataCount} states no data</span>
+            </div>
+          )}
         </div>
-        <div className="h-2 rounded-full bg-gradient-to-r from-[#10b981] via-[#84cc16] via-[#eab308] via-[#f97316] to-[#ef4444]" />
-        <div className="mt-1 text-center text-xs text-slate-500">
-          {formatCurrency(minCost)} - {formatCurrency(maxCost)}
+
+        <div className="h-3 rounded-full flex overflow-hidden shadow-inner">
+          {COLOR_SCALE.map((color, i) => (
+            <div
+              key={i}
+              className="flex-1"
+              style={{ backgroundColor: color }}
+              title={`${formatCurrency(thresholds[i])} - ${formatCurrency(thresholds[i + 1] || maxCost)}`}
+            />
+          ))}
+        </div>
+
+        <div className="flex justify-between mt-2">
+          <div className="text-left">
+            <div className="text-xs font-medium text-slate-700">{formatCurrency(minCost)}</div>
+            <div className="text-xs text-slate-400">Low</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs font-medium text-slate-700">{formatCurrency(meanCost)}</div>
+            <div className="text-xs text-slate-400">Avg</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs font-medium text-slate-700">{formatCurrency(maxCost)}</div>
+            <div className="text-xs text-slate-400">High</div>
+          </div>
         </div>
       </div>
     </div>

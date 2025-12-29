@@ -73,7 +73,7 @@ const ADMIN_REPORT_TEMPLATES = [
 function getTemplateIcon(icon: string) {
   switch (icon) {
     case 'dollar': return <DollarSign className="h-5 w-5 text-green-600" />;
-    case 'trending': return <TrendingUp className="h-5 w-5 text-blue-600" />;
+    case 'trending': return <TrendingUp className="h-5 w-5 text-rocket-600" />;
     case 'truck': return <Truck className="h-5 w-5 text-orange-600" />;
     case 'route': return <Route className="h-5 w-5 text-teal-600" />;
     case 'activity': return <Activity className="h-5 w-5 text-cyan-600" />;

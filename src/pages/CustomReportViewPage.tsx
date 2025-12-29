@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
   Loader2,
-  Download,
   Trash2,
   DollarSign,
   TrendingUp,
@@ -31,7 +30,6 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { exportToCSV } from '../utils/csvExport';
 import { exportReportToPDF } from '../utils/pdfExport';
 import SimpleReportViewer from '../components/SimpleReportViewer';
 import SimpleReportBuilder from '../components/SimpleReportBuilder';
@@ -39,6 +37,8 @@ import { SimpleReportConfig, SimpleReportBuilderState } from '../types/reports';
 import SaveAsWidgetModal from '../components/reports/SaveAsWidgetModal';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
 import { ScheduledReport } from '../types/scheduledReports';
+import { ExportMenu } from '../components/ui/ExportMenu';
+import { ColumnConfig } from '../services/exportService';
 
 type DatePreset = 'last30' | 'last90' | 'last6months' | 'lastyear' | 'custom';
 
@@ -149,22 +149,23 @@ export function CustomReportViewPage() {
     }
   };
 
-  const handleExport = () => {
-    if (!monthlyData || monthlyData.length === 0) {
-      alert('No data to export');
-      return;
-    }
+  const monthlyExportColumns: ColumnConfig[] = useMemo(() => [
+    { key: 'month', header: 'Month', format: 'text', width: 12 },
+    { key: 'avgCostPerUnit', header: 'Avg Cost Per Unit', format: 'currency', width: 18 },
+    { key: 'totalRevenue', header: 'Total Revenue', format: 'currency', width: 15 },
+    { key: 'totalQuantity', header: 'Total Quantity', format: 'number', width: 15 },
+    { key: 'shipmentCount', header: 'Shipment Count', format: 'number', width: 15 }
+  ], []);
 
-    const csvData = monthlyData.map((m) => ({
-      Month: m.month,
-      'Avg Cost Per Unit': m.avgCostPerUnit.toFixed(2),
-      'Total Revenue': m.totalRevenue.toFixed(2),
-      'Total Quantity': m.totalQuantity,
-      'Shipment Count': m.shipmentCount,
+  const monthlyExportData = useMemo(() => {
+    return monthlyData.map(m => ({
+      month: m.month,
+      avgCostPerUnit: m.avgCostPerUnit,
+      totalRevenue: m.totalRevenue,
+      totalQuantity: m.totalQuantity,
+      shipmentCount: m.shipmentCount
     }));
-
-    exportToCSV(csvData, `${report?.name || 'report'}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-  };
+  }, [monthlyData]);
 
   const handleUpdateReport = async (updatedState: SimpleReportBuilderState) => {
     if (!report) return;
@@ -402,27 +403,19 @@ export function CustomReportViewPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-          >
-            <Download className="w-4 h-4" />
-            Export PDF
-          </button>
+          <ExportMenu
+            data={monthlyExportData}
+            columns={monthlyExportColumns}
+            filename={report?.name || 'report'}
+            title={report?.name}
+            disabled={!monthlyData || monthlyData.length === 0}
+          />
           <button
             onClick={handleScheduleClick}
             className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
           >
             <Calendar className="w-4 h-4" />
             Schedule
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={!monthlyData || monthlyData.length === 0}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
           </button>
           <button
             onClick={handleDelete}

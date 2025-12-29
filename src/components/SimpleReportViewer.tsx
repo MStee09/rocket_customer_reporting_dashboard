@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Download, Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import FilterSummary from './reports/FilterSummary';
 import { SimpleReportConfig } from '../types/reports';
 import { executeSimpleReport } from '../utils/simpleQueryBuilder';
 import { getColumnById } from '../config/reportColumns';
-import { exportToCSV } from '../utils/csvExport';
-import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { useLookupTables } from '../hooks/useLookupTables';
+import { ExportMenu } from './ui/ExportMenu';
+import { ColumnConfig } from '../services/exportService';
 
 interface SimpleReportViewerProps {
   config: SimpleReportConfig;
@@ -101,23 +101,25 @@ export default function SimpleReportViewer({ config, customerId }: SimpleReportV
     });
   }, [data, sortColumn, sortDirection]);
 
-  const handleExport = () => {
-    if (!data || data.length === 0) {
-      alert('No data to export');
-      return;
-    }
+  const exportColumns: ColumnConfig[] = useMemo(() => {
+    return filteredConfig.columns.map(col => {
+      const columnDef = getColumnById(col.id);
+      let format: ColumnConfig['format'] = 'text';
 
-    const csvData = data.map(row => {
-      const csvRow: Record<string, string> = {};
-      filteredConfig.columns.forEach(col => {
-        const columnDef = getColumnById(col.id);
-        csvRow[col.label] = formatValue(row[col.id], columnDef ? { type: columnDef.type, format: columnDef.format, id: columnDef.id } : undefined);
-      });
-      return csvRow;
+      if (columnDef?.type === 'number') {
+        format = columnDef.format === 'currency' ? 'currency' : 'number';
+      } else if (columnDef?.type === 'date') {
+        format = 'date';
+      }
+
+      return {
+        key: col.id,
+        header: col.label,
+        format,
+        width: 15
+      };
     });
-
-    exportToCSV(csvData, `${filteredConfig.name}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-  };
+  }, [filteredConfig.columns]);
 
   const formatValue = (value: any, columnDef?: { type?: string; format?: string; id?: string }): string => {
     if (value === null || value === undefined) return 'N/A';
@@ -216,13 +218,12 @@ export default function SimpleReportViewer({ config, customerId }: SimpleReportV
         <div className="text-sm text-gray-600">
           {data.length} row{data.length !== 1 ? 's' : ''} returned
         </div>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
+        <ExportMenu
+          data={data}
+          columns={exportColumns}
+          filename={filteredConfig.name}
+          title={filteredConfig.name}
+        />
       </div>
 
       <FilterSummary filters={filteredConfig.filters || []} />

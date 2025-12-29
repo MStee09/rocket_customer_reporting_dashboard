@@ -27,10 +27,9 @@ export function AddressesTab({ addresses }: AddressesTabProps) {
                   : 'bg-blue-100 text-blue-700'
               }`}
             >
-              Stop {addr.stop_number} -{' '}
               {addr.address_type === 'origin' || addr.address_type === 'pickup'
-                ? 'Pickup'
-                : 'Delivery'}
+                ? 'Shipper'
+                : 'Consignee'}
             </span>
             {addr.is_residential && (
               <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded">

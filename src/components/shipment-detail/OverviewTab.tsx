@@ -167,10 +167,9 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
                       : 'bg-blue-100 text-blue-700'
                   }`}
                 >
-                  Stop {addr.stop_number} -{' '}
                   {addr.address_type === 'origin' || addr.address_type === 'pickup'
-                    ? 'Pickup'
-                    : 'Delivery'}
+                    ? 'Shipper'
+                    : 'Consignee'}
                 </div>
                 <div>
                   <p className="font-medium text-slate-800">

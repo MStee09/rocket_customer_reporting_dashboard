@@ -1,30 +1,17 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import {
-  Search,
-  Package,
-  Truck,
-  CheckCircle,
-  Clock,
-  XCircle,
-  ChevronRight,
-  Loader2,
-  X,
-  Bookmark,
-  Mail,
-  AlertTriangle,
-  Calendar,
-  DollarSign,
-  Zap,
-} from 'lucide-react';
+import { Package, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
-import { ExportMenu } from '../components/ui/ExportMenu';
-import { ColumnConfig } from '../services/exportService';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ShipmentDetailDrawer } from '../components/shipments/ShipmentDetailDrawer';
+import { QuickFilters, quickFilters } from '../components/shipments/QuickFilters';
+import { StatusTabs } from '../components/shipments/StatusTabs';
+import { ShipmentsToolbar } from '../components/shipments/ShipmentsToolbar';
+import { ShipmentRow } from '../components/shipments/ShipmentRow';
+import { ColumnConfig } from '../services/exportService';
 
 interface Shipment {
   load_id: number;
@@ -79,119 +66,6 @@ interface Shipment {
   priority: number;
 }
 
-const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: typeof Clock }> = {
-  'Quotes': { bg: 'bg-gray-100', text: 'text-gray-700', icon: Clock },
-  'Pending Dispatch': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: Clock },
-  'Pending Pickup': { bg: 'bg-orange-100', text: 'text-orange-700', icon: Package },
-  'In Transit': { bg: 'bg-blue-100', text: 'text-blue-700', icon: Truck },
-  'Delivered': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-  'Completed': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
-  'Canceled': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-  'Cancelled': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
-};
-
-function getStatusConfig(status: string, isCompleted: boolean, isCancelled: boolean) {
-  if (isCancelled) {
-    return STATUS_CONFIG['Cancelled'] || { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
-  }
-  if (isCompleted) {
-    return STATUS_CONFIG['Completed'] || { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle };
-  }
-  return STATUS_CONFIG[status] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: Clock };
-}
-
-interface QuickFilter {
-  id: string;
-  label: string;
-  icon: typeof Clock;
-  filter: (shipment: Shipment) => boolean;
-  activeClass: string;
-  inactiveClass: string;
-}
-
-function getStartOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function getEndOfWeek(date: Date): Date {
-  const d = getStartOfWeek(date);
-  d.setDate(d.getDate() + 6);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-const quickFilters: QuickFilter[] = [
-  {
-    id: 'in-transit',
-    label: 'In Transit',
-    icon: Truck,
-    filter: (s) => !s.is_completed && !s.is_cancelled && s.status?.toLowerCase().includes('transit'),
-    activeClass: 'bg-blue-600 text-white border-blue-600',
-    inactiveClass: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-  },
-  {
-    id: 'delivered',
-    label: 'Delivered',
-    icon: CheckCircle,
-    filter: (s) => s.is_completed === true,
-    activeClass: 'bg-green-600 text-white border-green-600',
-    inactiveClass: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
-  },
-  {
-    id: 'pending',
-    label: 'Pending',
-    icon: Clock,
-    filter: (s) => {
-      const statusLower = s.status?.toLowerCase() || '';
-      return !s.is_completed && !s.is_cancelled && (
-        statusLower.includes('pending') ||
-        statusLower.includes('booked') ||
-        statusLower.includes('dispatch')
-      );
-    },
-    activeClass: 'bg-amber-500 text-white border-amber-500',
-    inactiveClass: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',
-  },
-  {
-    id: 'exceptions',
-    label: 'Exceptions',
-    icon: AlertTriangle,
-    filter: (s) => {
-      const statusLower = s.status?.toLowerCase() || '';
-      return statusLower.includes('exception') || statusLower.includes('delay') || statusLower.includes('hold');
-    },
-    activeClass: 'bg-red-600 text-white border-red-600',
-    inactiveClass: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100',
-  },
-  {
-    id: 'this-week',
-    label: 'This Week',
-    icon: Calendar,
-    filter: (s) => {
-      if (!s.pickup_date) return false;
-      const pickupDate = new Date(s.pickup_date);
-      const now = new Date();
-      const startOfWeek = getStartOfWeek(now);
-      const endOfWeek = getEndOfWeek(now);
-      return pickupDate >= startOfWeek && pickupDate <= endOfWeek;
-    },
-    activeClass: 'bg-sky-600 text-white border-sky-600',
-    inactiveClass: 'bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100',
-  },
-  {
-    id: 'high-value',
-    label: 'High Value',
-    icon: DollarSign,
-    filter: (s) => (s.customer_charge || 0) > 500,
-    activeClass: 'bg-emerald-600 text-white border-emerald-600',
-    inactiveClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
-  },
-];
-
 export function ShipmentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -234,10 +108,7 @@ export function ShipmentsPage() {
       name,
       description: description || undefined,
       viewType: 'shipments',
-      viewConfig: {
-        searchQuery,
-        activeStatus,
-      },
+      viewConfig: { searchQuery, activeStatus },
       isPinned: pin,
     });
   };
@@ -254,55 +125,17 @@ export function ShipmentsPage() {
     let query = supabase
       .from('shipment_secure')
       .select(`
-        load_id,
-        pickup_date,
-        delivery_date,
-        expected_delivery_date,
-        reference_number,
-        bol_number,
-        po_reference,
-        retail,
-        miles,
-        number_of_pallets,
-        linear_feet,
-        shipment_value,
-        priority,
-        is_stackable,
-        is_palletized,
-        created_date,
+        load_id, pickup_date, delivery_date, expected_delivery_date,
+        reference_number, bol_number, po_reference, retail, miles,
+        number_of_pallets, linear_feet, shipment_value, priority,
+        is_stackable, is_palletized, created_date,
         shipment_status:status_id(status_id, status_name, status_description, is_completed, is_cancelled),
         carrier:rate_carrier_id(carrier_id, carrier_name),
         shipment_mode:mode_id(mode_name),
         equipment:equipment_type_id(equipment_name),
-        addresses:shipment_address(
-          stop_number,
-          address_type,
-          company_name,
-          city,
-          state,
-          postal_code,
-          country,
-          contact_name,
-          contact_phone
-        ),
-        carrier_info:shipment_carrier(
-          carrier_name,
-          pro_number,
-          driver_name,
-          driver_phone,
-          truck_number,
-          trailer_number
-        ),
-        items:shipment_item(
-          description,
-          commodity,
-          freight_class,
-          quantity,
-          weight,
-          package_type,
-          number_of_packages,
-          is_hazmat
-        )
+        addresses:shipment_address(stop_number, address_type, company_name, city, state, postal_code, country, contact_name, contact_phone),
+        carrier_info:shipment_carrier(carrier_name, pro_number, driver_name, driver_phone, truck_number, trailer_number),
+        items:shipment_item(description, commodity, freight_class, quantity, weight, package_type, number_of_packages, is_hazmat)
       `);
 
     if (!isAdmin() || isViewingAsCustomer) {
@@ -418,32 +251,20 @@ export function ShipmentsPage() {
       { key: 'origin_state', header: 'Origin State', format: 'text', width: 8 },
       { key: 'origin_zip', header: 'Origin ZIP', format: 'text', width: 10 },
       { key: 'origin_country', header: 'Origin Country', format: 'text', width: 8 },
-      { key: 'origin_contact', header: 'Origin Contact', format: 'text', width: 20 },
-      { key: 'origin_phone', header: 'Origin Phone', format: 'text', width: 15 },
       { key: 'destination_company', header: 'Dest Company', format: 'text', width: 25 },
       { key: 'destination_city', header: 'Dest City', format: 'text', width: 15 },
       { key: 'destination_state', header: 'Dest State', format: 'text', width: 8 },
       { key: 'destination_zip', header: 'Dest ZIP', format: 'text', width: 10 },
       { key: 'destination_country', header: 'Dest Country', format: 'text', width: 8 },
-      { key: 'destination_contact', header: 'Dest Contact', format: 'text', width: 20 },
-      { key: 'destination_phone', header: 'Dest Phone', format: 'text', width: 15 },
       { key: 'carrier_name', header: 'Carrier', format: 'text', width: 25 },
       { key: 'mode_name', header: 'Mode', format: 'text', width: 15 },
       { key: 'equipment_name', header: 'Equipment Type', format: 'text', width: 15 },
-      { key: 'driver_name', header: 'Driver', format: 'text', width: 20 },
-      { key: 'driver_phone', header: 'Driver Phone', format: 'text', width: 15 },
-      { key: 'truck_number', header: 'Truck #', format: 'text', width: 12 },
-      { key: 'trailer_number', header: 'Trailer #', format: 'text', width: 12 },
       { key: 'status', header: 'Status', format: 'text', width: 15 },
       { key: 'total_weight', header: 'Weight (lbs)', format: 'number', width: 12 },
       { key: 'total_pieces', header: 'Pieces', format: 'number', width: 8 },
-      { key: 'total_packages', header: 'Packages', format: 'number', width: 10 },
-      { key: 'number_of_pallets', header: 'Pallets', format: 'number', width: 8 },
-      { key: 'linear_feet', header: 'Linear Feet', format: 'number', width: 10 },
       { key: 'miles', header: 'Miles', format: 'number', width: 8 },
       { key: 'freight_classes', header: 'Freight Class', format: 'text', width: 12 },
       { key: 'commodities', header: 'Commodity', format: 'text', width: 20 },
-      { key: 'item_descriptions', header: 'Item Descriptions', format: 'text', width: 40 },
       { key: 'has_hazmat', header: 'Hazmat', format: 'text', width: 8 },
       { key: 'created_date', header: 'Created Date', format: 'date', width: 12 },
     ];
@@ -465,7 +286,6 @@ export function ShipmentsPage() {
       else if (s.is_completed) statusKey = 'Completed';
 
       const matchesStatus = activeStatus === 'all' || statusKey === activeStatus;
-
       if (!matchesStatus) return false;
 
       if (activeQuickFilters.length > 0) {
@@ -482,26 +302,15 @@ export function ShipmentsPage() {
       const searchTerms = query.split(/\s+/).filter(Boolean);
 
       const searchableFields = [
-        s.load_id.toString(),
-        s.pro_number,
-        s.po_reference,
-        s.bol_number,
-        s.reference_number,
-        s.origin_city,
-        s.origin_state,
-        s.origin_company,
-        s.destination_city,
-        s.destination_state,
-        s.destination_company,
-        s.carrier_name,
-        s.mode_name,
-        statusKey,
+        s.load_id.toString(), s.pro_number, s.po_reference, s.bol_number, s.reference_number,
+        s.origin_city, s.origin_state, s.origin_company,
+        s.destination_city, s.destination_state, s.destination_company,
+        s.carrier_name, s.mode_name, statusKey,
         s.origin_city && s.origin_state ? `${s.origin_city}, ${s.origin_state}` : null,
         s.destination_city && s.destination_state ? `${s.destination_city}, ${s.destination_state}` : null,
       ].filter(Boolean).map(f => f!.toLowerCase());
 
       const combinedText = searchableFields.join(' ');
-
       return searchTerms.every(term => combinedText.includes(term));
     });
   }, [shipments, searchQuery, activeStatus, activeQuickFilters]);
@@ -521,65 +330,26 @@ export function ShipmentsPage() {
       origin_state: s.origin_state,
       origin_zip: s.origin_zip,
       origin_country: s.origin_country,
-      origin_contact: s.origin_contact,
-      origin_phone: s.origin_phone,
       destination_company: s.destination_company,
       destination_city: s.destination_city,
       destination_state: s.destination_state,
       destination_zip: s.destination_zip,
       destination_country: s.destination_country,
-      destination_contact: s.destination_contact,
-      destination_phone: s.destination_phone,
       carrier_name: s.carrier_name,
       mode_name: s.mode_name,
       equipment_name: s.equipment_name,
-      driver_name: s.driver_name,
-      driver_phone: s.driver_phone,
-      truck_number: s.truck_number,
-      trailer_number: s.trailer_number,
       status: s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status,
       total_weight: s.total_weight,
       total_pieces: s.total_pieces,
-      total_packages: s.total_packages,
-      number_of_pallets: s.number_of_pallets,
-      linear_feet: s.linear_feet,
       miles: s.miles,
       freight_classes: s.freight_classes,
       commodities: s.commodities,
-      item_descriptions: s.item_descriptions,
       has_hazmat: s.has_hazmat ? 'Yes' : 'No',
       created_date: s.created_date,
       customer_charge: s.customer_charge,
       shipment_value: s.shipment_value,
     }));
   }, [filteredShipments]);
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const formatMode = (mode: string | null) => {
-    if (!mode) return null;
-    const m = mode.toLowerCase();
-    if (m.includes('less than truckload')) return 'LTL';
-    if (m.includes('full truckload')) return 'FTL';
-    if (m.includes('partial')) return 'PTL';
-    return mode;
-  };
-
-  const formatCurrency = (amount: number | null) => {
-    if (!amount) return null;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   if (loading) {
     return (
@@ -600,134 +370,31 @@ export function ShipmentsPage() {
         <p className="text-gray-500 mt-1">Track and manage your shipments</p>
       </div>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by Load ID, PRO#, Reference, City, Carrier, Company..."
-          className="w-full pl-12 pr-12 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
-          autoFocus
-        />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-      </div>
+      <ShipmentsToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        hasActiveFilters={hasActiveFilters}
+        onSaveView={() => setShowSaveViewModal(true)}
+        onEmailReport={() => setShowEmailModal(true)}
+        exportData={shipmentExportData}
+        exportColumns={shipmentExportColumns}
+        filteredCount={filteredShipments.length}
+      />
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <Zap className="w-4 h-4 text-gray-400" />
-        {quickFilters.map(filter => {
-          const isActive = activeQuickFilters.includes(filter.id);
-          const count = shipments.filter(filter.filter).length;
-          const FilterIcon = filter.icon;
-
-          return (
-            <button
-              key={filter.id}
-              onClick={() => toggleQuickFilter(filter.id)}
-              className={`
-                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all
-                ${isActive ? filter.activeClass : filter.inactiveClass}
-              `}
-            >
-              <FilterIcon className="w-3.5 h-3.5" />
-              {filter.label}
-              <span className={`ml-0.5 ${isActive ? 'opacity-80' : 'opacity-60'}`}>
-                ({count})
-              </span>
-            </button>
-          );
-        })}
-
-        {activeQuickFilters.length > 0 && (
-          <button
-            onClick={() => setActiveQuickFilters([])}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
+      <QuickFilters
+        shipments={shipments}
+        activeFilters={activeQuickFilters}
+        onToggleFilter={toggleQuickFilter}
+        onClearFilters={() => setActiveQuickFilters([])}
+      />
 
       <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <StatusTab
-            label="All"
-            count={shipments.length}
-            active={activeStatus === 'all'}
-            onClick={() => setActiveStatus('all')}
-          />
-          <StatusTab
-            label="In Transit"
-            count={statusCounts['In Transit'] || 0}
-            active={activeStatus === 'In Transit'}
-            onClick={() => setActiveStatus('In Transit')}
-            color="blue"
-          />
-          <StatusTab
-            label="Pending Pickup"
-            count={statusCounts['Pending Pickup'] || 0}
-            active={activeStatus === 'Pending Pickup'}
-            onClick={() => setActiveStatus('Pending Pickup')}
-            color="orange"
-          />
-          <StatusTab
-            label="Delivered"
-            count={statusCounts['Delivered'] || 0}
-            active={activeStatus === 'Delivered'}
-            onClick={() => setActiveStatus('Delivered')}
-            color="green"
-          />
-          <StatusTab
-            label="Completed"
-            count={statusCounts['Completed'] || 0}
-            active={activeStatus === 'Completed'}
-            onClick={() => setActiveStatus('Completed')}
-            color="green"
-          />
-          {(statusCounts['Cancelled'] || 0) > 0 && (
-            <StatusTab
-              label="Cancelled"
-              count={statusCounts['Cancelled'] || 0}
-              active={activeStatus === 'Cancelled'}
-              onClick={() => setActiveStatus('Cancelled')}
-              color="red"
-            />
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-          <ExportMenu
-            data={shipmentExportData}
-            columns={shipmentExportColumns}
-            filename="shipments"
-            title="Shipment Export"
-            disabled={filteredShipments.length === 0}
-          />
-          <button
-            onClick={() => setShowEmailModal(true)}
-            disabled={filteredShipments.length === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          >
-            <Mail className="w-4 h-4" />
-            Email
-          </button>
-          {hasActiveFilters && (
-            <button
-              onClick={() => setShowSaveViewModal(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
-            >
-              <Bookmark className="w-4 h-4" />
-              Save View
-            </button>
-          )}
-        </div>
+        <StatusTabs
+          statusCounts={statusCounts}
+          activeStatus={activeStatus}
+          onStatusChange={setActiveStatus}
+          totalCount={shipments.length}
+        />
       </div>
 
       <div className="text-sm text-gray-500 mb-4">
@@ -736,74 +403,14 @@ export function ShipmentsPage() {
       </div>
 
       <div className="space-y-2">
-        {filteredShipments.map((shipment) => {
-          const statusConfig = getStatusConfig(shipment.status, shipment.is_completed, shipment.is_cancelled);
-          const StatusIcon = statusConfig.icon;
-          const displayStatus = shipment.is_cancelled ? 'Cancelled' : shipment.is_completed ? 'Completed' : shipment.status;
-          const mode = formatMode(shipment.mode_name);
-
-          return (
-            <div
-              key={shipment.load_id}
-              onClick={() => setSelectedShipment(shipment)}
-              className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} flex-shrink-0`}
-                  >
-                    <StatusIcon className="w-3 h-3" />
-                    {displayStatus}
-                  </span>
-                  <span className="font-semibold text-gray-900 flex-shrink-0">#{shipment.load_id}</span>
-                  <span className="text-gray-400 flex-shrink-0">•</span>
-                  {shipment.origin_city && shipment.origin_state ? (
-                    <span className="text-gray-700 truncate">
-                      {shipment.origin_city}, {shipment.origin_state} → {shipment.destination_city}, {shipment.destination_state}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 truncate">Route not available</span>
-                  )}
-                </div>
-                <span className="text-sm text-gray-500 flex-shrink-0 ml-3">
-                  {formatDate(shipment.pickup_date) || '—'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <div className="flex items-center gap-2 truncate">
-                  {shipment.carrier_name && <span className="truncate">{shipment.carrier_name}</span>}
-                  {mode && (
-                    <>
-                      <span className="text-gray-300">•</span>
-                      <span>{mode}</span>
-                    </>
-                  )}
-                  {shipment.po_reference && (
-                    <>
-                      <span className="text-gray-300">•</span>
-                      <span>PO: {shipment.po_reference}</span>
-                    </>
-                  )}
-                  {shipment.reference_number && !shipment.po_reference && (
-                    <>
-                      <span className="text-gray-300">•</span>
-                      <span>Ref: {shipment.reference_number}</span>
-                    </>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {showFinancials && shipment.customer_charge && (
-                    <span className="font-medium text-gray-900">${shipment.customer_charge.toLocaleString()}</span>
-                  )}
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {filteredShipments.map((shipment) => (
+          <ShipmentRow
+            key={shipment.load_id}
+            shipment={shipment}
+            onClick={() => setSelectedShipment(shipment)}
+            showFinancials={showFinancials}
+          />
+        ))}
 
         {filteredShipments.length === 0 && (
           <div className="text-center py-12">
@@ -849,37 +456,5 @@ export function ShipmentsPage() {
         showFinancials={showFinancials}
       />
     </div>
-  );
-}
-
-function StatusTab({
-  label,
-  count,
-  active,
-  onClick,
-  color = 'gray',
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-  color?: 'gray' | 'blue' | 'orange' | 'green' | 'red';
-}) {
-  const colorClasses: Record<string, string> = {
-    gray: active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-    blue: active ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
-    orange: active ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-700 hover:bg-orange-100',
-    green: active ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 hover:bg-green-100',
-    red: active ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-colors ${colorClasses[color]}`}
-    >
-      {label}
-      <span className={`ml-2 ${active ? 'opacity-80' : 'opacity-60'}`}>{count}</span>
-    </button>
   );
 }

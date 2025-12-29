@@ -3,4 +3,8 @@ export { ChatInput } from './ChatInput';
 export { ReportActionModal } from './ReportActionModal';
 export { AddToDashboardModal } from './AddToDashboardModal';
 export { SavedReportsModal } from './SavedReportsModal';
+export { SuggestedPrompts } from './SuggestedPrompts';
+export { ReportLibrary } from './ReportLibrary';
+export { ReportPreviewHeader } from './ReportPreviewHeader';
+export { StudioHeader } from './StudioHeader';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';

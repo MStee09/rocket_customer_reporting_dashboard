@@ -11,7 +11,8 @@ import {
   Package,
   AlertCircle,
   LayoutGrid,
-  Pencil
+  Pencil,
+  Download
 } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +40,7 @@ import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBu
 import { ScheduledReport } from '../types/scheduledReports';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
+import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
 
 type DatePreset = 'last30' | 'last90' | 'last6months' | 'lastyear' | 'custom';
 
@@ -58,6 +60,7 @@ export function CustomReportViewPage() {
   const [showSaveAsWidgetModal, setShowSaveAsWidgetModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const [retryCount, setRetryCount] = useState(0);
 
   const newReportFromState = (location.state as { newReport?: any })?.newReport;
@@ -338,6 +341,18 @@ export function CustomReportViewPage() {
         </div>
 
         <SimpleReportViewer config={simpleReportConfig} customerId={customerId?.toString()} />
+
+        {showSchedulePrompt && (
+          <div className="mt-6">
+            <SchedulePromptBanner
+              reportType="custom"
+              reportId={report?.id}
+              reportName={report?.name}
+              onDismiss={() => setShowSchedulePrompt(false)}
+              onSchedule={handleScheduleClick}
+            />
+          </div>
+        )}
 
         {showSaveAsWidgetModal && (
           <SaveAsWidgetModal
@@ -752,6 +767,18 @@ export function CustomReportViewPage() {
               </div>
             )}
           </div>
+
+          {showSchedulePrompt && (
+            <div className="mt-6">
+              <SchedulePromptBanner
+                reportType="custom"
+                reportId={report?.id}
+                reportName={report?.name}
+                onDismiss={() => setShowSchedulePrompt(false)}
+                onSchedule={handleScheduleClick}
+              />
+            </div>
+          )}
         </div>
       )}
 

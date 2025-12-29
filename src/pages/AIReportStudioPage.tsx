@@ -47,6 +47,7 @@ import { DateRange } from '../components/reports/studio/DateRangeSelector';
 import { exportReportToPDF } from '../utils/pdfExport';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
+import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
 
 const SUGGESTIONS = [
   'Show me total spend by transportation mode',
@@ -166,6 +167,7 @@ export function AIReportStudioPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -1133,6 +1135,15 @@ export function AIReportStudioPage() {
                         embedded
                       />
                     </div>
+                    {showSchedulePrompt && executedData && (
+                      <div className="px-6 pb-6">
+                        <SchedulePromptBanner
+                          reportType="ai"
+                          reportName={editableTitle || currentReport?.name || 'AI Report'}
+                          onDismiss={() => setShowSchedulePrompt(false)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

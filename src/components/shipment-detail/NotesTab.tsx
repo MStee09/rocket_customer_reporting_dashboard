@@ -21,7 +21,7 @@ export function NotesTab({ notes }: NotesTabProps) {
                 className={`px-2 py-0.5 rounded text-xs font-medium ${
                   note.is_internal
                     ? 'bg-slate-100 text-slate-700'
-                    : 'bg-blue-100 text-blue-700'
+                    : 'bg-rocket-100 text-rocket-700'
                 }`}
               >
                 {note.note_type || (note.is_internal ? 'Internal' : 'External')}

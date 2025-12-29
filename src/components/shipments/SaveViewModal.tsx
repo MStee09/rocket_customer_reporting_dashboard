@@ -37,7 +37,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <Bookmark className="w-5 h-5 text-blue-600" />
+            <Bookmark className="w-5 h-5 text-rocket-600" />
             <h2 className="text-lg font-semibold">Save Current View</h2>
           </div>
           <button
@@ -56,7 +56,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., CA Shipments This Month"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none"
               autoFocus
             />
           </div>
@@ -68,7 +68,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none resize-none"
             />
           </div>
 
@@ -77,7 +77,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               type="checkbox"
               checked={pinToSidebar}
               onChange={(e) => setPinToSidebar(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
+              className="w-4 h-4 text-rocket-600 border-gray-300 rounded focus:ring-rocket-500"
             />
             <span className="text-sm text-gray-700">Pin to sidebar for quick access</span>
           </label>

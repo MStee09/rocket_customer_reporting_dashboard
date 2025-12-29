@@ -116,7 +116,7 @@ export function ShipmentDetailDrawer({
             <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${
               shipment.is_completed ? 'bg-green-100 text-green-800' :
               shipment.is_cancelled ? 'bg-red-100 text-red-800' :
-              'bg-blue-100 text-blue-800'
+              'bg-rocket-100 text-rocket-800'
             }`}>
               {shipment.is_cancelled ? 'Cancelled' : shipment.is_completed ? 'Completed' : shipment.status}
             </span>

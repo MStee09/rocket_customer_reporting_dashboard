@@ -40,27 +40,27 @@ export function FinancialsTab({ shipment, accessorials }: FinancialsTabProps) {
         <div
           className={`border rounded-lg p-4 ${
             margin >= 0
-              ? 'border-blue-200 bg-blue-50'
+              ? 'border-rocket-200 bg-rocket-50'
               : 'border-amber-200 bg-amber-50'
           }`}
         >
           <p
             className={`text-sm font-medium ${
-              margin >= 0 ? 'text-blue-600' : 'text-amber-600'
+              margin >= 0 ? 'text-rocket-600' : 'text-amber-600'
             }`}
           >
             Margin
           </p>
           <p
             className={`text-3xl font-bold ${
-              margin >= 0 ? 'text-blue-700' : 'text-amber-700'
+              margin >= 0 ? 'text-rocket-700' : 'text-amber-700'
             }`}
           >
             ${margin.toFixed(2)}
           </p>
           <p
             className={`text-sm mt-2 ${
-              margin >= 0 ? 'text-blue-600' : 'text-amber-600'
+              margin >= 0 ? 'text-rocket-600' : 'text-amber-600'
             }`}
           >
             {marginPct.toFixed(1)}%
@@ -135,7 +135,7 @@ export function FinancialsTab({ shipment, accessorials }: FinancialsTabProps) {
                 <td className="py-2 text-right text-red-700">${totalCost.toFixed(2)}</td>
                 <td
                   className={`py-2 text-right ${
-                    margin >= 0 ? 'text-blue-700' : 'text-amber-700'
+                    margin >= 0 ? 'text-rocket-700' : 'text-amber-700'
                   }`}
                 >
                   ${margin.toFixed(2)}

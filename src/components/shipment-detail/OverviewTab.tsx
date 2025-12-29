@@ -21,7 +21,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="border border-slate-200 rounded-lg p-4">
         <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-800">
-          <Calendar className="w-5 h-5 text-blue-600" />
+          <Calendar className="w-5 h-5 text-rocket-600" />
           Key Dates
         </h3>
         <div className="space-y-3 text-sm">
@@ -64,7 +64,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
 
       <div className="border border-slate-200 rounded-lg p-4">
         <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-800">
-          <Package className="w-5 h-5 text-blue-600" />
+          <Package className="w-5 h-5 text-rocket-600" />
           Shipment Info
         </h3>
         <div className="space-y-3 text-sm">
@@ -81,7 +81,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
 
       <div className="border border-slate-200 rounded-lg p-4">
         <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-800">
-          <Building className="w-5 h-5 text-blue-600" />
+          <Building className="w-5 h-5 text-rocket-600" />
           Customer
         </h3>
         <div className="space-y-3 text-sm">
@@ -102,7 +102,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
 
       <div className="border border-slate-200 rounded-lg p-4">
         <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-800">
-          <Truck className="w-5 h-5 text-blue-600" />
+          <Truck className="w-5 h-5 text-rocket-600" />
           Carrier
         </h3>
         <div className="space-y-3 text-sm">
@@ -121,7 +121,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
 
       <div className="border border-slate-200 rounded-lg p-4">
         <h3 className="font-semibold flex items-center gap-2 mb-4 text-slate-800">
-          <Hash className="w-5 h-5 text-blue-600" />
+          <Hash className="w-5 h-5 text-rocket-600" />
           Reference Numbers
         </h3>
         <div className="space-y-3 text-sm">
@@ -164,7 +164,7 @@ export function OverviewTab({ data, showFinancials = false }: OverviewTabProps) 
                   className={`px-2 py-1 rounded text-xs font-medium shrink-0 ${
                     addr.address_type === 1 || addr.address_type === 'origin' || addr.address_type === 'pickup'
                       ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-blue-100 text-blue-700'
+                      : 'bg-rocket-100 text-rocket-700'
                   }`}
                 >
                   {addr.address_type === 1 || addr.address_type === 'origin' || addr.address_type === 'pickup'

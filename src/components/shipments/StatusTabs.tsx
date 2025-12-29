@@ -15,7 +15,7 @@ export function StatusTab({
 }: StatusTabProps) {
   const colorClasses: Record<string, string> = {
     gray: active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-    blue: active ? 'bg-rocket-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
+    blue: active ? 'bg-rocket-600 text-white' : 'bg-rocket-50 text-rocket-700 hover:bg-rocket-100',
     orange: active ? 'bg-orange-500 text-white' : 'bg-orange-50 text-orange-700 hover:bg-orange-100',
     green: active ? 'bg-green-600 text-white' : 'bg-green-50 text-green-700 hover:bg-green-100',
     red: active ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100',

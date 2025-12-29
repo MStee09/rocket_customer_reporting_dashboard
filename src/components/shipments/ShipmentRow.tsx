@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; icon: typeof Clo
   'Quotes': { bg: 'bg-gray-100', text: 'text-gray-700', icon: Clock },
   'Pending Dispatch': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: Clock },
   'Pending Pickup': { bg: 'bg-orange-100', text: 'text-orange-700', icon: Package },
-  'In Transit': { bg: 'bg-blue-100', text: 'text-blue-700', icon: Truck },
+  'In Transit': { bg: 'bg-rocket-100', text: 'text-rocket-700', icon: Truck },
   'Delivered': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
   'Completed': { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle },
   'Canceled': { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
@@ -127,7 +127,7 @@ export function ShipmentRow({ shipment, onClick, showFinancials }: ShipmentRowPr
           {showFinancials && shipment.customer_charge && (
             <span className="font-medium text-gray-900">${shipment.customer_charge.toLocaleString()}</span>
           )}
-          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-rocket-500" />
         </div>
       </div>
     </Card>

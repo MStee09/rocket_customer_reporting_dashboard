@@ -46,8 +46,8 @@ export const quickFilters: QuickFilter[] = [
     label: 'In Transit',
     icon: Truck,
     filter: (s) => !s.is_completed && !s.is_cancelled && s.status?.toLowerCase().includes('transit'),
-    activeClass: 'bg-rocket-600 text-white border-blue-600',
-    inactiveClass: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+    activeClass: 'bg-rocket-600 text-white border-rocket-600',
+    inactiveClass: 'bg-rocket-50 text-rocket-700 border-rocket-200 hover:bg-rocket-100',
   },
   {
     id: 'delivered',

@@ -32,7 +32,7 @@ export function ShipmentsToolbar({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search by Load ID, PRO#, Reference, City, Carrier, Company..."
-          className="w-full pl-12 pr-12 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+          className="w-full pl-12 pr-12 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-rocket-500 focus:outline-none transition-colors"
           autoFocus
         />
         {searchQuery && (
@@ -64,7 +64,7 @@ export function ShipmentsToolbar({
         {hasActiveFilters && (
           <button
             onClick={onSaveView}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg border border-rocket-200 transition-colors"
           >
             <Bookmark className="w-4 h-4" />
             Save View

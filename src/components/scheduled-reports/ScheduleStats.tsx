@@ -52,8 +52,8 @@ export function ScheduleStats({ stats }: ScheduleStatsProps) {
 
       <div className="bg-white rounded-xl border p-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <TrendingUp className="h-5 w-5 text-blue-600" />
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <TrendingUp className="h-5 w-5 text-rocket-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{stats.runsThisWeek}</p>

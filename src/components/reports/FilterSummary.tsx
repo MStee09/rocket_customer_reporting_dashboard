@@ -108,7 +108,7 @@ export default function FilterSummary({ filters, compact = false, className = ''
 
   if (compact) {
     return (
-      <div className={`flex items-center gap-1 text-xs text-blue-600 ${className}`}>
+      <div className={`flex items-center gap-1 text-xs text-rocket-600 ${className}`}>
         <Filter className="w-3 h-3" />
         <span>
           {activeFilters.length} filter{activeFilters.length !== 1 ? 's' : ''}
@@ -118,10 +118,10 @@ export default function FilterSummary({ filters, compact = false, className = ''
   }
 
   return (
-    <Card variant="subtle" padding="sm" className={`border-blue-200 bg-blue-50 ${className}`}>
+    <Card variant="subtle" padding="sm" className={`border-rocket-200 bg-rocket-50 ${className}`}>
       <div className="flex items-center gap-2 mb-2">
-        <Filter className="w-4 h-4 text-blue-600" />
-        <span className="text-sm font-medium text-blue-900">
+        <Filter className="w-4 h-4 text-rocket-600" />
+        <span className="text-sm font-medium text-rocket-900">
           Active Filters ({activeFilters.length})
         </span>
       </div>
@@ -129,7 +129,7 @@ export default function FilterSummary({ filters, compact = false, className = ''
         {activeFilters.map(filter => (
           <span
             key={filter.id}
-            className="inline-flex items-center px-2 py-1 bg-white border border-blue-200 rounded text-xs text-blue-800"
+            className="inline-flex items-center px-2 py-1 bg-white border border-rocket-200 rounded text-xs text-rocket-800"
           >
             {formatFilterValue(filter)}
           </span>

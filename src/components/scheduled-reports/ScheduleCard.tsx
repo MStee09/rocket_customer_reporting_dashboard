@@ -67,7 +67,7 @@ function getStatusBadge(status: string | null) {
       );
     case 'running':
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded-full text-xs">
           <Loader2 className="w-3 h-3 animate-spin" />
           Running
         </span>
@@ -118,7 +118,7 @@ export function ScheduleCard({
     <Card
       variant="default"
       padding="none"
-      className={`overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''}`}
+      className={`overflow-hidden ${isSelected ? 'ring-2 ring-rocket-500' : ''}`}
     >
       <div className="p-4">
         <div className="flex items-start justify-between">
@@ -196,7 +196,7 @@ export function ScheduleCard({
             <button
               onClick={onRunNow}
               disabled={isRunning}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
+              className="p-2 text-gray-400 hover:text-rocket-600 hover:bg-rocket-50 rounded-lg disabled:opacity-50"
               title="Run now"
             >
               {isRunning ? (

@@ -108,7 +108,7 @@ export default function ColumnFilterSection({
             const conditionOption = getConditionOption(filter.condition, fieldType, column.format);
 
             return (
-              <div key={filter.id} className={`flex items-start gap-2 p-2 rounded-lg ${filter.enabled ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
+              <div key={filter.id} className={`flex items-start gap-2 p-2 rounded-lg ${filter.enabled ? 'bg-rocket-50 border border-rocket-200' : 'bg-gray-50 border border-gray-200'}`}>
                 <button onClick={() => toggleFilterEnabled(filter.id)} className={`flex-shrink-0 mt-1 ${filter.enabled ? 'text-rocket-600' : 'text-gray-400'}`} title={filter.enabled ? 'Disable filter' : 'Enable filter'}>
                   {filter.enabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                 </button>
@@ -152,7 +152,7 @@ export default function ColumnFilterSection({
               {filters.length > 0 ? 'Add Another (AND)' : 'Add Filter'}
             </button>
             <div className="h-4 w-px bg-gray-200" />
-            <button onClick={cycleSortDirection} className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors ${sort && sort.direction !== 'none' ? 'text-rocket-600 bg-blue-50' : 'text-gray-600 hover:text-rocket-600 hover:bg-rocket-50'}`}>
+            <button onClick={cycleSortDirection} className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors ${sort && sort.direction !== 'none' ? 'text-rocket-600 bg-rocket-50' : 'text-gray-600 hover:text-rocket-600 hover:bg-rocket-50'}`}>
               {getSortIcon()}
               <span>Sort: {getSortLabel()}</span>
             </button>

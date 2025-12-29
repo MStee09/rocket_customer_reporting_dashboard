@@ -135,7 +135,7 @@ export function DateRangeSelector({
         <select
           value={value}
           onChange={(e) => handlePresetClick(e.target.value as DateRangePreset)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none"
         >
           {presets.map((preset) => (
             <option key={preset.value} value={preset.value}>
@@ -176,7 +176,7 @@ export function DateRangeSelector({
                 type="checkbox"
                 checked={comparison?.enabled || false}
                 onChange={(e) => handleComparisonToggle(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-rocket-500"
+                className="rounded border-gray-300 text-rocket-600 focus:ring-rocket-500"
               />
               <GitCompare className="w-4 h-4 text-gray-500" />
               <span className="text-gray-700">Compare to</span>
@@ -296,7 +296,7 @@ export function DateRangeSelector({
               type="checkbox"
               checked={comparison?.enabled || false}
               onChange={(e) => handleComparisonToggle(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-rocket-500"
+              className="rounded border-gray-300 text-rocket-600 focus:ring-rocket-500"
             />
             <GitCompare className="w-4 h-4 text-gray-500" />
             <span className="text-gray-700 font-medium">Compare to</span>
@@ -307,7 +307,7 @@ export function DateRangeSelector({
               <select
                 value={comparison.type}
                 onChange={(e) => handleComparisonTypeChange(e.target.value as ComparisonType)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 outline-none"
               >
                 <option value="previous">Previous Period</option>
                 <option value="lastYear">Same Period Last Year</option>

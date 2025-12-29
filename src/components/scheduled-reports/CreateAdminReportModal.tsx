@@ -194,10 +194,10 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                 <button
                   onClick={() => setConfig(c => ({ ...c, reportType: 'template' }))}
                   className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                    config.reportType === 'template' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    config.reportType === 'template' ? 'border-rocket-600 bg-rocket-50' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <FileText className="h-6 w-6 text-blue-600 mb-2" />
+                  <FileText className="h-6 w-6 text-rocket-600 mb-2" />
                   <p className="font-medium">Start from Template</p>
                   <p className="text-sm text-gray-500">Choose from pre-built admin reports</p>
                 </button>
@@ -205,10 +205,10 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                 <button
                   onClick={() => setConfig(c => ({ ...c, reportType: 'custom', templateId: null }))}
                   className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                    config.reportType === 'custom' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    config.reportType === 'custom' ? 'border-rocket-600 bg-rocket-50' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <PlusCircle className="h-6 w-6 text-blue-600 mb-2" />
+                  <PlusCircle className="h-6 w-6 text-rocket-600 mb-2" />
                   <p className="font-medium">Build Custom Report</p>
                   <p className="text-sm text-gray-500">Create from scratch (coming soon)</p>
                 </button>
@@ -222,7 +222,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                       key={template.id}
                       onClick={() => setConfig(c => ({ ...c, templateId: template.id, name: template.name }))}
                       className={`w-full p-4 border-2 rounded-lg text-left transition-colors ${
-                        config.templateId === template.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                        config.templateId === template.id ? 'border-rocket-600 bg-rocket-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -241,7 +241,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                           </div>
                         </div>
                         {config.templateId === template.id && (
-                          <Check className="h-5 w-5 text-blue-600" />
+                          <Check className="h-5 w-5 text-rocket-600" />
                         )}
                       </div>
                     </button>
@@ -265,13 +265,13 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
 
               <div className="space-y-4">
                 <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  config.scope === 'all' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  config.scope === 'all' ? 'border-rocket-600 bg-rocket-50' : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <input
                     type="radio"
                     checked={config.scope === 'all'}
                     onChange={() => setConfig(c => ({ ...c, scope: 'all' }))}
-                    className="h-4 w-4 text-blue-600"
+                    className="h-4 w-4 text-rocket-600"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -283,13 +283,13 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                 </label>
 
                 <label className={`flex items-start gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  config.scope === 'selected' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  config.scope === 'selected' ? 'border-rocket-600 bg-rocket-50' : 'border-gray-200 hover:border-gray-300'
                 }`}>
                   <input
                     type="radio"
                     checked={config.scope === 'selected'}
                     onChange={() => setConfig(c => ({ ...c, scope: 'selected' }))}
-                    className="h-4 w-4 text-blue-600 mt-1"
+                    className="h-4 w-4 text-rocket-600 mt-1"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                                   }));
                                 }
                               }}
-                              className="h-4 w-4 text-blue-600 rounded"
+                              className="h-4 w-4 text-rocket-600 rounded"
                             />
                             <span className="text-sm text-gray-700">{customer.customer_name}</span>
                           </label>
@@ -333,7 +333,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
               </div>
 
               {config.scope === 'selected' && config.selectedCustomerIds.length > 0 && (
-                <p className="text-sm text-blue-600 mt-4">
+                <p className="text-sm text-rocket-600 mt-4">
                   {config.selectedCustomerIds.length} customer{config.selectedCustomerIds.length !== 1 ? 's' : ''} selected
                 </p>
               )}
@@ -354,7 +354,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                         onClick={() => setConfig(c => ({ ...c, frequency: freq }))}
                         className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                           config.frequency === freq
-                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            ? 'border-rocket-600 bg-rocket-50 text-rocket-700'
                             : 'border-gray-200 text-gray-600 hover:border-gray-300'
                         }`}
                       >
@@ -415,7 +415,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                       type="checkbox"
                       checked={config.includeCsv}
                       onChange={(e) => setConfig(c => ({ ...c, includeCsv: e.target.checked }))}
-                      className="h-4 w-4 text-blue-600 rounded"
+                      className="h-4 w-4 text-rocket-600 rounded"
                     />
                     <span className="text-sm text-gray-700">Include CSV attachment</span>
                   </label>
@@ -424,7 +424,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
                       type="checkbox"
                       checked={config.includeNotification}
                       onChange={(e) => setConfig(c => ({ ...c, includeNotification: e.target.checked }))}
-                      className="h-4 w-4 text-blue-600 rounded"
+                      className="h-4 w-4 text-rocket-600 rounded"
                     />
                     <span className="text-sm text-gray-700">Send in-app notification</span>
                   </label>
@@ -472,7 +472,7 @@ export function CreateAdminReportModal({ isOpen, onClose, onCreated, customers }
 
                 <button
                   onClick={() => setConfig(c => ({ ...c, recipients: [...c.recipients, ''] }))}
-                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                  className="text-rocket-600 hover:text-rocket-800 text-sm flex items-center gap-1"
                 >
                   <Plus className="h-4 w-4" /> Add another recipient
                 </button>

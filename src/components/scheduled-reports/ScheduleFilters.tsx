@@ -41,7 +41,7 @@ export function ScheduleFilters({
         <Filter className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Filters</span>
         {activeFiltersCount > 0 && (
-          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+          <span className="px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded-full text-xs font-medium">
             {activeFiltersCount} active
           </span>
         )}
@@ -53,7 +53,7 @@ export function ScheduleFilters({
             <select
               value={customerFilter}
               onChange={(e) => onCustomerFilterChange(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
             >
               <option value="all">All Customers</option>
               {customers.map(c => (
@@ -100,7 +100,7 @@ export function ScheduleFilters({
               placeholder="Search reports..."
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
             />
           </div>
         </div>
@@ -108,7 +108,7 @@ export function ScheduleFilters({
         {activeFiltersCount > 0 && (
           <button
             onClick={onClearFilters}
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="text-sm text-rocket-600 hover:text-rocket-700"
           >
             Clear all
           </button>

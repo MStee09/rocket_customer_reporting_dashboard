@@ -44,22 +44,22 @@ export function SchedulePromptBanner({
   };
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+    <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4 mb-4">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Clock className="w-5 h-5 text-blue-600" />
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <Clock className="w-5 h-5 text-rocket-600" />
           </div>
           <div>
-            <h4 className="font-medium text-blue-900">Want this report regularly?</h4>
-            <p className="text-sm text-blue-700 mt-1">
+            <h4 className="font-medium text-rocket-900">Want this report regularly?</h4>
+            <p className="text-sm text-rocket-700 mt-1">
               Schedule this report to run automatically and receive it via email.
             </p>
           </div>
         </div>
         <button
           onClick={handleDismiss}
-          className="text-blue-400 hover:text-blue-600"
+          className="text-rocket-400 hover:text-rocket-600"
         >
           <X className="w-5 h-5" />
         </button>
@@ -75,7 +75,7 @@ export function SchedulePromptBanner({
         </button>
         <button
           onClick={handleDismiss}
-          className="px-4 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm text-rocket-600 hover:bg-rocket-100 rounded-lg transition-colors"
         >
           Maybe Later
         </button>

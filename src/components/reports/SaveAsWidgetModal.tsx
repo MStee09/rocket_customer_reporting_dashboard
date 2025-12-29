@@ -410,7 +410,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
 
         <div className="px-6 py-4 border-b flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-rocket-500 flex items-center justify-center">
               <LayoutGrid className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -431,10 +431,10 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
               { num: 3, label: 'Preview & Save' },
             ].map((s, i) => (
               <div key={s.num} className="flex items-center">
-                <div className={`flex items-center gap-2 ${step >= s.num ? 'text-blue-600' : 'text-slate-400'}`}>
+                <div className={`flex items-center gap-2 ${step >= s.num ? 'text-rocket-600' : 'text-slate-400'}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
                     step > s.num ? 'bg-rocket-600 text-white' :
-                    step === s.num ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-600' :
+                    step === s.num ? 'bg-rocket-100 text-rocket-600 ring-2 ring-rocket-600' :
                     'bg-slate-200 text-slate-500'
                   }`}>
                     {step > s.num ? <CheckCircle className="w-4 h-4" /> : s.num}
@@ -533,13 +533,13 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                         !wt.available
                           ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
                           : config.type === wt.type
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                            ? 'border-rocket-500 bg-rocket-50'
+                            : 'border-slate-200 hover:border-rocket-300 hover:bg-slate-50'
                       }`}
                     >
                       <wt.icon className={`w-8 h-8 mb-2 ${
                         !wt.available ? 'text-slate-300' :
-                        config.type === wt.type ? 'text-blue-600' : 'text-slate-500'
+                        config.type === wt.type ? 'text-rocket-600' : 'text-slate-500'
                       }`} />
                       <div className="font-medium text-slate-900">{wt.label}</div>
                       <div className="text-xs text-slate-500 mt-1">{wt.description}</div>
@@ -720,12 +720,12 @@ function ConfigurationStep({ config, setConfig, availableFields, numericFields, 
               onClick={() => setConfig({ ...config, dataMode: 'dynamic' })}
               className={`p-4 rounded-xl border-2 text-left transition ${
                 config.dataMode === 'dynamic'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 hover:border-blue-300'
+                  ? 'border-rocket-500 bg-rocket-50'
+                  : 'border-slate-200 hover:border-rocket-300'
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <RefreshCw className={`w-5 h-5 ${config.dataMode === 'dynamic' ? 'text-blue-600' : 'text-slate-500'}`} />
+                <RefreshCw className={`w-5 h-5 ${config.dataMode === 'dynamic' ? 'text-rocket-600' : 'text-slate-500'}`} />
                 <span className="font-medium text-slate-900">Dynamic</span>
               </div>
               <p className="text-xs text-slate-500">Updates automatically with new data</p>
@@ -735,12 +735,12 @@ function ConfigurationStep({ config, setConfig, availableFields, numericFields, 
               onClick={() => setConfig({ ...config, dataMode: 'static' })}
               className={`p-4 rounded-xl border-2 text-left transition ${
                 config.dataMode === 'static'
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 hover:border-blue-300'
+                  ? 'border-rocket-500 bg-rocket-50'
+                  : 'border-slate-200 hover:border-rocket-300'
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <Camera className={`w-5 h-5 ${config.dataMode === 'static' ? 'text-blue-600' : 'text-slate-500'}`} />
+                <Camera className={`w-5 h-5 ${config.dataMode === 'static' ? 'text-rocket-600' : 'text-slate-500'}`} />
                 <span className="font-medium text-slate-900">Static</span>
               </div>
               <p className="text-xs text-slate-500">Snapshot frozen at creation time</p>
@@ -810,7 +810,7 @@ function TableConfig({ config, setConfig, availableFields }: any) {
                     setConfig({ ...config, tableColumns: cols.filter((c: string) => c !== field.field) });
                   }
                 }}
-                className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
+                className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
               />
               <span className="text-sm text-slate-700">{field.label}</span>
             </label>
@@ -1024,20 +1024,20 @@ function PreviewStep({ config, report, error }: any) {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <h3 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+      <div className="p-4 bg-rocket-50 border border-rocket-200 rounded-xl">
+        <h3 className="font-medium text-rocket-900 mb-2 flex items-center gap-2">
           <Eye className="w-4 h-4" />
           What This Widget Will Show
         </h3>
-        <p className="text-sm text-blue-800 mb-3">{whatItShows.summary}</p>
+        <p className="text-sm text-rocket-800 mb-3">{whatItShows.summary}</p>
 
         {whatItShows.columns.length > 0 && (
           <div className="mb-3">
-            <span className="text-xs font-semibold text-blue-700 uppercase">Data Displayed</span>
+            <span className="text-xs font-semibold text-rocket-700 uppercase">Data Displayed</span>
             <ul className="mt-1 space-y-1">
               {whatItShows.columns.map((col: any, i: number) => (
-                <li key={i} className="text-sm text-blue-800 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                <li key={i} className="text-sm text-rocket-800 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-rocket-500 rounded-full" />
                   <strong>{col.name}</strong> — {col.description}
                 </li>
               ))}
@@ -1045,7 +1045,7 @@ function PreviewStep({ config, report, error }: any) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-sm text-blue-700">
+        <div className="flex items-center gap-2 text-sm text-rocket-700">
           {config.dataMode === 'static' ? (
             <>
               <Camera className="w-3 h-3" />

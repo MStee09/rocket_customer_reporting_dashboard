@@ -147,9 +147,9 @@ export default function FilterValueInput({
               {selectedValues.map(val => {
                 const option = options.find(o => o.value === val);
                 return (
-                  <span key={val} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  <span key={val} className="inline-flex items-center gap-1 px-2 py-1 bg-rocket-100 text-rocket-800 text-xs rounded-full">
                     {option?.label || val}
-                    <button onClick={() => handleRemove(val)} className="hover:bg-blue-200 rounded-full p-0.5">
+                    <button onClick={() => handleRemove(val)} className="hover:bg-rocket-200 rounded-full p-0.5">
                       <X className="w-3 h-3" />
                     </button>
                   </span>

@@ -83,7 +83,7 @@ export function EmailReportModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-blue-600" />
+            <Mail className="w-5 h-5 text-rocket-600" />
             <h2 className="font-semibold text-gray-900">Email Report</h2>
           </div>
           <button
@@ -121,7 +121,7 @@ export function EmailReportModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 />
               </div>
 
@@ -131,7 +131,7 @@ export function EmailReportModal({
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 />
               </div>
 
@@ -164,7 +164,7 @@ export function EmailReportModal({
                         value={f}
                         checked={format === f}
                         onChange={() => setFormat(f)}
-                        className="text-blue-600 focus:ring-rocket-500"
+                        className="text-rocket-600 focus:ring-rocket-500"
                       />
                       <span className="text-sm text-gray-700">
                         {f === 'csv' ? 'CSV' : 'Excel'}

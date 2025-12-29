@@ -120,7 +120,7 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
               <select
                 value={newMarket.region}
                 onChange={(e) => handleRegionChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
               >
                 <option value="">Select a region</option>
                 {Object.keys(US_REGIONS).map((region) => (
@@ -140,7 +140,7 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
                 value={newMarket.volumePercent}
                 onChange={(e) => setNewMarket({ ...newMarket, volumePercent: e.target.value })}
                 placeholder="e.g., 35"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -160,7 +160,7 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
             <button
               onClick={handleAdd}
               disabled={isSaving || !newMarket.region.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-md hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add Market

@@ -194,7 +194,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
         <p className="text-gray-600 mb-6">{error}</p>
         <button
           onClick={loadData}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+          className="px-6 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
         >
           Try Again
         </button>

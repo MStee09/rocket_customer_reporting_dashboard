@@ -53,7 +53,7 @@ function DismissModal({ isOpen, onClose, onConfirm, isLoading }: DismissModalPro
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Why is this being dismissed? e.g., 'Not relevant', 'Already handled', etc."
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 text-sm"
           />
         </div>
         <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">

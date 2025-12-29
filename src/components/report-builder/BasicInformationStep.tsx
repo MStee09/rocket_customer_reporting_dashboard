@@ -47,7 +47,7 @@ export function BasicInformationStep({ state, updateState }: BasicInformationSte
             onChange={(e) => updateState({ name: e.target.value })}
             maxLength={MAX_NAME_LENGTH}
             placeholder="e.g., Monthly Carrier Performance Dashboard"
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
           />
           <div className="flex justify-between items-center mt-1">
             <p className="text-xs text-slate-500">
@@ -77,7 +77,7 @@ export function BasicInformationStep({ state, updateState }: BasicInformationSte
             maxLength={MAX_DESCRIPTION_LENGTH}
             rows={4}
             placeholder="Describe what this report shows and who should use it..."
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-transparent resize-none"
           />
           <div className="flex justify-between items-center mt-1">
             <p className="text-xs text-slate-500">

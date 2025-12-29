@@ -41,7 +41,7 @@ export function ReportActionModal({
         <div className="flex flex-col gap-3">
           <button
             onClick={onEdit}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium"
+            className="w-full px-4 py-3 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors flex items-center justify-center gap-2 font-medium"
           >
             <Pencil className="w-5 h-5" />
             Edit in AI Studio

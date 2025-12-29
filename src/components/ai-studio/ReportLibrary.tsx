@@ -89,7 +89,7 @@ export function ReportLibrary({
             placeholder="Search reports..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent focus:bg-white transition-colors"
           />
         </div>
 
@@ -98,7 +98,7 @@ export function ReportLibrary({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -129,7 +129,7 @@ export function ReportLibrary({
                 <p className="text-sm text-gray-400 mt-2 mb-6">Create your first report using AI</p>
                 <button
                   onClick={onCreateNew}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-colors font-medium"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-rocket-600 text-white hover:bg-rocket-700 rounded-xl transition-colors font-medium"
                 >
                   <Sparkles className="w-4 h-4" />
                   Create Your First Report

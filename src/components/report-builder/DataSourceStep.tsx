@@ -58,7 +58,7 @@ export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
           <select
             value={state.primaryTable}
             onChange={(e) => updateState({ primaryTable: e.target.value, joins: [] })}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
           >
             {Object.entries(TABLE_METADATA).map(([key, metadata]) => (
               <option key={key} value={key}>

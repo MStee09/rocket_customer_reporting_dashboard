@@ -36,7 +36,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         role.is_admin
-                          ? 'bg-rocket-navy text-white'
+                          ? 'bg-charcoal-800 text-white'
                           : 'bg-rocket-green text-white'
                       }`}
                     >
@@ -45,7 +45,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                   )}
                 </div>
               </div>
-              <div className="w-10 h-10 bg-rocket-navy/10 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-charcoal-800/10 rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-rocket-navy" />
               </div>
             </div>
@@ -64,7 +64,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
             <button
               onClick={() => signOut()}
-              className="flex items-center gap-2 px-4 py-2 bg-rocket-navy hover:bg-rocket-navy-light text-white rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-charcoal-800 hover:bg-charcoal-800-light text-white rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>

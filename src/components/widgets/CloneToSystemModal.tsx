@@ -189,7 +189,7 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
                 placeholder="Enter widget name"
                 disabled={isCloning}
               />
@@ -206,7 +206,7 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent resize-none"
                 placeholder="Describe what this widget shows"
                 disabled={isCloning}
               />
@@ -242,7 +242,7 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
           <button
             onClick={handleClone}
             disabled={isCloning || !name.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            className="px-6 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
             {isCloning ? (
               <>

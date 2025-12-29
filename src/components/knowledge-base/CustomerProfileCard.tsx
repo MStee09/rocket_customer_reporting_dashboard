@@ -70,7 +70,7 @@ export function CustomerProfileCard({
             <div className="flex items-center gap-2">
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rocket-600 text-white rounded-md hover:bg-rocket-700 transition-colors text-sm font-medium"
               >
                 <Edit2 className="w-3.5 h-3.5" />
                 Edit
@@ -108,7 +108,7 @@ export function CustomerProfileCard({
           <button
             onClick={onSetup}
             disabled={isSettingUp}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rocket-600 text-white rounded-md hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
           >
             {isSettingUp ? (
               <>

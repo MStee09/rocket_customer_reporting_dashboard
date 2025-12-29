@@ -150,7 +150,7 @@ export function ReportPreviewHeader({
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
               saveSuccess
                 ? 'bg-green-600 text-white'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-rocket-600 text-white hover:bg-rocket-700'
             } disabled:opacity-90`}
           >
             {saveSuccess ? (

@@ -337,7 +337,7 @@ export function LayoutEditorModal({
             </button>
             <button
               onClick={handleSave}
-              className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="px-5 py-2 text-sm bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition"
             >
               Save Layout
             </button>
@@ -395,7 +395,7 @@ export function LayoutEditorModal({
                 {availableWidgets.length > 0 && (
                   <button
                     onClick={() => setShowAddPanel(true)}
-                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                    className="px-4 py-2 text-sm bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Add Widget
@@ -433,7 +433,7 @@ export function LayoutEditorModal({
                     value={addSearchQuery}
                     onChange={(e) => setAddSearchQuery(e.target.value)}
                     placeholder="Search widgets..."
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 text-sm"
                   />
                 </div>
               </div>

@@ -339,7 +339,7 @@ export function ShipmentDetailDrawer({
             {onAskAI && (
               <button
                 onClick={() => onAskAI(shipment)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 font-medium transition-colors"
               >
                 <Sparkles className="w-4 h-4" />
                 Ask AI

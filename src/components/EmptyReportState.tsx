@@ -39,7 +39,7 @@ export function EmptyReportState({ onBuildReport, onDescribeWithAI }: EmptyRepor
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <button
           onClick={handleBuildReport}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="px-6 py-3 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
         >
           <FileText className="w-5 h-5" />
           Build Report

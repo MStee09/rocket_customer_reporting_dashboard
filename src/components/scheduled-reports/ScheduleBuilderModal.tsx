@@ -308,7 +308,7 @@ export function ScheduleBuilderModal({
                     index < currentStep
                       ? 'bg-green-600 text-white'
                       : index === currentStep
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-rocket-600 text-white'
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
@@ -336,7 +336,7 @@ export function ScheduleBuilderModal({
                   type="text"
                   value={state.name}
                   onChange={(e) => updateState({ name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   placeholder="e.g., Weekly Lane Performance"
                 />
               </div>
@@ -348,7 +348,7 @@ export function ScheduleBuilderModal({
                 <textarea
                   value={state.description}
                   onChange={(e) => updateState({ description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   rows={2}
                   placeholder="What is this schedule for?"
                 />
@@ -384,7 +384,7 @@ export function ScheduleBuilderModal({
                   <select
                     value={state.day_of_week}
                     onChange={(e) => updateState({ day_of_week: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   >
                     {DAYS_OF_WEEK.map(day => (
                       <option key={day.value} value={day.value}>{day.label}</option>
@@ -401,7 +401,7 @@ export function ScheduleBuilderModal({
                   <select
                     value={state.day_of_month}
                     onChange={(e) => updateState({ day_of_month: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   >
                     {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
                       <option key={day} value={day}>{day}</option>
@@ -422,7 +422,7 @@ export function ScheduleBuilderModal({
                     type="time"
                     value={state.run_time}
                     onChange={(e) => updateState({ run_time: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -432,7 +432,7 @@ export function ScheduleBuilderModal({
                   <select
                     value={state.timezone}
                     onChange={(e) => updateState({ timezone: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   >
                     {TIMEZONES.map(tz => (
                       <option key={tz.value} value={tz.value}>{tz.label}</option>
@@ -497,14 +497,14 @@ export function ScheduleBuilderModal({
                       type="number"
                       value={state.rolling_value}
                       onChange={(e) => updateState({ rolling_value: Number(e.target.value) })}
-                      className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-20 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                       min={1}
                       max={365}
                     />
                     <select
                       value={state.rolling_unit}
                       onChange={(e) => updateState({ rolling_unit: e.target.value as ScheduleBuilderState['rolling_unit'] })}
-                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                     >
                       <option value="days">Days</option>
                       <option value="weeks">Weeks</option>
@@ -607,7 +607,7 @@ export function ScheduleBuilderModal({
                             type="email"
                             value={recipient}
                             onChange={(e) => updateRecipient(index, e.target.value)}
-                            className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                             placeholder="email@example.com"
                           />
                           {state.email_recipients.length > 1 && (
@@ -638,7 +638,7 @@ export function ScheduleBuilderModal({
                       type="text"
                       value={state.email_subject}
                       onChange={(e) => updateState({ email_subject: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Variables: {'{{schedule_name}}'}, {'{{report_name}}'}, {'{{date_range}}'}
@@ -652,7 +652,7 @@ export function ScheduleBuilderModal({
                     <textarea
                       value={state.email_body}
                       onChange={(e) => updateState({ email_body: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                       rows={3}
                       placeholder="Custom message to include in the email..."
                     />
@@ -796,7 +796,7 @@ export function ScheduleBuilderModal({
               <button
                 onClick={handleNext}
                 disabled={!validateStep(currentStep)}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2 bg-rocket-600 hover:bg-rocket-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
                 <ChevronRight className="w-4 h-4" />

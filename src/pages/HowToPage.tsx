@@ -243,7 +243,7 @@ export function HowToPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <Book className="w-6 h-6 text-blue-600" />
+                <Book className="w-6 h-6 text-rocket-600" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">How To Guide</h1>
@@ -258,7 +258,7 @@ export function HowToPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search documentation..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
           </div>
@@ -279,7 +279,7 @@ export function HowToPage() {
                       onClick={() => toggleSection(section.id)}
                       className={`
                         w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors
-                        ${activeSection === section.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}
+                        ${activeSection === section.id ? 'bg-rocket-50 text-rocket-700' : 'hover:bg-gray-50 text-gray-700'}
                       `}
                     >
                       {section.icon}
@@ -299,7 +299,7 @@ export function HowToPage() {
                             className={`
                               w-full text-left px-3 py-1.5 rounded text-sm transition-colors
                               ${activeSection === section.id && activeSubsection === sub.id
-                                ? 'bg-blue-100 text-blue-700 font-medium'
+                                ? 'bg-rocket-100 text-rocket-700 font-medium'
                                 : 'text-gray-600 hover:bg-gray-50'
                               }
                             `}

@@ -92,7 +92,7 @@ export function CustomersPage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
       </div>
     );
@@ -116,7 +116,7 @@ export function CustomersPage() {
               placeholder="Search customers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
             />
           </div>
 
@@ -126,7 +126,7 @@ export function CustomersPage() {
                 type="checkbox"
                 checked={showActiveOnly}
                 onChange={(e) => setShowActiveOnly(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-rocket-600 border-slate-300 rounded focus:ring-rocket-500"
               />
               <span className="text-sm text-slate-700">Active Only</span>
             </label>

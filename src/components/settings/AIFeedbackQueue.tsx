@@ -180,7 +180,7 @@ export function AIFeedbackQueue() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as FilterStatus)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
           >
             <option value="pending_review">Pending Review ({pendingCount})</option>
             <option value="all">All Feedback</option>
@@ -304,7 +304,7 @@ export function AIFeedbackQueue() {
                               value={notesText}
                               onChange={(e) => setNotesText(e.target.value)}
                               placeholder="Add notes about what was learned or how to improve..."
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                               rows={3}
                             />
                             <div className="flex gap-2">
@@ -316,7 +316,7 @@ export function AIFeedbackQueue() {
                               </button>
                               <button
                                 onClick={() => updateStatus(item.id, 'reviewed', notesText)}
-                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                                className="px-3 py-1.5 bg-rocket-600 text-white rounded-lg text-sm font-medium hover:bg-rocket-700 transition-colors"
                               >
                                 Mark Reviewed
                               </button>

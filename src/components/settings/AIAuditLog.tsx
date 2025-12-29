@@ -134,7 +134,7 @@ export function AIAuditLog() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as FilterStatus)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
           >
             <option value="flagged">Flagged Issues</option>
             <option value="ok">Recent Reports</option>

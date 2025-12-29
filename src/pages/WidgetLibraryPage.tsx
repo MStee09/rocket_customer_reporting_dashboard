@@ -243,7 +243,7 @@ export const WidgetLibraryPage = () => {
         {isAdmin() && activeTab !== 'customer_created' && (
           <button
             onClick={() => {}}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Create Widget
@@ -263,7 +263,7 @@ export const WidgetLibraryPage = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors whitespace-nowrap ${
                     isActive
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-rocket-600 text-rocket-600'
                       : 'border-transparent text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -290,7 +290,7 @@ export const WidgetLibraryPage = () => {
                 placeholder="Search widgets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
               />
             </div>
 

@@ -56,7 +56,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., CA Shipments This Month"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
               autoFocus
             />
           </div>
@@ -68,7 +68,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description..."
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none resize-none"
             />
           </div>
 
@@ -77,7 +77,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
               type="checkbox"
               checked={pinToSidebar}
               onChange={(e) => setPinToSidebar(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
             />
             <span className="text-sm text-gray-700">Pin to sidebar for quick access</span>
           </label>
@@ -111,7 +111,7 @@ export function SaveViewModal({ isOpen, onClose, onSave, filterSummary }: SaveVi
           <button
             onClick={handleSave}
             disabled={!name.trim() || saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? 'Saving...' : 'Save View'}
           </button>

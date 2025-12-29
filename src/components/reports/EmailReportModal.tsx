@@ -121,7 +121,7 @@ export function EmailReportModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                 />
               </div>
 
@@ -131,7 +131,7 @@ export function EmailReportModal({
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                 />
               </div>
 
@@ -144,7 +144,7 @@ export function EmailReportModal({
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Add a note to include with the report..."
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none"
                 />
               </div>
 
@@ -164,7 +164,7 @@ export function EmailReportModal({
                         value={f}
                         checked={format === f}
                         onChange={() => setFormat(f)}
-                        className="text-blue-600 focus:ring-blue-500"
+                        className="text-blue-600 focus:ring-rocket-500"
                       />
                       <span className="text-sm text-gray-700">
                         {f === 'csv' ? 'CSV' : 'Excel'}
@@ -192,7 +192,7 @@ export function EmailReportModal({
               <button
                 onClick={handleSend}
                 disabled={!email.trim() || sending}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Send className="w-4 h-4" />
                 {sending ? 'Sending...' : 'Send Email'}

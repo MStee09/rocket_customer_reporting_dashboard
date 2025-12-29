@@ -223,7 +223,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                 type="text"
                 value={state.name}
                 onChange={(e) => setState(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
                 placeholder="e.g., Monthly Shipment Summary"
               />
             </div>
@@ -235,7 +235,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                 type="text"
                 value={state.description}
                 onChange={(e) => setState(prev => ({ ...prev, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
                 placeholder="Optional description"
               />
             </div>
@@ -247,7 +247,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                 type="checkbox"
                 checked={state.isSummary}
                 onChange={toggleSummaryMode}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
               />
               <span className="text-sm font-medium text-gray-700">Summary Mode</span>
             </label>
@@ -375,7 +375,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                                 type="checkbox"
                                 checked={isGrouped}
                                 onChange={() => toggleGroupBy(column.id)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
                               />
                               <span className="text-xs text-gray-600">Group</span>
                             </label>
@@ -385,7 +385,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                             <select
                               value={column.aggregation || 'sum'}
                               onChange={(e) => updateColumnAggregation(index, e.target.value)}
-                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-rocket-500"
                             >
                               <option value="sum">Sum</option>
                               <option value="avg">Average</option>
@@ -450,7 +450,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
             <button
               onClick={handleSave}
               disabled={!state.name.trim() || state.selectedColumns.length === 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-sm font-medium text-white bg-rocket-600 rounded-md hover:bg-rocket-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {initialState?.name ? 'Save Changes' : 'Create Report'}
             </button>

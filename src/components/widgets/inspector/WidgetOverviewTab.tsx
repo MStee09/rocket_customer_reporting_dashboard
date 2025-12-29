@@ -210,7 +210,7 @@ export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated
               <button
                 onClick={handleRefreshSnapshot}
                 disabled={refreshing}
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                className="px-3 py-1.5 text-sm bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2"
               >
                 {refreshing ? (
                   <>

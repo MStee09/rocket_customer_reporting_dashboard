@@ -164,7 +164,7 @@ export function UserManagementPage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
       </div>
     );
@@ -209,7 +209,7 @@ export function UserManagementPage() {
                         <select
                           value={editRole}
                           onChange={(e) => setEditRole(e.target.value as 'admin' | 'customer')}
-                          className="px-3 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="px-3 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-rocket-500"
                         >
                           <option value="admin">Admin</option>
                           <option value="customer">Customer</option>
@@ -218,7 +218,7 @@ export function UserManagementPage() {
                         <span
                           className={`px-2 py-1 text-xs font-medium rounded ${
                             user.user_role === 'admin'
-                              ? 'bg-blue-100 text-blue-800'
+                              ? 'bg-rocket-100 text-rocket-800'
                               : 'bg-green-100 text-green-800'
                           }`}
                         >
@@ -240,7 +240,7 @@ export function UserManagementPage() {
                                 type="checkbox"
                                 checked={editCustomers.includes(customer.customer_id)}
                                 onChange={() => toggleCustomer(customer.customer_id)}
-                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
                               />
                               <span className="text-sm">{customer.company_name}</span>
                             </label>
@@ -261,7 +261,7 @@ export function UserManagementPage() {
                           <button
                             onClick={() => saveUser(user.id)}
                             disabled={isSaving}
-                            className="flex items-center gap-1 px-3 py-1 bg-rocket-navy hover:bg-rocket-navy-light text-white text-sm rounded transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 px-3 py-1 bg-charcoal-800 hover:bg-charcoal-800-light text-white text-sm rounded transition-colors disabled:opacity-50"
                           >
                             {isSaving ? (
                               <Loader2 className="w-3 h-3 animate-spin" />

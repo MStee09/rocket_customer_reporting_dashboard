@@ -31,7 +31,7 @@ export function HistoryTab({ shipment, detail }: HistoryTabProps) {
           {events.map((event, i) => (
             <div key={i} className="flex gap-4 pb-6 last:pb-0">
               <div className="flex flex-col items-center">
-                <div className="w-3 h-3 rounded-full bg-blue-600 shrink-0" />
+                <div className="w-3 h-3 rounded-full bg-rocket-600 shrink-0" />
                 {i < events.length - 1 && (
                   <div className="w-0.5 flex-1 bg-slate-200 mt-1" />
                 )}

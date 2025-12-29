@@ -172,7 +172,7 @@ export function AdminDashboardPage() {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 text-sm"
             >
               <option value="last7">Last 7 Days</option>
               <option value="last30">Last 30 Days</option>

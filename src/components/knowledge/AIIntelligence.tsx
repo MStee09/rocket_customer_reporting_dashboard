@@ -318,7 +318,7 @@ export function AIIntelligence() {
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700"
         >
           <Plus className="w-4 h-4" />
           Add Knowledge
@@ -562,7 +562,7 @@ function KnowledgeEditModal({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+            className="px-4 py-2 bg-rocket-600 text-white rounded-lg disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -711,7 +711,7 @@ function KnowledgeAddModal({ onClose, onSave }: { onClose: () => void; onSave: (
           <button
             onClick={handleSave}
             disabled={saving || !formData.key.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+            className="px-4 py-2 bg-rocket-600 text-white rounded-lg disabled:opacity-50"
           >
             {saving ? 'Adding...' : 'Add'}
           </button>

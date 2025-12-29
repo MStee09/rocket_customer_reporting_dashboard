@@ -34,7 +34,7 @@ export function CombinedMapView({
             onClick={() => setActiveView('flow')}
             className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
               activeView === 'flow'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             }`}
           >
@@ -44,7 +44,7 @@ export function CombinedMapView({
             onClick={() => setActiveView('cost')}
             className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
               activeView === 'cost'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             }`}
           >

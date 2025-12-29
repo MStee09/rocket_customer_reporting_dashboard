@@ -91,7 +91,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-rocket-navy text-white w-64 flex flex-col z-50 transform transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 left-0 h-screen bg-charcoal-800 text-white w-64 flex flex-col z-50 transform transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -108,7 +108,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </div>
             <button
               onClick={onClose}
-              className="lg:hidden p-1 hover:bg-rocket-navy-light rounded transition-colors"
+              className="lg:hidden p-1 hover:bg-charcoal-800-light rounded transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -139,7 +139,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActiveRoute(item)
                     ? 'bg-rocket-orange text-white'
-                    : 'text-slate-200 hover:bg-rocket-navy-light hover:text-white'
+                    : 'text-slate-200 hover:bg-charcoal-800-light hover:text-white'
                 }`
               }
             >
@@ -174,7 +174,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <button
                       key={view.id}
                       onClick={() => navigateToView(view)}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-300 hover:bg-rocket-navy-light hover:text-white rounded-lg transition-colors text-left"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-slate-300 hover:bg-charcoal-800-light hover:text-white rounded-lg transition-colors text-left"
                     >
                       <Pin className="w-3 h-3 text-blue-400 flex-shrink-0" />
                       <span className="truncate">{view.name}</span>
@@ -206,7 +206,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActiveRoute(item)
                         ? 'bg-rocket-orange text-white'
-                        : 'text-slate-200 hover:bg-rocket-navy-light hover:text-white'
+                        : 'text-slate-200 hover:bg-charcoal-800-light hover:text-white'
                     }`
                   }
                 >
@@ -227,7 +227,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <NavLink
             to="/settings/how-to"
             onClick={onClose}
-            className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-rocket-navy-light hover:text-white rounded-lg transition-colors mb-3"
+            className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-charcoal-800-light hover:text-white rounded-lg transition-colors mb-3"
           >
             <HelpCircle className="w-4 h-4" />
             <span className="text-sm font-medium">Help & Docs</span>

@@ -47,7 +47,7 @@ export function AccountNotesSection({ notes, customerId, onUpdate }: AccountNote
           onChange={(e) => setCurrentNotes(e.target.value)}
           placeholder="Add notes about this customer, their business context, special requirements, or anything else the AI should know when generating reports..."
           rows={6}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none text-sm"
           autoFocus
         />
         <div className="flex items-center justify-end gap-2">
@@ -62,7 +62,7 @@ export function AccountNotesSection({ notes, customerId, onUpdate }: AccountNote
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
+            className="flex items-center gap-1 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 transition-colors text-sm font-medium"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save

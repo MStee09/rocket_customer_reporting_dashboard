@@ -364,8 +364,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     type: 'featured_kpi',
     size: 'medium',
     icon: 'DollarSign',
-    iconColor: 'bg-blue-600',
-    gradient: 'from-blue-600 to-blue-700',
+    iconColor: 'bg-rocket-600',
+    gradient: 'from-rocket-600 to-rocket-700',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 

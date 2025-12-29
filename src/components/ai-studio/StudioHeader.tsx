@@ -84,7 +84,7 @@ export function StudioHeader({
 
           <button
             onClick={onNewReport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors font-medium text-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white hover:bg-rocket-700 rounded-lg transition-colors font-medium text-sm"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Create New Report</span>

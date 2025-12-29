@@ -116,7 +116,7 @@ export function AnalyticsPage() {
             </div>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">{tool.title}</h3>
             <p className="text-sm text-slate-600 mb-4 leading-relaxed">{tool.description}</p>
-            <div className="flex items-center gap-2 text-sm font-medium text-blue-600 group-hover:gap-3 transition-all">
+            <div className="flex items-center gap-2 text-sm font-medium text-rocket-600 group-hover:gap-3 transition-all">
               <span>Open {tool.title === 'Widget Library' ? tool.title : tool.title.includes('Builder') ? 'Builder' : 'Studio'}</span>
               <ArrowRight className="w-4 h-4" />
             </div>
@@ -129,7 +129,7 @@ export function AnalyticsPage() {
           <h2 className="text-lg font-semibold text-slate-900">Recent Reports</h2>
           <Link
             to="/reports"
-            className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            className="text-sm font-medium text-rocket-600 hover:text-rocket-700 flex items-center gap-1"
           >
             View All
             <ArrowRight className="w-4 h-4" />
@@ -139,7 +139,7 @@ export function AnalyticsPage() {
         {loading ? (
           <div className="px-6 py-8 text-center text-slate-500">
             <div className="inline-flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-slate-300 border-t-rocket-600 rounded-full animate-spin"></div>
               Loading reports...
             </div>
           </div>
@@ -152,7 +152,7 @@ export function AnalyticsPage() {
             </p>
             <Link
               to="/ai-studio"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
             >
               <Sparkles className="w-4 h-4" />
               Create with AI
@@ -171,7 +171,7 @@ export function AnalyticsPage() {
                     className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                       report.type === 'AI Report'
                         ? 'bg-amber-100 text-amber-600'
-                        : 'bg-blue-100 text-blue-600'
+                        : 'bg-rocket-100 text-rocket-600'
                     }`}
                   >
                     <FileText className="w-5 h-5" />
@@ -196,7 +196,7 @@ export function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="flex-shrink-0">
-                  <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                  <button className="px-4 py-2 text-sm font-medium text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors">
                     Open
                   </button>
                 </div>

@@ -48,7 +48,7 @@ export function NotesSection({ customerId, notes, onUpdate }: NotesSectionProps)
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Add notes about this customer, their business context, special requirements, or anything else the AI should know when generating reports..."
         rows={5}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none"
       />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
@@ -58,7 +58,7 @@ export function NotesSection({ customerId, notes, onUpdate }: NotesSectionProps)
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-md hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Notes

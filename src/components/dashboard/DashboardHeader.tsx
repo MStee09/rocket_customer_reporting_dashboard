@@ -49,7 +49,7 @@ export function DashboardHeader({
         <select
           value={dateRange}
           onChange={(e) => onDateRangeChange(e.target.value)}
-          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 text-sm"
         >
           <option value="last7">Last 7 Days</option>
           <option value="last30">Last 30 Days</option>
@@ -94,7 +94,7 @@ export function DashboardHeader({
                         onComparisonChange(null);
                       }
                     }}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
                   />
                   <span className="text-sm font-medium text-slate-700">Enable comparison</span>
                 </label>
@@ -110,7 +110,7 @@ export function DashboardHeader({
                         ...comparison,
                         type: e.target.value as ComparisonType
                       })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                     >
                       <option value="previous">Previous Period</option>
                       <option value="lastYear">Same Period Last Year</option>
@@ -129,7 +129,7 @@ export function DashboardHeader({
                               end: comparison.customRange?.end || new Date()
                             }
                           })}
-                          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500"
                         />
                         <input
                           type="date"
@@ -141,7 +141,7 @@ export function DashboardHeader({
                               end: new Date(e.target.value)
                             }
                           })}
-                          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500"
                         />
                       </div>
                     )}

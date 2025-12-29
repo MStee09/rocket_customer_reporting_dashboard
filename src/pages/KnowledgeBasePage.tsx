@@ -150,8 +150,8 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Upload className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-rocket-100 flex items-center justify-center">
+              <Upload className="w-5 h-5 text-rocket-600" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Upload Document</h2>
@@ -241,7 +241,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="Document title"
               />
             </div>
@@ -254,7 +254,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="Brief description of the document content"
               />
             </div>
@@ -269,7 +269,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                   onClick={() => setScope('global')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                     scope === 'global'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      ? 'bg-rocket-50 border-rocket-500 text-rocket-700'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -281,7 +281,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                   onClick={() => setScope('customer')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                     scope === 'customer'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      ? 'bg-rocket-50 border-rocket-500 text-rocket-700'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -300,7 +300,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
                   required={scope === 'customer'}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 >
                   <option value="">Select customer</option>
                   {customers.map((c) => (
@@ -319,7 +319,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as DocumentCategory)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               >
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -339,7 +339,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                 max="10"
                 value={priority}
                 onChange={(e) => setPriority(parseInt(e.target.value) || 5)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
               <p className="text-xs text-gray-500 mt-1">Higher priority = loaded first</p>
             </div>
@@ -352,7 +352,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
                 type="text"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="Comma-separated keywords for search"
               />
             </div>
@@ -369,7 +369,7 @@ function UploadModal({ isOpen, onClose, onSuccess, customers }: UploadModalProps
             <button
               type="submit"
               disabled={!file || !title || isUploading || (scope === 'customer' && !customerId)}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-6 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isUploading ? (
                 <>
@@ -490,7 +490,7 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
                 e.stopPropagation();
                 setShowPreview(!showPreview);
               }}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-gray-400 hover:text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors"
               title="Preview content"
             >
               <Eye className="w-4 h-4" />
@@ -690,7 +690,7 @@ export function KnowledgeBasePage() {
           onClick={() => handleTabChange('intelligence')}
           className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
             activeTab === 'intelligence'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -701,7 +701,7 @@ export function KnowledgeBasePage() {
           onClick={() => handleTabChange('documents')}
           className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
             activeTab === 'documents'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -712,7 +712,7 @@ export function KnowledgeBasePage() {
           onClick={() => handleTabChange('profiles')}
           className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
             activeTab === 'profiles'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -723,7 +723,7 @@ export function KnowledgeBasePage() {
           onClick={() => handleTabChange('learning')}
           className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
             activeTab === 'learning'
-              ? 'border-blue-600 text-blue-600'
+              ? 'border-rocket-600 text-rocket-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -755,7 +755,7 @@ export function KnowledgeBasePage() {
             </button>
             <button
               onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"
             >
               <Upload className="w-4 h-4" />
               Upload File
@@ -791,14 +791,14 @@ export function KnowledgeBasePage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search documents..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
                 showFilters
-                  ? 'bg-blue-50 border-blue-500 text-blue-700'
+                  ? 'bg-rocket-50 border-rocket-500 text-rocket-700'
                   : 'border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -817,7 +817,7 @@ export function KnowledgeBasePage() {
                 <select
                   value={scopeFilter}
                   onChange={(e) => setScopeFilter(e.target.value as any)}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rocket-500"
                 >
                   <option value="all">All Scopes</option>
                   <option value="global">Global Only</option>
@@ -829,7 +829,7 @@ export function KnowledgeBasePage() {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-rocket-500"
                 >
                   <option value="all">All Categories</option>
                   {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -845,7 +845,7 @@ export function KnowledgeBasePage() {
                     type="checkbox"
                     checked={showInactive}
                     onChange={(e) => setShowInactive(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-rocket-600 focus:ring-rocket-500"
                   />
                   Show inactive
                 </label>
@@ -856,7 +856,7 @@ export function KnowledgeBasePage() {
 
         {isLoading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+            <Loader2 className="w-8 h-8 text-rocket-600 animate-spin mx-auto mb-4" />
             <p className="text-gray-500">Loading documents...</p>
           </div>
         ) : filteredDocuments.length === 0 ? (
@@ -879,7 +879,7 @@ export function KnowledgeBasePage() {
                 </button>
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"
                 >
                   <Upload className="w-4 h-4" />
                   Upload File

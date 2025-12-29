@@ -244,7 +244,7 @@ export function CustomReportViewPage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
       </div>
     );
@@ -261,7 +261,7 @@ export function CustomReportViewPage() {
           </p>
           <button
             onClick={() => navigate('/custom-reports')}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            className="px-6 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
           >
             Back to Reports
           </button>
@@ -337,7 +337,7 @@ export function CustomReportViewPage() {
             </button>
             <button
               onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"
             >
               <Pencil className="w-4 h-4" />
               Edit
@@ -464,7 +464,7 @@ export function CustomReportViewPage() {
 
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar className="w-5 h-5 text-blue-600" />
+          <Calendar className="w-5 h-5 text-rocket-600" />
           <h2 className="text-lg font-bold text-slate-800">Date Range</h2>
         </div>
 
@@ -531,7 +531,7 @@ export function CustomReportViewPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
             <div>
@@ -542,7 +542,7 @@ export function CustomReportViewPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
           </div>
@@ -551,7 +551,7 @@ export function CustomReportViewPage() {
 
       {isLoadingData ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
       ) : !overallMetrics ? (
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-12 text-center">

@@ -391,7 +391,7 @@ export function AvgCostPerUnitPage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
       </div>
     );
@@ -406,7 +406,7 @@ export function AvgCostPerUnitPage() {
 
       <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
-          <Calendar className="w-5 h-5 text-blue-600" />
+          <Calendar className="w-5 h-5 text-rocket-600" />
           <h2 className="text-lg font-bold text-slate-800">Date Range</h2>
         </div>
 
@@ -473,7 +473,7 @@ export function AvgCostPerUnitPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
             <div>
@@ -484,7 +484,7 @@ export function AvgCostPerUnitPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
           </div>

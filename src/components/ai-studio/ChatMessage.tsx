@@ -33,7 +33,7 @@ export function ChatMessage({
         <div
           className={`inline-block rounded-2xl px-4 py-2.5 ${
             isUser
-              ? 'bg-blue-600 text-white rounded-tr-md'
+              ? 'bg-rocket-600 text-white rounded-tr-md'
               : 'bg-gray-100 text-gray-800 rounded-tl-md'
           }`}
         >
@@ -150,7 +150,7 @@ function ReportCard({ report, onPreview, onSave }: ReportCardProps) {
         {onPreview && (
           <button
             onClick={() => onPreview(report)}
-            className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex-1 px-3 py-2 bg-rocket-600 text-white text-sm font-medium rounded-lg hover:bg-rocket-700 transition-colors"
           >
             Preview Report
           </button>

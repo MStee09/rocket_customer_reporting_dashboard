@@ -165,7 +165,7 @@ export function AIReportViewerPage() {
           </p>
           <button
             onClick={() => navigate('/ai-studio')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"
           >
             Go to AI Studio
           </button>
@@ -243,7 +243,7 @@ export function AIReportViewerPage() {
             </button>
             <button
               onClick={handleEdit}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"
             >
               <Pencil className="w-4 h-4" />
               <span className="hidden sm:inline">Edit</span>
@@ -257,7 +257,7 @@ export function AIReportViewerPage() {
           {isExecuting && (
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
               <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
                 <span className="text-gray-700">Loading data...</span>
               </div>
             </div>

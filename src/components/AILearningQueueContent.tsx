@@ -79,7 +79,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
             <textarea
               value={editedDefinition}
               onChange={(e) => setEditedDefinition(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
             />
           </div>
 
@@ -135,7 +135,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
               <button
                 onClick={handleApproveGlobal}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 transition-colors"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 Add to Global Glossary
@@ -168,7 +168,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   placeholder="Why is this term being rejected?"
                 />
               </div>
@@ -339,7 +339,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
         >
           <option value="pending">Pending</option>
           <option value="approved_global">Approved (Global)</option>

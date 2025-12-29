@@ -75,7 +75,7 @@ export function ChatInput({
         <button
           onClick={handleSend}
           disabled={!message.trim() || isLoading}
-          className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
+          className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-rocket-600 text-white rounded-xl hover:bg-rocket-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors"
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />

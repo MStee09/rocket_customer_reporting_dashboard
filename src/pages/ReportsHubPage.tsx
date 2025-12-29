@@ -251,7 +251,7 @@ export function ReportsHubPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
                 activeTab === tab.key
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-rocket-600 text-white'
                   : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
               }`}
             >
@@ -273,7 +273,7 @@ export function ReportsHubPage() {
               placeholder="Search reports..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500"
             />
           </div>
         </div>
@@ -282,7 +282,7 @@ export function ReportsHubPage() {
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="inline-flex items-center gap-2 text-slate-500">
-            <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="w-5 h-5 border-2 border-slate-300 border-t-rocket-600 rounded-full animate-spin"></div>
             Loading reports...
           </div>
         </div>
@@ -305,7 +305,7 @@ export function ReportsHubPage() {
                   <Link
                     to="/scheduled-reports"
                     onClick={(e) => e.stopPropagation()}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     Create Schedule
@@ -329,7 +329,7 @@ export function ReportsHubPage() {
                       </p>
                       <Link
                         to="/scheduled-reports"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
                       >
                         <Plus className="w-4 h-4" />
                         Create Schedule
@@ -425,7 +425,7 @@ export function ReportsHubPage() {
                   {!searchQuery && (
                     <Link
                       to="/ai-studio"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
                     >
                       <Sparkles className="w-4 h-4" />
                       Create with AI
@@ -474,7 +474,7 @@ export function ReportsHubPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(report.path)}
-                          className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2"
+                          className="px-4 py-2 text-sm font-medium text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors flex items-center gap-2"
                         >
                           <Eye className="w-4 h-4" />
                           View

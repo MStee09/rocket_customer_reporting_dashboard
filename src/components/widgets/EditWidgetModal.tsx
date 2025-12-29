@@ -303,7 +303,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                   className={`flex items-center gap-2 ${step >= s.num ? 'text-blue-600' : 'text-slate-400'}`}
                 >
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step > s.num ? 'bg-blue-600 text-white' :
+                    step > s.num ? 'bg-rocket-600 text-white' :
                     step === s.num ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-600' :
                     'bg-slate-200 text-slate-500'
                   }`}>
@@ -312,7 +312,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                   <span className="text-sm font-medium hidden sm:inline">{s.label}</span>
                 </button>
                 {i < 2 && (
-                  <div className={`w-12 h-0.5 mx-2 ${step > s.num ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                  <div className={`w-12 h-0.5 mx-2 ${step > s.num ? 'bg-rocket-600' : 'bg-slate-200'}`} />
                 )}
               </div>
             ))}
@@ -331,7 +331,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                   placeholder="Enter widget name"
                 />
               </div>
@@ -343,7 +343,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 resize-none"
                   placeholder="Describe what this widget shows"
                 />
               </div>
@@ -397,7 +397,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={groupByField}
                         onChange={(e) => setGroupByField(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="">Select field...</option>
                         {groupableColumns.map(col => (
@@ -410,7 +410,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={valueField}
                         onChange={(e) => setValueField(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="count">Count of records</option>
                         {aggregatableColumns.map(col => (
@@ -425,7 +425,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       value={aggregation}
                       onChange={(e) => setAggregation(e.target.value)}
                       disabled={valueField === 'count'}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 disabled:bg-slate-50"
                     >
                       <option value="count">COUNT</option>
                       <option value="sum">SUM</option>
@@ -445,7 +445,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={xAxisField}
                         onChange={(e) => setXAxisField(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="">Select date field...</option>
                         {dateColumns.map(col => (
@@ -458,7 +458,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={valueField}
                         onChange={(e) => setValueField(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="count">Count of records</option>
                         {aggregatableColumns.map(col => (
@@ -473,7 +473,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       value={aggregation}
                       onChange={(e) => setAggregation(e.target.value)}
                       disabled={valueField === 'count'}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 disabled:bg-slate-50"
                     >
                       <option value="count">COUNT</option>
                       <option value="sum">SUM</option>
@@ -491,7 +491,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={valueField}
                         onChange={(e) => setValueField(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="count">Count of records</option>
                         {aggregatableColumns.map(col => (
@@ -505,7 +505,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                         value={aggregation}
                         onChange={(e) => setAggregation(e.target.value)}
                         disabled={valueField === 'count'}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 disabled:bg-slate-50"
                       >
                         <option value="count">COUNT</option>
                         <option value="sum">SUM</option>
@@ -519,7 +519,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                       <select
                         value={kpiFormat}
                         onChange={(e) => setKpiFormat(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                       >
                         <option value="number">Number</option>
                         <option value="currency">Currency ($)</option>
@@ -547,7 +547,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                                 setTableColumns(tableColumns.filter(c => c !== col.id));
                               }
                             }}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
                           />
                           <span className="text-sm text-slate-700">{col.label}</span>
                         </label>
@@ -559,7 +559,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                     <select
                       value={rowLimit}
                       onChange={(e) => setRowLimit(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                     >
                       <option value={5}>5 rows</option>
                       <option value={10}>10 rows</option>
@@ -621,7 +621,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
                 <select
                   value={selectedSize}
                   onChange={(e) => setSelectedSize(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                 >
                   {SIZE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -661,7 +661,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
             {step < 3 ? (
               <button
                 onClick={() => setStep(step + 1)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition"
+                className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 flex items-center gap-2 transition"
               >
                 Continue
                 <ChevronRight className="w-4 h-4" />
@@ -670,7 +670,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 transition"
+                className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2 transition"
               >
                 {saving ? (
                   <>

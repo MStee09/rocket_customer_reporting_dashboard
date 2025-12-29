@@ -224,7 +224,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                     onClick={() => toggleSection(section.id)}
                     className={`p-2 rounded-lg transition-colors ${
                       section.included
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-rocket-600 text-white hover:bg-rocket-700'
                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                     }`}
                   >
@@ -311,7 +311,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                   type="text"
                   value={config.title}
                   onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
                   placeholder="Widget title"
                 />
               </div>
@@ -346,7 +346,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                 <select
                   value={config.refreshInterval}
                   onChange={(e) => setConfig({ ...config, refreshInterval: Number(e.target.value) })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
                 >
                   <option value={0}>Manual only</option>
                   <option value={15}>Every 15 min</option>
@@ -373,7 +373,7 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
             <button
               onClick={handleAdd}
               disabled={includedCount === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Add to Dashboard
             </button>

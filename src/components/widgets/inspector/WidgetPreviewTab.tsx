@@ -163,7 +163,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
               <select
                 value={selectedCustomerId || ''}
                 onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : null)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rocket-500"
               >
                 <option value="">All Customers (Aggregated)</option>
                 {customers.map(c => (
@@ -182,7 +182,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
             <select
               value={dateRangeDays}
               onChange={(e) => setDateRangeDays(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rocket-500"
             >
               <option value={30}>Last 30 Days</option>
               <option value={90}>Last 90 Days</option>

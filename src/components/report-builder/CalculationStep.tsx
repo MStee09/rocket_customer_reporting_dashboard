@@ -128,7 +128,7 @@ export function CalculationStep({ state, updateState }: CalculationStepProps) {
             <select
               value={(state.calculation as any).field || ''}
               onChange={(e) => updateSimpleCalculation(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
             >
               <option value="">Select a numeric field...</option>
               {numericFields.map((field) => (

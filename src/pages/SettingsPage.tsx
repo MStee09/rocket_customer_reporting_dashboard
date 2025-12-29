@@ -72,7 +72,7 @@ export function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-rocket-600 text-rocket-600'
                       : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                   }`}
                 >
@@ -89,7 +89,7 @@ export function SettingsPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
             <div className="flex items-center gap-2 mb-6">
-              <User className="w-5 h-5 text-blue-600" />
+              <User className="w-5 h-5 text-rocket-600" />
               <h2 className="text-xl font-bold text-slate-800">User Profile</h2>
             </div>
 
@@ -111,7 +111,7 @@ export function SettingsPage() {
                   <span
                     className={`px-3 py-1 text-sm font-medium rounded ${
                       role?.is_admin
-                        ? 'bg-blue-100 text-blue-800'
+                        ? 'bg-rocket-100 text-rocket-800'
                         : 'bg-green-100 text-green-800'
                     }`}
                   >
@@ -159,7 +159,7 @@ export function SettingsPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                   placeholder="Enter new password"
                 />
               </div>
@@ -174,7 +174,7 @@ export function SettingsPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
                   placeholder="Confirm new password"
                 />
               </div>
@@ -194,7 +194,7 @@ export function SettingsPage() {
               <button
                 type="submit"
                 disabled={isChangingPassword}
-                className="flex items-center gap-2 px-6 py-2 bg-rocket-navy hover:bg-rocket-navy-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2 bg-charcoal-800 hover:bg-charcoal-800-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isChangingPassword ? (
                   <>
@@ -227,8 +227,8 @@ export function SettingsPage() {
       {activeTab === 'how-to' && (
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8">
           <div className="text-center max-w-xl mx-auto">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BookOpen className="w-8 h-8 text-blue-600" />
+            <div className="w-16 h-16 bg-rocket-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="w-8 h-8 text-rocket-600" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-3">
               Documentation & Guides
@@ -258,7 +258,7 @@ export function SettingsPage() {
             </div>
             <button
               onClick={() => navigate('/settings/how-to')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-rocket-600 hover:bg-rocket-700 text-white rounded-lg font-medium transition-colors"
             >
               Open Full Documentation
               <ArrowRight className="w-4 h-4" />

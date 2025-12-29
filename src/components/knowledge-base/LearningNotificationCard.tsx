@@ -145,7 +145,7 @@ export function LearningNotificationCard({
           <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100">
             <button
               onClick={onAddToProfile}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rocket-600 text-white text-sm font-medium rounded-lg hover:bg-rocket-700 transition-colors"
             >
               Add to Profile
               <ArrowRight className="w-3.5 h-3.5" />

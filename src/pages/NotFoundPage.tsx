@@ -15,7 +15,7 @@ export function NotFoundPage() {
         </p>
         <button
           onClick={() => navigate('/dashboard')}
-          className="px-6 py-3 bg-rocket-navy hover:bg-rocket-navy-light text-white font-semibold rounded-lg transition-colors"
+          className="px-6 py-3 bg-charcoal-800 hover:bg-charcoal-800-light text-white font-semibold rounded-lg transition-colors"
         >
           Go to Dashboard
         </button>

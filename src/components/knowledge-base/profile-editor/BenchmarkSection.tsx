@@ -86,7 +86,7 @@ export function BenchmarkSection({ benchmarkPeriod, customerId, onUpdate }: Benc
                 disabled={isSaving}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50 ${
                   benchmarkPeriod === option.value
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-rocket-600 text-white border-blue-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600'
                 }`}
               >
@@ -104,12 +104,12 @@ export function BenchmarkSection({ benchmarkPeriod, customerId, onUpdate }: Benc
               value={customValue}
               onChange={(e) => setCustomValue(e.target.value)}
               placeholder="e.g., Jan-Mar 2024, FY2023"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 text-sm"
             />
             <button
               onClick={handleCustomSave}
               disabled={isSaving}
-              className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm font-medium"
+              className="flex items-center gap-1 px-3 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 transition-colors text-sm font-medium"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save

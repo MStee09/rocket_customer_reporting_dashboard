@@ -152,7 +152,7 @@ export function MarketsSection({ markets, customerId, onUpdate }: MarketsSection
                   value={newMarket.region}
                   onChange={(e) => setNewMarket({ ...newMarket, region: e.target.value })}
                   placeholder="e.g., West Coast, Northeast, Pacific Northwest"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   autoFocus
                 />
               </div>
@@ -166,7 +166,7 @@ export function MarketsSection({ markets, customerId, onUpdate }: MarketsSection
                   value={newMarket.states}
                   onChange={(e) => setNewMarket({ ...newMarket, states: e.target.value })}
                   placeholder="e.g., CA, OR, WA"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Enter state abbreviations separated by commas</p>
               </div>
@@ -183,7 +183,7 @@ export function MarketsSection({ markets, customerId, onUpdate }: MarketsSection
                     value={newMarket.volumePercent}
                     onChange={(e) => setNewMarket({ ...newMarket, volumePercent: e.target.value })}
                     placeholder="e.g., 35"
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
                   />
                   <span className="text-sm text-gray-500">% of total volume</span>
                 </div>
@@ -203,7 +203,7 @@ export function MarketsSection({ markets, customerId, onUpdate }: MarketsSection
               <button
                 onClick={handleAdd}
                 disabled={isSaving || !newMarket.region.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

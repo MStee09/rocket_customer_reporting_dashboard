@@ -52,7 +52,7 @@ export function ScheduleFilters({
             <select
               value={customerFilter}
               onChange={(e) => onCustomerFilterChange(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
             >
               <option value="all">All Customers</option>
               {customers.map(c => (
@@ -69,7 +69,7 @@ export function ScheduleFilters({
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -83,7 +83,7 @@ export function ScheduleFilters({
           <select
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
           >
             <option value="all">All Types</option>
             <option value="ai_report">AI Reports</option>
@@ -99,7 +99,7 @@ export function ScheduleFilters({
               placeholder="Search reports..."
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
             />
           </div>
         </div>

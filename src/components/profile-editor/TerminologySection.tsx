@@ -94,7 +94,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
                 value={newTerm.term}
                 onChange={(e) => setNewTerm({ ...newTerm, term: e.target.value })}
                 placeholder="e.g., SKU"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
               />
             </div>
             <div>
@@ -104,7 +104,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
                 value={newTerm.meaning}
                 onChange={(e) => setNewTerm({ ...newTerm, meaning: e.target.value })}
                 placeholder="e.g., Stock Keeping Unit"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
               />
             </div>
           </div>
@@ -112,7 +112,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
             <button
               onClick={handleAdd}
               disabled={isSaving || !newTerm.term.trim() || !newTerm.meaning.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-md hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Add Term

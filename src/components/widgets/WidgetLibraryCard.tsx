@@ -334,7 +334,7 @@ export const WidgetLibraryCard = ({ widget, isAdmin, isCustomerCreated, isAdminC
               <button
                 onClick={performAddWidget}
                 disabled={isAddingToDashboard}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isAddingToDashboard ? (
                   <>Adding...</>

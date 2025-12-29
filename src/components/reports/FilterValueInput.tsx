@@ -31,7 +31,7 @@ export default function FilterValueInput({
         value={(value as string) || ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Enter value..."
-        className="flex-1 min-w-[120px] px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex-1 min-w-[120px] px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
       />
     );
   }
@@ -46,7 +46,7 @@ export default function FilterValueInput({
             value={rangeValue.min || ''}
             onChange={(e) => onChange({ ...rangeValue, min: parseFloat(e.target.value) || 0 })}
             placeholder={column.format === 'currency' ? '$0.00' : '0'}
-            className="w-24 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-24 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
           <span className="text-sm text-gray-500">and</span>
           <input
@@ -54,7 +54,7 @@ export default function FilterValueInput({
             value={rangeValue.max || ''}
             onChange={(e) => onChange({ ...rangeValue, max: parseFloat(e.target.value) || 0 })}
             placeholder={column.format === 'currency' ? '$0.00' : '0'}
-            className="w-24 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-24 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
         </div>
       );
@@ -69,7 +69,7 @@ export default function FilterValueInput({
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
           placeholder={column.format === 'currency' ? '0.00' : '0'}
           step={column.format === 'currency' ? '0.01' : '1'}
-          className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-32 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
         />
       </div>
     );
@@ -84,14 +84,14 @@ export default function FilterValueInput({
             type="date"
             value={rangeValue.start || ''}
             onChange={(e) => onChange({ ...rangeValue, start: e.target.value })}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
           <span className="text-sm text-gray-500">to</span>
           <input
             type="date"
             value={rangeValue.end || ''}
             onChange={(e) => onChange({ ...rangeValue, end: e.target.value })}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
         </div>
       );
@@ -102,7 +102,7 @@ export default function FilterValueInput({
         type="date"
         value={(value as string) || ''}
         onChange={(e) => onChange(e.target.value)}
-        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
       />
     );
   }
@@ -161,7 +161,7 @@ export default function FilterValueInput({
             <select
               value=""
               onChange={(e) => handleAdd(parseInt(e.target.value))}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
             >
               <option value="">Add a value...</option>
               {availableOptions.map(option => (
@@ -177,7 +177,7 @@ export default function FilterValueInput({
       <select
         value={(value as number) ?? ''}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className="flex-1 min-w-[120px] px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex-1 min-w-[120px] px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rocket-500"
       >
         <option value="">Select...</option>
         {options.map(option => (

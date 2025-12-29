@@ -135,7 +135,7 @@ export function DateRangeSelector({
         <select
           value={value}
           onChange={(e) => handlePresetClick(e.target.value as DateRangePreset)}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
         >
           {presets.map((preset) => (
             <option key={preset.value} value={preset.value}>
@@ -151,18 +151,18 @@ export function DateRangeSelector({
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
             />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
             />
             <button
               onClick={handleCustomApply}
               disabled={!startDate || !endDate}
-              className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm font-medium bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Apply
             </button>
@@ -176,7 +176,7 @@ export function DateRangeSelector({
                 type="checkbox"
                 checked={comparison?.enabled || false}
                 onChange={(e) => handleComparisonToggle(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-gray-300 text-blue-600 focus:ring-rocket-500"
               />
               <GitCompare className="w-4 h-4 text-gray-500" />
               <span className="text-gray-700">Compare to</span>
@@ -187,7 +187,7 @@ export function DateRangeSelector({
                 <select
                   value={comparison.type}
                   onChange={(e) => handleComparisonTypeChange(e.target.value as ComparisonType)}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-rocket-500 outline-none"
                 >
                   <option value="previous">Previous Period</option>
                   <option value="lastYear">Same Period Last Year</option>
@@ -201,14 +201,14 @@ export function DateRangeSelector({
                       value={comparisonStartDate}
                       onChange={(e) => setComparisonStartDate(e.target.value)}
                       placeholder="Start date"
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
                     />
                     <input
                       type="date"
                       value={comparisonEndDate}
                       onChange={(e) => setComparisonEndDate(e.target.value)}
                       placeholder="End date"
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
                     />
                     <button
                       onClick={handleComparisonCustomApply}
@@ -296,7 +296,7 @@ export function DateRangeSelector({
               type="checkbox"
               checked={comparison?.enabled || false}
               onChange={(e) => handleComparisonToggle(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-blue-600 focus:ring-rocket-500"
             />
             <GitCompare className="w-4 h-4 text-gray-500" />
             <span className="text-gray-700 font-medium">Compare to</span>
@@ -307,7 +307,7 @@ export function DateRangeSelector({
               <select
                 value={comparison.type}
                 onChange={(e) => handleComparisonTypeChange(e.target.value as ComparisonType)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 outline-none"
               >
                 <option value="previous">Previous Period</option>
                 <option value="lastYear">Same Period Last Year</option>
@@ -320,14 +320,14 @@ export function DateRangeSelector({
                     type="date"
                     value={comparisonStartDate}
                     onChange={(e) => setComparisonStartDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
                   />
                   <span className="text-gray-400 text-sm">to</span>
                   <input
                     type="date"
                     value={comparisonEndDate}
                     onChange={(e) => setComparisonEndDate(e.target.value)}
-                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 outline-none"
                   />
                   <button
                     onClick={handleComparisonCustomApply}

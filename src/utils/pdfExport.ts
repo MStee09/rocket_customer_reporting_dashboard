@@ -13,7 +13,7 @@ export async function exportReportToPDF(
   const { title, filename } = options;
 
   const loadingToast = document.createElement('div');
-  loadingToast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-[9999] flex items-center gap-2';
+  loadingToast.className = 'fixed top-4 right-4 bg-rocket-600 text-white px-4 py-2 rounded-lg shadow-lg z-[9999] flex items-center gap-2';
   loadingToast.innerHTML = `
     <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

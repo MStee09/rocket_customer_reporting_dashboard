@@ -433,7 +433,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
               <div key={s.num} className="flex items-center">
                 <div className={`flex items-center gap-2 ${step >= s.num ? 'text-blue-600' : 'text-slate-400'}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step > s.num ? 'bg-blue-600 text-white' :
+                    step > s.num ? 'bg-rocket-600 text-white' :
                     step === s.num ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-600' :
                     'bg-slate-200 text-slate-500'
                   }`}>
@@ -442,7 +442,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                   <span className="text-sm font-medium hidden sm:inline">{s.label}</span>
                 </div>
                 {i < 2 && (
-                  <div className={`w-12 h-0.5 mx-2 ${step > s.num ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                  <div className={`w-12 h-0.5 mx-2 ${step > s.num ? 'bg-rocket-600' : 'bg-slate-200'}`} />
                 )}
               </div>
             ))}
@@ -589,7 +589,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   onClick={() => handleAddToDashboard(createdWidgetId)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                  className="px-6 py-3 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-5 h-5" />
                   Add to My Dashboard
@@ -648,7 +648,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                 {step < 3 ? (
                   <button
                     onClick={handleContinue}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     Continue
                     <ChevronRight className="w-4 h-4" />
@@ -657,7 +657,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     {saving ? (
                       <>
@@ -694,7 +694,7 @@ function ConfigurationStep({ config, setConfig, availableFields, numericFields, 
             type="text"
             value={config.name}
             onChange={(e) => setConfig({ ...config, name: e.target.value })}
-            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
         </div>
         <div>
@@ -706,7 +706,7 @@ function ConfigurationStep({ config, setConfig, availableFields, numericFields, 
             value={config.description}
             onChange={(e) => setConfig({ ...config, description: e.target.value })}
             placeholder="Optional description"
-            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500"
           />
         </div>
 
@@ -810,7 +810,7 @@ function TableConfig({ config, setConfig, availableFields }: any) {
                     setConfig({ ...config, tableColumns: cols.filter((c: string) => c !== field.field) });
                   }
                 }}
-                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
               />
               <span className="text-sm text-slate-700">{field.label}</span>
             </label>

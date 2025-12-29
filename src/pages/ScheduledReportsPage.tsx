@@ -346,7 +346,7 @@ export function ScheduledReportsPage() {
               onClick={() => { setActiveTab('customer'); clearSelection(); }}
               className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'customer'
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-rocket-600 text-rocket-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -400,7 +400,7 @@ export function ScheduledReportsPage() {
         <div className="flex items-center gap-4 mb-4 text-sm">
           <button
             onClick={selectAll}
-            className="text-blue-600 hover:text-blue-800"
+            className="text-rocket-600 hover:text-rocket-800"
           >
             Select all ({filteredSchedules.length})
           </button>
@@ -424,7 +424,7 @@ export function ScheduledReportsPage() {
           </p>
           <button
             onClick={() => navigate('/ai-studio')}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white rounded-lg"
           >
             View Reports
           </button>
@@ -456,7 +456,7 @@ export function ScheduledReportsPage() {
             {activeFiltersCount > 0 && (
               <button
                 onClick={clearFilters}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-rocket-600 hover:text-rocket-700 font-medium"
               >
                 Clear all filters
               </button>

@@ -453,12 +453,12 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
 
           {step === 1 && (
             <div className="space-y-6">
-              <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
-                <h3 className="font-medium text-purple-900 mb-2 flex items-center gap-2">
+              <div className="p-4 bg-rocket-50 border border-rocket-200 rounded-xl">
+                <h3 className="font-medium text-rocket-900 mb-2 flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   AI Suggestion (Optional)
                 </h3>
-                <p className="text-sm text-purple-700 mb-3">
+                <p className="text-sm text-rocket-700 mb-3">
                   Describe what you want to see and AI will suggest the best widget type and configuration.
                 </p>
                 <div className="flex gap-2">
@@ -467,13 +467,13 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder="e.g., Show me total retail by carrier as a pie chart"
-                    className="flex-1 px-4 py-2 border border-purple-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 px-4 py-2 border border-rocket-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500"
                     onKeyDown={(e) => e.key === 'Enter' && handleAiSuggest()}
                   />
                   <button
                     onClick={handleAiSuggest}
                     disabled={aiLoading || !aiPrompt.trim()}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     {aiLoading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -492,12 +492,12 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                 )}
 
                 {aiSuggestion && (
-                  <div className="mt-3 p-4 bg-white border border-purple-200 rounded-lg">
+                  <div className="mt-3 p-4 bg-white border border-rocket-200 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-slate-900">AI Suggestion:</span>
                       <button
                         onClick={applyAiSuggestion}
-                        className="px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700"
+                        className="px-3 py-1 bg-rocket-600 text-white text-sm rounded-lg hover:bg-rocket-700"
                       >
                         Apply & Continue
                       </button>
@@ -1342,8 +1342,8 @@ function getWidgetIcon(type: WidgetType): string {
 function getWidgetColor(type: WidgetType): string {
   const colors: Record<WidgetType, string> = {
     table: 'bg-slate-500',
-    bar_chart: 'bg-blue-500',
-    pie_chart: 'bg-purple-500',
+    bar_chart: 'bg-rocket-600',
+    pie_chart: 'bg-amber-500',
     line_chart: 'bg-green-500',
     kpi: 'bg-emerald-500',
   };

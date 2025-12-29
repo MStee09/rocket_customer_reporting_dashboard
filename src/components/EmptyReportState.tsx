@@ -47,7 +47,7 @@ export function EmptyReportState({ onBuildReport, onDescribeWithAI }: EmptyRepor
 
         <button
           onClick={handleDescribeWithAI}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="px-6 py-3 bg-gradient-to-r from-rocket-500 to-rocket-600 hover:from-rocket-600 hover:to-rocket-700 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
         >
           <Sparkles className="w-5 h-5" />
           Describe with AI

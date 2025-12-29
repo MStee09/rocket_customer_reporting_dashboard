@@ -42,7 +42,7 @@ function getReportTypeBadge(reportType: string) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
       <FileText className="w-3 h-3" />
       Custom Report
     </span>

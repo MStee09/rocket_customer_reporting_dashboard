@@ -2,7 +2,7 @@ export { Button } from './Button';
 
 export { Input, Textarea, Select } from './Input';
 
-export { Badge } from './Badge';
+export { Badge, StatusBadge } from './Badge';
 
 export { Skeleton, SkeletonCard, SkeletonTable } from './Skeleton';
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Annotation, ZoomableGroup } from 'react-simple-maps';
-import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb } from 'lucide-react';
+import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, X } from 'lucide-react';
 import { StateData } from '../../hooks/useDashboardData';
 
 interface CostPerStateMapProps {
@@ -370,9 +370,18 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
         {showAIInsights && insights.length > 0 && (
           <div className="absolute top-4 left-4 max-w-xs bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-semibold text-slate-700">AI Insights</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-amber-500" />
+                <span className="text-xs font-semibold text-slate-700">AI Insights</span>
+              </div>
+              <button
+                onClick={() => setShowAIInsights(false)}
+                className="p-0.5 rounded hover:bg-slate-100 transition-colors"
+                title="Close"
+              >
+                <X className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600" />
+              </button>
             </div>
 
             <div className="space-y-2">

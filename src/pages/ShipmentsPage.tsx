@@ -24,6 +24,7 @@ import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
+import { ShipmentDetailDrawer } from '../components/shipments/ShipmentDetailDrawer';
 
 interface Shipment {
   load_id: number;
@@ -203,6 +204,7 @@ export function ShipmentsPage() {
   const [activeQuickFilters, setActiveQuickFilters] = useState<string[]>([]);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
   const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all' || activeQuickFilters.length > 0;
 
@@ -743,7 +745,7 @@ export function ShipmentsPage() {
           return (
             <div
               key={shipment.load_id}
-              onClick={() => navigate(`/shipments/${shipment.load_id}`)}
+              onClick={() => setSelectedShipment(shipment)}
               className="bg-white border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between mb-1.5">
@@ -829,6 +831,22 @@ export function ShipmentsPage() {
         reportName="Shipments Export"
         reportData={shipmentExportData}
         reportType="shipments"
+      />
+
+      <ShipmentDetailDrawer
+        shipment={selectedShipment}
+        isOpen={!!selectedShipment}
+        onClose={() => setSelectedShipment(null)}
+        onViewDetails={(shipment) => navigate(`/shipments/${shipment.load_id}`)}
+        onAskAI={(shipment) => {
+          sessionStorage.setItem('ai_studio_context', JSON.stringify({
+            type: 'shipment',
+            shipment: shipment,
+            suggestedPrompt: `Tell me about shipment #${shipment.load_id}`
+          }));
+          navigate('/ai-studio', { state: { hasContext: true } });
+        }}
+        showFinancials={showFinancials}
       />
     </div>
   );

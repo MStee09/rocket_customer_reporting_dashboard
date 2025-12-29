@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { AIReportDefinition } from '../types/aiReport';
 
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -14,6 +19,7 @@ export interface GenerateReportResponse {
   report: AIReportDefinition | null;
   message: string;
   rawResponse?: string;
+  learningData?: unknown;
 }
 
 export async function generateReport(
@@ -25,13 +31,6 @@ export async function generateReport(
   currentReport?: AIReportDefinition | null,
   customerName?: string
 ): Promise<GenerateReportResponse> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData?.session?.access_token;
-
-  if (!accessToken) {
-    throw new Error('Not authenticated');
-  }
-
   const history = conversationHistory
     .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
     .map((msg) => ({
@@ -39,43 +38,38 @@ export async function generateReport(
       content: msg.report ? JSON.stringify(msg.report) : msg.content,
     }));
 
-  const response = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-report`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({
-        prompt,
-        conversationHistory: history,
-        customerId,
-        isAdmin,
-        knowledgeContext,
-        currentReport: currentReport || undefined,
-        customerName: customerName || undefined,
-      }),
-    }
-  );
+  const { data, error } = await supabase.functions.invoke('generate-report', {
+    body: {
+      prompt,
+      conversationHistory: history,
+      customerId,
+      isAdmin,
+      knowledgeContext,
+      currentReport: currentReport || undefined,
+      customerName: customerName || undefined,
+    },
+  });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Request failed: ${response.status}`);
+  if (error) {
+    console.error('Generate report error:', error);
+    return {
+      report: null,
+      message: 'Sorry, I encountered an error. Please try again.',
+    };
   }
 
-  const data = await response.json();
+  const { data: sessionData } = await supabase.auth.getSession();
 
   if (data.report) {
     data.report.customerId = customerId;
-    data.report.createdBy = sessionData.session?.user?.id || 'unknown';
+    data.report.createdBy = sessionData?.session?.user?.id || 'unknown';
   }
 
   return {
     report: data.report || null,
     message: data.message || '',
     rawResponse: data.rawResponse,
+    learningData: data.learningData,
   };
 }
 

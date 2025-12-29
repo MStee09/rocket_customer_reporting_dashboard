@@ -103,6 +103,11 @@ interface DataProfile {
   avgShipmentsPerDay: number;
 }
 
+const VALID_SECTION_TYPES = ['hero', 'stat-row', 'category-grid', 'chart', 'table', 'header', 'map'];
+const VALID_CHART_TYPES = ['bar', 'line', 'pie', 'treemap', 'radar', 'area', 'scatter', 'bump', 'funnel', 'heatmap', 'calendar', 'waterfall'];
+const VALID_MAP_TYPES = ['choropleth', 'flow', 'cluster', 'arc'];
+const RESTRICTED_FIELDS = ['cost', 'margin', 'carrier_cost'];
+
 const COMPLAINT_PHRASES = [
   "not right", "not correct", "wrong", "doesn't look right",
   "numbers are off", "that's not what", "incorrect", "not accurate",
@@ -1198,7 +1203,7 @@ Want me to create either of these?"
 Base suggestions on what you know:
 
 | Data Characteristic | Suggest |
-|---------------------|---------|
+|---------------------|--------|
 | Ships to 10+ states | Heat map, geographic analysis |
 | Uses 3+ carriers | Radar comparison, carrier breakdown |
 | 3+ months of data | Trend lines, bump charts |
@@ -1566,6 +1571,101 @@ function parseReportDefinition(text: string): Record<string, unknown> | null {
   return null;
 }
 
+interface ReportConfig {
+  metric?: { field?: string };
+  groupBy?: string;
+  metrics?: Array<{ field?: string }>;
+  chartType?: string;
+  mapType?: string;
+}
+
+interface ReportSection {
+  type: string;
+  title?: string;
+  config?: ReportConfig;
+}
+
+function validateReportOutput(
+  report: { name?: string; sections?: ReportSection[] },
+  availableFields: string[]
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const fieldsLower = availableFields.map(f => f.toLowerCase());
+
+  if (!report.name) errors.push('Report must have a name');
+  if (!report.sections || !Array.isArray(report.sections)) {
+    errors.push('Report must have sections');
+    return { valid: false, errors };
+  }
+
+  for (let i = 0; i < report.sections.length; i++) {
+    const section = report.sections[i];
+    const sectionId = `Section ${i + 1}`;
+
+    if (!VALID_SECTION_TYPES.includes(section.type)) {
+      errors.push(`${sectionId}: Invalid type "${section.type}"`);
+      continue;
+    }
+
+    if (section.type === 'chart' && section.config?.chartType && !VALID_CHART_TYPES.includes(section.config.chartType)) {
+      errors.push(`${sectionId}: Invalid chart type "${section.config.chartType}"`);
+    }
+
+    if (section.type === 'map' && section.config?.mapType && !VALID_MAP_TYPES.includes(section.config.mapType)) {
+      errors.push(`${sectionId}: Invalid map type "${section.config.mapType}"`);
+    }
+
+    const config = section.config || {};
+    const fieldRefs: string[] = [];
+    if (config.metric?.field) fieldRefs.push(config.metric.field);
+    if (config.groupBy) fieldRefs.push(config.groupBy);
+    if (config.metrics) config.metrics.forEach((m) => m.field && fieldRefs.push(m.field));
+
+    for (const field of fieldRefs) {
+      if (field === '*') continue;
+      if (field.includes('_per_') || field.startsWith('calc_')) continue;
+      if (!fieldsLower.includes(field.toLowerCase())) {
+        errors.push(`${sectionId}: Unknown field "${field}"`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function enforceAccessControl(
+  report: { sections?: ReportSection[] },
+  isAdmin: boolean
+): { sanitized: { sections?: ReportSection[] }; violations: string[] } {
+  if (isAdmin) return { sanitized: report, violations: [] };
+
+  const violations: string[] = [];
+  const sanitized = JSON.parse(JSON.stringify(report));
+
+  if (!sanitized.sections) return { sanitized, violations };
+
+  for (let i = sanitized.sections.length - 1; i >= 0; i--) {
+    const section = sanitized.sections[i];
+    const config = section.config || {};
+
+    let hasViolation = false;
+    if (config.metric?.field && RESTRICTED_FIELDS.includes(config.metric.field.toLowerCase())) {
+      violations.push(`Section "${section.title || 'Untitled'}": uses restricted field ${config.metric.field}`);
+      hasViolation = true;
+    }
+    if (config.groupBy && RESTRICTED_FIELDS.includes(config.groupBy.toLowerCase())) {
+      violations.push(`Section "${section.title || 'Untitled'}": groups by restricted field`);
+      hasViolation = true;
+    }
+
+    if (hasViolation) {
+      sanitized.sections.splice(i, 1);
+    }
+  }
+
+  return { sanitized, violations };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -1773,11 +1873,45 @@ ${FEEDBACK_DETECTION}`;
       }
     }
 
-    const report = parseReportDefinition(rawText);
+    let reportDefinition = parseReportDefinition(rawText);
     const cleanMessage = rawText
       .replace(/<learning_flag>[\s\S]*?<\/learning_flag>/g, '')
       .replace(/<report_json>[\s\S]*?<\/report_json>/g, '')
       .trim();
+
+    if (reportDefinition) {
+      const availableFields = schemaColumns.map(c => c.column_name);
+
+      const validation = validateReportOutput(
+        reportDefinition as { name?: string; sections?: ReportSection[] },
+        availableFields
+      );
+      if (!validation.valid) {
+        console.warn('Report validation issues:', validation.errors);
+      }
+
+      const accessResult = enforceAccessControl(
+        reportDefinition as { sections?: ReportSection[] },
+        isAdmin
+      );
+      if (accessResult.violations.length > 0) {
+        console.warn('[SECURITY] Access violations sanitized:', accessResult.violations);
+        try {
+          await supabase.from('ai_report_audit').insert({
+            customer_id: customerId || null,
+            customer_name: customerName || null,
+            user_request: prompt,
+            ai_interpretation: 'ACCESS_VIOLATION',
+            report_definition: reportDefinition,
+            status: 'flagged',
+          });
+        } catch (e) {
+          console.error('Failed to log access violation:', e);
+        }
+      }
+
+      reportDefinition = accessResult.sanitized as Record<string, unknown>;
+    }
 
     const isComplaint = detectComplaint(prompt);
     if (isComplaint) {
@@ -1821,7 +1955,7 @@ ${FEEDBACK_DETECTION}`;
       }
     }
 
-    if (report) {
+    if (reportDefinition) {
       console.log('Logging report to audit table');
       try {
         await supabase
@@ -1831,7 +1965,7 @@ ${FEEDBACK_DETECTION}`;
             customer_name: customerName || null,
             user_request: prompt,
             ai_interpretation: null,
-            report_definition: report,
+            report_definition: reportDefinition,
             query_used: null,
             conversation: messages.slice(-6),
             status: 'ok'
@@ -1845,7 +1979,7 @@ ${FEEDBACK_DETECTION}`;
     return new Response(
       JSON.stringify({
         message: cleanMessage,
-        report,
+        report: reportDefinition,
         rawResponse: rawText,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

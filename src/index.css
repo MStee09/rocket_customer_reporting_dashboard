@@ -2,9 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply font-sans text-charcoal-800 antialiased;
+  }
+}
+
+@layer components {
+  .text-display {
+    @apply text-3xl font-bold tracking-tight text-charcoal-900;
+  }
+  .text-title {
+    @apply text-xl font-semibold text-charcoal-800;
+  }
+  .text-subtitle {
+    @apply text-lg font-medium text-charcoal-700;
+  }
+  .text-body {
+    @apply text-sm text-charcoal-600;
+  }
+  .text-caption {
+    @apply text-xs text-charcoal-500;
+  }
+  .text-metric {
+    @apply text-4xl font-bold tabular-nums text-charcoal-900;
+  }
+
+  .text-gradient {
+    @apply bg-rocket-gradient bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .transition-base {
+    @apply transition-all duration-150 ease-out;
+  }
+
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-rocket-500/30 focus:ring-offset-2;
+  }
+}
+
 .react-grid-item.react-grid-placeholder {
-  background: rgb(59 130 246 / 0.15);
-  border: 2px dashed rgb(59 130 246 / 0.5);
+  background: rgb(249 115 22 / 0.15);
+  border: 2px dashed rgb(249 115 22 / 0.5);
   border-radius: 1rem;
   opacity: 1;
   transition-duration: 100ms;

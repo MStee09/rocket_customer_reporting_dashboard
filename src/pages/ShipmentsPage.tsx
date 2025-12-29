@@ -368,13 +368,16 @@ export function ShipmentsPage() {
 
       const searchableFields = [
         s.load_id.toString(),
+        s.pro_number,
         s.po_reference,
         s.bol_number,
         s.reference_number,
         s.origin_city,
         s.origin_state,
+        s.origin_company,
         s.destination_city,
         s.destination_state,
+        s.destination_company,
         s.carrier_name,
         s.mode_name,
         statusKey,
@@ -488,7 +491,7 @@ export function ShipmentsPage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search shipments... (e.g., CA, Dallas, FedEx, In Transit)"
+          placeholder="Search by Load ID, PRO#, Reference, City, Carrier, Company..."
           className="w-full pl-12 pr-12 py-4 text-lg border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
           autoFocus
         />

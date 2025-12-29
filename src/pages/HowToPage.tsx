@@ -2,8 +2,9 @@ import { useState } from 'react';
 import {
   Book, Search, ChevronRight, ChevronDown,
   LayoutDashboard, Truck, BarChart3,
-  Building2, Settings, Bell, BookOpen
+  Building2, Settings, Bell, BookOpen, MessageCircle
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   OverviewContent,
   NavigationContent,
@@ -30,17 +31,21 @@ import {
   UserManagementContent,
   ImpersonationContent,
   NotificationCenterContent,
-  AlertTypesContent
+  AlertTypesContent,
+  ContactSupportContent,
+  FAQContent
 } from './HowToContent';
 
 interface DocSection {
   id: string;
   title: string;
   icon: React.ReactNode;
+  adminOnly?: boolean;
   subsections: {
     id: string;
     title: string;
     content: React.ReactNode;
+    adminOnly?: boolean;
   }[];
 }
 
@@ -95,6 +100,7 @@ function PrevNextButton({
 }
 
 export function HowToPage() {
+  const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<string[]>(['getting-started']);
   const [activeSection, setActiveSection] = useState('getting-started');
@@ -116,15 +122,16 @@ export function HowToPage() {
     }
   };
 
-  const docSections: DocSection[] = [
+  const allDocSections: DocSection[] = [
     {
       id: 'getting-started',
       title: 'Getting Started',
       icon: <BookOpen className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'overview', title: 'Dashboard Overview', content: <OverviewContent /> },
-        { id: 'navigation', title: 'Navigation Guide', content: <NavigationContent /> },
-        { id: 'customer-switching', title: 'Switching Customers', content: <CustomerSwitchingContent /> },
+        { id: 'navigation', title: 'Navigation Guide', content: <NavigationContent isAdmin={isAdmin} /> },
+        { id: 'customer-switching', title: 'Switching Customers', content: <CustomerSwitchingContent isAdmin={isAdmin} /> },
         { id: 'date-ranges', title: 'Using Date Ranges', content: <DateRangesContent /> },
       ]
     },
@@ -132,6 +139,7 @@ export function HowToPage() {
       id: 'dashboard',
       title: 'Dashboard',
       icon: <LayoutDashboard className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'metrics', title: 'Understanding Metrics', content: <MetricsContent /> },
         { id: 'widgets', title: 'Dashboard Widgets', content: <WidgetsContent /> },
@@ -143,6 +151,7 @@ export function HowToPage() {
       id: 'shipments',
       title: 'Shipments',
       icon: <Truck className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'viewing', title: 'Viewing Shipments', content: <ViewingShipmentsContent /> },
         { id: 'searching', title: 'Smart Search', content: <SearchingContent /> },
@@ -155,6 +164,7 @@ export function HowToPage() {
       id: 'analytics',
       title: 'Analytics & Reports',
       icon: <BarChart3 className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'analytics-hub', title: 'Analytics Hub', content: <AnalyticsHubContent /> },
         { id: 'ai-studio', title: 'AI Report Studio', content: <AIStudioContent /> },
@@ -166,6 +176,7 @@ export function HowToPage() {
       id: 'carriers',
       title: 'Carriers',
       icon: <Building2 className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'carrier-performance', title: 'Carrier Performance', content: <CarrierPerformanceContent /> },
         { id: 'carrier-comparison', title: 'Comparing Carriers', content: <CarrierComparisonContent /> },
@@ -175,6 +186,7 @@ export function HowToPage() {
       id: 'admin',
       title: 'Admin Features',
       icon: <Settings className="w-5 h-5" />,
+      adminOnly: true,
       subsections: [
         { id: 'customer-profiles', title: 'Customer Intelligence Profiles', content: <CustomerProfilesContent /> },
         { id: 'knowledge-base', title: 'Knowledge Base', content: <KnowledgeBaseContent /> },
@@ -187,12 +199,30 @@ export function HowToPage() {
       id: 'notifications',
       title: 'Notifications',
       icon: <Bell className="w-5 h-5" />,
+      adminOnly: false,
       subsections: [
         { id: 'notification-center', title: 'Notification Center', content: <NotificationCenterContent /> },
-        { id: 'alert-types', title: 'Alert Types', content: <AlertTypesContent /> },
+        { id: 'alert-types', title: 'Alert Types', content: <AlertTypesContent isAdmin={isAdmin} /> },
+      ]
+    },
+    {
+      id: 'support',
+      title: 'Getting Help',
+      icon: <MessageCircle className="w-5 h-5" />,
+      adminOnly: false,
+      subsections: [
+        { id: 'contact-support', title: 'Contact Support', content: <ContactSupportContent /> },
+        { id: 'faq', title: 'FAQ', content: <FAQContent isAdmin={isAdmin} /> },
       ]
     },
   ];
+
+  const docSections = allDocSections
+    .filter(section => !section.adminOnly || isAdmin)
+    .map(section => ({
+      ...section,
+      subsections: section.subsections.filter(sub => !sub.adminOnly || isAdmin)
+    }));
 
   const filteredSections = searchQuery
     ? docSections.map(section => ({

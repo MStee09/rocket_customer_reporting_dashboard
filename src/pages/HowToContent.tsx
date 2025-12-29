@@ -144,7 +144,7 @@ export function OverviewContent() {
   );
 }
 
-export function NavigationContent() {
+export function NavigationContent({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Navigation Guide</h1>
@@ -186,36 +186,40 @@ export function NavigationContent() {
         </table>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Admin Navigation</h2>
-      <p className="text-gray-600 mb-4">Admin users see additional menu items:</p>
-      <div className="overflow-x-auto mb-6">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="text-left p-3 border font-semibold">Menu Item</th>
-              <th className="text-left p-3 border font-semibold">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="p-3 border"><strong>Customers</strong></td>
-              <td className="p-3 border">Manage customer intelligence profiles</td>
-            </tr>
-            <tr>
-              <td className="p-3 border"><strong>Knowledge Base</strong></td>
-              <td className="p-3 border">Upload documents and manage the AI's knowledge</td>
-            </tr>
-            <tr>
-              <td className="p-3 border"><strong>User Management</strong></td>
-              <td className="p-3 border">Add and manage user accounts</td>
-            </tr>
-            <tr>
-              <td className="p-3 border"><strong>Settings</strong></td>
-              <td className="p-3 border">System configuration and this How To guide</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {isAdmin && (
+        <>
+          <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Admin Navigation</h2>
+          <p className="text-gray-600 mb-4">As an admin, you also have access to:</p>
+          <div className="overflow-x-auto mb-6">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left p-3 border font-semibold">Menu Item</th>
+                  <th className="text-left p-3 border font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="p-3 border"><strong>Customers</strong></td>
+                  <td className="p-3 border">Manage customer intelligence profiles</td>
+                </tr>
+                <tr>
+                  <td className="p-3 border"><strong>Knowledge Base</strong></td>
+                  <td className="p-3 border">Upload documents and manage the AI's knowledge</td>
+                </tr>
+                <tr>
+                  <td className="p-3 border"><strong>User Management</strong></td>
+                  <td className="p-3 border">Add and manage user accounts</td>
+                </tr>
+                <tr>
+                  <td className="p-3 border"><strong>Settings</strong></td>
+                  <td className="p-3 border">System configuration and this How To guide</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Header Elements</h2>
       <ul className="list-disc list-inside space-y-2 text-gray-600">
@@ -227,7 +231,7 @@ export function NavigationContent() {
   );
 }
 
-export function CustomerSwitchingContent() {
+export function CustomerSwitchingContent({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Switching Customers</h1>
@@ -255,32 +259,36 @@ export function CustomerSwitchingContent() {
         to the selected customer. This persists until you switch to another customer or log out.
       </Callout>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Admin: View As Customer</h2>
-      <p className="text-gray-600 mb-4">
-        Administrators have an additional "View as" feature that lets them see the dashboard
-        exactly as a specific customer would see it.
-      </p>
+      {isAdmin && (
+        <>
+          <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Admin: View As Customer</h2>
+          <p className="text-gray-600 mb-4">
+            As an administrator, you have a "View as" feature that lets you see the dashboard
+            exactly as a specific customer would see it.
+          </p>
 
-      <Step number={1} title="Click View As">
-        Click <strong>"View as: [Customer Name]"</strong> in the header.
-      </Step>
+          <Step number={1} title="Click View As">
+            Click <strong>"View as: [Customer Name]"</strong> in the header.
+          </Step>
 
-      <Step number={2} title="See the Indicator">
-        An orange banner will appear indicating you're in "View As" mode.
-      </Step>
+          <Step number={2} title="See the Indicator">
+            An orange banner will appear indicating you're in "View As" mode.
+          </Step>
 
-      <Step number={3} title="Navigate Freely">
-        Navigate the dashboard to see exactly what the customer sees.
-      </Step>
+          <Step number={3} title="Navigate Freely">
+            Navigate the dashboard to see exactly what the customer sees.
+          </Step>
 
-      <Step number={4} title="Exit View As Mode">
-        Click <strong>"Exit"</strong> in the banner to return to admin view.
-      </Step>
+          <Step number={4} title="Exit View As Mode">
+            Click <strong>"Exit"</strong> in the banner to return to admin view.
+          </Step>
 
-      <Callout type="warning">
-        While in "View As" mode, you'll have the same permissions as that customer.
-        Some admin features may be hidden.
-      </Callout>
+          <Callout type="warning">
+            While in "View As" mode, you'll have the same permissions as that customer.
+            Some admin features may be hidden.
+          </Callout>
+        </>
+      )}
     </div>
   );
 }
@@ -1760,7 +1768,7 @@ export function NotificationCenterContent() {
   );
 }
 
-export function AlertTypesContent() {
+export function AlertTypesContent({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Alert Types</h1>
@@ -1805,11 +1813,13 @@ export function AlertTypesContent() {
               <td className="p-3 border">When a scheduled report has been sent</td>
               <td className="p-3 border"><span className="text-gray-500">Low</span></td>
             </tr>
-            <tr>
-              <td className="p-3 border"><strong>Learning Queue</strong></td>
-              <td className="p-3 border">When AI encounters unknown terms (admin only)</td>
-              <td className="p-3 border"><span className="text-gray-500">Low</span></td>
-            </tr>
+            {isAdmin && (
+              <tr>
+                <td className="p-3 border"><strong>Learning Queue</strong></td>
+                <td className="p-3 border">When AI encounters unknown terms (admin only)</td>
+                <td className="p-3 border"><span className="text-gray-500">Low</span></td>
+              </tr>
+            )}
             <tr>
               <td className="p-3 border"><strong>System</strong></td>
               <td className="p-3 border">General system announcements</td>
@@ -1840,6 +1850,160 @@ export function AlertTypesContent() {
       <Callout type="tip">
         You can customize which types of notifications you receive in your user settings.
       </Callout>
+    </div>
+  );
+}
+
+export function ContactSupportContent() {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">Contact Support</h1>
+      <p className="text-lg text-gray-600 mb-6">
+        Need help with something not covered in this guide? We're here to help!
+      </p>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Contact Options</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Email Support</h3>
+          <p className="text-gray-600">
+            Send an email to <strong>support@gorocketshipping.com</strong> and we'll
+            respond within 24 hours.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Phone Support</h3>
+          <p className="text-gray-600">
+            Call us at <strong>1-800-XXX-XXXX</strong> during business hours
+            (Monday-Friday, 8am-6pm EST).
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">When Contacting Support</h2>
+      <p className="text-gray-600 mb-4">To help us resolve your issue quickly, please include:</p>
+      <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
+        <li>Your company name</li>
+        <li>A description of the issue</li>
+        <li>Steps to reproduce the problem (if applicable)</li>
+        <li>Screenshots if helpful</li>
+        <li>The Load ID or PRO number if it's about a specific shipment</li>
+      </ul>
+
+      <Callout type="tip">
+        For urgent shipment issues, always include the Load ID so we can quickly
+        locate your shipment in the system.
+      </Callout>
+    </div>
+  );
+}
+
+export function FAQContent({ isAdmin = false }: { isAdmin?: boolean }) {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h1>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">General</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">How do I change my password?</h3>
+          <p className="text-gray-600">
+            Click your email in the top-right corner, then select "Profile" or "Settings".
+            From there you can update your password.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Why can't I see some shipments?</h3>
+          <p className="text-gray-600">
+            You can only see shipments for the customer accounts you're assigned to.
+            If you need access to additional accounts, contact your administrator.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">How far back does the data go?</h3>
+          <p className="text-gray-600">
+            The dashboard contains your complete shipment history. Use the date range
+            selector to view any time period.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Reports</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">How do I get a report emailed to me automatically?</h3>
+          <p className="text-gray-600">
+            Create or view a report, then click "Schedule" to set up recurring delivery.
+            You can choose daily, weekly, or monthly delivery.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Can I share reports with people outside my company?</h3>
+          <p className="text-gray-600">
+            Yes! Use the "Email" button to send any report to any email address. You can
+            also export to PDF and share manually.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">AI Features</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">How does the AI know about my shipments?</h3>
+          <p className="text-gray-600">
+            The AI has access to your shipment data within the system. It can answer
+            questions about your specific shipments, carriers, lanes, and trends.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Is my data used to train the AI?</h3>
+          <p className="text-gray-600">
+            No. Your shipment data is only used to answer your questions. It is not
+            used to train or improve the AI model.
+          </p>
+        </div>
+      </div>
+
+      {isAdmin && (
+        <>
+          <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Admin FAQ</h2>
+
+          <div className="space-y-4 mb-6">
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold text-gray-900 mb-2">How do I add a new user?</h3>
+              <p className="text-gray-600">
+                Go to Admin then User Management then Add User. Enter their email and assign
+                them to the appropriate customer accounts.
+              </p>
+            </div>
+
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold text-gray-900 mb-2">How do I improve AI responses for a customer?</h3>
+              <p className="text-gray-600">
+                Update their Customer Intelligence Profile with accurate business priorities,
+                terminology, and products. Also upload relevant documents to the Knowledge Base.
+              </p>
+            </div>
+
+            <div className="p-4 border rounded-lg">
+              <h3 className="font-semibold text-gray-900 mb-2">What should I do with Learning Queue items?</h3>
+              <p className="text-gray-600">
+                Review each item, add clarification or context, and either add to the
+                Knowledge Base or mark as resolved. This helps the AI learn.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

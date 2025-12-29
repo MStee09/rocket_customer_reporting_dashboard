@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
-import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, ChevronRight, ChevronDown } from 'lucide-react';
+import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, ChevronRight, ChevronDown, TrendingUp, TrendingDown, MapPin, BarChart3 } from 'lucide-react';
 import { StateData } from '../../hooks/useDashboardData';
 
 interface CostPerStateMapProps {
@@ -110,8 +110,15 @@ const ALL_REGION_COORDINATES: { [key: string]: [number, number] } = {
 
 const COLOR_SCALE = ['#10b981', '#84cc16', '#eab308', '#f97316', '#ef4444'];
 
-function generateInsights(data: StateData[], stats: { min: number; max: number; mean: number; outliers: string[] }) {
-  const insights: { type: 'warning' | 'info' | 'success'; message: string }[] = [];
+interface Insight {
+  type: 'warning' | 'info' | 'success';
+  icon: 'outlier' | 'trend' | 'region' | 'compare' | 'coverage';
+  message: string;
+  detail?: string;
+}
+
+function generateInsights(data: StateData[], stats: { min: number; max: number; mean: number; outliers: string[] }): Insight[] {
+  const insights: Insight[] = [];
 
   if (stats.outliers.length > 0) {
     const outlierData = data.filter(d => stats.outliers.includes(d.stateCode));
@@ -119,12 +126,14 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
     const percentAbove = ((avgOutlierCost - stats.mean) / stats.mean * 100).toFixed(0);
     insights.push({
       type: 'warning',
-      message: `${stats.outliers.length} outlier${stats.outliers.length > 1 ? 's' : ''}: ${stats.outliers.slice(0, 4).join(', ')}${stats.outliers.length > 4 ? '...' : ''} are ${percentAbove}% above average`,
+      icon: 'outlier',
+      message: `${stats.outliers.length} outlier${stats.outliers.length > 1 ? 's' : ''} detected`,
+      detail: `${stats.outliers.slice(0, 4).join(', ')}${stats.outliers.length > 4 ? ` +${stats.outliers.length - 4} more` : ''} are ${percentAbove}% above average`,
     });
   }
 
-  const westCoast = ['CA', 'OR', 'WA'];
-  const eastCoast = ['NY', 'NJ', 'MA', 'FL', 'GA', 'NC', 'VA'];
+  const westCoast = ['CA', 'OR', 'WA', 'BC'];
+  const eastCoast = ['NY', 'NJ', 'MA', 'FL', 'GA', 'NC', 'VA', 'ON', 'QC'];
 
   const getRegionAvg = (regions: string[]) => {
     const regionData = data.filter(d => regions.includes(d.stateCode));
@@ -136,11 +145,15 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
   const eastAvg = getRegionAvg(eastCoast);
 
   if (westAvg && eastAvg && Math.abs(westAvg - eastAvg) / stats.mean > 0.1) {
-    const higher = westAvg > eastAvg ? 'West Coast' : 'East Coast';
+    const higher = westAvg > eastAvg ? 'West' : 'East';
+    const lower = westAvg > eastAvg ? 'East' : 'West';
     const diff = Math.abs(westAvg - eastAvg);
+    const pctDiff = ((Math.max(westAvg, eastAvg) - Math.min(westAvg, eastAvg)) / Math.min(westAvg, eastAvg) * 100).toFixed(0);
     insights.push({
       type: 'info',
-      message: `Regional pattern: ${higher} $${diff.toFixed(0)} higher avg cost`,
+      icon: 'region',
+      message: `${higher} coast ${pctDiff}% higher than ${lower}`,
+      detail: `Avg difference of $${diff.toFixed(0)} per shipment`,
     });
   }
 
@@ -151,34 +164,65 @@ function generateInsights(data: StateData[], stats: { min: number; max: number; 
     const canadaAvg = canadaData.reduce((sum, d) => sum + d.avgCost, 0) / canadaData.length;
     const usAvg = usData.reduce((sum, d) => sum + d.avgCost, 0) / usData.length;
     const diff = ((canadaAvg - usAvg) / usAvg * 100).toFixed(0);
+    const diffAbs = Math.abs(canadaAvg - usAvg).toFixed(0);
     insights.push({
-      type: 'info',
-      message: `Canada avg ${Number(diff) >= 0 ? '+' : ''}${diff}% vs US avg`,
+      type: Number(diff) > 10 ? 'warning' : 'info',
+      icon: 'compare',
+      message: `Canada ${Number(diff) >= 0 ? '+' : ''}${diff}% vs US average`,
+      detail: `$${diffAbs} difference (CA: $${canadaAvg.toFixed(0)}, US: $${usAvg.toFixed(0)})`,
     });
   }
 
   const sorted = [...data].sort((a, b) => b.avgCost - a.avgCost);
   if (sorted.length >= 2) {
+    const highest = sorted[0];
+    const lowest = sorted[sorted.length - 1];
+    const highName = ALL_REGION_NAMES[highest.stateCode] || highest.stateCode;
+    const lowName = ALL_REGION_NAMES[lowest.stateCode] || lowest.stateCode;
+
     insights.push({
       type: 'warning',
-      message: `Highest: ${sorted[0].stateCode} ($${sorted[0].avgCost.toFixed(0)})`,
+      icon: 'trend',
+      message: `Highest: ${highName}`,
+      detail: `$${highest.avgCost.toFixed(0)} avg (${highest.shipmentCount.toLocaleString()} shipments)`,
     });
     insights.push({
       type: 'success',
-      message: `Lowest: ${sorted[sorted.length - 1].stateCode} ($${sorted[sorted.length - 1].avgCost.toFixed(0)})`,
+      icon: 'trend',
+      message: `Lowest: ${lowName}`,
+      detail: `$${lowest.avgCost.toFixed(0)} avg (${lowest.shipmentCount.toLocaleString()} shipments)`,
     });
   }
 
   const usCount = data.filter(d => STATE_NAMES[d.stateCode]).length;
   const caCount = data.filter(d => CANADIAN_PROVINCES[d.stateCode]).length;
-  if (usCount < 25 || caCount > 0) {
-    insights.push({
-      type: 'info',
-      message: `Coverage: ${usCount}/50 US states${caCount > 0 ? `, ${caCount}/13 provinces` : ''}`,
-    });
-  }
+  const totalShipments = data.reduce((sum, d) => sum + d.shipmentCount, 0);
+
+  insights.push({
+    type: 'info',
+    icon: 'coverage',
+    message: `${usCount}/50 US states${caCount > 0 ? `, ${caCount}/13 provinces` : ''}`,
+    detail: `${totalShipments.toLocaleString()} total shipments across ${data.length} regions`,
+  });
 
   return insights;
+}
+
+function InsightIcon({ icon, className }: { icon: Insight['icon']; className?: string }) {
+  switch (icon) {
+    case 'outlier':
+      return <AlertTriangle className={className} />;
+    case 'trend':
+      return <BarChart3 className={className} />;
+    case 'region':
+      return <MapPin className={className} />;
+    case 'compare':
+      return <TrendingUp className={className} />;
+    case 'coverage':
+      return <MapPin className={className} />;
+    default:
+      return <Lightbulb className={className} />;
+  }
 }
 
 export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
@@ -188,7 +232,8 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
   const [center, setCenter] = useState<[number, number]>([-98, 48]);
   const [showSettings, setShowSettings] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
-  const [showAIInsights, setShowAIInsights] = useState(true);
+  const [showAIInsights, setShowAIInsights] = useState(false);
+  const [highlightOutliers, setHighlightOutliers] = useState(true);
 
   const hasCanadianData = useMemo(() => {
     return data.some(d => CANADIAN_PROVINCES[d.stateCode]);
@@ -198,7 +243,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
     return new Map(data.map(d => [d.stateCode, d]));
   }, [data]);
 
-  const { colorScale, minCost, maxCost, meanCost, outliers, thresholds } = useMemo(() => {
+  const { colorScale, minCost, maxCost, meanCost, outliers, thresholds, stdDev } = useMemo(() => {
     if (data.length === 0) {
       return {
         colorScale: () => '#e2e8f0',
@@ -206,7 +251,8 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
         maxCost: 0,
         meanCost: 0,
         outliers: [] as string[],
-        thresholds: [0, 0, 0, 0, 0]
+        thresholds: [0, 0, 0, 0, 0],
+        stdDev: 0
       };
     }
 
@@ -214,6 +260,8 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
     const min = costs[0];
     const max = costs[costs.length - 1];
     const mean = costs.reduce((a, b) => a + b, 0) / costs.length;
+    const variance = costs.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) / costs.length;
+    const std = Math.sqrt(variance);
 
     const p20 = costs[Math.floor(costs.length * 0.2)] || min;
     const p40 = costs[Math.floor(costs.length * 0.4)] || min;
@@ -237,6 +285,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
       meanCost: mean,
       outliers: outlierRegions,
       thresholds: [min, p20, p40, p60, p80, max],
+      stdDev: std
     };
   }, [data]);
 
@@ -264,6 +313,12 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
     setTooltipPos({ x: event.clientX, y: event.clientY });
   };
 
+  const getPercentile = (cost: number) => {
+    const sorted = data.map(d => d.avgCost).sort((a, b) => a - b);
+    const index = sorted.findIndex(c => c >= cost);
+    return Math.round((index / sorted.length) * 100);
+  };
+
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -282,69 +337,128 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-shrink-0 px-4 py-2 bg-white border-b border-slate-200 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex-shrink-0 px-3 py-2 bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           {outliers.length > 0 && (
-            <div className="flex items-center gap-2 bg-amber-50 px-2 py-1 rounded">
-              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <div className="text-xs text-amber-800">
-                <span className="font-semibold">{outliers.length} outlier{outliers.length > 1 ? 's' : ''}</span>
-              </div>
+            <div className="flex items-center gap-1.5 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-full">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-xs font-semibold text-amber-800">
+                {outliers.length} outlier{outliers.length > 1 ? 's' : ''}
+              </span>
             </div>
           )}
 
           {insights.length > 0 && (
             <button
               onClick={() => setShowAIInsights(!showAIInsights)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all duration-200 ${
+                showAIInsights
+                  ? 'bg-amber-50 border-amber-200 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
             >
               {showAIInsights ? (
-                <ChevronDown className="w-4 h-4 text-slate-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-amber-600" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               )}
-              <Lightbulb className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-medium text-slate-600">AI Insights</span>
+              <Lightbulb className={`w-3.5 h-3.5 ${showAIInsights ? 'text-amber-500' : 'text-slate-400'}`} />
+              <span className={`text-xs font-medium ${showAIInsights ? 'text-amber-700' : 'text-slate-600'}`}>
+                AI Insights
+              </span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                showAIInsights ? 'bg-amber-200 text-amber-800' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {insights.length}
+              </span>
             </button>
           )}
         </div>
 
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className="p-1.5 rounded hover:bg-slate-100 transition-colors"
-          title="Settings"
+          className={`p-1.5 rounded-lg border transition-all duration-200 ${
+            showSettings
+              ? 'bg-slate-100 border-slate-300 shadow-inner'
+              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+          }`}
+          title="Map Settings"
         >
-          <Settings className="w-4 h-4 text-slate-500" />
+          <Settings className={`w-4 h-4 ${showSettings ? 'text-slate-700' : 'text-slate-500'}`} />
         </button>
       </div>
 
       {showSettings && (
-        <div className="flex-shrink-0 px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-4">
-          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showLabels}
-              onChange={(e) => setShowLabels(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            Show region labels
-          </label>
+        <div className="flex-shrink-0 px-4 py-3 bg-slate-50 border-b border-slate-200">
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showLabels}
+                onChange={(e) => setShowLabels(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Show state labels</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={highlightOutliers}
+                onChange={(e) => setHighlightOutliers(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Highlight outliers</span>
+            </label>
+          </div>
         </div>
       )}
 
       {showAIInsights && insights.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-2 bg-slate-50 border-b border-slate-200">
-          <div className="flex flex-wrap gap-2">
-            {insights.slice(0, 5).map((insight, i) => (
+        <div className="flex-shrink-0 px-4 py-3 bg-gradient-to-b from-amber-50 to-slate-50 border-b border-slate-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {insights.map((insight, i) => (
               <div
                 key={i}
-                className={`text-xs px-2 py-1 rounded ${
-                  insight.type === 'warning' ? 'bg-amber-100 text-amber-800' :
-                  insight.type === 'success' ? 'bg-green-100 text-green-800' :
-                  'bg-blue-100 text-blue-800'
+                className={`flex items-start gap-2 p-2.5 rounded-lg border ${
+                  insight.type === 'warning'
+                    ? 'bg-amber-50 border-amber-200'
+                    : insight.type === 'success'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-blue-50 border-blue-200'
                 }`}
               >
-                {insight.message}
+                <InsightIcon
+                  icon={insight.icon}
+                  className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                    insight.type === 'warning'
+                      ? 'text-amber-600'
+                      : insight.type === 'success'
+                      ? 'text-green-600'
+                      : 'text-blue-600'
+                  }`}
+                />
+                <div className="min-w-0">
+                  <div className={`text-xs font-medium ${
+                    insight.type === 'warning'
+                      ? 'text-amber-900'
+                      : insight.type === 'success'
+                      ? 'text-green-900'
+                      : 'text-blue-900'
+                  }`}>
+                    {insight.message}
+                  </div>
+                  {insight.detail && (
+                    <div className={`text-xs mt-0.5 ${
+                      insight.type === 'warning'
+                        ? 'text-amber-700'
+                        : insight.type === 'success'
+                        ? 'text-green-700'
+                        : 'text-blue-700'
+                    }`}>
+                      {insight.detail}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -377,7 +491,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                   const provinceCode = CANADA_NAME_TO_CODE[provinceName];
                   const regionData = provinceCode ? regionDataMap.get(provinceCode) : null;
                   const fillColor = regionData ? colorScale(regionData.avgCost) : '#e2e8f0';
-                  const isOutlier = provinceCode && outliers.includes(provinceCode);
+                  const isOutlier = provinceCode && outliers.includes(provinceCode) && highlightOutliers;
 
                   return (
                     <Geography
@@ -417,7 +531,7 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
                   const stateCode = NAME_TO_CODE[stateName];
                   const stateData = stateCode ? regionDataMap.get(stateCode) : null;
                   const fillColor = stateData ? colorScale(stateData.avgCost) : '#e2e8f0';
-                  const isOutlier = stateCode && outliers.includes(stateCode);
+                  const isOutlier = stateCode && outliers.includes(stateCode) && highlightOutliers;
 
                   return (
                     <Geography
@@ -480,42 +594,74 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
 
         {hoveredRegionData && (
           <div
-            className="fixed bg-white px-4 py-3 rounded-lg shadow-xl border border-slate-200 pointer-events-none z-50"
+            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 pointer-events-none z-50 overflow-hidden"
             style={{
               left: `${tooltipPos.x + 15}px`,
               top: `${tooltipPos.y + 15}px`,
-              maxWidth: '250px',
+              minWidth: '220px',
             }}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold text-slate-800">
-                {ALL_REGION_NAMES[hoveredRegionData.stateCode] || hoveredRegionData.stateCode}
-              </span>
-              {outliers.includes(hoveredRegionData.stateCode) && (
-                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded font-medium">
-                  Outlier
+            <div className={`px-4 py-2.5 border-b ${
+              outliers.includes(hoveredRegionData.stateCode)
+                ? 'bg-amber-50 border-amber-100'
+                : 'bg-slate-50 border-slate-100'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-slate-900">
+                  {ALL_REGION_NAMES[hoveredRegionData.stateCode] || hoveredRegionData.stateCode}
                 </span>
-              )}
+                {outliers.includes(hoveredRegionData.stateCode) && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 border border-amber-200 text-amber-800 text-xs rounded-full font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    Outlier
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                {CANADIAN_PROVINCES[hoveredRegionData.stateCode] ? 'Canada' : 'United States'}
+              </div>
             </div>
 
-            <div className="text-2xl font-bold text-slate-900 mb-1">
-              {formatCurrency(hoveredRegionData.avgCost)}
+            <div className="px-4 py-3">
+              <div className="text-3xl font-bold text-slate-900 mb-1">
+                {formatCurrency(hoveredRegionData.avgCost)}
+              </div>
+              <div className="text-sm text-slate-600">
+                {hoveredRegionData.shipmentCount.toLocaleString()} shipments
+              </div>
             </div>
 
-            <div className="text-xs text-slate-500 mb-2">
-              {hoveredRegionData.shipmentCount.toLocaleString()} shipments
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 text-xs">
-              <span className={
-                hoveredRegionData.avgCost > meanCost
-                  ? 'text-red-600 font-medium'
-                  : 'text-green-600 font-medium'
-              }>
-                {hoveredRegionData.avgCost > meanCost ? '+' : ''}
-                {((hoveredRegionData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
-              </span>
-              <span className="text-slate-500"> vs avg ({formatCurrency(meanCost)})</span>
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">vs average</span>
+                <div className="flex items-center gap-1.5">
+                  {hoveredRegionData.avgCost > meanCost ? (
+                    <TrendingUp className="w-4 h-4 text-red-500" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 text-green-500" />
+                  )}
+                  <span className={`text-sm font-semibold ${
+                    hoveredRegionData.avgCost > meanCost
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}>
+                    {hoveredRegionData.avgCost > meanCost ? '+' : ''}
+                    {((hoveredRegionData.avgCost - meanCost) / meanCost * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs text-slate-500">Percentile</span>
+                <span className="text-xs font-medium text-slate-700">
+                  {getPercentile(hoveredRegionData.avgCost)}th
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded-full"
+                  style={{ width: `${getPercentile(hoveredRegionData.avgCost)}%` }}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -523,14 +669,14 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
         <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-10">
           <button
             onClick={() => setZoom((z) => Math.min(z * 1.5, 6))}
-            className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
+            className="w-9 h-9 bg-white shadow-lg rounded-lg flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-all duration-150 hover:scale-105"
             title="Zoom In"
           >
             <Plus className="w-4 h-4 text-slate-700" />
           </button>
           <button
             onClick={() => setZoom((z) => Math.max(z / 1.5, 0.5))}
-            className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
+            className="w-9 h-9 bg-white shadow-lg rounded-lg flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-all duration-150 hover:scale-105"
             title="Zoom Out"
           >
             <Minus className="w-4 h-4 text-slate-700" />
@@ -540,48 +686,60 @@ export function CostPerStateMap({ data, isLoading }: CostPerStateMapProps) {
               setZoom(1);
               setCenter([-98, 48]);
             }}
-            className="w-8 h-8 bg-white shadow-lg rounded flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-colors"
+            className="w-9 h-9 bg-white shadow-lg rounded-lg flex items-center justify-center hover:bg-slate-50 border border-slate-200 transition-all duration-150 hover:scale-105"
             title="Reset View"
           >
             <RotateCcw className="w-4 h-4 text-slate-700" />
           </button>
         </div>
+
+        <div className="absolute top-3 left-3 text-xs text-slate-400 bg-white/80 backdrop-blur px-2 py-1 rounded">
+          Zoom: {zoom.toFixed(1)}x
+        </div>
       </div>
 
-      <div className="flex-shrink-0 px-4 py-3 border-t border-slate-200 bg-white">
+      <div className="flex-shrink-0 px-4 py-3 border-t border-slate-200 bg-gradient-to-r from-white to-slate-50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-slate-700">Avg Cost per Shipment</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">Avg Cost per Shipment</span>
+            <span className="text-xs text-slate-400">|</span>
+            <span className="text-xs text-slate-500">
+              {data.length} regions
+            </span>
+          </div>
           {noDataCount > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded bg-slate-200 border border-slate-300" />
-              <span className="text-xs text-slate-400">{noDataCount} regions no data</span>
+              <span className="text-xs text-slate-500">{noDataCount} no data</span>
             </div>
           )}
         </div>
 
-        <div className="h-3 rounded-full flex overflow-hidden shadow-inner">
+        <div className="h-4 rounded-lg flex overflow-hidden shadow-inner border border-slate-200">
           {COLOR_SCALE.map((color, i) => (
             <div
               key={i}
-              className="flex-1"
+              className="flex-1 relative group cursor-help"
               style={{ backgroundColor: color }}
               title={`${formatCurrency(thresholds[i])} - ${formatCurrency(thresholds[i + 1] || maxCost)}`}
-            />
+            >
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+            </div>
           ))}
         </div>
 
         <div className="flex justify-between mt-2">
           <div className="text-left">
-            <div className="text-xs font-medium text-slate-700">{formatCurrency(minCost)}</div>
-            <div className="text-xs text-slate-400">Low</div>
+            <div className="text-sm font-semibold text-slate-800">{formatCurrency(minCost)}</div>
+            <div className="text-xs text-slate-400">Min</div>
           </div>
           <div className="text-center">
-            <div className="text-xs font-medium text-slate-700">{formatCurrency(meanCost)}</div>
+            <div className="text-sm font-semibold text-slate-800">{formatCurrency(meanCost)}</div>
             <div className="text-xs text-slate-400">Avg</div>
           </div>
           <div className="text-right">
-            <div className="text-xs font-medium text-slate-700">{formatCurrency(maxCost)}</div>
-            <div className="text-xs text-slate-400">High</div>
+            <div className="text-sm font-semibold text-slate-800">{formatCurrency(maxCost)}</div>
+            <div className="text-xs text-slate-400">Max</div>
           </div>
         </div>
       </div>

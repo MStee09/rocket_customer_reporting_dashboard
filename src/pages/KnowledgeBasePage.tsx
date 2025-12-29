@@ -21,6 +21,7 @@ import {
   FilePlus,
   Brain,
   Lightbulb,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -43,6 +44,8 @@ import { AIIntelligence } from '../components/knowledge/AIIntelligence';
 import { CustomerProfilesTab } from '../components/knowledge-base/CustomerProfilesTab';
 import { LearningQueueTab } from '../components/knowledge-base/LearningQueueTab';
 import { getNotificationCounts } from '../services/learningNotificationService';
+import { AIAnalyticsDashboard } from '../components/admin/AIAnalyticsDashboard';
+import { SchemaChangeAlert } from '../components/admin/SchemaChangeAlert';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -544,11 +547,12 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
 export function KnowledgeBasePage() {
   const { user, customers, isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles' | 'learning'>(() => {
+  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'documents') return 'documents';
     if (tab === 'profiles') return 'profiles';
     if (tab === 'learning') return 'learning';
+    if (tab === 'analytics') return 'analytics';
     return 'intelligence';
   });
   const [pendingCount, setPendingCount] = useState(0);
@@ -562,7 +566,7 @@ export function KnowledgeBasePage() {
   const [showInactive, setShowInactive] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
-  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles' | 'learning') => {
+  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics') => {
     setActiveTab(tab);
     if (tab === 'intelligence') {
       setSearchParams({});
@@ -735,6 +739,17 @@ export function KnowledgeBasePage() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => handleTabChange('analytics')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'analytics'
+              ? 'border-rocket-600 text-rocket-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Analytics
+        </button>
       </div>
 
       {activeTab === 'intelligence' ? (
@@ -743,6 +758,11 @@ export function KnowledgeBasePage() {
         <CustomerProfilesTab />
       ) : activeTab === 'learning' ? (
         <LearningQueueTab />
+      ) : activeTab === 'analytics' ? (
+        <div className="space-y-6">
+          <SchemaChangeAlert />
+          <AIAnalyticsDashboard />
+        </div>
       ) : (
         <>
           <div className="flex items-center justify-end gap-2">

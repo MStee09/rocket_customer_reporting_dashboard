@@ -415,7 +415,7 @@ export function AvgCostPerUnitPage() {
             onClick={() => updateDateRange('last30')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               datePreset === 'last30'
-                ? 'bg-rocket-orange text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -425,7 +425,7 @@ export function AvgCostPerUnitPage() {
             onClick={() => updateDateRange('last90')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               datePreset === 'last90'
-                ? 'bg-rocket-orange text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -435,7 +435,7 @@ export function AvgCostPerUnitPage() {
             onClick={() => updateDateRange('last6months')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               datePreset === 'last6months'
-                ? 'bg-rocket-orange text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -445,7 +445,7 @@ export function AvgCostPerUnitPage() {
             onClick={() => updateDateRange('lastyear')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               datePreset === 'lastyear'
-                ? 'bg-rocket-orange text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
@@ -455,7 +455,7 @@ export function AvgCostPerUnitPage() {
             onClick={() => setDatePreset('custom')}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               datePreset === 'custom'
-                ? 'bg-rocket-orange text-white'
+                ? 'bg-rocket-600 text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >

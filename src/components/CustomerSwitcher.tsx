@@ -28,19 +28,19 @@ export function CustomerSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 bg-white border border-charcoal-200 rounded-lg hover:bg-charcoal-50 transition-colors"
       >
-        <Building2 className="w-4 h-4 text-rocket-navy" />
-        <span className="text-sm font-medium text-slate-700 max-w-[150px] truncate">
+        <Building2 className="w-4 h-4 text-charcoal-800" />
+        <span className="text-sm font-medium text-charcoal-700 max-w-[150px] truncate">
           {selectedCustomer?.customer_name || 'Select Customer'}
         </span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-charcoal-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+        <div className="absolute right-0 mt-2 w-64 bg-white border border-charcoal-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
           <div className="p-2">
-            <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">
+            <div className="px-3 py-2 text-xs font-semibold text-charcoal-500 uppercase">
               Switch Customer
             </div>
             {customers.map((customer) => (
@@ -52,8 +52,8 @@ export function CustomerSwitcher() {
                 }}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                   customer.customer_id === selectedCustomerId
-                    ? 'bg-rocket-orange text-white font-medium'
-                    : 'text-slate-700 hover:bg-slate-100'
+                    ? 'bg-rocket-600 text-white font-medium'
+                    : 'text-charcoal-700 hover:bg-charcoal-100'
                 }`}
               >
                 <div className="flex items-center gap-2">

@@ -74,22 +74,22 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rocket-navy-dark via-rocket-navy to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-charcoal-900 via-charcoal-800 to-charcoal-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 border-2 border-rocket-orange/20">
+        <div className="bg-white rounded-xl shadow-2xl p-8 border border-charcoal-200">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-rocket-orange rounded-full mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-rocket-gradient rounded-2xl mb-4 shadow-lg">
               <Rocket className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Rocket Shipping</h1>
-            <p className="text-slate-600">
+            <h1 className="text-3xl font-bold text-charcoal-800 mb-2">Rocket Shipping</h1>
+            <p className="text-charcoal-600">
               {isSignUp ? 'Create your account' : 'Freight & Logistics Reporting'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-charcoal-700 mb-2">
                 Email Address
               </label>
               <input
@@ -97,14 +97,14 @@ export function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-orange focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-charcoal-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent transition-all"
                 placeholder="your@email.com"
                 disabled={isLoading}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-charcoal-700 mb-2">
                 Password
               </label>
               <div className="relative">
@@ -113,14 +113,14 @@ export function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-orange focus:border-transparent transition-all pr-12"
+                  className="w-full px-4 py-3 border border-charcoal-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent transition-all pr-12"
                   placeholder="Enter your password"
                   disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 hover:text-charcoal-600"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -134,10 +134,10 @@ export function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 text-rocket-orange border-slate-300 rounded focus:ring-rocket-orange"
+                className="w-4 h-4 text-rocket-600 border-charcoal-300 rounded focus:ring-rocket-500"
                 disabled={isLoading}
               />
-              <label htmlFor="remember" className="ml-2 text-sm text-slate-600">
+              <label htmlFor="remember" className="ml-2 text-sm text-charcoal-600">
                 Remember me
               </label>
             </div>
@@ -151,7 +151,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-charcoal-800 hover:bg-charcoal-800-light disabled:bg-slate-400 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-rocket-600 hover:bg-rocket-700 disabled:bg-charcoal-300 text-white font-semibold py-3 rounded-lg transition-all duration-150 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
             >
               {isLoading ? (
                 <>
@@ -171,7 +171,7 @@ export function LoginPage() {
                 setIsSignUp(!isSignUp);
                 setError('');
               }}
-              className="text-sm text-rocket-orange hover:text-orange-600 font-medium transition-colors"
+              className="text-sm text-rocket-600 hover:text-rocket-700 font-medium transition-colors"
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>

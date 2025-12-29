@@ -262,7 +262,7 @@ export function UserManagementPage() {
                           <button
                             onClick={() => saveUser(user.id)}
                             disabled={isSaving}
-                            className="flex items-center gap-1 px-3 py-1 bg-charcoal-800 hover:bg-charcoal-800-light text-white text-sm rounded transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 px-3 py-1 bg-charcoal-800 hover:bg-charcoal-700 text-white text-sm rounded transition-colors disabled:opacity-50"
                           >
                             {isSaving ? (
                               <Loader2 className="w-3 h-3 animate-spin" />

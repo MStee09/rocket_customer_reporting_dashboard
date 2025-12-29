@@ -195,7 +195,7 @@ export function SettingsPage() {
               <button
                 type="submit"
                 disabled={isChangingPassword}
-                className="flex items-center gap-2 px-6 py-2 bg-charcoal-800 hover:bg-charcoal-800-light text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2 bg-charcoal-800 hover:bg-charcoal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isChangingPassword ? (
                   <>

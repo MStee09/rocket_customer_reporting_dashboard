@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Sparkles,
   FileText,
-  Clock,
   Trash2,
   Download,
   Save,
@@ -19,7 +18,6 @@ import {
   LayoutDashboard,
   Search,
   ArrowUpDown,
-  Eye,
   TrendingUp,
   Table2,
   FolderOpen,
@@ -43,10 +41,12 @@ import {
   getDocumentsForContext,
   buildKnowledgeContext,
 } from '../services/knowledgeBaseService';
-import { AIReportDefinition, ExecutedReportData, DateRangeType } from '../types/aiReport';
+import { AIReportDefinition, ExecutedReportData, DateRangeType, TableSection } from '../types/aiReport';
 import { supabase } from '../lib/supabase';
 import { DateRange } from '../components/reports/studio/DateRangeSelector';
 import { exportReportToPDF } from '../utils/pdfExport';
+import { ExportMenu } from '../components/ui/ExportMenu';
+import { ColumnConfig } from '../services/exportService';
 
 const SUGGESTIONS = [
   'Show me total spend by transportation mode',
@@ -54,6 +54,78 @@ const SUGGESTIONS = [
   'Analyze my top shipping lanes by volume',
   'Compare costs across different equipment types',
 ];
+
+function generateColumnsFromData(data: Record<string, unknown>[]): ColumnConfig[] {
+  if (!data.length) return [];
+
+  const firstRow = data[0];
+  return Object.keys(firstRow).map(key => {
+    const value = firstRow[key];
+    let format: ColumnConfig['format'] = 'text';
+
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.includes('cost') || lowerKey.includes('spend') || lowerKey.includes('revenue') || lowerKey.includes('charge') || lowerKey.includes('retail')) {
+      format = 'currency';
+    } else if (lowerKey.includes('date')) {
+      format = 'date';
+    } else if (lowerKey.includes('percent') || lowerKey.includes('rate') || lowerKey.includes('margin')) {
+      format = 'percent';
+    } else if (typeof value === 'number') {
+      format = 'number';
+    }
+
+    return {
+      key,
+      header: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      format
+    };
+  });
+}
+
+function extractExportableData(
+  report: AIReportDefinition | null,
+  executedData: ExecutedReportData | null
+): { data: Record<string, unknown>[]; columns: ColumnConfig[] } {
+  if (!report || !executedData) return { data: [], columns: [] };
+
+  const tableSections = report.sections
+    .map((section, index) => ({ section, index }))
+    .filter(({ section }) => section.type === 'table');
+
+  if (tableSections.length === 0) {
+    const chartSections = report.sections
+      .map((section, index) => ({ section, index }))
+      .filter(({ section }) => section.type === 'chart' || section.type === 'category-grid');
+
+    for (const { index } of chartSections) {
+      const sectionData = executedData.sections.find(s => s.sectionIndex === index);
+      if (sectionData?.data && Array.isArray(sectionData.data) && sectionData.data.length > 0) {
+        const data = sectionData.data as Record<string, unknown>[];
+        return { data, columns: generateColumnsFromData(data) };
+      }
+    }
+
+    return { data: [], columns: [] };
+  }
+
+  const { section, index } = tableSections[0];
+  const tableSection = section as TableSection;
+  const sectionData = executedData.sections.find(s => s.sectionIndex === index);
+
+  if (!sectionData?.data || !Array.isArray(sectionData.data)) {
+    return { data: [], columns: [] };
+  }
+
+  const data = sectionData.data as Record<string, unknown>[];
+
+  const columns: ColumnConfig[] = tableSection.config.columns.map(col => ({
+    key: col.field,
+    header: col.label,
+    format: col.format === 'string' ? 'text' : (col.format || 'text')
+  }));
+
+  return { data, columns };
+}
 
 type ActiveTab = 'create' | 'library';
 type SortOption = 'newest' | 'oldest' | 'name';
@@ -474,6 +546,12 @@ export function AIReportStudioPage() {
       }
     });
   }, [savedReports, searchQuery, sortBy]);
+
+  const exportableData = useMemo(() => {
+    return extractExportableData(currentReport, executedData);
+  }, [currentReport, executedData]);
+
+  const hasExportableData = exportableData.data.length > 0;
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
@@ -973,8 +1051,17 @@ export function AIReportStudioPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                       >
                         <Download className="w-4 h-4" />
-                        <span className="hidden sm:inline">Export PDF</span>
+                        <span className="hidden sm:inline">PDF</span>
                       </button>
+                      {hasExportableData && (
+                        <ExportMenu
+                          data={exportableData.data}
+                          columns={exportableData.columns}
+                          filename={`ai-report-${editableTitle || 'export'}-${new Date().toISOString().split('T')[0]}`}
+                          title={editableTitle || 'AI Report'}
+                          formats={['csv', 'excel']}
+                        />
+                      )}
                       <button
                         onClick={handleAddToDashboardClick}
                         disabled={dashboardAddSuccess || isSaving}

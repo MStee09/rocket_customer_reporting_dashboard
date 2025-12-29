@@ -327,7 +327,7 @@ export function CarriersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -376,8 +376,8 @@ export function CarriersPage() {
                   {summaryMetrics.active_carriers}
                 </p>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Truck className="w-6 h-6 text-blue-600" />
+              <div className="p-3 bg-rocket-100 rounded-lg">
+                <Truck className="w-6 h-6 text-rocket-600" />
               </div>
             </div>
           </Card>

@@ -82,9 +82,9 @@ export function AnalyticsPage() {
       description: 'Build reports by selecting columns, filters, groupings and visualizations.',
       icon: FileText,
       path: '/custom-reports',
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-      hoverBg: 'hover:border-blue-200',
+      iconBg: 'bg-rocket-100',
+      iconColor: 'text-rocket-600',
+      hoverBg: 'hover:border-rocket-200',
     },
     {
       title: 'Widget Library',
@@ -184,7 +184,7 @@ export function AnalyticsPage() {
                       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                         report.type === 'AI Report'
                           ? 'bg-amber-50 text-amber-700'
-                          : 'bg-blue-50 text-blue-700'
+                          : 'bg-rocket-50 text-rocket-700'
                       }`}
                     >
                       {report.type}

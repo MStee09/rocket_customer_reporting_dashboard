@@ -455,12 +455,12 @@ export function AIReportStudioPage() {
                     </div>
                     <div className="flex-1 overflow-y-auto p-4">
                       {widgetContext && (
-                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                        <div className="mb-4 p-3 bg-rocket-50 border border-rocket-200 rounded-lg flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm text-blue-700">Analyzing: <span className="font-medium">{widgetContext.title}</span></span>
+                            <Sparkles className="w-4 h-4 text-rocket-600" />
+                            <span className="text-sm text-rocket-700">Analyzing: <span className="font-medium">{widgetContext.title}</span></span>
                           </div>
-                          <button onClick={() => setWidgetContext(null)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                          <button onClick={() => setWidgetContext(null)} className="text-rocket-500 hover:text-rocket-700 transition-colors">
                             <X className="w-4 h-4" />
                           </button>
                         </div>
@@ -508,7 +508,7 @@ export function AIReportStudioPage() {
                     {isExecuting && (
                       <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
                         <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg">
-                          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                          <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
                           <span className="text-gray-700">Loading data...</span>
                         </div>
                       </div>
@@ -532,7 +532,7 @@ export function AIReportStudioPage() {
       {isLoadingFromUrl && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex items-center gap-3 bg-white px-6 py-4 rounded-xl shadow-lg">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
             <span className="text-gray-700">Loading report...</span>
           </div>
         </div>

@@ -563,7 +563,7 @@ export function CustomReportViewPage() {
         </div>
       ) : (
         <div data-report-content>
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-xl border border-blue-500 p-8 mb-6 text-white">
+          <div className="bg-gradient-to-br from-charcoal-700 to-charcoal-800 rounded-xl shadow-xl border border-charcoal-600 p-8 mb-6 text-white">
             <div className="flex items-center gap-3 mb-2">
               <DollarSign className="w-8 h-8" />
               <h2 className="text-xl font-semibold">Overall Average Cost Per Unit</h2>

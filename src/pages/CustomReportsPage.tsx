@@ -138,7 +138,7 @@ export function CustomReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {reports.map((report, index) => {
             const accentColors = [
-              'bg-blue-500',
+              'bg-rocket-500',
               'bg-emerald-500',
               'bg-amber-500',
               'bg-rose-500',
@@ -160,7 +160,7 @@ export function CustomReportsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-medium text-gray-900 truncate group-hover:text-rocket-600 transition-colors">
                         {report.name}
                       </h3>
                       <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
@@ -199,14 +199,14 @@ export function CustomReportsPage() {
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/custom-reports/${report.id}`); }}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-xs text-rocket-600 hover:text-rocket-700 font-medium"
                       >
                         View
                       </button>
                       <div className="flex-1" />
                       <button
                         onClick={(e) => { e.stopPropagation(); setSchedulingReport({ id: report.id, name: report.name }); }}
-                        className="p-1 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                        className="p-1 text-gray-400 hover:text-rocket-600 rounded transition-colors"
                         title="Schedule this report"
                       >
                         <Calendar className="w-3.5 h-3.5" />

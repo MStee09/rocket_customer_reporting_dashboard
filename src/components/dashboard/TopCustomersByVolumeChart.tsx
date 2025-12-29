@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card } from '../ui/Card';
+import { chartColors, rechartsTheme } from '../../config/chartTheme';
 
 interface CustomerVolumeData {
   name: string;
@@ -25,7 +26,7 @@ export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVol
     return (
       <Card variant="elevated" padding="lg">
         <div className="flex items-center justify-center h-[350px]">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <Loader2 className="w-8 h-8 text-rocket-600 animate-spin" />
         </div>
       </Card>
     );
@@ -35,10 +36,10 @@ export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVol
     return (
       <Card variant="elevated" padding="lg">
         <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl font-bold text-slate-800">Top 10 Customers by Volume</h2>
+          <BarChart3 className="w-5 h-5 text-rocket-600" />
+          <h2 className="text-xl font-bold text-charcoal-800">Top 10 Customers by Volume</h2>
         </div>
-        <div className="flex items-center justify-center h-[350px] text-slate-500">
+        <div className="flex items-center justify-center h-[350px] text-charcoal-500">
           No customer data available
         </div>
       </Card>
@@ -48,16 +49,24 @@ export function TopCustomersByVolumeChart({ data, isLoading }: TopCustomersByVol
   return (
     <Card variant="elevated" padding="lg">
       <div className="flex items-center gap-2 mb-4">
-        <BarChart3 className="w-5 h-5 text-blue-600" />
-        <h2 className="text-xl font-bold text-slate-800">Top 10 Customers by Volume</h2>
+        <BarChart3 className="w-5 h-5 text-rocket-600" />
+        <h2 className="text-xl font-bold text-charcoal-800">Top 10 Customers by Volume</h2>
       </div>
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={data} margin={{ bottom: 80 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={120} fontSize={10} interval={0} />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="count" fill="#3b82f6" />
+          <CartesianGrid {...rechartsTheme.cartesianGrid} />
+          <XAxis
+            dataKey="name"
+            angle={-45}
+            textAnchor="end"
+            height={120}
+            fontSize={10}
+            interval={0}
+            {...rechartsTheme.xAxis}
+          />
+          <YAxis {...rechartsTheme.yAxis} />
+          <Tooltip contentStyle={rechartsTheme.tooltip.contentStyle} />
+          <Bar dataKey="count" fill={chartColors.primary[0]} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>

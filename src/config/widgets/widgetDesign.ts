@@ -1,19 +1,19 @@
 import { WidgetCategory, WidgetSize } from './widgetTypes';
 
 export const categoryColors: Record<WidgetCategory, string> = {
-  volume: 'bg-blue-500',
+  volume: 'bg-rocket-500',
   financial: 'bg-emerald-500',
-  geographic: 'bg-indigo-500',
-  performance: 'bg-purple-500',
-  breakdown: 'bg-cyan-500',
-  customers: 'bg-slate-500',
+  geographic: 'bg-charcoal-600',
+  performance: 'bg-coral-500',
+  breakdown: 'bg-teal-500',
+  customers: 'bg-rocket-400',
 };
 
 export const gradients = {
-  blue: 'from-blue-600 to-blue-700',
+  orange: 'from-rocket-500 to-rocket-600',
   green: 'from-emerald-600 to-emerald-700',
-  purple: 'from-purple-600 to-purple-700',
-  orange: 'from-orange-500 to-orange-600',
+  coral: 'from-coral-500 to-coral-600',
+  charcoal: 'from-charcoal-600 to-charcoal-700',
 };
 
 export const sizeToColSpan: Record<WidgetSize, number> = {
@@ -30,13 +30,5 @@ export const sizeToMinHeight: Record<WidgetSize, string> = {
   full: 'min-h-[400px]',
 };
 
-export const chartColors = [
-  '#3b82f6',
-  '#10b981',
-  '#f59e0b',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#f97316',
-  '#6366f1',
-];
+import { chartColors as brandChartColors } from '../chartTheme';
+export const chartColors = brandChartColors.primary;

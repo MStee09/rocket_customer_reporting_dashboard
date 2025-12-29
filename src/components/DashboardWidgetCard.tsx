@@ -50,7 +50,8 @@ const iconMap: Record<string, React.ElementType> = {
   Percent,
 };
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+import { chartColors } from '../config/chartTheme';
+const COLORS = chartColors.primary;
 
 export function DashboardWidgetCard({
   widget,
@@ -351,7 +352,7 @@ export function DashboardWidgetCard({
                     borderRadius: '8px',
                   }}
                 />
-                <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={2 * scaleFactor} dot={{ r: 4 * scaleFactor }} />
+                <Line type="monotone" dataKey="total" stroke={chartColors.primary[0]} strokeWidth={2 * scaleFactor} dot={{ r: 4 * scaleFactor }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -379,7 +380,7 @@ export function DashboardWidgetCard({
                     borderRadius: '8px',
                   }}
                 />
-                <Bar dataKey={Object.keys(data.data[0])[1]} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={Object.keys(data.data[0])[1]} fill={chartColors.primary[0]} radius={[4, 4, 0, 0]} />
               </RechartsBarChart>
             </ResponsiveContainer>
           </div>

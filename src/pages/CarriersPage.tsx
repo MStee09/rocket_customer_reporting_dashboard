@@ -45,10 +45,8 @@ interface SummaryMetrics {
   prev_on_time_pct: number;
 }
 
-const CHART_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16',
-];
+import { chartColors } from '../config/chartTheme';
+const CHART_COLORS = chartColors.primary;
 
 type SortField = 'carrier_name' | 'shipment_count' | 'total_spend' | 'avg_cost' | 'market_share' | 'trend_pct';
 type SortDirection = 'asc' | 'desc';

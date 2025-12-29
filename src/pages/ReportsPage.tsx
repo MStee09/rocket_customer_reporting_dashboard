@@ -24,7 +24,8 @@ interface ReportData {
   statusDistribution: any[];
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+import { chartColors } from '../config/chartTheme';
+const COLORS = chartColors.primary;
 
 export function ReportsPage() {
   const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
@@ -136,7 +137,7 @@ export function ReportsPage() {
         {showCustomerComparison && (
           <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <BarChart3 className="w-5 h-5 text-rocket-600" />
               <h2 className="text-xl font-bold text-slate-800">Top 10 Customers by Volume</h2>
             </div>
             <ResponsiveContainer width="100%" height={350}>
@@ -145,7 +146,7 @@ export function ReportsPage() {
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={120} fontSize={10} interval={0} />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="count" fill="#3b82f6" />
+                <Bar dataKey="count" fill={chartColors.primary[0]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -153,7 +154,7 @@ export function ReportsPage() {
 
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-green-600" />
+            <TrendingUp className="w-5 h-5 text-rocket-600" />
             <h2 className="text-xl font-bold text-slate-800">Top 10 Carriers by Volume</h2>
           </div>
           <ResponsiveContainer width="100%" height={350}>
@@ -162,7 +163,7 @@ export function ReportsPage() {
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={120} fontSize={10} interval={0} />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="count" fill="#10b981" />
+              <Bar dataKey="count" fill={chartColors.primary[1]} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

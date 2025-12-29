@@ -1,46 +1,37 @@
+import { chartColors as brandChartColors } from '../../../config/chartTheme';
+
 export const reportColors = {
-  blue: { bg: '#3B82F6', text: 'white', light: '#EFF6FF', border: '#BFDBFE' },
+  orange: { bg: '#f97316', text: 'white', light: '#fff7ed', border: '#fed7aa' },
+  gold: { bg: '#fbbf24', text: 'white', light: '#fffbeb', border: '#fde68a' },
+  coral: { bg: '#fb7185', text: 'white', light: '#fff1f2', border: '#fecdd3' },
+  charcoal: { bg: '#475569', text: 'white', light: '#f8fafc', border: '#cbd5e1' },
   green: { bg: '#22C55E', text: 'white', light: '#F0FDF4', border: '#BBF7D0' },
-  orange: { bg: '#F59E0B', text: 'white', light: '#FFFBEB', border: '#FED7AA' },
-  yellow: { bg: '#EAB308', text: 'white', light: '#FEFCE8', border: '#FEF08A' },
-  purple: { bg: '#8B5CF6', text: 'white', light: '#FAF5FF', border: '#DDD6FE' },
-  red: { bg: '#EF4444', text: 'white', light: '#FEF2F2', border: '#FECACA' },
+  amber: { bg: '#f59e0b', text: 'white', light: '#fffbeb', border: '#fed7aa' },
   teal: { bg: '#14B8A6', text: 'white', light: '#F0FDFA', border: '#99F6E4' },
-  gray: { bg: '#6B7280', text: 'white', light: '#F9FAFB', border: '#E5E7EB' },
+  red: { bg: '#EF4444', text: 'white', light: '#FEF2F2', border: '#FECACA' },
   slate: { bg: '#64748B', text: 'white', light: '#F8FAFC', border: '#E2E8F0' },
-  emerald: { bg: '#10B981', text: 'white', light: '#ECFDF5', border: '#A7F3D0' },
+  blue: { bg: '#0ea5e9', text: 'white', light: '#f0f9ff', border: '#bae6fd' },
   cyan: { bg: '#06B6D4', text: 'white', light: '#ECFEFF', border: '#A5F3FC' },
-  rose: { bg: '#F43F5E', text: 'white', light: '#FFF1F2', border: '#FECDD3' },
+  emerald: { bg: '#10B981', text: 'white', light: '#ECFDF5', border: '#A7F3D0' },
 } as const;
 
 export type ReportColor = keyof typeof reportColors;
 
-export const chartColors = [
-  '#3B82F6',
-  '#22C55E',
-  '#F59E0B',
-  '#14B8A6',
-  '#EF4444',
-  '#8B5CF6',
-  '#EC4899',
-  '#6366F1',
-  '#10B981',
-  '#06B6D4',
-];
+export const chartColors = brandChartColors.primary;
 
 export const colorOrder: ReportColor[] = [
-  'blue',
-  'green',
   'orange',
+  'gold',
+  'coral',
+  'charcoal',
+  'amber',
+  'green',
   'teal',
-  'red',
-  'purple',
+  'slate',
+  'blue',
   'cyan',
   'emerald',
-  'yellow',
-  'rose',
-  'slate',
-  'gray',
+  'red',
 ];
 
 export function assignColors(count: number): string[] {

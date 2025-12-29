@@ -501,7 +501,7 @@ export function AvgCostPerUnitPage() {
         </div>
       ) : (
         <>
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-xl border border-blue-500 p-8 mb-6 text-white">
+          <div className="bg-gradient-to-br from-rocket-500 to-rocket-600 rounded-xl shadow-xl border border-rocket-400 p-8 mb-6 text-white">
             <div className="flex items-center gap-3 mb-2">
               <DollarSign className="w-8 h-8" />
               <h2 className="text-xl font-semibold">Overall Average Cost Per Unit</h2>
@@ -714,9 +714,9 @@ export function AvgCostPerUnitPage() {
                   <Line
                     type="monotone"
                     dataKey="Overall"
-                    stroke="#8b5cf6"
+                    stroke="#475569"
                     strokeWidth={3}
-                    dot={{ fill: '#8b5cf6', r: 4 }}
+                    dot={{ fill: '#475569', r: 4 }}
                     activeDot={{ r: 6 }}
                     name="Overall"
                   />

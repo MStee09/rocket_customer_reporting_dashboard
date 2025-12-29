@@ -760,9 +760,9 @@ export function CustomReportViewPage() {
                   <Line
                     type="monotone"
                     dataKey="Overall"
-                    stroke="#8b5cf6"
+                    stroke="#475569"
                     strokeWidth={3}
-                    dot={{ fill: '#8b5cf6', r: 4 }}
+                    dot={{ fill: '#475569', r: 4 }}
                     activeDot={{ r: 6 }}
                     name="Overall"
                   />

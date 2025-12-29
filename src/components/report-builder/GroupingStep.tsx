@@ -8,10 +8,8 @@ interface GroupingStepProps {
   updateState: (updates: Partial<ReportBuilderState>) => void;
 }
 
-const PRESET_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#64748b'
-];
+import { chartColors } from '../../config/chartTheme';
+const PRESET_COLORS = chartColors.primary;
 
 export function GroupingStep({ state, updateState }: GroupingStepProps) {
   const [newCategoryName, setNewCategoryName] = useState('');

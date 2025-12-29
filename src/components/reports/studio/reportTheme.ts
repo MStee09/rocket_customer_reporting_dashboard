@@ -1,4 +1,6 @@
-export type ReportTheme = 'blue' | 'red' | 'green' | 'orange' | 'purple' | 'teal' | 'slate';
+import { chartColors } from '../../../config/chartTheme';
+
+export type ReportTheme = 'orange' | 'red' | 'green' | 'gold' | 'coral' | 'teal' | 'slate';
 
 export const themes: Record<ReportTheme, {
   gradient: string;
@@ -7,12 +9,19 @@ export const themes: Record<ReportTheme, {
   text: string;
   chartColors: string[];
 }> = {
-  blue: {
-    gradient: 'bg-gradient-to-br from-blue-500 to-blue-700',
-    solid: 'bg-blue-500',
-    light: 'bg-blue-100 text-blue-800',
+  orange: {
+    gradient: 'bg-gradient-to-br from-rocket-500 to-rocket-700',
+    solid: 'bg-rocket-500',
+    light: 'bg-rocket-100 text-rocket-800',
     text: 'text-white',
-    chartColors: ['#3B82F6', '#60A5FA', '#93C5FD', '#2563EB', '#1D4ED8'],
+    chartColors: chartColors.primary,
+  },
+  gold: {
+    gradient: 'bg-gradient-to-br from-rocket-400 to-rocket-600',
+    solid: 'bg-rocket-400',
+    light: 'bg-rocket-50 text-rocket-700',
+    text: 'text-white',
+    chartColors: ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#fde68a'],
   },
   red: {
     gradient: 'bg-gradient-to-br from-red-500 to-red-700',
@@ -28,19 +37,12 @@ export const themes: Record<ReportTheme, {
     text: 'text-white',
     chartColors: ['#22C55E', '#4ADE80', '#86EFAC', '#16A34A', '#15803D'],
   },
-  orange: {
-    gradient: 'bg-gradient-to-br from-orange-500 to-orange-700',
-    solid: 'bg-orange-500',
-    light: 'bg-orange-100 text-orange-800',
+  coral: {
+    gradient: 'bg-gradient-to-br from-coral-400 to-coral-600',
+    solid: 'bg-coral-500',
+    light: 'bg-coral-100 text-coral-800',
     text: 'text-white',
-    chartColors: ['#F97316', '#FB923C', '#FDBA74', '#EA580C', '#C2410C'],
-  },
-  purple: {
-    gradient: 'bg-gradient-to-br from-purple-500 to-purple-700',
-    solid: 'bg-purple-500',
-    light: 'bg-purple-100 text-purple-800',
-    text: 'text-white',
-    chartColors: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#7C3AED', '#6D28D9'],
+    chartColors: ['#fb7185', '#f43f5e', '#e11d48', '#fda4af', '#fecdd3'],
   },
   teal: {
     gradient: 'bg-gradient-to-br from-teal-500 to-teal-700',
@@ -50,20 +52,20 @@ export const themes: Record<ReportTheme, {
     chartColors: ['#14B8A6', '#2DD4BF', '#5EEAD4', '#0D9488', '#0F766E'],
   },
   slate: {
-    gradient: 'bg-gradient-to-br from-slate-500 to-slate-700',
-    solid: 'bg-slate-500',
-    light: 'bg-slate-100 text-slate-800',
+    gradient: 'bg-gradient-to-br from-charcoal-500 to-charcoal-700',
+    solid: 'bg-charcoal-500',
+    light: 'bg-charcoal-100 text-charcoal-800',
     text: 'text-white',
     chartColors: ['#64748B', '#94A3B8', '#CBD5E1', '#475569', '#334155'],
   },
 };
 
 export function getTheme(name?: string) {
-  return themes[name as ReportTheme] || themes.blue;
+  return themes[name as ReportTheme] || themes.orange;
 }
 
 export function getThemeColors(name?: string): { primary: string; secondary: string } {
-  const theme = themes[name as ReportTheme] || themes.blue;
+  const theme = themes[name as ReportTheme] || themes.orange;
   return {
     primary: theme.chartColors[0],
     secondary: theme.chartColors[1],

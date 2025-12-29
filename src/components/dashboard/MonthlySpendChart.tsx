@@ -1,6 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Loader2 } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { chartColors, rechartsTheme } from '../../config/chartTheme';
 
 interface MonthlyDataPoint {
   month: string;
@@ -17,9 +18,9 @@ export function MonthlySpendChart({ data, isLoading }: MonthlySpendChartProps) {
   if (isLoading) {
     return (
       <Card variant="elevated" padding="lg">
-        <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
+        <h2 className="text-xl font-bold text-charcoal-800 mb-6">Monthly Spend Trend</h2>
         <div className="flex items-center justify-center h-96">
-          <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
+          <Loader2 className="w-12 h-12 text-charcoal-400 animate-spin" />
         </div>
       </Card>
     );
@@ -28,8 +29,8 @@ export function MonthlySpendChart({ data, isLoading }: MonthlySpendChartProps) {
   if (data.length === 0) {
     return (
       <Card variant="elevated" padding="lg">
-        <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
-        <div className="flex items-center justify-center h-96 text-slate-500">
+        <h2 className="text-xl font-bold text-charcoal-800 mb-6">Monthly Spend Trend</h2>
+        <div className="flex items-center justify-center h-96 text-charcoal-500">
           No data available for selected period
         </div>
       </Card>
@@ -38,38 +39,31 @@ export function MonthlySpendChart({ data, isLoading }: MonthlySpendChartProps) {
 
   return (
     <Card variant="elevated" padding="lg">
-      <h2 className="text-xl font-bold text-slate-800 mb-6">Monthly Spend Trend</h2>
+      <h2 className="text-xl font-bold text-charcoal-800 mb-6">Monthly Spend Trend</h2>
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <CartesianGrid {...rechartsTheme.cartesianGrid} />
           <XAxis
             dataKey="month"
-            stroke="#64748b"
-            style={{ fontSize: '12px' }}
+            {...rechartsTheme.xAxis}
           />
           <YAxis
-            stroke="#64748b"
-            style={{ fontSize: '12px' }}
+            {...rechartsTheme.yAxis}
             tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '12px',
-            }}
-            formatter={(value: any) => [`$${value.toLocaleString()}`, 'Total Cost']}
-            labelStyle={{ fontWeight: 'bold', marginBottom: '8px' }}
+            contentStyle={rechartsTheme.tooltip.contentStyle}
+            labelStyle={rechartsTheme.tooltip.labelStyle}
+            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Total Cost']}
           />
-          <Legend wrapperStyle={{ paddingTop: '20px' }} />
+          <Legend wrapperStyle={rechartsTheme.legend.wrapperStyle} />
           <Line
             type="monotone"
             dataKey="totalCost"
             name="Total Cost"
-            stroke="#3b82f6"
+            stroke={chartColors.primary[0]}
             strokeWidth={3}
-            dot={{ fill: '#3b82f6', r: 5 }}
+            dot={{ fill: chartColors.primary[0], r: 5 }}
             activeDot={{ r: 7 }}
           />
         </LineChart>

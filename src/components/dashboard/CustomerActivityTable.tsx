@@ -154,7 +154,7 @@ export function CustomerActivityTable({
               <tr
                 key={customer.customerId}
                 onClick={() => onCustomerClick(customer.customerId)}
-                className="hover:bg-blue-50 cursor-pointer transition-colors"
+                className="hover:bg-rocket-50 cursor-pointer transition-colors"
               >
                 <td className="px-6 py-4 font-medium text-slate-900">{customer.name}</td>
                 <td className="px-6 py-4 text-slate-600">

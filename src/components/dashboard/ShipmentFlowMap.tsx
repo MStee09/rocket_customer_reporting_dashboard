@@ -287,7 +287,7 @@ export function ShipmentFlowMap({
                   key={index}
                   from={route.originCoords}
                   to={route.destCoords}
-                  stroke={`rgba(59, 130, 246, ${opacity})`}
+                  stroke={`rgba(234, 88, 12, ${opacity})`}
                   strokeWidth={strokeWidth}
                   strokeLinecap="round"
                   style={{ cursor: 'pointer' }}
@@ -329,7 +329,7 @@ export function ShipmentFlowMap({
                 >
                   <circle
                     r={size}
-                    fill="#3B82F6"
+                    fill="#EA580C"
                     fillOpacity={0.6}
                     stroke="#FFF"
                     strokeWidth={1.5}
@@ -363,7 +363,7 @@ export function ShipmentFlowMap({
                 <span>Out: {hoveredLocation.outbound}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <div className="w-2 h-2 rounded-full bg-rocket-600"></div>
                 <span>In: {hoveredLocation.inbound}</span>
               </div>
             </div>

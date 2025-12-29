@@ -14,8 +14,8 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
     return (
       <Card variant="default" padding="lg">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Building2 className="w-5 h-5 text-blue-600" />
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <Building2 className="w-5 h-5 text-rocket-600" />
           </div>
           <h3 className="text-lg font-semibold text-slate-800">Top 10 Customers</h3>
         </div>
@@ -32,8 +32,8 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
     return (
       <Card variant="default" padding="lg">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Building2 className="w-5 h-5 text-blue-600" />
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <Building2 className="w-5 h-5 text-rocket-600" />
           </div>
           <h3 className="text-lg font-semibold text-slate-800">Top 10 Customers</h3>
         </div>
@@ -47,7 +47,7 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
   return (
     <Card variant="default" padding="none" className="overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-rocket-600 flex items-center justify-center">
           <Building2 className="w-5 h-5 text-white" />
         </div>
         <h3 className="font-semibold text-slate-900">Top 10 Customers</h3>
@@ -67,7 +67,7 @@ export function TopCustomersTable({ data, isLoading, onCustomerClick }: TopCusto
             <tr
               key={customer.customerId}
               onClick={() => onCustomerClick?.(customer.customerId)}
-              className="hover:bg-blue-50 cursor-pointer transition-colors"
+              className="hover:bg-rocket-50 cursor-pointer transition-colors"
             >
               <td className="px-4 py-3">
                 <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-sm font-medium text-slate-600">

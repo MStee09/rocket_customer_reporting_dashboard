@@ -225,7 +225,7 @@ export function AIInsightsCard({ customerId, dateRange, className = '' }: AIInsi
 
         <div className="bg-slate-800/50 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Package className="w-4 h-4 text-blue-400" />
+            <Package className="w-4 h-4 text-rocket-500" />
             <span className="text-xs text-slate-400 uppercase tracking-wide">Shipments</span>
           </div>
           <p className="text-xl font-bold">{current.shipmentCount.toLocaleString()}</p>

@@ -54,7 +54,7 @@ export function PerformanceMetrics({
         )}
         {avgTransitDays !== undefined && (
           <div className="flex items-start gap-4">
-            <div className="bg-blue-500 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="bg-gradient-to-br from-rocket-500 to-rocket-600 w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0">
               <Clock className="w-6 h-6 text-white" />
             </div>
             <div>

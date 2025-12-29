@@ -69,7 +69,7 @@ export function DashboardHeader({
             onClick={() => onShowComparisonDropdownChange(!showComparisonDropdown)}
             className={`px-4 py-2 border rounded-lg flex items-center gap-2 text-sm transition-colors ${
               comparison?.enabled
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                ? 'border-rocket-500 bg-rocket-50 text-rocket-700'
                 : 'border-slate-300 text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -94,7 +94,7 @@ export function DashboardHeader({
                         onComparisonChange(null);
                       }
                     }}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-rocket-500"
+                    className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
                   />
                   <span className="text-sm font-medium text-slate-700">Enable comparison</span>
                 </label>
@@ -110,7 +110,7 @@ export function DashboardHeader({
                         ...comparison,
                         type: e.target.value as ComparisonType
                       })}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                     >
                       <option value="previous">Previous Period</option>
                       <option value="lastYear">Same Period Last Year</option>

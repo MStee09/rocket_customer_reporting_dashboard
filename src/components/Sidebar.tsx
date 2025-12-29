@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Rocket } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -105,11 +105,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-6 border-b border-charcoal-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src="/rocket-logo.png"
-                alt="Rocket Shipping"
-                className="h-10 w-auto"
-              />
+              <div className="w-10 h-10 bg-gradient-to-br from-rocket-500 to-rocket-600 rounded-lg flex items-center justify-center shadow-lg">
+                <Rocket className="w-6 h-6 text-white" />
+              </div>
               <div>
                 <h1 className="font-bold text-lg text-white">Rocket Shipping</h1>
                 <p className="text-xs text-charcoal-400">Freight Dashboard</p>

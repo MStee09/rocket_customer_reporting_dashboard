@@ -113,14 +113,14 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
       )}
 
       {isAdding ? (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+        <div className="p-4 bg-rocket-50 rounded-lg border border-rocket-200 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
               <select
                 value={newMarket.region}
                 onChange={(e) => handleRegionChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               >
                 <option value="">Select a region</option>
                 {Object.keys(US_REGIONS).map((region) => (
@@ -140,7 +140,7 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
                 value={newMarket.volumePercent}
                 onChange={(e) => setNewMarket({ ...newMarket, volumePercent: e.target.value })}
                 placeholder="e.g., 35"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
           </div>
@@ -179,7 +179,7 @@ export function MarketsSection({ customerId, markets, onUpdate }: MarketsSection
       ) : (
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 text-rocket-600 hover:bg-rocket-50 rounded-md transition-colors text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
           Add Market

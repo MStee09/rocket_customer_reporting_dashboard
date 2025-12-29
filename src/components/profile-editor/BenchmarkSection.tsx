@@ -60,7 +60,7 @@ export function BenchmarkSection({ customerId, benchmarkPeriod, onUpdate }: Benc
         <select
           value={selectedPeriod}
           onChange={(e) => handleChange(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
         >
           {PERIOD_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>

@@ -119,7 +119,7 @@ export function ProductsSection({ customerId, products, onUpdate }: ProductsSect
 
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2 text-rocket-600 hover:bg-rocket-50 rounded-md transition-colors text-sm font-medium"
       >
         <Plus className="w-4 h-4" />
         Add

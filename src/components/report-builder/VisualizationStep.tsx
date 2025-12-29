@@ -103,8 +103,8 @@ export function VisualizationStep({ state, updateState }: VisualizationStepProps
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <BarChart3 className="w-8 h-8 text-blue-600" />
+        <div className="p-3 bg-rocket-100 rounded-lg">
+          <BarChart3 className="w-8 h-8 text-rocket-600" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Visualization</h3>
@@ -113,12 +113,12 @@ export function VisualizationStep({ state, updateState }: VisualizationStepProps
       </div>
 
       {recommended && recommended !== state.visualization && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-900">
+        <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-rocket-900">
             <span className="font-medium">Recommendation:</span> Based on your configuration, we suggest using{' '}
             <button
               onClick={() => updateState({ visualization: recommended })}
-              className="font-semibold underline hover:text-blue-700"
+              className="font-semibold underline hover:text-rocket-700"
             >
               {VISUALIZATIONS.find(v => v.type === recommended)?.name}
             </button>
@@ -143,7 +143,7 @@ export function VisualizationStep({ state, updateState }: VisualizationStepProps
               }`}
             >
               {viz.type === recommended && !isSelected && (
-                <span className="absolute top-2 right-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                <span className="absolute top-2 right-2 px-2 py-1 bg-rocket-100 text-rocket-700 text-xs font-medium rounded">
                   Recommended
                 </span>
               )}

@@ -13,8 +13,8 @@ export function BasicInformationStep({ state, updateState }: BasicInformationSte
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <FileText className="w-8 h-8 text-blue-600" />
+        <div className="p-3 bg-rocket-100 rounded-lg">
+          <FileText className="w-8 h-8 text-rocket-600" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Report Information</h3>
@@ -22,12 +22,12 @@ export function BasicInformationStep({ state, updateState }: BasicInformationSte
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4 mb-6">
         <div className="flex gap-2">
-          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-900">
+          <Info className="w-5 h-5 text-rocket-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-rocket-900">
             <p className="font-medium mb-1">Tips for naming your report:</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-800">
+            <ul className="list-disc list-inside space-y-1 text-rocket-800">
               <li>Be specific and descriptive (e.g., "Monthly Carrier Cost Analysis")</li>
               <li>Include the time period or scope if relevant</li>
               <li>Use clear business terms your team will understand</li>

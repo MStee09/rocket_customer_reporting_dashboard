@@ -121,7 +121,7 @@ export function PreviewStep({ state }: PreviewStepProps) {
                 <div className="space-y-1">
                   {state.joins.map((join, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm text-slate-700">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded font-mono text-xs">
+                      <span className="px-2 py-1 bg-rocket-100 text-rocket-800 rounded font-mono text-xs">
                         {join.type || 'inner'}
                       </span>
                       <span>{TABLE_METADATA[join.table]?.displayLabel || join.table}</span>

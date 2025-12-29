@@ -85,7 +85,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
       )}
 
       {isAdding ? (
-        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+        <div className="p-4 bg-rocket-50 rounded-lg border border-rocket-200 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
@@ -94,7 +94,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
                 value={newTerm.term}
                 onChange={(e) => setNewTerm({ ...newTerm, term: e.target.value })}
                 placeholder="e.g., SKU"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
             <div>
@@ -104,7 +104,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
                 value={newTerm.meaning}
                 onChange={(e) => setNewTerm({ ...newTerm, meaning: e.target.value })}
                 placeholder="e.g., Stock Keeping Unit"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               />
             </div>
           </div>
@@ -131,7 +131,7 @@ export function TerminologySection({ customerId, terminology, onUpdate }: Termin
       ) : (
         <button
           onClick={() => setIsAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 text-rocket-600 hover:bg-rocket-50 rounded-md transition-colors text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
           Add Term

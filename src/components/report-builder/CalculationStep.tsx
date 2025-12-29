@@ -81,8 +81,8 @@ export function CalculationStep({ state, updateState }: CalculationStepProps) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <Calculator className="w-8 h-8 text-blue-600" />
+        <div className="p-3 bg-rocket-100 rounded-lg">
+          <Calculator className="w-8 h-8 text-rocket-600" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Calculation</h3>
@@ -102,8 +102,8 @@ export function CalculationStep({ state, updateState }: CalculationStepProps) {
                 onClick={() => handleCalculationTypeChange(type)}
                 className={`p-4 rounded-lg border-2 transition-all ${
                   state.calculationType === type
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-slate-300 hover:border-blue-400 bg-white'
+                    ? 'border-rocket-600 bg-rocket-50'
+                    : 'border-slate-300 hover:border-rocket-400 bg-white'
                 }`}
               >
                 <p className="font-medium text-sm capitalize text-slate-800">{type}</p>
@@ -223,10 +223,10 @@ export function CalculationStep({ state, updateState }: CalculationStepProps) {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-3">
               <div className="flex gap-2">
-                <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-900">
+                <Info className="w-4 h-4 text-rocket-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-rocket-900">
                   <span className="font-medium">Example:</span> To calculate "Average Cost Per Unit", set numerator to "Sum of Total Cost" and denominator to "Sum of Quantity".
                 </p>
               </div>

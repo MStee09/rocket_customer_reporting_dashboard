@@ -48,7 +48,7 @@ export function NotesSection({ customerId, notes, onUpdate }: NotesSectionProps)
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Add notes about this customer, their business context, special requirements, or anything else the AI should know when generating reports..."
         rows={5}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 resize-none"
       />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">

@@ -126,9 +126,9 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
             {step === 1 ? 'Add Product' : 'Validation Results'}
           </h3>
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className={step === 1 ? 'text-blue-600 font-medium' : ''}>1. Setup</span>
+            <span className={step === 1 ? 'text-rocket-600 font-medium' : ''}>1. Setup</span>
             <ChevronRight className="w-4 h-4" />
-            <span className={step === 2 ? 'text-blue-600 font-medium' : ''}>2. Validate</span>
+            <span className={step === 2 ? 'text-rocket-600 font-medium' : ''}>2. Validate</span>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="e.g., Electronics, Furniture, Medical Supplies"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                   autoFocus
                 />
               </div>
@@ -159,7 +159,7 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
                       key={option.value}
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                         selectedField === option.value
-                          ? 'border-blue-500 bg-blue-50'
+                          ? 'border-rocket-500 bg-rocket-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -169,7 +169,7 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
                         value={option.value}
                         checked={selectedField === option.value}
                         onChange={(e) => setSelectedField(e.target.value)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-rocket-500"
+                        className="w-4 h-4 text-rocket-600 border-gray-300 focus:ring-rocket-500"
                       />
                       <div>
                         <span className="font-medium text-gray-900">{option.label}</span>
@@ -193,7 +193,7 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
                     onChange={(e) => setKeywordInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type a keyword and press Enter"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                   />
                   <button
                     type="button"
@@ -209,13 +209,13 @@ export function AddProductModal({ isOpen, onClose, customerId, onProductAdded }:
                     {keywords.map((keyword) => (
                       <span
                         key={keyword}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-rocket-100 text-rocket-800 rounded-full text-sm"
                       >
                         {keyword}
                         <button
                           type="button"
                           onClick={() => removeKeyword(keyword)}
-                          className="p-0.5 hover:bg-blue-200 rounded-full transition-colors"
+                          className="p-0.5 hover:bg-rocket-200 rounded-full transition-colors"
                         >
                           <X className="w-3 h-3" />
                         </button>

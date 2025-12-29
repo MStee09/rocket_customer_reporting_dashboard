@@ -66,8 +66,8 @@ export function GroupingStep({ state, updateState }: GroupingStepProps) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <Layers className="w-8 h-8 text-blue-600" />
+        <div className="p-3 bg-rocket-100 rounded-lg">
+          <Layers className="w-8 h-8 text-rocket-600" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Grouping & Categories</h3>
@@ -94,8 +94,8 @@ export function GroupingStep({ state, updateState }: GroupingStepProps) {
                 onClick={() => updateState({ groupBy: option.value as any })}
                 className={`p-3 rounded-lg border-2 transition-all ${
                   state.groupBy === option.value
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-slate-300 hover:border-blue-400 bg-white'
+                    ? 'border-rocket-600 bg-rocket-50'
+                    : 'border-slate-300 hover:border-rocket-400 bg-white'
                 }`}
               >
                 <p className="font-medium text-sm text-slate-800">{option.label}</p>
@@ -116,7 +116,7 @@ export function GroupingStep({ state, updateState }: GroupingStepProps) {
                     ensureOtherCategory();
                   }
                 }}
-                className="w-4 h-4 text-blue-600 rounded focus:ring-rocket-500"
+                className="w-4 h-4 text-rocket-600 rounded focus:ring-rocket-500"
               />
               <span className="text-sm font-medium text-slate-700">
                 Enable Category Breakdown

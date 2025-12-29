@@ -41,8 +41,8 @@ export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-blue-100 rounded-lg">
-          <Database className="w-8 h-8 text-blue-600" />
+        <div className="p-3 bg-rocket-100 rounded-lg">
+          <Database className="w-8 h-8 text-rocket-600" />
         </div>
         <div>
           <h3 className="text-xl font-bold text-slate-800">Data Source</h3>
@@ -87,7 +87,7 @@ export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
                   <div key={index} className="bg-white p-4 rounded-lg border border-slate-200">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Link2 className="w-5 h-5 text-blue-600" />
+                        <Link2 className="w-5 h-5 text-rocket-600" />
                         <div>
                           <p className="font-medium text-slate-800">{metadata?.displayLabel}</p>
                           <p className="text-xs text-slate-600">{metadata?.description}</p>
@@ -139,9 +139,9 @@ export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
                       <button
                         key={relationship.toTable}
                         onClick={() => addJoin(relationship)}
-                        className="flex items-center gap-2 p-3 border border-slate-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+                        className="flex items-center gap-2 p-3 border border-slate-300 rounded-lg hover:border-rocket-500 hover:bg-rocket-50 transition-colors text-left"
                       >
-                        <Plus className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        <Plus className="w-4 h-4 text-rocket-600 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-medium text-slate-800">{metadata?.displayLabel}</p>
                           <p className="text-xs text-slate-600">{relationship.displayLabel}</p>
@@ -160,8 +160,8 @@ export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
           )}
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-900">
+        <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4">
+          <p className="text-sm text-rocket-900">
             <span className="font-medium">Tip:</span> Add related tables to access more fields for your calculations. For example, add "Line Items" to analyze quantities or "Carrier Details" to group by carrier.
           </p>
         </div>

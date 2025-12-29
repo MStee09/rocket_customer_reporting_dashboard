@@ -127,7 +127,7 @@ export function PrioritiesSection({ customerId, priorities, onUpdate }: Prioriti
 
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2 text-rocket-600 hover:bg-rocket-50 rounded-md transition-colors text-sm font-medium"
       >
         <Plus className="w-4 h-4" />
         Add
@@ -154,7 +154,7 @@ export function PrioritiesSection({ customerId, priorities, onUpdate }: Prioriti
                   value={newPriority.name}
                   onChange={(e) => setNewPriority({ ...newPriority, name: e.target.value })}
                   placeholder="e.g., Cost per unit, Transit time"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                   autoFocus
                 />
               </div>
@@ -165,7 +165,7 @@ export function PrioritiesSection({ customerId, priorities, onUpdate }: Prioriti
                   id="isSoftKnowledge"
                   checked={newPriority.isSoft}
                   onChange={(e) => setNewPriority({ ...newPriority, isSoft: e.target.checked })}
-                  className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-rocket-500"
+                  className="mt-1 w-4 h-4 text-rocket-600 border-gray-300 rounded focus:ring-rocket-500"
                 />
                 <label htmlFor="isSoftKnowledge" className="text-sm text-gray-700">
                   <span className="font-medium">This is soft knowledge</span>
@@ -184,7 +184,7 @@ export function PrioritiesSection({ customerId, priorities, onUpdate }: Prioriti
                   onChange={(e) => setNewPriority({ ...newPriority, context: e.target.value })}
                   placeholder="Any additional details about this priority..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 resize-none"
                 />
               </div>
             </div>

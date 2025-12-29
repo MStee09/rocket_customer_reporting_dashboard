@@ -86,7 +86,7 @@ export function CustomReportViewPage() {
   }, []);
 
   useEffect(() => {
-    if (report && startDate && endDate) {
+    if (report && startDate && endDate && !(report as any).simpleReport) {
       loadReportData();
     }
   }, [report, startDate, endDate]);

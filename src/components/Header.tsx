@@ -1,4 +1,5 @@
-import { LogOut, User, Menu } from 'lucide-react';
+import { LogOut, User, Menu, HelpCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CustomerSwitcher } from './CustomerSwitcher';
 import { AdminCustomerSelector } from './AdminCustomerSelector';
@@ -10,6 +11,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { user, role, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
@@ -51,6 +53,14 @@ export function Header({ onMenuClick }: HeaderProps) {
             {isAdmin() ? <AdminCustomerSelector /> : <CustomerSwitcher />}
 
             <NotificationBell />
+
+            <button
+              onClick={() => navigate('/settings/how-to')}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Help & Documentation"
+            >
+              <HelpCircle className="w-5 h-5 text-slate-600" />
+            </button>
 
             <button
               onClick={() => signOut()}

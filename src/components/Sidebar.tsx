@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, Rocket, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -224,6 +224,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </nav>
 
         <div className="p-4 border-t border-rocket-navy-dark">
+          <NavLink
+            to="/settings/how-to"
+            onClick={onClose}
+            className="flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-rocket-navy-light hover:text-white rounded-lg transition-colors mb-3"
+          >
+            <HelpCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Help & Docs</span>
+          </NavLink>
           <div className="text-xs text-slate-300 text-center">
             Version 1.0.0
           </div>

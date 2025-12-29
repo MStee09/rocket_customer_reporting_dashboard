@@ -917,10 +917,10 @@ export function AnalyticsHubContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Analytics Hub</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The Reports Hub is your central location for accessing all types of reports and analytics.
+        The Analytics Hub is your central location for all reporting and analysis tools.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Report Categories</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Available Tools</h2>
 
       <div className="space-y-4 mb-6">
         <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
@@ -929,28 +929,37 @@ export function AnalyticsHubContent() {
             <h4 className="font-semibold text-gray-900">AI Report Studio</h4>
           </div>
           <p className="text-gray-600 text-sm">
-            Create custom reports using natural language. Just describe what you want to see.
+            Generate reports using natural language. Ask questions in plain English and
+            receive formatted reports with data, charts, and insights.
           </p>
         </div>
         <div className="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 className="w-5 h-5 text-green-600" />
-            <h4 className="font-semibold text-gray-900">Custom Reports</h4>
+            <h4 className="font-semibold text-gray-900">Custom Report Builder</h4>
           </div>
           <p className="text-gray-600 text-sm">
-            Build detailed reports with filters, grouping, and calculations.
+            Create structured reports by selecting specific metrics, groupings, and filters.
+            Save these reports for reuse.
           </p>
         </div>
         <div className="p-4 bg-gradient-to-r from-teal-50 to-teal-100 rounded-lg border border-teal-200">
           <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-5 h-5 text-teal-600" />
-            <h4 className="font-semibold text-gray-900">Scheduled Reports</h4>
+            <LayoutDashboard className="w-5 h-5 text-teal-600" />
+            <h4 className="font-semibold text-gray-900">Widget Library</h4>
           </div>
           <p className="text-gray-600 text-sm">
-            Set up automatic report generation and delivery on a schedule.
+            Browse available dashboard widgets and see sample visualizations before adding
+            them to your dashboard.
           </p>
         </div>
       </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Recent Reports</h2>
+      <p className="text-gray-600 mb-4">
+        The Analytics Hub shows your 5 most recently generated or viewed reports for
+        quick access.
+      </p>
 
       <Callout type="tip">
         Start with the AI Report Studio if you're not sure what data you need. You can always refine and save reports for later.
@@ -964,61 +973,93 @@ export function AIStudioContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">AI Report Studio</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Create powerful, custom reports using natural language. Just describe what you want to see.
+        The AI Report Studio lets you generate reports and get insights by asking
+        questions in plain English.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Getting Started</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How to Use</h2>
 
-      <Step number={1} title="Describe Your Report">
-        Type what you want to see in plain English. For example: "Show me total spend by carrier for the last 6 months"
+      <Step number={1} title="Navigate to AI Report Studio">
+        Go to <strong>Analytics</strong> and select <strong>AI Report Studio</strong>.
       </Step>
 
-      <Step number={2} title="AI Generates the Report">
-        The AI analyzes your request and creates a report with appropriate charts, tables, and metrics.
+      <Step number={2} title="Type Your Question">
+        Type your question in the chat input. For example: "Show me total spend by carrier for the last 90 days"
       </Step>
 
-      <Step number={3} title="Refine if Needed">
-        Ask follow-up questions to adjust the report: "Break this down by month" or "Add a comparison to last year"
+      <Step number={3} title="Review the Response">
+        Review the AI's response with data, charts, or tables.
       </Step>
 
-      <Step number={4} title="Save or Export">
-        Save the report to your library, add it to your dashboard, or export it.
+      <Step number={4} title="Refine and Follow Up">
+        Ask follow-up questions to refine or expand the analysis.
       </Step>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Example Prompts</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Example Questions</h2>
 
       <div className="grid md:grid-cols-2 gap-3 mb-6">
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "Show me total spend by transportation mode"
+          "Show me total spend by carrier for the last 90 days"
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "Create an executive summary of shipping activity"
+          "What are my top 10 shipping lanes by volume?"
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "Analyze my top shipping lanes by volume"
+          "Compare this month's shipments to last month"
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "Compare costs across different carriers"
+          "Which carriers have the best on-time delivery rate?"
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "What's my average cost per mile by mode?"
+          "Summarize my shipping activity for Q4"
         </div>
         <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
-          "Show monthly trends for the past year"
+          "Show me all shipments going to California"
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Report Library</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Tips for Better Results</h2>
+      <div className="space-y-3 mb-6">
+        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <span className="font-medium">Be Specific</span>
+            <p className="text-sm text-gray-600">Include time frames and metrics in your questions</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <span className="font-medium">Name Carriers or Lanes</span>
+            <p className="text-sm text-gray-600">"Old Dominion" instead of "that carrier"</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <span className="font-medium">Ask for Comparisons</span>
+            <p className="text-sm text-gray-600">"Compare X to Y" for side-by-side analysis</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+          <Sparkles className="w-5 h-5 text-blue-500 mt-0.5" />
+          <div>
+            <span className="font-medium">Request Specific Formats</span>
+            <p className="text-sm text-gray-600">"Show as a bar chart" or "Give me a table"</p>
+          </div>
+        </div>
+      </div>
+
+      <Callout type="info">
+        The AI has access to your full shipment database. It can answer specific
+        questions about individual shipments, carriers, lanes, and trends.
+      </Callout>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Exporting AI Reports</h2>
       <p className="text-gray-600 mb-4">
-        Your saved reports are stored in the "My Reports" tab. From there you can:
+        When the AI generates a table or data, you can export it using the Export
+        button that appears above the results.
       </p>
-      <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>View and run saved reports</li>
-        <li>Edit reports to update the analysis</li>
-        <li>Add reports to your dashboard</li>
-        <li>Schedule automatic report delivery</li>
-        <li>Export or delete reports</li>
-      </ul>
     </div>
   );
 }
@@ -1028,62 +1069,70 @@ export function CustomReportsContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Custom Reports</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Build detailed, structured reports with precise control over data, filters, and presentation.
+        Custom Reports let you build structured, reusable reports with specific
+        metrics and groupings.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Report Builder Features</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Creating a Custom Report</h2>
 
-      <div className="space-y-4 mb-6">
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Filter className="w-5 h-5 text-blue-600" />
-            <h4 className="font-semibold">Filters</h4>
+      <Step number={1} title="Navigate to Reports">
+        Navigate to <strong>Reports</strong>.
+      </Step>
+
+      <Step number={2} title="Click Create New Report">
+        Click <strong>Create New Report</strong>.
+      </Step>
+
+      <Step number={3} title="Enter Report Details">
+        Enter a name and description.
+      </Step>
+
+      <Step number={4} title="Select Metrics">
+        Select the metrics you want to include.
+      </Step>
+
+      <Step number={5} title="Choose Grouping Options">
+        Choose grouping options (by carrier, by lane, by time period, etc.).
+      </Step>
+
+      <Step number={6} title="Apply Filters">
+        Apply any filters to narrow down data.
+      </Step>
+
+      <Step number={7} title="Preview and Save">
+        Preview the report and click <strong>Save</strong>.
+      </Step>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Running Saved Reports</h2>
+      <p className="text-gray-600 mb-4">
+        Your saved reports appear in the Reports library. Click any report to run
+        it with the current date range.
+      </p>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Report Actions</h2>
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <Download className="w-5 h-5 text-blue-600" />
+          <div>
+            <span className="font-medium">Export</span>
+            <p className="text-sm text-gray-500">Download as CSV, Excel, or PDF</p>
           </div>
-          <p className="text-gray-600 text-sm">
-            Filter data by date range, carriers, modes, lanes, status, and more. Combine multiple filters for precise results.
-          </p>
         </div>
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-5 h-5 text-green-600" />
-            <h4 className="font-semibold">Grouping & Aggregation</h4>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <Mail className="w-5 h-5 text-green-600" />
+          <div>
+            <span className="font-medium">Email</span>
+            <p className="text-sm text-gray-500">Send to any email address</p>
           </div>
-          <p className="text-gray-600 text-sm">
-            Group data by any field and calculate sums, averages, counts, and more.
-          </p>
         </div>
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-teal-600" />
-            <h4 className="font-semibold">Visualizations</h4>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <Calendar className="w-5 h-5 text-teal-600" />
+          <div>
+            <span className="font-medium">Schedule</span>
+            <p className="text-sm text-gray-500">Set up recurring delivery</p>
           </div>
-          <p className="text-gray-600 text-sm">
-            Choose from bar charts, line charts, pie charts, and tables to display your data.
-          </p>
         </div>
       </div>
-
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Building a Report</h2>
-
-      <Step number={1} title="Select Data Source">
-        Choose the primary data to analyze (shipments, carriers, lanes, etc.).
-      </Step>
-
-      <Step number={2} title="Add Filters">
-        Define which data to include based on your criteria.
-      </Step>
-
-      <Step number={3} title="Configure Columns">
-        Select which fields to display and how to calculate them.
-      </Step>
-
-      <Step number={4} title="Choose Visualization">
-        Pick the best chart type to represent your data.
-      </Step>
-
-      <Step number={5} title="Preview & Save">
-        Review the results and save to your report library.
-      </Step>
     </div>
   );
 }
@@ -1093,60 +1142,69 @@ export function ScheduledReportsContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Scheduled Reports</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Automate report generation and delivery on a schedule that works for you.
+        Automate your reporting by scheduling reports to run and deliver automatically.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Schedule Options</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Creating a Schedule</h2>
 
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-        <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Daily</h4>
-          <p className="text-gray-600 text-sm">Run every day at a specified time.</p>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Weekly</h4>
-          <p className="text-gray-600 text-sm">Run on specific days of the week.</p>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Monthly</h4>
-          <p className="text-gray-600 text-sm">Run on a specific day each month.</p>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Quarterly</h4>
-          <p className="text-gray-600 text-sm">Run at the end of each quarter.</p>
-        </div>
-      </div>
+      <Step number={1} title="Navigate to Scheduled Reports">
+        Navigate to <strong>Reports</strong> then <strong>Scheduled Reports</strong>.
+      </Step>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Delivery Options</h2>
+      <Step number={2} title="Click New Schedule">
+        Click <strong>New Schedule</strong>.
+      </Step>
+
+      <Step number={3} title="Select the Report">
+        Select the report to schedule.
+      </Step>
+
+      <Step number={4} title="Choose Frequency">
+        Choose the frequency: <strong>Daily</strong>, <strong>Weekly</strong>, or <strong>Monthly</strong>.
+      </Step>
+
+      <Step number={5} title="Set the Time">
+        Set the time to run.
+      </Step>
+
+      <Step number={6} title="Add Recipients">
+        Add recipient email addresses.
+      </Step>
+
+      <Step number={7} title="Choose Format and Save">
+        Choose the export format (CSV, Excel, PDF) and click <strong>Save Schedule</strong>.
+      </Step>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Schedules</h2>
 
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Mail className="w-5 h-5 text-blue-600" />
+          <Clock className="w-5 h-5 text-blue-600" />
           <div>
-            <span className="font-medium">Email Delivery</span>
-            <p className="text-sm text-gray-500">Send reports as email attachments to specified recipients.</p>
+            <span className="font-medium">Pause/Resume</span>
+            <p className="text-sm text-gray-500">Temporarily stop a schedule without deleting it</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Bell className="w-5 h-5 text-green-600" />
+          <Eye className="w-5 h-5 text-green-600" />
           <div>
-            <span className="font-medium">In-App Notification</span>
-            <p className="text-sm text-gray-500">Receive a notification when the report is ready.</p>
+            <span className="font-medium">Run Now</span>
+            <p className="text-sm text-gray-500">Manually trigger an immediate run</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <TrendingUp className="w-5 h-5 text-teal-600" />
+          <div>
+            <span className="font-medium">View History</span>
+            <p className="text-sm text-gray-500">See past runs and delivery status</p>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Schedules</h2>
-      <p className="text-gray-600 mb-4">
-        From the Scheduled Reports page, you can:
-      </p>
-      <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>View all active and paused schedules</li>
-        <li>Pause or resume schedules</li>
-        <li>Edit schedule settings and recipients</li>
-        <li>Run a schedule immediately</li>
-        <li>View run history and success/failure status</li>
-      </ul>
+      <Callout type="tip">
+        After viewing any report, you'll see a prompt asking "Want this report regularly?"
+        Click "Schedule Report" for a quick way to set up recurring delivery.
+      </Callout>
     </div>
   );
 }
@@ -1156,40 +1214,49 @@ export function CarrierPerformanceContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Carrier Performance</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Analyze how your carriers are performing across key metrics.
+        The Carriers page provides comprehensive metrics and comparisons for all
+        carriers handling your freight.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Performance Metrics</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Summary Metrics</h2>
+      <p className="text-gray-600 mb-4">At the top of the page, you'll see:</p>
 
-      <div className="space-y-4 mb-6">
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">Shipment Volume</h4>
-          <p className="text-gray-600 text-sm">Number of shipments handled by each carrier.</p>
+          <h4 className="font-semibold text-gray-900 mb-1">Active Carriers</h4>
+          <p className="text-gray-600 text-sm">Number of carriers with shipments in the period</p>
         </div>
         <div className="p-4 border rounded-lg">
           <h4 className="font-semibold text-gray-900 mb-1">Total Spend</h4>
-          <p className="text-gray-600 text-sm">Your investment with each carrier.</p>
+          <p className="text-gray-600 text-sm">Combined spend across all carriers</p>
         </div>
         <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">Average Cost</h4>
-          <p className="text-gray-600 text-sm">Cost per shipment or per mile by carrier.</p>
+          <h4 className="font-semibold text-gray-900 mb-1">Average Cost per Shipment</h4>
+          <p className="text-gray-600 text-sm">Overall average across all carriers</p>
         </div>
         <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">On-Time Rate</h4>
-          <p className="text-gray-600 text-sm">Percentage of shipments delivered on time.</p>
+          <h4 className="font-semibold text-gray-900 mb-1">On-Time Percentage</h4>
+          <p className="text-gray-600 text-sm">Aggregate on-time delivery rate</p>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Using the Carriers Page</h2>
-      <p className="text-gray-600 mb-4">
-        The Carriers page provides a comprehensive view of all carriers you work with:
-      </p>
-      <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>Sort carriers by any metric</li>
-        <li>Filter by mode or date range</li>
-        <li>Click on a carrier for detailed breakdown</li>
-        <li>Compare multiple carriers side by side</li>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Carrier Table</h2>
+      <p className="text-gray-600 mb-4">The table shows each carrier with:</p>
+      <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
+        <li>Carrier name</li>
+        <li>Shipment count</li>
+        <li>Total spend</li>
+        <li>Average cost per shipment</li>
+        <li>Total weight handled</li>
+        <li>Market share percentage</li>
+        <li>On-time delivery rate</li>
       </ul>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Sorting</h2>
+      <p className="text-gray-600 mb-4">
+        Click any column header to sort the table by that metric. This makes it easy
+        to find your highest-volume carrier, most expensive carrier, or best performer.
+      </p>
     </div>
   );
 }
@@ -1199,40 +1266,54 @@ export function CarrierComparisonContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Comparing Carriers</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Make data-driven decisions about carrier selection by comparing performance.
+        Use the Carriers page to compare carrier performance and make data-driven
+        decisions about carrier selection.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How to Compare</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Spend Distribution Chart</h2>
+      <p className="text-gray-600 mb-4">
+        The pie chart shows how your spend is distributed across carriers. Hover over
+        any segment to see the exact amount and percentage.
+      </p>
 
-      <Step number={1} title="Select Carriers">
-        Choose two or more carriers you want to compare.
-      </Step>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Monthly Trend Chart</h2>
+      <p className="text-gray-600 mb-4">
+        The line chart shows spend trends over time for your top carriers. This helps
+        identify:
+      </p>
+      <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
+        <li>Seasonal patterns in carrier usage</li>
+        <li>Shifts in carrier preference over time</li>
+        <li>Sudden changes that may need investigation</li>
+      </ul>
 
-      <Step number={2} title="Choose Metrics">
-        Select which metrics matter most for your comparison.
-      </Step>
-
-      <Step number={3} title="Set Time Period">
-        Use the date range selector to compare over a consistent period.
-      </Step>
-
-      <Step number={4} title="Analyze Results">
-        Review charts and tables showing side-by-side performance.
-      </Step>
-
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Comparison Tips</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Ask AI for Analysis</h2>
+      <p className="text-gray-600 mb-4">
+        Click the "Ask AI" button to get intelligent analysis of your carrier data.
+        Example questions:
+      </p>
+      <div className="grid md:grid-cols-1 gap-3 mb-6">
+        <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
+          "Why did we use more ABF this month?"
+        </div>
+        <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
+          "Which carrier is best for California shipments?"
+        </div>
+        <div className="p-3 bg-gray-50 rounded-lg border text-sm text-gray-700">
+          "Compare Old Dominion and Estes for my volume"
+        </div>
+      </div>
 
       <Callout type="tip">
         When comparing carriers, consider factors beyond just price. On-time performance, claims rate,
         and service quality all impact your total cost of shipping.
       </Callout>
 
-      <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>Compare carriers within the same mode (LTL vs LTL, not LTL vs FTL)</li>
-        <li>Use consistent date ranges for fair comparison</li>
-        <li>Look at trends over time, not just point-in-time snapshots</li>
-        <li>Consider lane-specific performance for regional decisions</li>
-      </ul>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Exporting Carrier Data</h2>
+      <p className="text-gray-600 mb-4">
+        Use the Export button to download the carrier comparison table in CSV, Excel,
+        or PDF format.
+      </p>
     </div>
   );
 }
@@ -1242,58 +1323,70 @@ export function CustomerProfilesContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Customer Intelligence Profiles</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Create detailed profiles for each customer to help the AI provide more relevant analysis.
+        Customer Intelligence Profiles store information about each customer that helps
+        the AI provide more relevant and accurate responses.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Profile Components</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Profile Sections</h2>
 
       <div className="space-y-4 mb-6">
         <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Industry & Terminology</h4>
+          <h4 className="font-semibold text-gray-900 mb-2">Business Priorities</h4>
           <p className="text-gray-600 text-sm">
-            Define the customer's industry and any special terms they use. This helps AI reports use familiar language.
+            What matters most to this customer? Cost savings? Transit time? Service quality?
+            This helps the AI emphasize the right metrics.
           </p>
         </div>
         <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Key Markets</h4>
+          <h4 className="font-semibold text-gray-900 mb-2">Products & Services</h4>
           <p className="text-gray-600 text-sm">
-            Specify important shipping regions and lanes so analysis focuses on what matters.
+            What does this customer ship? Understanding their products helps the AI provide
+            relevant context and suggestions.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Target Markets</h4>
+          <p className="text-gray-600 text-sm">
+            Where does this customer primarily ship? Geographic focus areas and key lanes.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Terminology</h4>
+          <p className="text-gray-600 text-sm">
+            Customer-specific terms, abbreviations, or jargon. For example, if a customer
+            calls something "SKU" that others call "Item Number."
           </p>
         </div>
         <div className="p-4 border rounded-lg">
           <h4 className="font-semibold text-gray-900 mb-2">Benchmarks</h4>
           <p className="text-gray-600 text-sm">
-            Set target metrics like cost per shipment or on-time rates to measure against.
-          </p>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Account Notes</h4>
-          <p className="text-gray-600 text-sm">
-            Store important context like contract terms, special requirements, or seasonal patterns.
+            Target metrics for this customer like maximum cost per shipment or minimum
+            on-time percentage.
           </p>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Profiles</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Creating/Editing Profiles</h2>
 
-      <Step number={1} title="Access Knowledge Base">
-        Navigate to Admin, then Knowledge Base.
+      <Step number={1} title="Navigate to Customer Profiles">
+        Navigate to <strong>Admin</strong> then <strong>Customer Profiles</strong>.
       </Step>
 
-      <Step number={2} title="Select Customer">
-        Choose the customer whose profile you want to edit.
+      <Step number={2} title="Select or Create">
+        Click on a customer or <strong>Create New</strong>.
       </Step>
 
-      <Step number={3} title="Update Profile Sections">
-        Fill in relevant information in each section.
+      <Step number={3} title="Fill In Sections">
+        Fill in each section with relevant information.
       </Step>
 
-      <Step number={4} title="View History">
-        Track changes to the profile over time.
+      <Step number={4} title="Save">
+        Click <strong>Save</strong>.
       </Step>
 
       <Callout type="tip">
-        The more complete a customer's profile, the better AI-generated reports will match their expectations and use their preferred terminology.
+        Well-maintained customer profiles significantly improve AI response quality.
+        Take time to fill these out completely.
       </Callout>
     </div>
   );
@@ -1304,39 +1397,87 @@ export function KnowledgeBaseContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Knowledge Base</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The Knowledge Base stores information that helps the AI understand your business and provide better analysis.
+        The Knowledge Base stores documents and information that the AI can reference
+        when answering questions.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">What's in the Knowledge Base</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Uploading Documents</h2>
 
-      <div className="space-y-3 mb-6">
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Brain className="w-5 h-5 text-teal-600" />
-          <span>Customer Intelligence Profiles</span>
+      <Step number={1} title="Navigate to Knowledge Base">
+        Navigate to <strong>Admin</strong> then <strong>Knowledge Base</strong>.
+      </Step>
+
+      <Step number={2} title="Click Upload Document">
+        Click <strong>Upload Document</strong>.
+      </Step>
+
+      <Step number={3} title="Select a File">
+        Select a file (PDF, Word, or text).
+      </Step>
+
+      <Step number={4} title="Choose Customers">
+        Choose which customer(s) this applies to.
+      </Step>
+
+      <Step number={5} title="Add Tags and Upload">
+        Add tags for organization and click <strong>Upload</strong>.
+      </Step>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Supported Document Types</h2>
+      <div className="grid md:grid-cols-2 gap-3 mb-6">
+        <div className="p-3 border rounded-lg">
+          <span className="font-medium">PDF files</span>
         </div>
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Brain className="w-5 h-5 text-teal-600" />
-          <span>Business Glossary & Terminology</span>
+        <div className="p-3 border rounded-lg">
+          <span className="font-medium">Word documents (.doc, .docx)</span>
         </div>
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Brain className="w-5 h-5 text-teal-600" />
-          <span>Field Mappings & Definitions</span>
+        <div className="p-3 border rounded-lg">
+          <span className="font-medium">Text files (.txt)</span>
         </div>
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <Brain className="w-5 h-5 text-teal-600" />
-          <span>Calculation Rules & Formulas</span>
+        <div className="p-3 border rounded-lg">
+          <span className="font-medium">CSV files</span>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How AI Uses This Information</h2>
-      <p className="text-gray-600 mb-4">
-        When generating reports, the AI references the knowledge base to:
-      </p>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Use Cases</h2>
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <BookOpen className="w-5 h-5 text-blue-600" />
+          <div>
+            <span className="font-medium">Rate sheets</span>
+            <p className="text-sm text-gray-500">Help AI understand pricing</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <BookOpen className="w-5 h-5 text-green-600" />
+          <div>
+            <span className="font-medium">Service guides</span>
+            <p className="text-sm text-gray-500">Carrier capabilities and restrictions</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <BookOpen className="w-5 h-5 text-teal-600" />
+          <div>
+            <span className="font-medium">Customer contracts</span>
+            <p className="text-sm text-gray-500">Specific terms and conditions</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 p-3 border rounded-lg">
+          <BookOpen className="w-5 h-5 text-amber-600" />
+          <div>
+            <span className="font-medium">Procedure documents</span>
+            <p className="text-sm text-gray-500">How to handle special situations</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Documents</h2>
+      <p className="text-gray-600 mb-4">From the Knowledge Base, you can:</p>
       <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>Use customer-specific terminology in reports</li>
-        <li>Focus on metrics the customer cares about</li>
-        <li>Compare against their defined benchmarks</li>
-        <li>Provide context-aware insights</li>
+        <li>View document contents</li>
+        <li>Edit metadata and tags</li>
+        <li>Change customer assignments</li>
+        <li>Delete outdated documents</li>
       </ul>
     </div>
   );
@@ -1347,7 +1488,8 @@ export function LearningQueueContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Learning Queue</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The Learning Queue shows AI-identified knowledge gaps that need human review.
+        The Learning Queue captures questions and terms that the AI couldn't fully
+        understand, flagging them for human review.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How It Works</h2>
@@ -1358,8 +1500,17 @@ export function LearningQueueContent() {
             <Zap className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">AI Detects Unknown Terms</h4>
-            <p className="text-sm text-gray-600">When the AI encounters terminology or patterns it doesn't recognize, it adds an item to the queue.</p>
+            <h4 className="font-medium text-gray-900">1. User asks a question</h4>
+            <p className="text-sm text-gray-600">User asks a question in AI Studio.</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg">
+          <div className="p-2 bg-amber-100 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900">2. AI encounters unknown term</h4>
+            <p className="text-sm text-gray-600">AI encounters an unknown term or concept.</p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
@@ -1367,8 +1518,8 @@ export function LearningQueueContent() {
             <Eye className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">Human Review</h4>
-            <p className="text-sm text-gray-600">Admin users review the queue and provide definitions or mappings.</p>
+            <h4 className="font-medium text-gray-900">3. Item added to queue</h4>
+            <p className="text-sm text-gray-600">Item is added to the Learning Queue for admin review.</p>
           </div>
         </div>
         <div className="flex items-start gap-3 p-4 bg-teal-50 rounded-lg">
@@ -1376,25 +1527,38 @@ export function LearningQueueContent() {
             <Brain className="w-5 h-5 text-teal-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">AI Learns</h4>
-            <p className="text-sm text-gray-600">Approved definitions are added to the knowledge base for future use.</p>
+            <h4 className="font-medium text-gray-900">4. Admin reviews and AI learns</h4>
+            <p className="text-sm text-gray-600">Admin provides clarification. AI learns from the feedback.</p>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Processing Queue Items</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Reviewing Queue Items</h2>
 
-      <Step number={1} title="Review the Item">
-        Read the context where the unknown term was found.
+      <Step number={1} title="Navigate to Knowledge Base">
+        Navigate to <strong>Admin</strong> then <strong>Knowledge Base</strong>.
       </Step>
 
-      <Step number={2} title="Provide Definition">
-        Add a clear definition or map to an existing concept.
+      <Step number={2} title="Click Learning Queue Tab">
+        Click the <strong>Learning Queue</strong> tab.
       </Step>
 
-      <Step number={3} title="Approve or Reject">
-        Approve to add to knowledge base, or reject if not useful.
+      <Step number={3} title="Review Each Item">
+        Review each item showing the original question, the unknown term, and which customer it came from.
       </Step>
+
+      <Step number={4} title="Provide Clarification">
+        Provide clarification or add to Knowledge Base.
+      </Step>
+
+      <Step number={5} title="Mark as Resolved">
+        Mark as resolved.
+      </Step>
+
+      <Callout type="info">
+        Regularly reviewing the Learning Queue helps the AI get smarter and more
+        accurate for your specific business needs.
+      </Callout>
     </div>
   );
 }
@@ -1404,39 +1568,75 @@ export function UserManagementContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">User Management</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Manage user accounts, roles, and access permissions.
+        Administrators can add, edit, and manage user accounts from the User Management page.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">User Roles</h2>
 
-      <div className="space-y-4 mb-6">
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            <h4 className="font-semibold">Admin</h4>
-          </div>
-          <p className="text-gray-600 text-sm">
-            Full access to all features, all customers, and administrative settings.
-          </p>
-        </div>
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-green-600" />
-            <h4 className="font-semibold">Customer User</h4>
-          </div>
-          <p className="text-gray-600 text-sm">
-            Access to their own customer's data, reports, and standard features.
-          </p>
-        </div>
+      <div className="overflow-x-auto mb-6">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left p-3 border font-semibold">Role</th>
+              <th className="text-left p-3 border font-semibold">Permissions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="p-3 border">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <strong>Admin</strong>
+                </div>
+              </td>
+              <td className="p-3 border">Full access to all features, all customers, and admin settings</td>
+            </tr>
+            <tr>
+              <td className="p-3 border">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-600" />
+                  <strong>Customer</strong>
+                </div>
+              </td>
+              <td className="p-3 border">Access only to assigned customer(s) data, no admin features</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Users</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Adding a New User</h2>
+
+      <Step number={1} title="Navigate to User Management">
+        Navigate to <strong>Admin</strong> then <strong>User Management</strong>.
+      </Step>
+
+      <Step number={2} title="Click Add User">
+        Click <strong>Add User</strong>.
+      </Step>
+
+      <Step number={3} title="Enter Email">
+        Enter email address.
+      </Step>
+
+      <Step number={4} title="Select Role">
+        Select role (Admin or Customer).
+      </Step>
+
+      <Step number={5} title="Assign to Customers">
+        If Customer role, assign to specific customer(s).
+      </Step>
+
+      <Step number={6} title="Send Invitation">
+        Click <strong>Send Invitation</strong>.
+      </Step>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Existing Users</h2>
 
       <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
-        <li>View all users in the system</li>
-        <li>Assign or change user roles</li>
-        <li>Associate users with customer accounts</li>
-        <li>Deactivate user access when needed</li>
+        <li><strong>Edit</strong> - Change role or customer assignments</li>
+        <li><strong>Disable</strong> - Temporarily block access</li>
+        <li><strong>Delete</strong> - Permanently remove the user</li>
+        <li><strong>Resend Invitation</strong> - For users who haven't activated</li>
       </ul>
 
       <Callout type="warning">
@@ -1451,40 +1651,53 @@ export function ImpersonationContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">View As Customer</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The "View As Customer" feature lets admins see exactly what a customer sees in the application.
+        The "View As" feature lets administrators see the dashboard exactly as a
+        specific customer user would see it.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">When to Use</h2>
 
       <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
         <li>Troubleshooting customer-reported issues</li>
-        <li>Verifying data accuracy from their perspective</li>
-        <li>Testing new features before customer rollout</li>
-        <li>Creating reports that match customer expectations</li>
-        <li>Training or demos for specific customer accounts</li>
+        <li>Verifying that customer sees correct data</li>
+        <li>Testing customer-specific configurations</li>
+        <li>Demonstrating features to customers</li>
       </ul>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How to Use</h2>
 
-      <Step number={1} title="Open Customer Switcher">
-        Click the customer dropdown in the header.
+      <Step number={1} title="Click View As Dropdown">
+        Click the <strong>"View as"</strong> dropdown in the header.
       </Step>
 
-      <Step number={2} title="Select a Customer">
-        Search for and select the customer you want to view as.
+      <Step number={2} title="Select Customer">
+        Select the customer you want to impersonate.
       </Step>
 
-      <Step number={3} title="Notice the Indicator">
-        A banner appears showing you're in customer view mode.
+      <Step number={3} title="Notice the Banner">
+        An <strong>orange banner</strong> appears confirming "Viewing as [Customer]".
       </Step>
 
-      <Step number={4} title="Exit When Done">
-        Click "Exit Customer View" to return to admin mode.
+      <Step number={4} title="Navigate Freely">
+        Navigate the dashboard - you'll see exactly what the customer sees.
+      </Step>
+
+      <Step number={5} title="Exit When Done">
+        Click <strong>"Exit"</strong> in the banner to return to admin view.
       </Step>
 
       <Callout type="warning">
-        While viewing as a customer, you see only their data and have their permission level. Some admin features will be hidden.
+        While in "View As" mode, you have the same permissions as that customer.
+        Admin-only features and other customers' data will be hidden.
       </Callout>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">What Changes</h2>
+      <ul className="list-disc list-inside space-y-2 text-gray-600">
+        <li>Data is filtered to only that customer's shipments</li>
+        <li>Admin menu items are hidden</li>
+        <li>Reports show only that customer's reports</li>
+        <li>Customer Intelligence Profile is applied to AI responses</li>
+      </ul>
     </div>
   );
 }
@@ -1494,32 +1707,53 @@ export function NotificationCenterContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Notification Center</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Stay informed about important events and updates through the notification system.
+        The notification bell in the header keeps you informed about important events
+        and updates.
       </p>
 
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Accessing Notifications</h2>
+
+      <Step number={1} title="Click the Bell Icon">
+        Click the <strong>bell icon</strong> in the top-right header.
+      </Step>
+
+      <Step number={2} title="View Notifications">
+        A dropdown shows your recent notifications. Unread notifications are highlighted.
+      </Step>
+
+      <Step number={3} title="Click to Navigate">
+        Click any notification to navigate to the related page.
+      </Step>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Notification Badge</h2>
       <p className="text-gray-600 mb-4">
-        Click the bell icon in the header to open the notification panel. A badge shows unread notification count.
+        The red badge on the bell shows the count of unread notifications. This
+        updates in real-time as new notifications arrive.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Notification Features</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Notifications</h2>
 
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span>Mark individual notifications as read</span>
+          <div>
+            <span className="font-medium">Mark as read</span>
+            <p className="text-sm text-gray-500">Click a notification to mark it read</p>
+          </div>
         </div>
         <div className="flex items-center gap-3 p-3 border rounded-lg">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span>Mark all notifications as read at once</span>
+          <div>
+            <span className="font-medium">Mark all as read</span>
+            <p className="text-sm text-gray-500">Click the link at the top of the dropdown</p>
+          </div>
         </div>
         <div className="flex items-center gap-3 p-3 border rounded-lg">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span>Click notifications to navigate to relevant content</span>
-        </div>
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <CheckCircle className="w-5 h-5 text-green-600" />
-          <span>Delete old notifications to keep the list clean</span>
+          <div>
+            <span className="font-medium">Delete</span>
+            <p className="text-sm text-gray-500">Click the trash icon on individual notifications</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1531,35 +1765,75 @@ export function AlertTypesContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Alert Types</h1>
       <p className="text-lg text-gray-600 mb-6">
-        Different types of notifications keep you informed about various system events.
+        The system generates different types of notifications based on events.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Notification Categories</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Notification Types</h2>
 
-      <div className="space-y-4 mb-6">
-        <div className="p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">Report Notifications</h4>
-          <p className="text-gray-600 text-sm">
-            Scheduled reports completed, new reports shared with you, report generation failures.
-          </p>
+      <div className="overflow-x-auto mb-6">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left p-3 border font-semibold">Type</th>
+              <th className="text-left p-3 border font-semibold">When It's Sent</th>
+              <th className="text-left p-3 border font-semibold">Priority</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="p-3 border"><strong>Shipment Delivered</strong></td>
+              <td className="p-3 border">When a shipment is marked as delivered</td>
+              <td className="p-3 border"><span className="text-gray-500">Low</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>Shipment Exception</strong></td>
+              <td className="p-3 border">When a delivery issue or exception occurs</td>
+              <td className="p-3 border"><span className="text-red-600 font-medium">High</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>Shipment Delayed</strong></td>
+              <td className="p-3 border">When expected delivery date changes</td>
+              <td className="p-3 border"><span className="text-amber-600 font-medium">Medium</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>Report Ready</strong></td>
+              <td className="p-3 border">When a scheduled report has been generated</td>
+              <td className="p-3 border"><span className="text-amber-600 font-medium">Medium</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>Schedule Complete</strong></td>
+              <td className="p-3 border">When a scheduled report has been sent</td>
+              <td className="p-3 border"><span className="text-gray-500">Low</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>Learning Queue</strong></td>
+              <td className="p-3 border">When AI encounters unknown terms (admin only)</td>
+              <td className="p-3 border"><span className="text-gray-500">Low</span></td>
+            </tr>
+            <tr>
+              <td className="p-3 border"><strong>System</strong></td>
+              <td className="p-3 border">General system announcements</td>
+              <td className="p-3 border"><span className="text-gray-500">Varies</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Priority Indicators</h2>
+      <p className="text-gray-600 mb-4">Notifications are color-coded by priority:</p>
+
+      <div className="space-y-3 mb-6">
+        <div className="flex items-center gap-3 p-3 border-l-4 border-red-500 bg-red-50 rounded-r-lg">
+          <span className="text-red-700">Red border - Urgent, requires immediate attention</span>
         </div>
-        <div className="p-4 border-l-4 border-green-500 bg-green-50 rounded-r-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">System Updates</h4>
-          <p className="text-gray-600 text-sm">
-            New features available, maintenance windows, important announcements.
-          </p>
+        <div className="flex items-center gap-3 p-3 border-l-4 border-amber-500 bg-amber-50 rounded-r-lg">
+          <span className="text-amber-700">Orange border - High priority</span>
         </div>
-        <div className="p-4 border-l-4 border-amber-500 bg-amber-50 rounded-r-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">Shipment Alerts</h4>
-          <p className="text-gray-600 text-sm">
-            Delivery exceptions, status changes, deadline warnings.
-          </p>
+        <div className="flex items-center gap-3 p-3 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
+          <span className="text-blue-700">Blue border - Medium priority</span>
         </div>
-        <div className="p-4 border-l-4 border-teal-500 bg-teal-50 rounded-r-lg">
-          <h4 className="font-semibold text-gray-900 mb-1">AI Learning</h4>
-          <p className="text-gray-600 text-sm">
-            New items in the learning queue, knowledge base updates requiring review.
-          </p>
+        <div className="flex items-center gap-3 p-3 border-l-4 border-gray-400 bg-gray-50 rounded-r-lg">
+          <span className="text-gray-700">Gray border - Low priority, informational</span>
         </div>
       </div>
 

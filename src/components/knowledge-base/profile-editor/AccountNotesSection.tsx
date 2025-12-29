@@ -47,7 +47,7 @@ export function AccountNotesSection({ notes, customerId, onUpdate }: AccountNote
           onChange={(e) => setCurrentNotes(e.target.value)}
           placeholder="Add notes about this customer, their business context, special requirements, or anything else the AI should know when generating reports..."
           rows={6}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 resize-none text-sm"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 resize-none text-sm"
           autoFocus
         />
         <div className="flex items-center justify-end gap-2">
@@ -83,7 +83,7 @@ export function AccountNotesSection({ notes, customerId, onUpdate }: AccountNote
         </div>
         <button
           onClick={() => setIsEditing(true)}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors font-medium"
         >
           <Pencil className="w-4 h-4" />
           Add Notes
@@ -100,7 +100,7 @@ export function AccountNotesSection({ notes, customerId, onUpdate }: AccountNote
       <div className="flex items-center justify-end">
         <button
           onClick={() => setIsEditing(true)}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors font-medium"
         >
           <Pencil className="w-4 h-4" />
           Edit

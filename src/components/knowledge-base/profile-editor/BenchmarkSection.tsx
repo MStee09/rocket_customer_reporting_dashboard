@@ -86,8 +86,8 @@ export function BenchmarkSection({ benchmarkPeriod, customerId, onUpdate }: Benc
                 disabled={isSaving}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors disabled:opacity-50 ${
                   benchmarkPeriod === option.value
-                    ? 'bg-rocket-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:text-blue-600'
+                    ? 'bg-rocket-600 text-white border-rocket-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-rocket-500 hover:text-rocket-600'
                 }`}
               >
                 {option.label}
@@ -104,7 +104,7 @@ export function BenchmarkSection({ benchmarkPeriod, customerId, onUpdate }: Benc
               value={customValue}
               onChange={(e) => setCustomValue(e.target.value)}
               placeholder="e.g., Jan-Mar 2024, FY2023"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500 text-sm"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500 text-sm"
             />
             <button
               onClick={handleCustomSave}
@@ -161,7 +161,7 @@ export function BenchmarkSection({ benchmarkPeriod, customerId, onUpdate }: Benc
       </div>
       <button
         onClick={() => setIsEditing(true)}
-        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+        className="flex items-center gap-1 px-3 py-1.5 text-sm text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors font-medium"
       >
         <Pencil className="w-4 h-4" />
         Edit

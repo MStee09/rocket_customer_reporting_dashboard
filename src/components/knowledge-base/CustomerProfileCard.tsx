@@ -32,7 +32,7 @@ export function CustomerProfileCard({
       <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-rocket-500 to-teal-500 flex items-center justify-center flex-shrink-0">
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div className="min-w-0 flex-1">

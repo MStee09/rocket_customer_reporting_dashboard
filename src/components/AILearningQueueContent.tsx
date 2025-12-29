@@ -48,7 +48,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <h2 className="text-xl font-semibold text-slate-900">
-            Review Term: <span className="text-blue-600">{item.term}</span>
+            Review Term: <span className="text-rocket-600">{item.term}</span>
           </h2>
           <button
             onClick={onClose}
@@ -79,7 +79,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
             <textarea
               value={editedDefinition}
               onChange={(e) => setEditedDefinition(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
             />
           </div>
 
@@ -118,11 +118,11 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
           )}
 
           {item.similar_existing_terms?.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="font-medium text-blue-800 mb-2">Similar Existing Terms</div>
+            <div className="bg-rocket-50 border border-rocket-200 rounded-lg p-4">
+              <div className="font-medium text-rocket-800 mb-2">Similar Existing Terms</div>
               <div className="flex flex-wrap gap-2">
                 {item.similar_existing_terms.map((t: string, i: number) => (
-                  <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">{t}</span>
+                  <span key={i} className="px-2 py-1 bg-rocket-100 text-rocket-700 rounded text-sm font-medium">{t}</span>
                 ))}
               </div>
             </div>
@@ -168,7 +168,7 @@ function ReviewModal({ item, onClose, onApproveGlobal, onApproveCustomer, onReje
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full border border-slate-300 rounded-lg px-4 py-2 h-20 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                   placeholder="Why is this term being rejected?"
                 />
               </div>
@@ -288,7 +288,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { bg: string; icon: React.ReactNode }> = {
       pending: { bg: 'bg-amber-100 text-amber-700', icon: <Clock className="w-3 h-3" /> },
-      approved_global: { bg: 'bg-blue-100 text-blue-700', icon: <CheckCircle className="w-3 h-3" /> },
+      approved_global: { bg: 'bg-info-light text-info-dark', icon: <CheckCircle className="w-3 h-3" /> },
       approved_customer: { bg: 'bg-teal-100 text-teal-700', icon: <CheckCircle className="w-3 h-3" /> },
       rejected: { bg: 'bg-red-100 text-red-700', icon: <XCircle className="w-3 h-3" /> },
       merged: { bg: 'bg-cyan-100 text-cyan-700', icon: <GitMerge className="w-3 h-3" /> },
@@ -305,7 +305,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
   if (loading && queueItems.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -318,7 +318,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
           <div className="text-sm text-slate-500">Pending Review</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-600">{approvedGlobalCount}</div>
+          <div className="text-2xl font-bold text-rocket-600">{approvedGlobalCount}</div>
           <div className="text-sm text-slate-500">Added to Global</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-4">
@@ -339,7 +339,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+          className="border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
         >
           <option value="pending">Pending</option>
           <option value="approved_global">Approved (Global)</option>
@@ -348,7 +348,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
           <option value="merged">Merged</option>
           <option value="all">All</option>
         </select>
-        {loading && <Loader2 className="w-5 h-5 text-blue-600 animate-spin self-center" />}
+        {loading && <Loader2 className="w-5 h-5 text-rocket-600 animate-spin self-center" />}
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -400,7 +400,7 @@ export function AILearningQueueContent({ onPendingCountChange }: AILearningQueue
                     {item.status === 'pending' && (
                       <button
                         onClick={() => setSelectedItem(item)}
-                        className="text-blue-600 hover:underline font-medium"
+                        className="text-rocket-600 hover:underline font-medium"
                       >
                         Review
                       </button>

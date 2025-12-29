@@ -109,7 +109,7 @@ export function CustomerProfilesTab() {
   if (isLoading) {
     return (
       <div className="p-12 text-center">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-4" />
+        <Loader2 className="w-8 h-8 text-rocket-600 animate-spin mx-auto mb-4" />
         <p className="text-gray-500">Loading customer profiles...</p>
       </div>
     );
@@ -132,7 +132,7 @@ export function CustomerProfilesTab() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search customers by name..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
           />
         </div>
         <div className="text-sm text-gray-500">

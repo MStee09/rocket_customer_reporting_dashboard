@@ -108,7 +108,7 @@ export function LearningNotificationCard({
 
           {notification.aiResponse && (
             <div className="flex items-start gap-2">
-              <Sparkles className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <Sparkles className="w-4 h-4 text-rocket-500 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">AI responded:</p>
                 <p className="text-sm text-gray-600">{notification.aiResponse}</p>
@@ -117,11 +117,11 @@ export function LearningNotificationCard({
           )}
 
           {notification.suggestedField && (
-            <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
-              <Search className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex items-start gap-2 p-2 bg-rocket-50 rounded-lg">
+              <Search className="w-4 h-4 text-rocket-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs text-blue-600 font-medium mb-1">AI Suggestion</p>
-                <p className="text-sm text-blue-800">
+                <p className="text-xs text-rocket-600 font-medium mb-1">AI Suggestion</p>
+                <p className="text-sm text-rocket-800">
                   Search <span className="font-medium">{notification.suggestedField}</span>
                   {notification.suggestedKeywords && notification.suggestedKeywords.length > 0 && (
                     <> for: {notification.suggestedKeywords.join(', ')}</>

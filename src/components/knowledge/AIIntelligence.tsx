@@ -167,7 +167,7 @@ export function AIIntelligence() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-rocket-600 animate-spin" />
       </div>
     );
   }
@@ -258,7 +258,7 @@ export function AIIntelligence() {
                   </button>
                   <button
                     onClick={() => setSelectedItem(item)}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+                    className="px-3 py-1 bg-rocket-100 text-rocket-700 rounded text-sm hover:bg-rocket-200"
                   >
                     Edit
                   </button>
@@ -374,7 +374,7 @@ export function AIIntelligence() {
                         )}
 
                         {item.ai_instructions && (
-                          <p className="text-xs text-blue-600 mt-1 truncate">
+                          <p className="text-xs text-rocket-600 mt-1 truncate">
                             AI: {item.ai_instructions}
                           </p>
                         )}

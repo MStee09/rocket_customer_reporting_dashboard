@@ -108,7 +108,7 @@ export function TerminologySection({ terminology, customerId, onUpdate }: Termin
 
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-4 py-2 text-rocket-600 hover:bg-rocket-50 rounded-md transition-colors text-sm font-medium"
       >
         <Plus className="w-4 h-4" />
         Add
@@ -132,7 +132,7 @@ export function TerminologySection({ terminology, customerId, onUpdate }: Termin
                   value={newTerm.term}
                   onChange={(e) => setNewTerm({ ...newTerm, term: e.target.value })}
                   placeholder='e.g., "SKU", "the widget", "PO#"'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                   autoFocus
                 />
               </div>
@@ -146,7 +146,7 @@ export function TerminologySection({ terminology, customerId, onUpdate }: Termin
                   value={newTerm.meaning}
                   onChange={(e) => setNewTerm({ ...newTerm, meaning: e.target.value })}
                   placeholder='e.g., "Stock Keeping Unit", "Model X-500", "Purchase Order Number"'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 />
               </div>
             </div>

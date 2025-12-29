@@ -70,7 +70,7 @@ export function ScheduleFilters({
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -84,7 +84,7 @@ export function ScheduleFilters({
           <select
             value={typeFilter}
             onChange={(e) => onTypeFilterChange(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
           >
             <option value="all">All Types</option>
             <option value="ai_report">AI Reports</option>

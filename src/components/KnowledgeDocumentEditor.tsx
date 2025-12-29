@@ -231,7 +231,7 @@ export function KnowledgeDocumentEditor({
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-white rounded-2xl p-8 flex items-center gap-3">
-          <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+          <Loader2 className="w-6 h-6 text-rocket-600 animate-spin" />
           <span className="text-gray-600">Loading document...</span>
         </div>
       </div>
@@ -243,8 +243,8 @@ export function KnowledgeDocumentEditor({
       <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-rocket-100 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-rocket-600" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
@@ -317,7 +317,7 @@ export function KnowledgeDocumentEditor({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="Document title"
               />
             </div>
@@ -345,7 +345,7 @@ export function KnowledgeDocumentEditor({
                   onClick={() => setScope('global')}
                   className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors ${
                     scope === 'global'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      ? 'bg-rocket-50 border-rocket-500 text-rocket-700'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -357,7 +357,7 @@ export function KnowledgeDocumentEditor({
                   onClick={() => setScope('customer')}
                   className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors ${
                     scope === 'customer'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      ? 'bg-rocket-50 border-rocket-500 text-rocket-700'
                       : 'border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -375,7 +375,7 @@ export function KnowledgeDocumentEditor({
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 >
                   <option value="">Select customer...</option>
                   {customers.map((c) => (
@@ -394,7 +394,7 @@ export function KnowledgeDocumentEditor({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as DocumentCategory)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
               >
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -432,7 +432,7 @@ export function KnowledgeDocumentEditor({
                 type="text"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
                 placeholder="Comma-separated keywords"
               />
             </div>
@@ -494,7 +494,7 @@ export function KnowledgeDocumentEditor({
                 onClick={() => setShowPreview(!showPreview)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded text-sm transition-colors ${
                   showPreview
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'bg-rocket-100 text-rocket-700'
                     : 'text-gray-600 hover:bg-gray-200'
                 }`}
               >

@@ -36,8 +36,10 @@ export function ColumnPreviewTooltip({
           setIsLoading(false);
         }
       } catch (err) {
+        console.error('[ColumnPreviewTooltip] Error loading samples:', err);
         if (isMounted) {
-          setError('Unable to load sample data');
+          const errorMessage = err instanceof Error ? err.message : 'Unable to load sample data';
+          setError(errorMessage);
           setIsLoading(false);
         }
       }

@@ -113,8 +113,8 @@ export async function fetchColumnSamples(
     });
 
     if (error) {
-      console.error('[ColumnSamples] Error fetching column samples:', error);
-      throw new Error('Failed to fetch sample data');
+      console.error('[ColumnSamples] Database error:', error);
+      throw new Error(`Database error: ${error.message || 'Failed to fetch sample data'}`);
     }
 
     console.log('[ColumnSamples] Raw data:', data);

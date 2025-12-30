@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { AIReportDefinition } from '../types/aiReport';
+import {
+  exploreForIntent,
+  formatExplorationForPrompt,
+  parseUserIntent
+} from './dataExplorationService';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -31,6 +36,23 @@ export async function generateReport(
   currentReport?: AIReportDefinition | null,
   customerName?: string
 ): Promise<GenerateReportResponse> {
+  const intent = parseUserIntent(prompt);
+
+  let explorationContext = '';
+  if (intent.needsExploration && conversationHistory.length === 0) {
+    console.log('[AI] Exploring data for intent:', intent);
+    const exploration = await exploreForIntent(customerId, intent);
+    if (exploration.success) {
+      explorationContext = formatExplorationForPrompt(exploration);
+      console.log('[AI] Exploration complete:', exploration.exploredFields.length, 'fields');
+    }
+  }
+
+  const combinedContext = [
+    knowledgeContext || '',
+    explorationContext
+  ].filter(Boolean).join('\n\n');
+
   const history = conversationHistory
     .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
     .map((msg) => ({
@@ -44,7 +66,7 @@ export async function generateReport(
       conversationHistory: history,
       customerId,
       isAdmin,
-      knowledgeContext,
+      knowledgeContext: combinedContext,
       currentReport: currentReport || undefined,
       customerName: customerName || undefined,
     },

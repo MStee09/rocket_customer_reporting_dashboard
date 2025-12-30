@@ -32,14 +32,14 @@ export const REPORT_COLUMNS: ReportColumn[] = [
     groupable: true
   },
   {
-    id: 'client_load_id',
-    label: 'Client Load ID',
-    table: 'shipment',
-    column: 'client_load_id',
+    id: 'client_id',
+    label: 'Client ID',
+    table: 'shipment_report_view',
+    column: 'client_id',
     category: 'shipment',
     type: 'number',
     format: 'integer',
-    description: 'Client-specific load number',
+    description: 'Client identifier',
     groupable: true
   },
   {
@@ -177,25 +177,47 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'pickup_date',
     label: 'Pickup Date',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'pickup_date',
     category: 'shipment',
     type: 'date',
+    description: 'Scheduled pickup date',
+    groupable: true
+  },
+  {
+    id: 'shipped_date',
+    label: 'Shipped Date',
+    table: 'shipment_report_view',
+    column: 'shipped_date',
+    category: 'shipment',
+    type: 'date',
+    description: 'Date shipped (same as pickup)',
     groupable: true
   },
   {
     id: 'delivery_date',
     label: 'Delivery Date',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'delivery_date',
     category: 'shipment',
     type: 'date',
+    description: 'Actual delivery date',
+    groupable: true
+  },
+  {
+    id: 'delivered_date',
+    label: 'Delivered Date',
+    table: 'shipment_report_view',
+    column: 'delivered_date',
+    category: 'shipment',
+    type: 'date',
+    description: 'Date delivered (same as delivery)',
     groupable: true
   },
   {
     id: 'expected_delivery_date',
     label: 'Expected Delivery Date',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'expected_delivery_date',
     category: 'shipment',
     type: 'date',
@@ -225,10 +247,11 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'reference_number',
     label: 'Reference Number',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'reference_number',
     category: 'shipment',
     type: 'string',
+    description: 'Shipment reference number',
     groupable: true
   },
   {
@@ -284,7 +307,7 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'miles',
     label: 'Miles',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'miles',
     category: 'shipment',
     type: 'number',
@@ -437,7 +460,7 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'retail',
     label: 'Retail',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'retail',
     category: 'financial',
     type: 'number',
@@ -505,13 +528,23 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
 
   {
-    id: 'origin_company_name',
+    id: 'origin_company',
     label: 'Origin Company',
+    table: 'shipment_report_view',
+    column: 'origin_company',
+    category: 'origin',
+    type: 'string',
+    description: 'Origin location company name',
+    groupable: true
+  },
+  {
+    id: 'origin_company_name',
+    label: 'Origin Company Name',
     table: 'shipment_address',
     column: 'company_name',
     category: 'origin',
     type: 'string',
-    description: 'Origin location company name',
+    description: 'Origin location company name (from address table)',
     groupable: true
   },
   {
@@ -526,8 +559,8 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'origin_city',
     label: 'Origin City',
-    table: 'shipment_address',
-    column: 'city',
+    table: 'shipment_report_view',
+    column: 'origin_city',
     category: 'origin',
     type: 'string',
     description: 'Pickup location city',
@@ -536,28 +569,31 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'origin_state',
     label: 'Origin State',
-    table: 'shipment_address',
-    column: 'state',
+    table: 'shipment_report_view',
+    column: 'origin_state',
     category: 'origin',
     type: 'string',
+    description: 'Pickup location state',
     groupable: true
   },
   {
     id: 'origin_zip',
     label: 'Origin ZIP',
-    table: 'shipment_address',
-    column: 'postal_code',
+    table: 'shipment_report_view',
+    column: 'origin_zip',
     category: 'origin',
     type: 'string',
+    description: 'Pickup location postal code',
     groupable: true
   },
   {
     id: 'origin_country',
     label: 'Origin Country',
-    table: 'shipment_address',
-    column: 'country',
+    table: 'shipment_report_view',
+    column: 'origin_country',
     category: 'origin',
     type: 'string',
+    description: 'Pickup location country',
     groupable: true
   },
   {
@@ -644,13 +680,23 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
 
   {
-    id: 'destination_company_name',
+    id: 'destination_company',
     label: 'Destination Company',
+    table: 'shipment_report_view',
+    column: 'destination_company',
+    category: 'destination',
+    type: 'string',
+    description: 'Destination location company name',
+    groupable: true
+  },
+  {
+    id: 'destination_company_name',
+    label: 'Destination Company Name',
     table: 'shipment_address',
     column: 'company_name',
     category: 'destination',
     type: 'string',
-    description: 'Destination location company name',
+    description: 'Destination location company name (from address table)',
     groupable: true
   },
   {
@@ -665,8 +711,8 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'destination_city',
     label: 'Destination City',
-    table: 'shipment_address',
-    column: 'city',
+    table: 'shipment_report_view',
+    column: 'destination_city',
     category: 'destination',
     type: 'string',
     description: 'Delivery location city',
@@ -675,28 +721,31 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'destination_state',
     label: 'Destination State',
-    table: 'shipment_address',
-    column: 'state',
+    table: 'shipment_report_view',
+    column: 'destination_state',
     category: 'destination',
     type: 'string',
+    description: 'Delivery location state',
     groupable: true
   },
   {
     id: 'destination_zip',
     label: 'Destination ZIP',
-    table: 'shipment_address',
-    column: 'postal_code',
+    table: 'shipment_report_view',
+    column: 'destination_zip',
     category: 'destination',
     type: 'string',
+    description: 'Delivery location postal code',
     groupable: true
   },
   {
     id: 'destination_country',
     label: 'Destination Country',
-    table: 'shipment_address',
-    column: 'country',
+    table: 'shipment_report_view',
+    column: 'destination_country',
     category: 'destination',
     type: 'string',
+    description: 'Delivery location country',
     groupable: true
   },
   {

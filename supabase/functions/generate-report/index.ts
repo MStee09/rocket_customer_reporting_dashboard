@@ -1253,6 +1253,285 @@ You have deep expertise in:
 - SQL and data aggregation
 - Business intelligence reporting`;
 
+interface LearningExtraction {
+  type: 'terminology' | 'product' | 'preference' | 'correction';
+  key: string;
+  value: string;
+  confidence: number;
+  source: 'explicit' | 'inferred';
+}
+
+function extractLearningsFromConversation(
+  conversationHistory: Array<{ role: string; content: string }>,
+  currentPrompt: string,
+  aiResponse: string
+): LearningExtraction[] {
+  const learnings: LearningExtraction[] = [];
+
+  const userMessages = [
+    ...conversationHistory.filter(m => m.role === 'user').map(m => m.content),
+    currentPrompt,
+  ].join('\n');
+
+  const termPatterns = [
+    /when I say ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
+    /by ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
+    /['"]?([^'"]+)['"]?\s*(?:means|refers to|is)\s+(.+)/gi,
+    /we call (?:it|them|this)\s+['"]?([^'"]+)['"]?/gi,
+  ];
+
+  for (const pattern of termPatterns) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(userMessages)) !== null) {
+      const term = match[1]?.trim();
+      const meaning = match[2]?.trim() || term;
+
+      if (term && term.length > 1 && term.length < 50) {
+        learnings.push({
+          type: 'terminology',
+          key: term.toLowerCase().replace(/\s+/g, '_'),
+          value: meaning,
+          confidence: 1.0,
+          source: 'explicit',
+        });
+      }
+    }
+  }
+
+  const productPatterns = [
+    /(?:we (?:sell|ship|have|make)|our products? (?:are|include))\s+(.+)/gi,
+    /product (?:types?|lines?|categories?):\s*(.+)/gi,
+  ];
+
+  for (const pattern of productPatterns) {
+    let match;
+    const regex = new RegExp(pattern.source, pattern.flags);
+    while ((match = regex.exec(userMessages)) !== null) {
+      const productList = match[1];
+      const products = productList
+        .split(/,\s*|\s+and\s+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 1 && p.length < 50);
+
+      for (const product of products) {
+        learnings.push({
+          type: 'product',
+          key: product.toLowerCase().replace(/\s+/g, '_'),
+          value: product,
+          confidence: 0.9,
+          source: 'explicit',
+        });
+      }
+    }
+  }
+
+  const chartPreferences = [
+    { pattern: /make it a (\w+) chart/i, confidence: 0.8 },
+    { pattern: /change (?:it )?to (?:a )?(\w+) chart/i, confidence: 0.8 },
+    { pattern: /(?:prefer|like|want) (?:a )?(\w+) chart/i, confidence: 0.7 },
+    { pattern: /(\w+) chart (?:would be|is) better/i, confidence: 0.6 },
+  ];
+
+  for (const { pattern, confidence } of chartPreferences) {
+    const match = userMessages.match(pattern);
+    if (match) {
+      learnings.push({
+        type: 'preference',
+        key: 'chart_type',
+        value: match[1].toLowerCase(),
+        confidence,
+        source: 'inferred',
+      });
+    }
+  }
+
+  const focusPatterns = [
+    { pattern: /cost|spend|expense|margin|profit/gi, area: 'cost' },
+    { pattern: /on.time|late|delivery|transit/gi, area: 'service' },
+    { pattern: /volume|shipment|count|quantity/gi, area: 'volume' },
+    { pattern: /carrier|vendor|provider/gi, area: 'carrier' },
+    { pattern: /lane|route|destination|origin/gi, area: 'geography' },
+  ];
+
+  for (const { pattern, area } of focusPatterns) {
+    const matches = userMessages.match(pattern);
+    if (matches && matches.length >= 2) {
+      learnings.push({
+        type: 'preference',
+        key: 'focus_area',
+        value: area,
+        confidence: 0.5 + (matches.length * 0.1),
+        source: 'inferred',
+      });
+    }
+  }
+
+  const correctionPatterns = [
+    /no,?\s*(?:that's not right|that's wrong|I meant)/i,
+    /actually,?\s*I (?:want|meant|need)/i,
+    /that's incorrect/i,
+    /wrong (?:data|numbers|results|field)/i,
+    /not what I (?:asked|wanted|meant)/i,
+  ];
+
+  for (const pattern of correctionPatterns) {
+    if (pattern.test(userMessages)) {
+      learnings.push({
+        type: 'correction',
+        key: 'needs_review',
+        value: currentPrompt,
+        confidence: 0.5,
+        source: 'inferred',
+      });
+      break;
+    }
+  }
+
+  const flagMatch = aiResponse.match(/<learning_flag>([\s\S]*?)<\/learning_flag>/);
+  if (flagMatch) {
+    const result: Record<string, string> = {};
+    for (const line of flagMatch[1].trim().split('\n')) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        if (key && value) result[key] = value;
+      }
+    }
+
+    if (result.term) {
+      learnings.push({
+        type: 'terminology',
+        key: result.term.toLowerCase().replace(/\s+/g, '_'),
+        value: result.user_said || result.ai_understood || result.term,
+        confidence: result.confidence === 'high' ? 0.9 : result.confidence === 'low' ? 0.5 : 0.7,
+        source: 'inferred',
+      });
+    }
+  }
+
+  const seen = new Set<string>();
+  return learnings.filter(l => {
+    const key = `${l.type}:${l.key}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function saveCustomerLearnings(
+  supabaseClient: ReturnType<typeof createClient>,
+  customerId: string,
+  learnings: LearningExtraction[]
+): Promise<void> {
+  for (const learning of learnings) {
+    try {
+      if (learning.type === 'terminology' || learning.type === 'product') {
+        await supabaseClient.from('ai_knowledge').upsert({
+          knowledge_type: learning.type === 'terminology' ? 'term' : 'product',
+          key: learning.key,
+          label: learning.value,
+          definition: learning.value,
+          scope: 'customer',
+          customer_id: customerId,
+          source: learning.source === 'explicit' ? 'learned' : 'inferred',
+          confidence: learning.confidence,
+          needs_review: learning.confidence < 0.8,
+          is_active: learning.confidence >= 0.8,
+          is_visible_to_customers: true,
+        }, {
+          onConflict: 'knowledge_type,key,scope,customer_id',
+        });
+      }
+
+      if (learning.type === 'preference') {
+        await updateCustomerPreference(
+          supabaseClient,
+          customerId,
+          learning.key,
+          learning.value,
+          learning.confidence
+        );
+      }
+
+      if (learning.type === 'correction') {
+        await supabaseClient.from('ai_learning_feedback').insert({
+          customer_id: customerId,
+          trigger_type: 'correction',
+          user_message: learning.value,
+          status: 'pending_review',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to save learning:', learning, e);
+    }
+  }
+}
+
+async function updateCustomerPreference(
+  supabaseClient: ReturnType<typeof createClient>,
+  customerId: string,
+  preferenceKey: string,
+  preferenceValue: string,
+  confidence: number
+): Promise<void> {
+  try {
+    const { data: profile } = await supabaseClient
+      .from('customer_intelligence_profiles')
+      .select('preferences')
+      .eq('customer_id', parseInt(customerId))
+      .maybeSingle();
+
+    if (!profile) {
+      await supabaseClient.from('customer_intelligence_profiles').insert({
+        customer_id: parseInt(customerId),
+        preferences: {
+          [preferenceKey]: { [preferenceValue]: confidence }
+        },
+      });
+      return;
+    }
+
+    const preferences = (profile.preferences as Record<string, Record<string, number>>) || {};
+
+    if (!preferences[preferenceKey]) {
+      preferences[preferenceKey] = {};
+    }
+
+    const currentScore = preferences[preferenceKey][preferenceValue] || 0;
+    preferences[preferenceKey][preferenceValue] = Math.min(1.0, currentScore + (confidence * 0.1));
+
+    await supabaseClient
+      .from('customer_intelligence_profiles')
+      .update({
+        preferences,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('customer_id', parseInt(customerId));
+  } catch (e) {
+    console.error('Failed to update preference:', e);
+  }
+}
+
+async function logAIMetric(
+  supabaseClient: ReturnType<typeof createClient>,
+  customerId: string | null,
+  metricType: string,
+  details?: Record<string, unknown>
+): Promise<void> {
+  try {
+    await supabaseClient.from('ai_metrics').insert({
+      customer_id: customerId,
+      metric_type: metricType,
+      metric_value: 1,
+      details: details || null,
+    });
+  } catch (e) {
+    console.error('Failed to log metric:', e);
+  }
+}
+
 async function fetchUnifiedKnowledge(supabase: any, customerId?: string): Promise<AIKnowledge[]> {
   const { data, error } = await supabase
     .from('ai_knowledge')
@@ -1888,6 +2167,9 @@ ${FEEDBACK_DETECTION}`;
       );
       if (!validation.valid) {
         console.warn('Report validation issues:', validation.errors);
+        await logAIMetric(supabase, customerId || null, 'validation_error', {
+          errors: validation.errors,
+        });
       }
 
       const accessResult = enforceAccessControl(
@@ -1896,6 +2178,9 @@ ${FEEDBACK_DETECTION}`;
       );
       if (accessResult.violations.length > 0) {
         console.warn('[SECURITY] Access violations sanitized:', accessResult.violations);
+        await logAIMetric(supabase, customerId || null, 'access_violation', {
+          violations: accessResult.violations,
+        });
         try {
           await supabase.from('ai_report_audit').insert({
             customer_id: customerId || null,
@@ -1974,6 +2259,33 @@ ${FEEDBACK_DETECTION}`;
       } catch (e) {
         console.error('Failed to create audit log:', e);
       }
+    }
+
+    try {
+      const learnings = extractLearningsFromConversation(
+        conversationHistory,
+        prompt,
+        rawText
+      );
+
+      if (learnings.length > 0 && customerId) {
+        await saveCustomerLearnings(supabase, customerId, learnings);
+
+        const learningSummary = learnings.reduce((acc, l) => {
+          acc[l.type] = (acc[l.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        await logAIMetric(supabase, customerId, 'learnings_captured', {
+          count: learnings.length,
+          types: learningSummary,
+        });
+
+        console.log(`[LEARNING] Captured ${learnings.length} learnings for customer ${customerId}:`,
+          learnings.map(l => `${l.type}:${l.key}`).join(', '));
+      }
+    } catch (learningError) {
+      console.error('[LEARNING] Failed to process learnings:', learningError);
     }
 
     return new Response(

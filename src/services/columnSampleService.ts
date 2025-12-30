@@ -142,14 +142,14 @@ function buildSampleQuery(columnId: string, customerId: string): string {
       break;
 
     case 'shipment_address':
-      const addressType = columnId.startsWith('origin_') ? 'origin' : 'destination';
+      const addressTypeId = columnId.startsWith('origin_') ? 1 : 2;
       query = `
         SELECT DISTINCT sa.${columnName} as sample_value, COUNT(*) as frequency
         FROM shipment_address sa
         INNER JOIN shipment s ON s.load_id = sa.load_id
         WHERE s.customer_id = ${customerId}
           AND s.pickup_date >= '${lookbackDate}'
-          AND sa.address_type = '${addressType}'
+          AND sa.address_type = ${addressTypeId}
           AND sa.${columnName} IS NOT NULL
           AND CAST(sa.${columnName} AS TEXT) != ''
         GROUP BY sa.${columnName}

@@ -51,8 +51,10 @@ function getColumnExpression(columnId: string): string | null {
   const columnDef = getColumnById(columnId);
   if (!columnDef) return null;
 
-  if (columnDef.table === 'shipment_report_view' || columnDef.table === 'shipment') {
+  if (columnDef.table === 'shipment_report_view') {
     return `s.${columnDef.column}`;
+  } else if (columnDef.table === 'shipment') {
+    return `ship.${columnDef.column}`;
   } else if (columnDef.table === 'shipment_address') {
     if (columnId.startsWith('origin_')) {
       return `origin_addr.${columnDef.column}`;
@@ -265,6 +267,15 @@ export function buildQueryFromSimpleReport(
     const columnDef = getColumnById(id);
     return columnDef?.table === 'customer';
   });
+  const needsShipment = allColumnIds.some(id => {
+    const columnDef = getColumnById(id);
+    return columnDef?.table === 'shipment';
+  });
+
+  if (needsShipment) {
+    query.joins.push('LEFT JOIN shipment ship ON s.load_id = ship.load_id');
+    usedTables.add('shipment');
+  }
 
   if (needsOriginAddress) {
     query.joins.push('LEFT JOIN shipment_address origin_addr ON s.load_id = origin_addr.load_id AND origin_addr.address_type = 1');

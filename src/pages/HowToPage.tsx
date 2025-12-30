@@ -28,6 +28,7 @@ import {
   CustomerProfilesContent,
   KnowledgeBaseContent,
   LearningQueueContent,
+  AIAnalyticsContent,
   UserManagementContent,
   ImpersonationContent,
   NotificationCenterContent,
@@ -192,6 +193,7 @@ export function HowToPage() {
         { id: 'customer-profiles', title: 'Customer Intelligence Profiles', content: <CustomerProfilesContent /> },
         { id: 'knowledge-base', title: 'Knowledge Base', content: <KnowledgeBaseContent /> },
         { id: 'learning-queue', title: 'Learning Queue', content: <LearningQueueContent /> },
+        { id: 'ai-analytics', title: 'AI Analytics', content: <AIAnalyticsContent /> },
         { id: 'user-management', title: 'User Management', content: <UserManagementContent /> },
         { id: 'impersonation', title: 'View As Customer', content: <ImpersonationContent /> },
       ]

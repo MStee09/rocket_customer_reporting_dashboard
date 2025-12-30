@@ -1026,6 +1026,28 @@ export function AIStudioContent() {
         </div>
       </div>
 
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Teaching the AI Your Terms</h2>
+      <p className="text-gray-600 mb-4">
+        The AI remembers terminology you teach it. Just tell it what your abbreviations or terms mean:
+      </p>
+
+      <div className="space-y-3 mb-6">
+        <div className="flex items-start gap-3 p-3 bg-rocket-50 rounded-lg border border-rocket-200">
+          <Sparkles className="w-5 h-5 text-rocket-600 mt-0.5" />
+          <div>
+            <span className="font-medium text-rocket-900">"When I say CG, I mean cargoglide"</span>
+            <p className="text-sm text-rocket-700">The AI will use this in future conversations</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-rocket-50 rounded-lg border border-rocket-200">
+          <Sparkles className="w-5 h-5 text-rocket-600 mt-0.5" />
+          <div>
+            <span className="font-medium text-rocket-900">"We sell drawer systems and truck bed organizers"</span>
+            <p className="text-sm text-rocket-700">The AI understands your product categories</p>
+          </div>
+        </div>
+      </div>
+
       <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Tips for Better Results</h2>
       <div className="space-y-3 mb-6">
         <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
@@ -1053,21 +1075,26 @@ export function AIStudioContent() {
           <Sparkles className="w-5 h-5 text-rocket-500 mt-0.5" />
           <div>
             <span className="font-medium">Request Specific Formats</span>
-            <p className="text-sm text-gray-600">"Show as a bar chart" or "Give me a table"</p>
+            <p className="text-sm text-gray-600">"Show as a pie chart" or "Give me a table"</p>
           </div>
         </div>
       </div>
 
       <Callout type="info">
-        The AI has access to your full shipment database. It can answer specific
-        questions about individual shipments, carriers, lanes, and trends.
+        The AI has access to your shipment data and can answer questions about your
+        specific shipments, carriers, lanes, and trends.
       </Callout>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Exporting AI Reports</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Saving and Exporting Reports</h2>
       <p className="text-gray-600 mb-4">
-        When the AI generates a table or data, you can export it using the Export
-        button that appears above the results.
+        When the AI generates a report, you can:
       </p>
+      <ul className="list-disc list-inside space-y-2 text-gray-600 mb-6">
+        <li><strong>Save</strong> - Store the report for quick access later</li>
+        <li><strong>Export</strong> - Download as CSV, Excel, or PDF</li>
+        <li><strong>Schedule</strong> - Set up recurring delivery via email</li>
+        <li><strong>Share</strong> - Generate a shareable link</li>
+      </ul>
     </div>
   );
 }
@@ -1405,88 +1432,103 @@ export function KnowledgeBaseContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Knowledge Base</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The Knowledge Base stores documents and information that the AI can reference
-        when answering questions.
+        The Knowledge Base stores documents, terminology, and customer-specific information
+        that the AI uses to provide accurate, personalized responses.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Uploading Documents</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Knowledge Base Tabs</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Terms & Definitions</h4>
+          <p className="text-gray-600 text-sm">
+            Industry and customer-specific terminology. The AI uses these to understand
+            abbreviations, jargon, and company-specific language.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Documents</h4>
+          <p className="text-gray-600 text-sm">
+            Uploaded files like rate sheets, carrier guides, and customer contracts.
+            The AI references these when answering questions.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Learning Queue</h4>
+          <p className="text-gray-600 text-sm">
+            Terms and corrections captured from customer conversations that need review.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg bg-rocket-50 border-rocket-200">
+          <h4 className="font-semibold text-gray-900 mb-2">AI Analytics</h4>
+          <p className="text-gray-600 text-sm">
+            Platform performance metrics: reports generated, success rates, learnings captured.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Adding Terms</h2>
 
       <Step number={1} title="Navigate to Knowledge Base">
-        Navigate to <strong>Admin</strong> then <strong>Knowledge Base</strong>.
+        Go to <strong>Admin</strong> then <strong>Knowledge Base</strong>.
       </Step>
 
-      <Step number={2} title="Click Upload Document">
-        Click <strong>Upload Document</strong>.
+      <Step number={2} title="Click Add Term">
+        Click <strong>Add Term</strong>.
       </Step>
 
-      <Step number={3} title="Select a File">
-        Select a file (PDF, Word, or text).
+      <Step number={3} title="Enter Details">
+        Enter the term, definition, and any aliases.
       </Step>
 
-      <Step number={4} title="Choose Customers">
-        Choose which customer(s) this applies to.
+      <Step number={4} title="Set Scope">
+        Choose <strong>Global</strong> (all customers) or assign to specific customer(s).
       </Step>
 
-      <Step number={5} title="Add Tags and Upload">
-        Add tags for organization and click <strong>Upload</strong>.
+      <Step number={5} title="Save">
+        Click <strong>Save</strong>.
       </Step>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Supported Document Types</h2>
-      <div className="grid md:grid-cols-2 gap-3 mb-6">
-        <div className="p-3 border rounded-lg">
-          <span className="font-medium">PDF files</span>
-        </div>
-        <div className="p-3 border rounded-lg">
-          <span className="font-medium">Word documents (.doc, .docx)</span>
-        </div>
-        <div className="p-3 border rounded-lg">
-          <span className="font-medium">Text files (.txt)</span>
-        </div>
-        <div className="p-3 border rounded-lg">
-          <span className="font-medium">CSV files</span>
-        </div>
-      </div>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How Learning Works</h2>
+      <p className="text-gray-600 mb-4">
+        The AI automatically captures knowledge from customer conversations:
+      </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Use Cases</h2>
       <div className="space-y-3 mb-6">
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <BookOpen className="w-5 h-5 text-rocket-600" />
+          <Brain className="w-5 h-5 text-rocket-600" />
           <div>
-            <span className="font-medium">Rate sheets</span>
-            <p className="text-sm text-gray-500">Help AI understand pricing</p>
+            <span className="font-medium">Explicit Teaching</span>
+            <p className="text-sm text-gray-500">"When I say X, I mean Y" - saved with high confidence</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <BookOpen className="w-5 h-5 text-green-600" />
+          <Brain className="w-5 h-5 text-rocket-600" />
           <div>
-            <span className="font-medium">Service guides</span>
-            <p className="text-sm text-gray-500">Carrier capabilities and restrictions</p>
+            <span className="font-medium">Products</span>
+            <p className="text-sm text-gray-500">"We sell X and Y" - captured as product categories</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <BookOpen className="w-5 h-5 text-teal-600" />
+          <Brain className="w-5 h-5 text-rocket-600" />
           <div>
-            <span className="font-medium">Customer contracts</span>
-            <p className="text-sm text-gray-500">Specific terms and conditions</p>
+            <span className="font-medium">Preferences</span>
+            <p className="text-sm text-gray-500">"Make it a pie chart" - tracked over time</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 border rounded-lg">
-          <BookOpen className="w-5 h-5 text-amber-600" />
+        <div className="flex items-center gap-3 p-3 border rounded-lg bg-amber-50 border-amber-200">
+          <AlertCircle className="w-5 h-5 text-amber-600" />
           <div>
-            <span className="font-medium">Procedure documents</span>
-            <p className="text-sm text-gray-500">How to handle special situations</p>
+            <span className="font-medium">Corrections</span>
+            <p className="text-sm text-gray-500">"No, that's wrong" - flagged for review</p>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Managing Documents</h2>
-      <p className="text-gray-600 mb-4">From the Knowledge Base, you can:</p>
-      <ul className="list-disc list-inside space-y-2 text-gray-600">
-        <li>View document contents</li>
-        <li>Edit metadata and tags</li>
-        <li>Change customer assignments</li>
-        <li>Delete outdated documents</li>
-      </ul>
+      <Callout type="tip">
+        Learned items show a "learned" badge. Review these periodically to ensure accuracy.
+        Low-confidence items appear in the Learning Queue.
+      </Callout>
     </div>
   );
 }
@@ -1496,76 +1538,147 @@ export function LearningQueueContent() {
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-4">Learning Queue</h1>
       <p className="text-lg text-gray-600 mb-6">
-        The Learning Queue captures questions and terms that the AI couldn't fully
-        understand, flagging them for human review.
+        The Learning Queue captures items from AI conversations that need human review
+        to improve accuracy.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">How It Works</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">What Gets Captured</h2>
 
       <div className="space-y-4 mb-6">
-        <div className="flex items-start gap-3 p-4 bg-rocket-50 rounded-lg">
-          <div className="p-2 bg-rocket-100 rounded-lg">
-            <Zap className="w-5 h-5 text-rocket-600" />
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-900">1. User asks a question</h4>
-            <p className="text-sm text-gray-600">User asks a question in AI Studio.</p>
-          </div>
-        </div>
         <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg">
           <div className="p-2 bg-amber-100 rounded-lg">
             <AlertCircle className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">2. AI encounters unknown term</h4>
-            <p className="text-sm text-gray-600">AI encounters an unknown term or concept.</p>
+            <h4 className="font-medium text-gray-900">Unknown Terms</h4>
+            <p className="text-sm text-gray-600">Terminology the AI couldn't understand in context.</p>
           </div>
         </div>
-        <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
-          <div className="p-2 bg-green-100 rounded-lg">
-            <Eye className="w-5 h-5 text-green-600" />
+        <div className="flex items-start gap-3 p-4 bg-red-50 rounded-lg">
+          <div className="p-2 bg-red-100 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">3. Item added to queue</h4>
-            <p className="text-sm text-gray-600">Item is added to the Learning Queue for admin review.</p>
+            <h4 className="font-medium text-gray-900">Corrections</h4>
+            <p className="text-sm text-gray-600">When customers indicate the AI was wrong.</p>
           </div>
         </div>
-        <div className="flex items-start gap-3 p-4 bg-teal-50 rounded-lg">
-          <div className="p-2 bg-teal-100 rounded-lg">
-            <Brain className="w-5 h-5 text-teal-600" />
+        <div className="flex items-start gap-3 p-4 bg-rocket-50 rounded-lg">
+          <div className="p-2 bg-rocket-100 rounded-lg">
+            <Brain className="w-5 h-5 text-rocket-600" />
           </div>
           <div>
-            <h4 className="font-medium text-gray-900">4. Admin reviews and AI learns</h4>
-            <p className="text-sm text-gray-600">Admin provides clarification. AI learns from the feedback.</p>
+            <h4 className="font-medium text-gray-900">Low-Confidence Inferences</h4>
+            <p className="text-sm text-gray-600">Knowledge the AI inferred but isn't certain about.</p>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Reviewing Queue Items</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Reviewing Items</h2>
 
-      <Step number={1} title="Navigate to Knowledge Base">
-        Navigate to <strong>Admin</strong> then <strong>Knowledge Base</strong>.
+      <Step number={1} title="Open Learning Queue">
+        Go to <strong>Knowledge Base</strong> then <strong>Learning Queue</strong> tab.
       </Step>
 
-      <Step number={2} title="Click Learning Queue Tab">
-        Click the <strong>Learning Queue</strong> tab.
+      <Step number={2} title="Review Context">
+        See the original question, customer, and what the AI understood.
       </Step>
 
-      <Step number={3} title="Review Each Item">
-        Review each item showing the original question, the unknown term, and which customer it came from.
+      <Step number={3} title="Take Action">
+        <ul className="list-disc list-inside mt-2 text-sm">
+          <li><strong>Add to Knowledge Base</strong> - Create a term with the correct definition</li>
+          <li><strong>Link to Existing</strong> - It's an alias for an existing term</li>
+          <li><strong>Dismiss</strong> - Not relevant or one-time misunderstanding</li>
+        </ul>
       </Step>
 
-      <Step number={4} title="Provide Clarification">
-        Provide clarification or add to Knowledge Base.
-      </Step>
-
-      <Step number={5} title="Mark as Resolved">
-        Mark as resolved.
+      <Step number={4} title="Resolve">
+        The AI uses this knowledge for future conversations with that customer.
       </Step>
 
       <Callout type="info">
-        Regularly reviewing the Learning Queue helps the AI get smarter and more
-        accurate for your specific business needs.
+        Review the queue regularly. Each resolved item makes the AI smarter and reduces
+        future clarification questions for that customer.
+      </Callout>
+    </div>
+  );
+}
+
+export function AIAnalyticsContent() {
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">AI Analytics</h1>
+      <p className="text-lg text-gray-600 mb-6">
+        Monitor AI platform performance and usage across all customers.
+      </p>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Key Metrics</h2>
+
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Reports Generated</h4>
+          <p className="text-gray-600 text-sm">
+            Total AI reports created in the selected time period.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Conversations</h4>
+          <p className="text-gray-600 text-sm">
+            Unique chat sessions (customer + day).
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Success Rate</h4>
+          <p className="text-gray-600 text-sm">
+            Percentage of requests completed without errors. Target: 95%+
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Learnings Captured</h4>
+          <p className="text-gray-600 text-sm">
+            New terminology and preferences learned from conversations.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg bg-amber-50 border-amber-200">
+          <h4 className="font-semibold text-gray-900 mb-2">Validation Errors</h4>
+          <p className="text-gray-600 text-sm">
+            Reports that referenced invalid fields. Indicates schema issues.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg bg-red-50 border-red-200">
+          <h4 className="font-semibold text-gray-900 mb-2">Access Violations</h4>
+          <p className="text-gray-600 text-sm">
+            Blocked attempts to access restricted data. Security working as intended.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Usage Insights</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Most Active Customers</h4>
+          <p className="text-gray-600 text-sm">
+            High usage indicates value. Reach out to low-usage customers to drive adoption.
+          </p>
+        </div>
+        <div className="p-4 border rounded-lg">
+          <h4 className="font-semibold text-gray-900 mb-2">Daily Usage Trend</h4>
+          <p className="text-gray-600 text-sm">
+            Track growth and identify usage patterns.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-4">Schema Change Detection</h2>
+      <p className="text-gray-600 mb-4">
+        When database columns are added or removed, an alert appears. Click <strong>Refresh Schema</strong>
+        to update the AI's knowledge of available fields.
+      </p>
+
+      <Callout type="tip">
+        Check analytics weekly. Rising validation errors may indicate schema changes.
+        Rising learnings indicate healthy customer engagement.
       </Callout>
     </div>
   );
@@ -1969,6 +2082,22 @@ export function FAQContent({ isAdmin = false }: { isAdmin?: boolean }) {
           <p className="text-gray-600">
             No. Your shipment data is only used to answer your questions. It is not
             used to train or improve the AI model.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Can I teach the AI my company's terminology?</h3>
+          <p className="text-gray-600">
+            Yes! Just say things like "When I say CG, I mean cargoglide" and the AI
+            will remember this for your future conversations.
+          </p>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">Why can't I see cost or margin data?</h3>
+          <p className="text-gray-600">
+            Cost and margin information is only available to Go Rocket Shipping staff.
+            You can see your retail charges and shipment volumes.
           </p>
         </div>
       </div>

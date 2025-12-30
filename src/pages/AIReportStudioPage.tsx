@@ -33,6 +33,8 @@ import { exportReportToPDF } from '../utils/pdfExport';
 import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
+import { ReportEnhancementContext } from '../types/reportEnhancement';
+import { formatContextForAI, generateEnhancementSuggestions } from '../utils/reportEnhancementContext';
 
 type ActiveTab = 'create' | 'library';
 type SortOption = 'newest' | 'oldest' | 'name';
@@ -128,6 +130,7 @@ export function AIReportStudioPage() {
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
+  const [enhancementContext, setEnhancementContext] = useState<ReportEnhancementContext | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -257,6 +260,46 @@ export function AIReportStudioPage() {
     if (location.state?.hasContext) checkForContext();
   }, [location.state, location.key]);
 
+  useEffect(() => {
+    const checkForEnhancementContext = () => {
+      const contextStr = sessionStorage.getItem('enhancement_context');
+      if (contextStr) {
+        try {
+          const context: ReportEnhancementContext = JSON.parse(contextStr);
+          const contextTime = new Date(context.timestamp).getTime();
+          const isValid = Date.now() - contextTime < 10 * 60 * 1000;
+
+          if (isValid) {
+            setEnhancementContext(context);
+            setActiveTab('create');
+
+            const suggestions = generateEnhancementSuggestions(context);
+            const suggestionsText = suggestions.length > 0
+              ? `\n\n**Suggestions:**\n${suggestions.map(s => `• ${s}`).join('\n')}`
+              : '';
+
+            const initialMessage: ChatMessageType = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: `I've loaded your custom report "${context.sourceReportName}" with ${context.rowCount.toLocaleString()} rows.\n\n**Available columns:**\n${context.columns.map(c => `• **${c.label}** (${c.type})`).join('\n')}${suggestionsText}\n\nWhat visualization would you like to create? You can:\n- Group by any text column and show as a chart\n- Categorize by keywords (e.g., "group description by 'drawer', 'cargoglide', 'toolbox'")\n- Calculate metrics (e.g., "cost per item")\n\nThis will be a **live report** that updates automatically with new data.`,
+              timestamp: new Date(),
+            };
+
+            setMessages([initialMessage]);
+            sessionStorage.removeItem('enhancement_context');
+          } else {
+            sessionStorage.removeItem('enhancement_context');
+          }
+        } catch (e) {
+          console.error('Failed to parse enhancement context:', e);
+          sessionStorage.removeItem('enhancement_context');
+        }
+      }
+    };
+
+    checkForEnhancementContext();
+  }, [location.state]);
+
   const handleSendMessage = async (content: string) => {
     if (!effectiveCustomerId) return;
     const userMessage: ChatMessageType = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
@@ -265,7 +308,12 @@ export function AIReportStudioPage() {
     const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
 
     try {
-      const response = await generateReport(content, messages, String(effectiveCustomerId), effectiveIsAdmin, knowledgeContext || undefined, currentReport, effectiveCustomerName || undefined);
+      let combinedContext = knowledgeContext || '';
+      if (enhancementContext) {
+        combinedContext = formatContextForAI(enhancementContext) + '\n\n' + combinedContext;
+      }
+
+      const response = await generateReport(content, messages, String(effectiveCustomerId), effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
       const assistantMessage: ChatMessageType = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -422,6 +470,32 @@ export function AIReportStudioPage() {
         savedReportsCount={savedReports.length}
         onNewReport={handleNewReport}
       />
+
+      {enhancementContext && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-200 px-6 py-3">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full text-sm font-medium shadow-sm">
+                <Sparkles className="w-4 h-4" />
+                <span>Enhancement Mode</span>
+              </div>
+              <span className="text-gray-700 font-medium">
+                Enhancing: <span className="text-purple-700">{enhancementContext.sourceReportName}</span>
+              </span>
+              <span className="text-gray-500 text-sm">
+                ({enhancementContext.rowCount.toLocaleString()} rows, {enhancementContext.columns.length} columns)
+              </span>
+            </div>
+            <button
+              onClick={() => setEnhancementContext(null)}
+              className="ml-4 hover:bg-purple-100 rounded-full p-1.5 transition-colors"
+              title="Exit enhancement mode"
+            >
+              <X className="w-4 h-4 text-purple-700" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'library' ? (
         <ReportLibrary

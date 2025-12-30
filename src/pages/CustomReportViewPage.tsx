@@ -13,7 +13,8 @@ import {
   LayoutGrid,
   Pencil,
   Download,
-  Mail
+  Mail,
+  Sparkles
 } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,6 +44,7 @@ import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
+import { buildEnhancementContext } from '../utils/reportEnhancementContext';
 
 type DatePreset = 'last30' | 'last90' | 'last6months' | 'lastyear' | 'custom';
 
@@ -65,6 +67,7 @@ export function CustomReportViewPage() {
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
+  const [enhancementData, setEnhancementData] = useState<Record<string, unknown>[]>([]);
   const [retryCount, setRetryCount] = useState(0);
 
   const newReportFromState = (location.state as { newReport?: any })?.newReport;
@@ -228,6 +231,45 @@ export function CustomReportViewPage() {
     });
   };
 
+  const handleEnhanceWithAI = () => {
+    if (!report) return;
+
+    const simpleReport = (report as any).simpleReport;
+    if (!simpleReport) {
+      alert('This report type cannot be enhanced with AI yet.');
+      return;
+    }
+
+    const context = buildEnhancementContext(
+      {
+        id: report.id,
+        name: report.name,
+        description: report.description,
+        columns: simpleReport.columns || [],
+        isSummary: simpleReport.isSummary || false,
+        groupBy: simpleReport.groupBy || [],
+        visualization: simpleReport.visualization,
+        filters: simpleReport.filters || [],
+        sorts: simpleReport.sorts || []
+      },
+      enhancementData.length > 0 ? enhancementData : reportData,
+      {
+        type: datePreset,
+        start: startDate,
+        end: endDate
+      }
+    );
+
+    sessionStorage.setItem('enhancement_context', JSON.stringify(context));
+
+    navigate('/ai-studio', {
+      state: {
+        enhancementMode: true,
+        sourceReport: report.name
+      }
+    });
+  };
+
   const handleScheduleClick = () => {
     if (!report) return;
 
@@ -318,6 +360,15 @@ export function CustomReportViewPage() {
               Export PDF
             </button>
             <button
+              onClick={handleEnhanceWithAI}
+              disabled={reportData.length === 0}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-lg transition-all flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Enhance this report with AI visualizations"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">Enhance with AI</span>
+            </button>
+            <button
               onClick={() => setShowEmailModal(true)}
               disabled={reportData.length === 0}
               className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -356,7 +407,14 @@ export function CustomReportViewPage() {
           </div>
         </div>
 
-        <SimpleReportViewer config={simpleReportConfig} customerId={customerId?.toString()} onDataLoad={setReportData} />
+        <SimpleReportViewer
+          config={simpleReportConfig}
+          customerId={customerId?.toString()}
+          onDataLoad={(data) => {
+            setReportData(data);
+            setEnhancementData(data);
+          }}
+        />
 
         {showSchedulePrompt && (
           <div className="mt-6">

@@ -50,6 +50,21 @@ interface CustomerOption {
   company_name: string;
 }
 
+interface GlobalSuggestion {
+  key: string;
+  knowledge_type: string;
+  customer_count: number;
+  customers: Array<{
+    customer_id: string;
+    customer_name: string;
+    definition: string;
+    confidence: number;
+  }>;
+  sample_definition: string;
+  total_uses: number;
+  avg_confidence: number;
+}
+
 export function AIIntelligence() {
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [needsReview, setNeedsReview] = useState<KnowledgeItem[]>([]);
@@ -61,6 +76,8 @@ export function AIIntelligence() {
   const [selectedItem, setSelectedItem] = useState<KnowledgeItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [stats, setStats] = useState({ total: 0, active: 0, learned: 0, accuracy: 0 });
+  const [globalSuggestions, setGlobalSuggestions] = useState<GlobalSuggestion[]>([]);
+  const [promotingKey, setPromotingKey] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -112,6 +129,7 @@ export function AIIntelligence() {
     setNeedsReview(reviewItemsWithCustomer);
 
     loadStats();
+    loadGlobalSuggestions();
     setLoading(false);
   };
 
@@ -169,6 +187,13 @@ export function AIIntelligence() {
         totalUses > 0 ? Math.round((totalUses / (totalUses + totalCorrections)) * 100) : 100;
 
       setStats({ total, active, learned, accuracy });
+    }
+  };
+
+  const loadGlobalSuggestions = async () => {
+    const { data, error } = await supabase.rpc('get_global_promotion_suggestions', { min_customers: 2 });
+    if (!error && data) {
+      setGlobalSuggestions(data);
     }
   };
 
@@ -246,9 +271,42 @@ export function AIIntelligence() {
 
       reloadKnowledge();
       loadStats();
+      loadGlobalSuggestions();
     } catch (error) {
       console.error('Promote to global failed:', error);
       alert('Failed to promote to global');
+    }
+  };
+
+  const promoteToGlobalFromSuggestion = async (suggestion: GlobalSuggestion) => {
+    const customerList = suggestion.customers
+      .map(c => c.customer_name || `Customer #${c.customer_id}`)
+      .join(', ');
+
+    if (!confirm(
+      `Promote "${suggestion.key}" to global?\n\n` +
+      `Used by: ${customerList}\n\n` +
+      `This will create one global definition and remove all ${suggestion.customer_count} customer versions.`
+    )) return;
+
+    setPromotingKey(suggestion.key);
+
+    try {
+      await supabase.rpc('promote_term_to_global', {
+        p_key: suggestion.key,
+        p_knowledge_type: suggestion.knowledge_type,
+        p_definition: suggestion.sample_definition,
+        p_ai_instructions: null
+      });
+
+      reloadKnowledge();
+      loadStats();
+      loadGlobalSuggestions();
+    } catch (error) {
+      console.error('Failed to promote:', error);
+      alert('Failed to promote to global');
+    } finally {
+      setPromotingKey(null);
     }
   };
 
@@ -403,6 +461,53 @@ export function AIIntelligence() {
                 + {needsReview.length - 5} more items need review
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {globalSuggestions.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-800 flex items-center gap-2 mb-3">
+            <Globe className="w-5 h-5" />
+            Suggested for Global ({globalSuggestions.length})
+          </h3>
+          <p className="text-sm text-blue-600 mb-4">
+            These terms are used by multiple customers and may be industry-standard.
+          </p>
+
+          <div className="space-y-3">
+            {globalSuggestions.map((suggestion) => (
+              <div key={`${suggestion.knowledge_type}-${suggestion.key}`} className="bg-white rounded-lg p-4 border border-blue-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{suggestion.key}</span>
+                      <span className="text-xs px-2 py-0.5 bg-gray-100 rounded">{suggestion.knowledge_type}</span>
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">{suggestion.customer_count} customers</span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{suggestion.sample_definition}</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {suggestion.customers.map((c, i) => (
+                        <span key={i} className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">
+                          {c.customer_name || `#${c.customer_id}`}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => promoteToGlobalFromSuggestion(suggestion)}
+                    disabled={promotingKey === suggestion.key}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {promotingKey === suggestion.key ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Promoting...</>
+                    ) : (
+                      <><Globe className="w-4 h-4" /> Make Global</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

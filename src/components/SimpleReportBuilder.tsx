@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, GripVertical, Plus, Package, DollarSign, MapPin, Flag, Truck, Box, Building, ChevronDown, ChevronRight, Filter, ArrowUpDown } from 'lucide-react';
 import { COLUMN_CATEGORIES, getColumnsByCategory, getColumnById } from '../config/reportColumns';
 import { SimpleReportColumn, SimpleReportBuilderState } from '../types/reports';
 import { ColumnFilter, ColumnSort } from '../types/filters';
 import { useAuth } from '../contexts/AuthContext';
 import ColumnFilterSection from './reports/ColumnFilterSection';
+import { ColumnPreviewTooltip } from './reports/ColumnPreviewTooltip';
 
 interface SimpleReportBuilderProps {
   onClose: () => void;
@@ -28,7 +29,7 @@ const DEFAULT_LOAD_ID_COLUMN = {
 };
 
 export default function SimpleReportBuilder({ onClose, onSave, initialState }: SimpleReportBuilderProps) {
-  const { isAdmin, isViewingAsCustomer } = useAuth();
+  const { isAdmin, isViewingAsCustomer, effectiveCustomerId } = useAuth();
   const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
 
   const getInitialColumns = () => {
@@ -53,6 +54,11 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
     new Set(['shipment', 'financial'])
   );
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const columnButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -126,6 +132,40 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
 
   const totalActiveFilters = state.filters?.filter(f => f.enabled).length || 0;
   const totalSorts = state.sorts?.length || 0;
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleColumnHoverStart = (columnId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      const button = event.currentTarget;
+      const rect = button.getBoundingClientRect();
+
+      setTooltipPosition({
+        top: rect.top,
+        left: rect.right + 10
+      });
+      setHoveredColumn(columnId);
+    }, 300);
+  };
+
+  const handleColumnHoverEnd = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setHoveredColumn(null);
+    setTooltipPosition(null);
+  };
 
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
@@ -290,7 +330,17 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
                         {columns.map(column => (
                           <button
                             key={column.id}
-                            onClick={() => addColumn(column.id)}
+                            ref={(el) => {
+                              if (el) {
+                                columnButtonRefs.current.set(column.id, el);
+                              }
+                            }}
+                            onClick={() => {
+                              addColumn(column.id);
+                              handleColumnHoverEnd();
+                            }}
+                            onMouseEnter={(e) => handleColumnHoverStart(column.id, e)}
+                            onMouseLeave={handleColumnHoverEnd}
                             disabled={isColumnSelected(column.id)}
                             className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
                               isColumnSelected(column.id)
@@ -457,6 +507,15 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
           </div>
         </div>
       </div>
+
+      {hoveredColumn && tooltipPosition && effectiveCustomerId && (
+        <ColumnPreviewTooltip
+          columnId={hoveredColumn}
+          customerId={String(effectiveCustomerId)}
+          position={tooltipPosition}
+          onClose={handleColumnHoverEnd}
+        />
+      )}
     </div>
   );
 }

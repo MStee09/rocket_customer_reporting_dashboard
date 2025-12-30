@@ -164,7 +164,7 @@ export function AnalyticsPage() {
               <button
                 key={report.id}
                 onClick={() => navigate(report.path)}
-                className="w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
+                className="group w-full px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors text-left"
               >
                 <div className="flex-shrink-0">
                   <div
@@ -196,9 +196,9 @@ export function AnalyticsPage() {
                   </div>
                 </div>
                 <div className="flex-shrink-0">
-                  <button className="px-4 py-2 text-sm font-medium text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors">
+                  <span className="px-4 py-2 text-sm font-medium text-rocket-600 group-hover:bg-rocket-50 rounded-lg transition-colors">
                     Open
-                  </button>
+                  </span>
                 </div>
               </button>
             ))}

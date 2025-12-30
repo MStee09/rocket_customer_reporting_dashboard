@@ -115,11 +115,14 @@ export interface CustomWidgetDefinition {
 
   visualization: VisualizationConfig;
 
+  config?: Record<string, unknown>;
+
   display: {
     icon: string;
     iconColor: string;
     defaultSize: WidgetSize;
     gradient?: string;
+    refreshInterval?: number;
   };
 
   dataMode: DataMode;

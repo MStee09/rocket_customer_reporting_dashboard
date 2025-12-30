@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, LayoutDashboard, Eye, EyeOff, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { X, LayoutDashboard, Eye, EyeOff, ChevronUp, ChevronDown, Loader2, Check } from 'lucide-react';
 import { SavedAIReport } from '../../services/aiReportService';
 import { executeReportData } from '../../services/reportDataExecutor';
+import { createWidgetFromAIReport } from '../../services/aiWidgetService';
 import { supabase } from '../../lib/supabase';
-import { ExecutedReportData, ReportSection } from '../../types/aiReport';
+import { ExecutedReportData, ReportSection, AIReportDefinition } from '../../types/aiReport';
 import { ReportRenderer } from '../reports/studio/ReportRenderer';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -19,7 +20,9 @@ interface AddToDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
   report: SavedAIReport | null;
-  onAdd: (config: AIReportWidgetConfig) => void;
+  reportDefinition?: AIReportDefinition;
+  onAdd?: (config: AIReportWidgetConfig) => void;
+  onSuccess?: () => void;
 }
 
 interface SectionInfo {
@@ -51,26 +54,38 @@ function getSectionLabel(section: ReportSection): string {
   }
 }
 
-export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDashboardModalProps) {
-  const { effectiveCustomerId, isAdmin } = useAuth();
+export function AddToDashboardModal({
+  isOpen,
+  onClose,
+  report,
+  reportDefinition,
+  onAdd,
+  onSuccess
+}: AddToDashboardModalProps) {
+  const { effectiveCustomerId, isAdmin, user } = useAuth();
   const [sections, setSections] = useState<SectionInfo[]>([]);
   const [executedData, setExecutedData] = useState<ExecutedReportData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [config, setConfig] = useState({
     title: '',
     size: 'medium' as const,
     refreshInterval: 60
   });
 
+  const definition = report?.definition || reportDefinition;
+
   useEffect(() => {
-    if (isOpen && report) {
+    if (isOpen && definition) {
       setConfig(prev => ({
         ...prev,
-        title: report.name
+        title: report?.name || definition?.name || 'AI Widget'
       }));
 
-      if (report.definition?.sections) {
-        const sectionList = report.definition.sections.map((section, index) => ({
+      if (definition?.sections) {
+        const sectionList = definition.sections.map((section, index) => ({
           id: `section-${index}`,
           type: section.type,
           label: getSectionLabel(section),
@@ -80,17 +95,19 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
       }
 
       loadPreviewData();
+      setSaveSuccess(false);
+      setSaveError(null);
     }
-  }, [isOpen, report]);
+  }, [isOpen, report, reportDefinition]);
 
   const loadPreviewData = async () => {
-    if (!report || !effectiveCustomerId) return;
+    if (!definition || !effectiveCustomerId) return;
 
     setLoadingPreview(true);
     try {
       const data = await executeReportData(
         supabase,
-        report.definition,
+        definition,
         String(effectiveCustomerId),
         isAdmin()
       );
@@ -128,10 +145,10 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
     .filter(s => s.included)
     .map(s => parseInt(s.id.split('-')[1]));
 
-  const previewReport = report ? {
-    ...report.definition,
+  const previewReport = definition ? {
+    ...definition,
     sections: selectedIndices
-      .map(idx => report.definition.sections[idx])
+      .map(idx => definition.sections[idx])
       .filter(Boolean)
   } : null;
 
@@ -144,23 +161,60 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
 
   const includedCount = sections.filter(s => s.included).length;
 
-  const handleAdd = () => {
-    if (!report) return;
-    onAdd({
-      reportId: report.id,
-      title: config.title,
-      size: config.size,
-      sections: sections.filter(s => s.included).map(s => s.id),
-      refreshInterval: config.refreshInterval
-    });
-    onClose();
+  const handleAdd = async () => {
+    if (!definition) return;
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const result = await createWidgetFromAIReport(supabase, {
+        reportDefinition: definition,
+        sourceReportId: report?.id || definition.id || `unsaved_${Date.now()}`,
+        sourceReportName: report?.name || definition.name || 'AI Report',
+        title: config.title,
+        description: `${includedCount} section${includedCount !== 1 ? 's' : ''} from ${report?.name || definition.name || 'AI Report'}`,
+        sectionIndices: selectedIndices,
+        size: config.size,
+        refreshInterval: config.refreshInterval,
+        userId: user?.id || 'unknown',
+        userEmail: user?.email || 'unknown',
+        customerId: effectiveCustomerId ? Number(effectiveCustomerId) : undefined,
+        customerName: undefined,
+      });
+
+      if (result.success) {
+        setSaveSuccess(true);
+
+        if (onAdd) {
+          onAdd({
+            reportId: report?.id || definition.id,
+            title: config.title,
+            size: config.size,
+            sections: sections.filter(s => s.included).map(s => s.id),
+            refreshInterval: config.refreshInterval,
+          });
+        }
+
+        setTimeout(() => {
+          onSuccess?.();
+          onClose();
+        }, 1500);
+      } else {
+        setSaveError(result.error || 'Failed to create widget');
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to create widget');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  if (!isOpen || !report) return null;
+  if (!isOpen || !definition) return null;
 
   const previewMaxWidth = config.size === 'small' ? 350 :
     config.size === 'medium' ? 500 :
-      config.size === 'large' ? 700 : undefined;
+      config.size === 'wide' ? 700 : undefined;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -269,7 +323,10 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                   style={{ maxWidth: previewMaxWidth }}
                 >
                   <div className="flex items-center justify-between px-4 py-2.5 border-b bg-gray-50">
-                    <span className="font-medium text-sm truncate">{config.title}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span className="font-medium text-sm truncate">{config.title}</span>
+                    </div>
                     <div className="flex gap-1">
                       <div className="w-4 h-4 rounded bg-gray-300" />
                       <div className="w-4 h-4 rounded bg-gray-300" />
@@ -291,8 +348,9 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
                     </div>
                   )}
 
-                  <div className="px-3 py-1.5 border-t bg-gray-50 text-xs text-gray-400">
-                    Updated: Just now
+                  <div className="px-3 py-1.5 border-t bg-gray-50 text-xs text-gray-400 flex justify-between">
+                    <span>Updated: Just now</span>
+                    <span className="text-purple-500">{includedCount} section{includedCount !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               )}
@@ -359,6 +417,12 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
           </div>
         </div>
 
+        {saveError && (
+          <div className="px-6 py-2 bg-red-50 border-t border-red-200">
+            <p className="text-sm text-red-600">{saveError}</p>
+          </div>
+        )}
+
         <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
           <p className="text-sm text-gray-500">
             {includedCount} section{includedCount !== 1 ? 's' : ''} will be displayed
@@ -372,10 +436,22 @@ export function AddToDashboardModal({ isOpen, onClose, report, onAdd }: AddToDas
             </button>
             <button
               onClick={handleAdd}
-              disabled={includedCount === 0}
-              className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={includedCount === 0 || isSaving}
+              className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              Add to Dashboard
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Added!
+                </>
+              ) : (
+                'Add to Dashboard'
+              )}
             </button>
           </div>
         </div>

@@ -9,7 +9,8 @@ export type WidgetType =
   | 'bar_chart'
   | 'pie_chart'
   | 'table'
-  | 'map';
+  | 'map'
+  | 'ai_report';
 
 export type WidgetCategory =
   | 'volume'
@@ -17,7 +18,8 @@ export type WidgetCategory =
   | 'geographic'
   | 'performance'
   | 'breakdown'
-  | 'customers';
+  | 'customers'
+  | 'ai_generated';
 
 export type WidgetSize =
   | 'small'

@@ -1,4 +1,5 @@
 import { DashboardWidgetCard } from '../DashboardWidgetCard';
+import { AIWidgetRenderer } from './AIWidgetRenderer';
 import { widgetLibrary, getEffectiveColSpan, getScaleFactor } from '../../config/widgetLibrary';
 import { WidgetSizeLevel } from '../../types/widgets';
 
@@ -15,6 +16,22 @@ interface WidgetGridProps {
   startDate: string;
   endDate: string;
   comparisonDates: { start: string; end: string } | null;
+  onWidgetRemoved?: () => void;
+}
+
+function getAIWidgetColSpan(size: string | undefined): string {
+  switch (size) {
+    case 'small':
+      return 'col-span-1';
+    case 'medium':
+      return 'col-span-1';
+    case 'wide':
+      return 'col-span-1 md:col-span-2';
+    case 'full':
+      return 'col-span-1 md:col-span-2 lg:col-span-3';
+    default:
+      return 'col-span-1';
+  }
 }
 
 export function WidgetGrid({
@@ -25,6 +42,7 @@ export function WidgetGrid({
   startDate,
   endDate,
   comparisonDates,
+  onWidgetRemoved,
 }: WidgetGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
@@ -39,6 +57,23 @@ export function WidgetGrid({
         }
 
         if (!widget) return null;
+
+        const isAIWidget = widget.type === 'ai_report' || widget.source === 'ai';
+
+        if (isAIWidget) {
+          const aiSize = widget.display?.defaultSize || 'medium';
+          const colSpan = getAIWidgetColSpan(aiSize);
+
+          return (
+            <div key={widgetId} className={`${colSpan} transition-all duration-300 ease-out`}>
+              <AIWidgetRenderer
+                widget={widget}
+                onDelete={onWidgetRemoved}
+                compact={true}
+              />
+            </div>
+          );
+        }
 
         const sizeLevel = widgetSizes[widgetId] || 'default';
         const colSpan = getEffectiveColSpan(widget.type, widget.size || 'small', sizeLevel);

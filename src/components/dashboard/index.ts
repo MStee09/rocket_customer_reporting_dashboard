@@ -22,3 +22,4 @@ export { AIReportsSection } from './AIReportsSection';
 export { WidgetGrid } from './WidgetGrid';
 export { WidgetCard } from './WidgetCard';
 export { AIInsightsPanel } from './AIInsightsPanel';
+export { AIWidgetRenderer } from './AIWidgetRenderer';

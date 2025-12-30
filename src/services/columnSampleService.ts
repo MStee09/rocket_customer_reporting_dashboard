@@ -15,8 +15,51 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 5 * 60 * 1000;
-const SAMPLE_LIMIT = 10;
+const SAMPLE_LIMIT = 1;
 const DATA_LOOKBACK_DAYS = 90;
+
+const COLUMN_TO_VIEW_MAPPING: Record<string, string> = {
+  'mode_id': 'mode_name',
+  'status_id': 'status_name',
+  'equipment_type_id': 'equipment_name',
+};
+
+const VIEW_COLUMNS = new Set([
+  'load_id',
+  'client_id',
+  'customer_id',
+  'pickup_date',
+  'shipped_date',
+  'delivery_date',
+  'delivered_date',
+  'expected_delivery_date',
+  'retail',
+  'miles',
+  'reference_number',
+  'status_id',
+  'mode_id',
+  'equipment_type_id',
+  'created_date',
+  'carrier_id',
+  'carrier_name',
+  'status_name',
+  'delivery_status',
+  'mode_name',
+  'equipment_name',
+  'origin_company',
+  'origin_city',
+  'origin_state',
+  'origin_zip',
+  'origin_country',
+  'destination_company',
+  'destination_city',
+  'destination_state',
+  'destination_zip',
+  'destination_country',
+  'is_completed',
+  'is_cancelled',
+  'is_late',
+]);
 
 function getCacheKey(columnId: string, customerId: string): string {
   return `${columnId}_${customerId}`;
@@ -68,7 +111,7 @@ function buildSampleQuery(columnId: string, customerId: string): string {
 
   const lookbackDate = format(subDays(new Date(), DATA_LOOKBACK_DAYS), 'yyyy-MM-dd');
 
-  const columnName = columnId;
+  const columnName = COLUMN_TO_VIEW_MAPPING[columnId] || columnDef.column;
 
   const query = `
     SELECT DISTINCT ${columnName} as sample_value, COUNT(*) as frequency
@@ -85,11 +128,28 @@ function buildSampleQuery(columnId: string, customerId: string): string {
   return query.trim();
 }
 
+function isColumnInView(columnId: string): boolean {
+  const mappedColumn = COLUMN_TO_VIEW_MAPPING[columnId];
+  if (mappedColumn) {
+    return VIEW_COLUMNS.has(mappedColumn);
+  }
+  return VIEW_COLUMNS.has(columnId);
+}
+
+export function canShowSamples(columnId: string): boolean {
+  return isColumnInView(columnId);
+}
+
 export async function fetchColumnSamples(
   columnId: string,
   customerId: string
 ): Promise<string[]> {
   console.log('[ColumnSamples] Fetching samples for:', columnId, 'customerId:', customerId);
+
+  if (!isColumnInView(columnId)) {
+    console.log('[ColumnSamples] Column not in view, skipping:', columnId);
+    return [];
+  }
 
   const cacheKey = getCacheKey(columnId, customerId);
 

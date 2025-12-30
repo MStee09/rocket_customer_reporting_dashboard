@@ -23,7 +23,7 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'load_id',
     label: 'Load ID',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'load_id',
     category: 'shipment',
     type: 'number',
@@ -44,12 +44,12 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
   {
     id: 'status_id',
-    label: 'Status',
-    table: 'shipment',
+    label: 'Status ID',
+    table: 'shipment_report_view',
     column: 'status_id',
     category: 'shipment',
     type: 'lookup',
-    description: 'Shipment status',
+    description: 'Shipment status ID',
     groupable: true,
     lookup: {
       table: 'shipment_status',
@@ -109,12 +109,12 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
   {
     id: 'mode_id',
-    label: 'Mode',
-    table: 'shipment',
+    label: 'Mode ID',
+    table: 'shipment_report_view',
     column: 'mode_id',
     category: 'shipment',
     type: 'lookup',
-    description: 'Transportation mode',
+    description: 'Transportation mode ID',
     groupable: true,
     lookup: {
       table: 'shipment_mode',
@@ -134,11 +134,12 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
   {
     id: 'equipment_type_id',
-    label: 'Equipment Type',
-    table: 'shipment',
+    label: 'Equipment Type ID',
+    table: 'shipment_report_view',
     column: 'equipment_type_id',
     category: 'shipment',
     type: 'lookup',
+    description: 'Equipment type ID',
     groupable: true,
     lookup: {
       table: 'equipment_type',
@@ -159,10 +160,11 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'created_date',
     label: 'Created Date',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'created_date',
     category: 'shipment',
     type: 'date',
+    description: 'When shipment was created',
     groupable: true
   },
   {
@@ -418,7 +420,7 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   {
     id: 'customer_id',
     label: 'Customer ID',
-    table: 'shipment',
+    table: 'shipment_report_view',
     column: 'customer_id',
     category: 'customer',
     type: 'number',

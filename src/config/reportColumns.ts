@@ -58,21 +58,53 @@ export const REPORT_COLUMNS: ReportColumn[] = [
     }
   },
   {
-    id: 'status_code',
-    label: 'Status Code',
-    table: 'shipment',
-    column: 'status_code',
+    id: 'status_name',
+    label: 'Status',
+    table: 'shipment_report_view',
+    column: 'status_name',
     category: 'shipment',
     type: 'string',
+    description: 'Current shipment status',
     groupable: true
   },
   {
-    id: 'status_description',
-    label: 'Status Description',
-    table: 'shipment',
-    column: 'status_description',
+    id: 'delivery_status',
+    label: 'Delivery Status',
+    table: 'shipment_report_view',
+    column: 'delivery_status',
     category: 'shipment',
     type: 'string',
+    description: 'Delivery status description',
+    groupable: true
+  },
+  {
+    id: 'is_completed',
+    label: 'Is Completed',
+    table: 'shipment_report_view',
+    column: 'is_completed',
+    category: 'shipment',
+    type: 'boolean',
+    description: 'Whether shipment is completed',
+    groupable: true
+  },
+  {
+    id: 'is_cancelled',
+    label: 'Is Cancelled',
+    table: 'shipment_report_view',
+    column: 'is_cancelled',
+    category: 'shipment',
+    type: 'boolean',
+    description: 'Whether shipment is cancelled',
+    groupable: true
+  },
+  {
+    id: 'is_late',
+    label: 'Is Late',
+    table: 'shipment_report_view',
+    column: 'is_late',
+    category: 'shipment',
+    type: 'boolean',
+    description: 'Whether shipment is late or delayed',
     groupable: true
   },
   {
@@ -91,6 +123,16 @@ export const REPORT_COLUMNS: ReportColumn[] = [
     }
   },
   {
+    id: 'mode_name',
+    label: 'Mode Name',
+    table: 'shipment_report_view',
+    column: 'mode_name',
+    category: 'shipment',
+    type: 'string',
+    description: 'Transportation mode (TL, LTL, etc)',
+    groupable: true
+  },
+  {
     id: 'equipment_type_id',
     label: 'Equipment Type',
     table: 'shipment',
@@ -103,6 +145,16 @@ export const REPORT_COLUMNS: ReportColumn[] = [
       keyField: 'equipment_type_id',
       displayField: 'equipment_code'
     }
+  },
+  {
+    id: 'equipment_name',
+    label: 'Equipment Name',
+    table: 'shipment_report_view',
+    column: 'equipment_name',
+    category: 'shipment',
+    type: 'string',
+    description: 'Equipment type name',
+    groupable: true
   },
   {
     id: 'created_date',
@@ -731,9 +783,20 @@ export const REPORT_COLUMNS: ReportColumn[] = [
   },
 
   {
+    id: 'carrier_id',
+    label: 'Carrier ID',
+    table: 'shipment_report_view',
+    column: 'carrier_id',
+    category: 'carrier',
+    type: 'number',
+    format: 'integer',
+    description: 'Carrier identifier',
+    groupable: true
+  },
+  {
     id: 'carrier_name',
     label: 'Carrier Name',
-    table: 'carrier',
+    table: 'shipment_report_view',
     column: 'carrier_name',
     category: 'carrier',
     type: 'string',

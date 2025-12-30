@@ -51,17 +51,23 @@ function getColumnExpression(columnId: string): string | null {
   const columnDef = getColumnById(columnId);
   if (!columnDef) return null;
 
-  if (columnId.startsWith('origin_')) {
-    return `origin_addr.${columnDef.column}`;
-  } else if (columnId.startsWith('destination_')) {
-    return `dest_addr.${columnDef.column}`;
-  } else if (columnId.startsWith('carrier_')) {
+  if (columnDef.table === 'shipment_report_view' || columnDef.table === 'shipment') {
+    return `s.${columnDef.column}`;
+  } else if (columnDef.table === 'shipment_address') {
+    if (columnId.startsWith('origin_')) {
+      return `origin_addr.${columnDef.column}`;
+    } else if (columnId.startsWith('destination_')) {
+      return `dest_addr.${columnDef.column}`;
+    }
+  } else if (columnDef.table === 'carrier' || columnDef.table === 'shipment_carrier') {
     return `c.${columnDef.column}`;
   } else if (columnDef.table === 'shipment_item') {
     return `si.${columnDef.column}`;
-  } else {
-    return `s.${columnDef.column}`;
+  } else if (columnDef.table === 'customer') {
+    return `cust.${columnDef.column}`;
   }
+
+  return `s.${columnDef.column}`;
 }
 
 function escapeString(value: string): string {
@@ -224,14 +230,14 @@ export function buildQueryFromSimpleReport(
 ): string {
   const query: QueryPart = {
     select: [],
-    from: 'shipment s',
+    from: 'shipment_report_view s',
     joins: [],
     where: [],
     groupBy: [],
     orderBy: []
   };
 
-  const usedTables = new Set<string>(['shipment']);
+  const usedTables = new Set<string>(['shipment_report_view']);
 
   const allColumnIds = [
     ...config.columns.map(col => col.id),
@@ -239,12 +245,25 @@ export function buildQueryFromSimpleReport(
     ...(config.sorts?.filter(s => s.direction !== 'none').map(s => s.columnId) || [])
   ];
 
-  const needsOriginAddress = allColumnIds.some(id => id.startsWith('origin_'));
-  const needsDestinationAddress = allColumnIds.some(id => id.startsWith('destination_'));
-  const needsCarrier = allColumnIds.some(id => id.startsWith('carrier_'));
+  const needsOriginAddress = allColumnIds.some(id => {
+    const columnDef = getColumnById(id);
+    return columnDef?.table === 'shipment_address' && id.startsWith('origin_');
+  });
+  const needsDestinationAddress = allColumnIds.some(id => {
+    const columnDef = getColumnById(id);
+    return columnDef?.table === 'shipment_address' && id.startsWith('destination_');
+  });
+  const needsCarrier = allColumnIds.some(id => {
+    const columnDef = getColumnById(id);
+    return columnDef?.table === 'carrier' || columnDef?.table === 'shipment_carrier';
+  });
   const needsShipmentItem = allColumnIds.some(id => {
     const columnDef = getColumnById(id);
     return columnDef?.table === 'shipment_item';
+  });
+  const needsCustomer = allColumnIds.some(id => {
+    const columnDef = getColumnById(id);
+    return columnDef?.table === 'customer';
   });
 
   if (needsOriginAddress) {
@@ -268,6 +287,11 @@ export function buildQueryFromSimpleReport(
     usedTables.add('shipment_item');
   }
 
+  if (needsCustomer) {
+    query.joins.push('LEFT JOIN customer cust ON s.customer_id = cust.customer_id');
+    usedTables.add('customer');
+  }
+
   if (customerId) {
     query.where.push(`s.customer_id = ${customerId}`);
   }
@@ -282,47 +306,17 @@ export function buildQueryFromSimpleReport(
     let selectExpr = '';
     let alias = column.id;
 
-    if (column.id.startsWith('origin_')) {
-      const field = columnDef.column;
-      if (config.isSummary && column.aggregation) {
-        selectExpr = `${column.aggregation.toUpperCase()}(origin_addr.${field})`;
+    const columnExpr = getColumnExpression(column.id);
+    if (!columnExpr) continue;
+
+    if (config.isSummary && column.aggregation) {
+      if (column.id === 'shipment_count') {
+        selectExpr = 'COUNT(DISTINCT s.load_id)';
       } else {
-        selectExpr = `origin_addr.${field}`;
-      }
-    } else if (column.id.startsWith('destination_')) {
-      const field = columnDef.column;
-      if (config.isSummary && column.aggregation) {
-        selectExpr = `${column.aggregation.toUpperCase()}(dest_addr.${field})`;
-      } else {
-        selectExpr = `dest_addr.${field}`;
-      }
-    } else if (column.id.startsWith('carrier_')) {
-      const field = columnDef.column;
-      if (config.isSummary && column.aggregation) {
-        selectExpr = `${column.aggregation.toUpperCase()}(c.${field})`;
-      } else {
-        selectExpr = `c.${field}`;
-      }
-    } else if (columnDef.table === 'shipment_item') {
-      const field = columnDef.column;
-      if (config.isSummary && column.aggregation) {
-        selectExpr = `${column.aggregation.toUpperCase()}(si.${field})`;
-      } else {
-        selectExpr = `si.${field}`;
+        selectExpr = `${column.aggregation.toUpperCase()}(${columnExpr})`;
       }
     } else {
-      const tableAlias = 's';
-      const field = columnDef.column;
-
-      if (config.isSummary && column.aggregation) {
-        if (column.id === 'shipment_count') {
-          selectExpr = 'COUNT(DISTINCT s.load_id)';
-        } else {
-          selectExpr = `${column.aggregation.toUpperCase()}(${tableAlias}.${field})`;
-        }
-      } else {
-        selectExpr = `${tableAlias}.${field}`;
-      }
+      selectExpr = columnExpr;
     }
 
     query.select.push(`${selectExpr} as ${alias}`);
@@ -330,23 +324,8 @@ export function buildQueryFromSimpleReport(
 
   if (config.isSummary && config.groupBy && config.groupBy.length > 0) {
     for (const groupCol of config.groupBy) {
-      const columnDef = getColumnById(groupCol);
-      if (!columnDef) continue;
-
-      let groupExpr = '';
-
-      if (groupCol.startsWith('origin_')) {
-        groupExpr = `origin_addr.${columnDef.column}`;
-      } else if (groupCol.startsWith('destination_')) {
-        groupExpr = `dest_addr.${columnDef.column}`;
-      } else if (groupCol.startsWith('carrier_')) {
-        groupExpr = `c.${columnDef.column}`;
-      } else if (columnDef.table === 'shipment_item') {
-        groupExpr = `si.${columnDef.column}`;
-      } else {
-        groupExpr = `s.${columnDef.column}`;
-      }
-
+      const groupExpr = getColumnExpression(groupCol);
+      if (!groupExpr) continue;
       query.groupBy.push(groupExpr);
     }
   }
@@ -356,23 +335,8 @@ export function buildQueryFromSimpleReport(
     query.orderBy.push(...customSorts);
   } else if (config.groupBy && config.groupBy.length > 0) {
     for (const groupCol of config.groupBy) {
-      const columnDef = getColumnById(groupCol);
-      if (!columnDef) continue;
-
-      let orderExpr = '';
-
-      if (groupCol.startsWith('origin_')) {
-        orderExpr = `origin_addr.${columnDef.column}`;
-      } else if (groupCol.startsWith('destination_')) {
-        orderExpr = `dest_addr.${columnDef.column}`;
-      } else if (groupCol.startsWith('carrier_')) {
-        orderExpr = `c.${columnDef.column}`;
-      } else if (columnDef.table === 'shipment_item') {
-        orderExpr = `si.${columnDef.column}`;
-      } else {
-        orderExpr = `s.${columnDef.column}`;
-      }
-
+      const orderExpr = getColumnExpression(groupCol);
+      if (!orderExpr) continue;
       query.orderBy.push(orderExpr);
     }
   } else {

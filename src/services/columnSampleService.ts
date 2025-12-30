@@ -67,53 +67,18 @@ function buildSampleQuery(columnId: string, customerId: string): string {
   }
 
   const lookbackDate = format(subDays(new Date(), DATA_LOOKBACK_DAYS), 'yyyy-MM-dd');
-  let selectExpr = '';
-  let fromClause = 'shipment s';
-  let whereClause = `s.customer_id = ${customerId} AND s.pickup_date >= '${lookbackDate}'`;
-  let joinClauses = '';
 
-  if (columnId.startsWith('origin_')) {
-    joinClauses += `
-      LEFT JOIN address origin_addr ON s.origin_address_id = origin_addr.address_id
-    `;
-    selectExpr = `origin_addr.${columnDef.column}`;
-  } else if (columnId.startsWith('destination_')) {
-    joinClauses += `
-      LEFT JOIN address dest_addr ON s.destination_address_id = dest_addr.address_id
-    `;
-    selectExpr = `dest_addr.${columnDef.column}`;
-  } else if (columnId.startsWith('carrier_')) {
-    joinClauses += `
-      LEFT JOIN carrier c ON s.carrier_id = c.carrier_id
-    `;
-    selectExpr = `c.${columnDef.column}`;
-  } else if (columnDef.table === 'shipment_item') {
-    joinClauses += `
-      INNER JOIN shipment_item si ON s.load_id = si.load_id
-    `;
-    selectExpr = `si.${columnDef.column}`;
-  } else if (columnDef.type === 'lookup' && columnDef.lookup) {
-    const lookupTable = columnDef.lookup.table;
-    const keyField = columnDef.lookup.keyField;
-    const displayField = columnDef.lookup.displayField;
-
-    joinClauses += `
-      LEFT JOIN ${lookupTable} lt ON s.${columnDef.column} = lt.${keyField}
-    `;
-    selectExpr = `lt.${displayField}`;
-  } else {
-    selectExpr = `s.${columnDef.column}`;
-  }
+  const columnName = columnId;
 
   const query = `
-    SELECT DISTINCT ${selectExpr} as sample_value, COUNT(*) as frequency
-    FROM ${fromClause}
-    ${joinClauses}
-    WHERE ${whereClause}
-      AND ${selectExpr} IS NOT NULL
-      AND ${selectExpr} != ''
-    GROUP BY ${selectExpr}
-    ORDER BY frequency DESC, ${selectExpr}
+    SELECT DISTINCT ${columnName} as sample_value, COUNT(*) as frequency
+    FROM shipment_report_view
+    WHERE customer_id = ${customerId}
+      AND pickup_date >= '${lookbackDate}'
+      AND ${columnName} IS NOT NULL
+      AND CAST(${columnName} AS TEXT) != ''
+    GROUP BY ${columnName}
+    ORDER BY frequency DESC, ${columnName}
     LIMIT ${SAMPLE_LIMIT}
   `;
 
@@ -124,10 +89,13 @@ export async function fetchColumnSamples(
   columnId: string,
   customerId: string
 ): Promise<string[]> {
+  console.log('[ColumnSamples] Fetching samples for:', columnId, 'customerId:', customerId);
+
   const cacheKey = getCacheKey(columnId, customerId);
 
   const cached = cache.get(cacheKey);
   if (cached && isCacheValid(cached)) {
+    console.log('[ColumnSamples] Returning cached data');
     return cached.data;
   }
 
@@ -138,17 +106,21 @@ export async function fetchColumnSamples(
     }
 
     const query = buildSampleQuery(columnId, customerId);
+    console.log('[ColumnSamples] Query:', query);
 
     const { data, error } = await supabase.rpc('execute_custom_query', {
       query_text: query
     });
 
     if (error) {
-      console.error('Error fetching column samples:', error);
+      console.error('[ColumnSamples] Error fetching column samples:', error);
       throw new Error('Failed to fetch sample data');
     }
 
+    console.log('[ColumnSamples] Raw data:', data);
+
     if (!data || data.length === 0) {
+      console.log('[ColumnSamples] No data found');
       cache.set(cacheKey, { data: [], timestamp: Date.now() });
       return [];
     }
@@ -161,11 +133,12 @@ export async function fetchColumnSamples(
       ))
       .filter((val: string) => val.trim() !== '');
 
+    console.log('[ColumnSamples] Formatted samples:', samples);
     cache.set(cacheKey, { data: samples, timestamp: Date.now() });
     return samples;
 
   } catch (error) {
-    console.error('Error in fetchColumnSamples:', error);
+    console.error('[ColumnSamples] Error in fetchColumnSamples:', error);
     throw error;
   }
 }

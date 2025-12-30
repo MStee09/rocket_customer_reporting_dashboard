@@ -142,6 +142,8 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
   }, []);
 
   const handleColumnHoverStart = (columnId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    console.log('[SimpleReportBuilder] Hover start:', columnId, 'effectiveCustomerId:', effectiveCustomerId);
+
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
@@ -150,6 +152,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
       const button = event.currentTarget;
       const rect = button.getBoundingClientRect();
 
+      console.log('[SimpleReportBuilder] Setting tooltip position and hovered column:', columnId);
       setTooltipPosition({
         top: rect.top,
         left: rect.right + 10

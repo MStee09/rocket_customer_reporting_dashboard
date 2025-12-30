@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X } from 'lucide-react';
+import { Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X, Brain } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ChatMessage,
@@ -23,6 +23,7 @@ import {
   loadAIReport,
   deleteAIReport,
   SavedAIReport,
+  AILearning,
 } from '../services/aiReportService';
 import { executeReportData } from '../services/reportDataExecutor';
 import { getDocumentsForContext, buildKnowledgeContext } from '../services/knowledgeBaseService';
@@ -131,6 +132,7 @@ export function AIReportStudioPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
   const [enhancementContext, setEnhancementContext] = useState<ReportEnhancementContext | null>(null);
+  const [learningToast, setLearningToast] = useState<{ visible: boolean; learnings: AILearning[] }>({ visible: false, learnings: [] });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -326,6 +328,10 @@ export function AIReportStudioPage() {
         setCurrentReport(response.report);
         executeReport(response.report);
         setMobileView('preview');
+      }
+      if (response.learnings && response.learnings.length > 0) {
+        setLearningToast({ visible: true, learnings: response.learnings });
+        setTimeout(() => setLearningToast({ visible: false, learnings: [] }), 5000);
       }
     } catch (error) {
       const errorMessage: ChatMessageType = {
@@ -656,6 +662,28 @@ export function AIReportStudioPage() {
 
       {hasExportableData && (
         <EmailReportModal isOpen={showEmailModal} onClose={() => setShowEmailModal(false)} reportName={editableTitle || currentReport?.name || 'AI Report'} reportData={exportableData.data} reportType="ai" />
+      )}
+
+      {learningToast.visible && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3">
+            <div className="p-2 bg-white/20 rounded-full">
+              <Brain className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-medium text-sm">Learned {learningToast.learnings.length} new {learningToast.learnings.length === 1 ? 'thing' : 'things'}</p>
+              <p className="text-xs text-white/80 mt-0.5">
+                {learningToast.learnings.map(l => l.key).join(', ')}
+              </p>
+            </div>
+            <button
+              onClick={() => setLearningToast({ visible: false, learnings: [] })}
+              className="ml-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

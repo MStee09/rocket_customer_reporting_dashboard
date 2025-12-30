@@ -1,4 +1,4 @@
-import { User, Bot, AlertCircle, Check } from 'lucide-react';
+import { User, Bot, AlertCircle, Check, Brain } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
 import { AIReportDefinition } from '../../types/aiReport';
 import { Card } from '../ui/Card';
@@ -8,6 +8,7 @@ interface ChatMessageProps {
   onPreviewReport?: (report: AIReportDefinition) => void;
   onSaveReport?: (report: AIReportDefinition) => void;
   isCompact?: boolean;
+  hasLearning?: boolean;
 }
 
 export function ChatMessage({
@@ -15,6 +16,7 @@ export function ChatMessage({
   onPreviewReport,
   onSaveReport,
   isCompact = false,
+  hasLearning = false,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
@@ -62,23 +64,31 @@ export function ChatMessage({
           )
         )}
 
-        <p
-          className={`text-xs text-gray-400 mt-1 ${
-            isUser ? 'text-right' : 'text-left'
+        <div
+          className={`flex items-center gap-2 text-xs text-gray-400 mt-1 ${
+            isUser ? 'justify-end' : 'justify-start'
           }`}
         >
-          {message.timestamp instanceof Date
-            ? message.timestamp.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : typeof message.timestamp === 'string'
-            ? new Date(message.timestamp).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : ''}
-        </p>
+          <span>
+            {message.timestamp instanceof Date
+              ? message.timestamp.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : typeof message.timestamp === 'string'
+              ? new Date(message.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : ''}
+          </span>
+          {hasLearning && !isUser && (
+            <span className="inline-flex items-center gap-1 text-teal-600" title="AI learned something new from this conversation">
+              <Brain className="w-3 h-3" />
+              <span className="text-[10px]">Learned</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

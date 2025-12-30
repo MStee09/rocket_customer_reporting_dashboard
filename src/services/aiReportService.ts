@@ -20,11 +20,19 @@ export interface ChatMessage {
   error?: string;
 }
 
+export interface AILearning {
+  type: 'terminology' | 'product' | 'preference' | 'correction';
+  key: string;
+  value: string;
+  confidence: number;
+  source: 'explicit' | 'inferred';
+}
+
 export interface GenerateReportResponse {
   report: AIReportDefinition | null;
   message: string;
   rawResponse?: string;
-  learningData?: unknown;
+  learnings?: AILearning[];
 }
 
 export async function generateReport(
@@ -91,7 +99,7 @@ export async function generateReport(
     report: data.report || null,
     message: data.message || '',
     rawResponse: data.rawResponse,
-    learningData: data.learningData,
+    learnings: data.learnings,
   };
 }
 

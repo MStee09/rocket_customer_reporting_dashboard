@@ -472,15 +472,15 @@ export function AIReportStudioPage() {
       />
 
       {enhancementContext && (
-        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-200 px-6 py-3">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full text-sm font-medium shadow-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-sm font-medium shadow-sm">
                 <Sparkles className="w-4 h-4" />
                 <span>Enhancement Mode</span>
               </div>
               <span className="text-gray-700 font-medium">
-                Enhancing: <span className="text-purple-700">{enhancementContext.sourceReportName}</span>
+                Enhancing: <span className="text-amber-700">{enhancementContext.sourceReportName}</span>
               </span>
               <span className="text-gray-500 text-sm">
                 ({enhancementContext.rowCount.toLocaleString()} rows, {enhancementContext.columns.length} columns)
@@ -488,10 +488,10 @@ export function AIReportStudioPage() {
             </div>
             <button
               onClick={() => setEnhancementContext(null)}
-              className="ml-4 hover:bg-purple-100 rounded-full p-1.5 transition-colors"
+              className="ml-4 hover:bg-amber-100 rounded-full p-1.5 transition-colors"
               title="Exit enhancement mode"
             >
-              <X className="w-4 h-4 text-purple-700" />
+              <X className="w-4 h-4 text-amber-700" />
             </button>
           </div>
         </div>
@@ -524,6 +524,7 @@ export function AIReportStudioPage() {
                 isGenerating={isGenerating}
                 messagesEndRef={messagesEndRef}
                 dataProfile={dataProfile}
+                enhancementContext={enhancementContext}
               />
               <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
                 <ChatInput onSend={handleSendMessage} isLoading={isGenerating} placeholder="Describe your report..." />

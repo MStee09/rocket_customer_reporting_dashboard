@@ -1,7 +1,8 @@
-import { FileText, Sparkles, X, Loader2, MapPin, Truck, TrendingUp, DollarSign } from 'lucide-react';
+import { FileText, Sparkles, X, Loader2, MapPin, Truck, TrendingUp, DollarSign, BarChart3, PieChart, Table } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
 import { ChatMessage } from './ChatMessage';
 import { Card } from '../ui/Card';
+import type { ReportEnhancementContext } from '../../types/reportEnhancement';
 
 export interface DataProfile {
   totalShipments: number;
@@ -119,6 +120,46 @@ interface SuggestedPromptsProps {
   isGenerating: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   dataProfile?: DataProfile | null;
+  enhancementContext?: ReportEnhancementContext | null;
+}
+
+interface EnhancementSuggestion {
+  icon: typeof BarChart3;
+  label: string;
+  prompt: string;
+}
+
+function getEnhancementSuggestions(context: ReportEnhancementContext): EnhancementSuggestion[] {
+  const suggestions: EnhancementSuggestion[] = [];
+  const textColumns = context.columns.filter(c => c.type === 'text' || c.type === 'lookup');
+  const numberColumns = context.columns.filter(c => c.type === 'number' || c.type === 'currency');
+
+  for (const col of textColumns.slice(0, 3)) {
+    if (numberColumns.length > 0) {
+      const numCol = numberColumns[0];
+      suggestions.push({
+        icon: BarChart3,
+        label: `${numCol.label} by ${col.label}`,
+        prompt: `Show ${numCol.label} by ${col.label} as a bar chart`,
+      });
+    } else {
+      suggestions.push({
+        icon: PieChart,
+        label: `Distribution by ${col.label}`,
+        prompt: `Group data by ${col.label} and show as a pie chart`,
+      });
+    }
+  }
+
+  if (suggestions.length < 3 && textColumns.length > 0) {
+    suggestions.push({
+      icon: Table,
+      label: `Top ${textColumns[0].label}s`,
+      prompt: `Show top 10 ${textColumns[0].label}s by count`,
+    });
+  }
+
+  return suggestions.slice(0, 4);
 }
 
 export function SuggestedPrompts({
@@ -129,9 +170,11 @@ export function SuggestedPrompts({
   isGenerating,
   messagesEndRef,
   dataProfile,
+  enhancementContext,
 }: SuggestedPromptsProps) {
   const dataAwareSuggestions = getDataAwareSuggestions(dataProfile || null);
   const hasDataProfile = dataAwareSuggestions.length > 0;
+  const enhancementSuggestions = enhancementContext ? getEnhancementSuggestions(enhancementContext) : [];
 
   return (
     <div className="flex-1 overflow-y-auto p-4">
@@ -231,6 +274,31 @@ export function SuggestedPrompts({
               isCompact={false}
             />
           ))}
+          {enhancementSuggestions.length > 0 && !isGenerating && (
+            <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-800">Quick suggestions</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {enhancementSuggestions.map((suggestion, index) => {
+                  const Icon = suggestion.icon;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => onSendMessage(suggestion.prompt)}
+                      className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-amber-200
+                                 text-sm text-slate-700 hover:border-amber-400 hover:bg-amber-50
+                                 transition-colors shadow-sm"
+                    >
+                      <Icon className="w-4 h-4 text-amber-500" />
+                      {suggestion.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {isGenerating && (
             <div className="flex items-center gap-3 text-gray-500">
               <Loader2 className="w-5 h-5 animate-spin" />

@@ -18,11 +18,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 const SAMPLE_LIMIT = 1;
 const DATA_LOOKBACK_DAYS = 90;
 
-const COLUMN_TO_VIEW_MAPPING: Record<string, string> = {
-  'mode_id': 'mode_name',
-  'status_id': 'status_name',
-  'equipment_type_id': 'equipment_name',
-};
+const COLUMN_TO_VIEW_MAPPING: Record<string, string> = {};
 
 const VIEW_COLUMNS = new Set([
   'load_id',

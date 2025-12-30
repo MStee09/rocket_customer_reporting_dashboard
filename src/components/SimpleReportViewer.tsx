@@ -39,9 +39,21 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  const configKey = useMemo(() => {
+    return JSON.stringify({
+      id: config.id,
+      columns: filteredConfig.columns,
+      isSummary: filteredConfig.isSummary,
+      groupBy: filteredConfig.groupBy,
+      filters: filteredConfig.filters,
+      sorts: filteredConfig.sorts,
+    });
+  }, [filteredConfig]);
+
   useEffect(() => {
     loadData();
-  }, [filteredConfig, customerId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configKey, customerId]);
 
   const loadData = async () => {
     setIsLoading(true);

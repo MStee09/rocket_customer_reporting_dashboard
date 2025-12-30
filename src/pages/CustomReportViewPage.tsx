@@ -272,8 +272,10 @@ export function CustomReportViewPage() {
 
   const isSimpleReport = (report as any).simpleReport !== undefined;
 
-  if (isSimpleReport) {
-    const simpleReportConfig: SimpleReportConfig = {
+  const simpleReportConfig: SimpleReportConfig | null = useMemo(() => {
+    if (!isSimpleReport) return null;
+
+    return {
       id: report.id,
       name: report.name,
       description: report.description,
@@ -284,7 +286,9 @@ export function CustomReportViewPage() {
       filters: (report as any).simpleReport.filters || [],
       sorts: (report as any).simpleReport.sorts || [],
     };
+  }, [report, isSimpleReport]);
 
+  if (isSimpleReport && simpleReportConfig) {
     const customerId = effectiveCustomerIds && effectiveCustomerIds.length > 0 ? effectiveCustomerIds[0] : undefined;
 
     return (

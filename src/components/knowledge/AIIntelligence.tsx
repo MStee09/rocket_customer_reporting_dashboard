@@ -19,6 +19,10 @@ import {
   Loader2,
 } from 'lucide-react';
 
+interface CustomerData {
+  company_name: string;
+}
+
 interface KnowledgeItem {
   id: string;
   knowledge_type: string;
@@ -29,6 +33,7 @@ interface KnowledgeItem {
   metadata: Record<string, unknown> | null;
   scope: string;
   customer_id: string;
+  customer?: CustomerData;
   source: string;
   confidence: number;
   times_used: number;
@@ -39,9 +44,15 @@ interface KnowledgeItem {
   created_at: string;
 }
 
+interface CustomerOption {
+  customer_id: number;
+  company_name: string;
+}
+
 export function AIIntelligence() {
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [needsReview, setNeedsReview] = useState<KnowledgeItem[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -51,12 +62,65 @@ export function AIIntelligence() {
   const [stats, setStats] = useState({ total: 0, active: 0, learned: 0, accuracy: 0 });
 
   useEffect(() => {
-    loadKnowledge();
-    loadNeedsReview();
-    loadStats();
+    loadData();
   }, []);
 
-  const loadKnowledge = async () => {
+  const loadData = async () => {
+    const { data: customerData } = await supabase
+      .from('customer')
+      .select('customer_id, company_name')
+      .eq('is_active', true)
+      .order('company_name');
+
+    const customerList = customerData || [];
+    setCustomers(customerList);
+
+    const getCustomerName = (customerId: string | null): string | undefined => {
+      if (!customerId) return undefined;
+      const customer = customerList.find(c => String(c.customer_id) === customerId);
+      return customer?.company_name;
+    };
+
+    const [knowledgeResult, reviewResult] = await Promise.all([
+      supabase
+        .from('ai_knowledge')
+        .select('*')
+        .eq('is_active', true)
+        .order('knowledge_type')
+        .order('key'),
+      supabase
+        .from('ai_knowledge')
+        .select('*')
+        .eq('needs_review', true)
+        .order('times_corrected', { ascending: false })
+        .order('created_at', { ascending: false })
+    ]);
+
+    if (!knowledgeResult.error) {
+      const itemsWithCustomer = (knowledgeResult.data || []).map(item => ({
+        ...item,
+        customer: item.customer_id ? { company_name: getCustomerName(item.customer_id) || item.customer_id } : undefined
+      }));
+      setKnowledge(itemsWithCustomer);
+    }
+
+    const reviewItemsWithCustomer = (reviewResult.data || []).map(item => ({
+      ...item,
+      customer: item.customer_id ? { company_name: getCustomerName(item.customer_id) || item.customer_id } : undefined
+    }));
+    setNeedsReview(reviewItemsWithCustomer);
+
+    loadStats();
+    setLoading(false);
+  };
+
+  const getCustomerName = (customerId: string | null): string | undefined => {
+    if (!customerId) return undefined;
+    const customer = customers.find(c => String(c.customer_id) === customerId);
+    return customer?.company_name;
+  };
+
+  const reloadKnowledge = async () => {
     const { data, error } = await supabase
       .from('ai_knowledge')
       .select('*')
@@ -64,11 +128,16 @@ export function AIIntelligence() {
       .order('knowledge_type')
       .order('key');
 
-    if (!error) setKnowledge(data || []);
-    setLoading(false);
+    if (!error) {
+      const itemsWithCustomer = (data || []).map(item => ({
+        ...item,
+        customer: item.customer_id ? { company_name: getCustomerName(item.customer_id) || item.customer_id } : undefined
+      }));
+      setKnowledge(itemsWithCustomer);
+    }
   };
 
-  const loadNeedsReview = async () => {
+  const reloadNeedsReview = async () => {
     const { data } = await supabase
       .from('ai_knowledge')
       .select('*')
@@ -76,7 +145,11 @@ export function AIIntelligence() {
       .order('times_corrected', { ascending: false })
       .order('created_at', { ascending: false });
 
-    setNeedsReview(data || []);
+    const itemsWithCustomer = (data || []).map(item => ({
+      ...item,
+      customer: item.customer_id ? { company_name: getCustomerName(item.customer_id) || item.customer_id } : undefined
+    }));
+    setNeedsReview(itemsWithCustomer);
   };
 
   const loadStats = async () => {
@@ -100,21 +173,21 @@ export function AIIntelligence() {
 
   const approveItem = async (item: KnowledgeItem) => {
     await supabase.rpc('approve_knowledge', { p_id: item.id });
-    loadKnowledge();
-    loadNeedsReview();
+    reloadKnowledge();
+    reloadNeedsReview();
     loadStats();
   };
 
   const rejectItem = async (item: KnowledgeItem) => {
     await supabase.rpc('reject_knowledge', { p_id: item.id });
-    loadNeedsReview();
+    reloadNeedsReview();
     loadStats();
   };
 
   const deleteItem = async (item: KnowledgeItem) => {
     if (!confirm(`Delete "${item.key}"?`)) return;
     await supabase.from('ai_knowledge').delete().eq('id', item.id);
-    loadKnowledge();
+    reloadKnowledge();
     loadStats();
   };
 
@@ -123,7 +196,7 @@ export function AIIntelligence() {
       .from('ai_knowledge')
       .update({ is_visible_to_customers: !item.is_visible_to_customers })
       .eq('id', item.id);
-    loadKnowledge();
+    reloadKnowledge();
   };
 
   const filteredKnowledge = knowledge.filter((k) => {
@@ -237,7 +310,7 @@ export function AIIntelligence() {
                     </span>
                     {item.scope === 'customer' && (
                       <span className="text-xs px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded">
-                        Customer: {item.customer_id}
+                        {item.customer?.company_name || item.customer_id}
                       </span>
                     )}
                   </div>
@@ -359,7 +432,7 @@ export function AIIntelligence() {
                           </code>
                           {item.scope === 'customer' && (
                             <span className="text-xs px-2 py-0.5 bg-rocket-100 text-rocket-700 rounded">
-                              {item.customer_id}
+                              {item.customer?.company_name || item.customer_id}
                             </span>
                           )}
                           {item.source === 'auto-learned' && (
@@ -444,18 +517,19 @@ export function AIIntelligence() {
           onClose={() => setSelectedItem(null)}
           onSave={() => {
             setSelectedItem(null);
-            loadKnowledge();
-            loadNeedsReview();
+            reloadKnowledge();
+            reloadNeedsReview();
           }}
         />
       )}
 
       {showAddModal && (
         <KnowledgeAddModal
+          customers={customers}
           onClose={() => setShowAddModal(false)}
           onSave={() => {
             setShowAddModal(false);
-            loadKnowledge();
+            reloadKnowledge();
             loadStats();
           }}
         />
@@ -572,7 +646,7 @@ function KnowledgeEditModal({
   );
 }
 
-function KnowledgeAddModal({ onClose, onSave }: { onClose: () => void; onSave: () => void }) {
+function KnowledgeAddModal({ customers, onClose, onSave }: { customers: CustomerOption[]; onClose: () => void; onSave: () => void }) {
   const [formData, setFormData] = useState({
     knowledge_type: 'term',
     key: '',
@@ -648,14 +722,19 @@ function KnowledgeAddModal({ onClose, onSave }: { onClose: () => void; onSave: (
 
           {formData.scope === 'customer' && (
             <div>
-              <label className="block text-sm font-medium mb-1">Customer ID</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium mb-1">Customer</label>
+              <select
                 value={formData.customer_id}
                 onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
                 className="w-full border rounded-lg px-3 py-2"
-                placeholder="e.g., 4586648"
-              />
+              >
+                <option value="">Select customer</option>
+                {customers.map((c) => (
+                  <option key={c.customer_id} value={String(c.customer_id)}>
+                    {c.company_name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

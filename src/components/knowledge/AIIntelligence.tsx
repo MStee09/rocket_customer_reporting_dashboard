@@ -17,6 +17,7 @@ import {
   EyeOff,
   X,
   Loader2,
+  Globe,
 } from 'lucide-react';
 
 interface CustomerData {
@@ -197,6 +198,58 @@ export function AIIntelligence() {
       .update({ is_visible_to_customers: !item.is_visible_to_customers })
       .eq('id', item.id);
     reloadKnowledge();
+  };
+
+  const promoteToGlobal = async (item: KnowledgeItem) => {
+    const customerName = item.customer?.company_name || item.customer_id;
+    const confirmMessage = `Promote "${item.label || item.key}" to global knowledge?\n\n` +
+      `This will:\n` +
+      `- Make it available to ALL customers\n` +
+      `- Remove the customer-specific version\n\n` +
+      `Current customer: ${customerName}`;
+
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      const { error: insertError } = await supabase
+        .from('ai_knowledge')
+        .insert({
+          knowledge_type: item.knowledge_type,
+          key: item.key,
+          label: item.label,
+          definition: item.definition,
+          ai_instructions: item.ai_instructions,
+          metadata: item.metadata,
+          scope: 'global',
+          customer_id: null,
+          source: 'promoted',
+          confidence: 1.0,
+          is_active: true,
+          needs_review: false,
+          is_visible_to_customers: item.is_visible_to_customers,
+        });
+
+      if (insertError) {
+        console.error('Failed to create global version:', insertError);
+        alert('Failed to promote: ' + insertError.message);
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from('ai_knowledge')
+        .delete()
+        .eq('id', item.id);
+
+      if (deleteError) {
+        console.error('Failed to delete customer version:', deleteError);
+      }
+
+      reloadKnowledge();
+      loadStats();
+    } catch (error) {
+      console.error('Promote to global failed:', error);
+      alert('Failed to promote to global');
+    }
   };
 
   const filteredKnowledge = knowledge.filter((k) => {
@@ -489,6 +542,15 @@ export function AIIntelligence() {
                             <EyeOff className="w-4 h-4 text-gray-400" />
                           )}
                         </button>
+                        {item.scope === 'customer' && (
+                          <button
+                            onClick={() => promoteToGlobal(item)}
+                            className="p-2 hover:bg-blue-50 rounded"
+                            title="Promote to Global"
+                          >
+                            <Globe className="w-4 h-4 text-blue-600" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setSelectedItem(item)}
                           className="p-2 hover:bg-gray-100 rounded"

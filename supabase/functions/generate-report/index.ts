@@ -608,54 +608,63 @@ function extractLearnings(
     for (const line of flagContent.trim().split("\n")) {
       const colonIndex = line.indexOf(":");
       if (colonIndex > 0) {
-        const key = line.substring(0, colonIndex).trim();
+        const key = line.substring(0, colonIndex).trim().toLowerCase();
         const value = line.substring(colonIndex + 1).trim();
         if (key && value) lines[key] = value;
       }
     }
 
     if (lines.term) {
-      const normalizedKey = lines.term.toLowerCase().replace(/\s+/g, "_");
-      seenKeys.add(normalizedKey);
-      learnings.push({
-        type: lines.suggested_category === "product" ? "product" : "terminology",
-        key: normalizedKey,
-        value: lines.ai_understood || lines.user_said || lines.term,
-        confidence: lines.confidence === "high" ? 0.9 : lines.confidence === "low" ? 0.5 : 0.7,
-        source: "inferred",
-      });
+      const normalizedKey = lines.term.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+      if (normalizedKey && normalizedKey.length >= 2) {
+        seenKeys.add(normalizedKey);
+        learnings.push({
+          type: lines.suggested_category === "product" ? "product" : "terminology",
+          key: normalizedKey,
+          value: lines.ai_understood || lines.user_said || lines.term,
+          confidence: lines.confidence === "high" ? 0.9 : lines.confidence === "low" ? 0.5 : 0.7,
+          source: "inferred",
+        });
+      }
     }
   }
 
   if (learnings.length === 0) {
-    const termPatterns = [
-      /when I say ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
-      /by ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
-    ];
-
     const allUserMessages = [
       ...conversationHistory.filter((m) => m.role === "user").map((m) => m.content),
       prompt,
     ].join("\n");
 
-    for (const pattern of termPatterns) {
+    const explicitPatterns = [
+      /when I say ['"]([^'"]+)['"],?\s*I mean (.+)/gi,
+      /by ['"]([^'"]+)['"],?\s*I mean (.+)/gi,
+    ];
+
+    for (const pattern of explicitPatterns) {
       let match;
       const regex = new RegExp(pattern.source, pattern.flags);
       while ((match = regex.exec(allUserMessages)) !== null) {
         const term = match[1]?.trim();
         const meaning = match[2]?.trim();
-        const normalizedKey = term?.toLowerCase().replace(/\s+/g, "_");
 
-        if (term && term.length < 50 && meaning && !seenKeys.has(normalizedKey)) {
-          seenKeys.add(normalizedKey);
-          learnings.push({
-            type: "terminology",
-            key: normalizedKey,
-            value: meaning,
-            confidence: 1.0,
-            source: "explicit",
-          });
-        }
+        if (!term || !meaning) continue;
+
+        const normalizedKey = term.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+        if (seenKeys.has(normalizedKey)) continue;
+        if (normalizedKey.length < 2 || normalizedKey.length > 50) continue;
+
+        seenKeys.add(normalizedKey);
+        learnings.push({
+          type: "terminology",
+          key: normalizedKey,
+          value: meaning,
+          confidence: 1.0,
+          source: "explicit",
+        });
+
+        break;
       }
     }
   }

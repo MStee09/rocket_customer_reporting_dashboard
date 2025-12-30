@@ -18,43 +18,14 @@ const CACHE_TTL = 5 * 60 * 1000;
 const SAMPLE_LIMIT = 1;
 const DATA_LOOKBACK_DAYS = 90;
 
-const COLUMN_TO_VIEW_MAPPING: Record<string, string> = {};
-
-const VIEW_COLUMNS = new Set([
-  'load_id',
-  'client_id',
-  'customer_id',
-  'pickup_date',
-  'shipped_date',
-  'delivery_date',
-  'delivered_date',
-  'expected_delivery_date',
-  'retail',
-  'miles',
-  'reference_number',
-  'status_id',
-  'mode_id',
-  'equipment_type_id',
-  'created_date',
-  'carrier_id',
-  'carrier_name',
-  'status_name',
-  'delivery_status',
-  'mode_name',
-  'equipment_name',
-  'origin_company',
-  'origin_city',
-  'origin_state',
-  'origin_zip',
-  'origin_country',
-  'destination_company',
-  'destination_city',
-  'destination_state',
-  'destination_zip',
-  'destination_country',
-  'is_completed',
-  'is_cancelled',
-  'is_late',
+const SUPPORTED_TABLES = new Set([
+  'shipment_report_view',
+  'shipment',
+  'customer',
+  'carrier',
+  'shipment_address',
+  'shipment_item',
+  'shipment_carrier',
 ]);
 
 function getCacheKey(columnId: string, customerId: string): string {
@@ -65,7 +36,7 @@ function isCacheValid(entry: CacheEntry): boolean {
   return Date.now() - entry.timestamp < CACHE_TTL;
 }
 
-function formatSampleValue(value: any, columnType: string, columnFormat?: string): string {
+function formatSampleValue(value: any, columnType: string, columnFormat?: string, columnId?: string): string {
   if (value === null || value === undefined) return '';
 
   switch (columnType) {
@@ -73,8 +44,12 @@ function formatSampleValue(value: any, columnType: string, columnFormat?: string
       const num = Number(value);
       if (isNaN(num)) return String(value);
 
+      const isIdField = columnId?.endsWith('_id') || columnId === 'load_id';
+
       if (columnFormat === 'currency') {
         return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      } else if (isIdField) {
+        return String(Math.round(num));
       } else if (columnFormat === 'integer') {
         return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
       } else {
@@ -106,34 +81,128 @@ function buildSampleQuery(columnId: string, customerId: string): string {
   }
 
   const lookbackDate = format(subDays(new Date(), DATA_LOOKBACK_DAYS), 'yyyy-MM-dd');
+  const columnName = columnDef.column;
+  const tableName = columnDef.table;
 
-  const columnName = COLUMN_TO_VIEW_MAPPING[columnId] || columnDef.column;
+  let query: string;
 
-  const query = `
-    SELECT DISTINCT ${columnName} as sample_value, COUNT(*) as frequency
-    FROM shipment_report_view
-    WHERE customer_id = ${customerId}
-      AND pickup_date >= '${lookbackDate}'
-      AND ${columnName} IS NOT NULL
-      AND CAST(${columnName} AS TEXT) != ''
-    GROUP BY ${columnName}
-    ORDER BY frequency DESC, ${columnName}
-    LIMIT ${SAMPLE_LIMIT}
-  `;
+  switch (tableName) {
+    case 'shipment_report_view':
+      query = `
+        SELECT DISTINCT ${columnName} as sample_value, COUNT(*) as frequency
+        FROM shipment_report_view
+        WHERE customer_id = ${customerId}
+          AND pickup_date >= '${lookbackDate}'
+          AND ${columnName} IS NOT NULL
+          AND CAST(${columnName} AS TEXT) != ''
+        GROUP BY ${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'shipment':
+      query = `
+        SELECT DISTINCT s.${columnName} as sample_value, COUNT(*) as frequency
+        FROM shipment s
+        WHERE s.customer_id = ${customerId}
+          AND s.pickup_date >= '${lookbackDate}'
+          AND s.${columnName} IS NOT NULL
+          AND CAST(s.${columnName} AS TEXT) != ''
+        GROUP BY s.${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'customer':
+      query = `
+        SELECT DISTINCT ${columnName} as sample_value
+        FROM customer
+        WHERE customer_id = ${customerId}
+          AND ${columnName} IS NOT NULL
+          AND CAST(${columnName} AS TEXT) != ''
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'carrier':
+      query = `
+        SELECT DISTINCT c.${columnName} as sample_value, COUNT(*) as frequency
+        FROM carrier c
+        INNER JOIN shipment_report_view srv ON srv.carrier_id = c.carrier_id
+        WHERE srv.customer_id = ${customerId}
+          AND srv.pickup_date >= '${lookbackDate}'
+          AND c.${columnName} IS NOT NULL
+          AND CAST(c.${columnName} AS TEXT) != ''
+        GROUP BY c.${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'shipment_address':
+      const addressType = columnId.startsWith('origin_') ? 'origin' : 'destination';
+      query = `
+        SELECT DISTINCT sa.${columnName} as sample_value, COUNT(*) as frequency
+        FROM shipment_address sa
+        INNER JOIN shipment s ON s.load_id = sa.load_id
+        WHERE s.customer_id = ${customerId}
+          AND s.pickup_date >= '${lookbackDate}'
+          AND sa.address_type = '${addressType}'
+          AND sa.${columnName} IS NOT NULL
+          AND CAST(sa.${columnName} AS TEXT) != ''
+        GROUP BY sa.${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'shipment_item':
+      query = `
+        SELECT DISTINCT si.${columnName} as sample_value, COUNT(*) as frequency
+        FROM shipment_item si
+        INNER JOIN shipment s ON s.load_id = si.load_id
+        WHERE s.customer_id = ${customerId}
+          AND s.pickup_date >= '${lookbackDate}'
+          AND si.${columnName} IS NOT NULL
+          AND CAST(si.${columnName} AS TEXT) != ''
+        GROUP BY si.${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    case 'shipment_carrier':
+      query = `
+        SELECT DISTINCT sc.${columnName} as sample_value, COUNT(*) as frequency
+        FROM shipment_carrier sc
+        INNER JOIN shipment s ON s.load_id = sc.load_id
+        WHERE s.customer_id = ${customerId}
+          AND s.pickup_date >= '${lookbackDate}'
+          AND sc.${columnName} IS NOT NULL
+          AND CAST(sc.${columnName} AS TEXT) != ''
+        GROUP BY sc.${columnName}
+        ORDER BY frequency DESC
+        LIMIT ${SAMPLE_LIMIT}
+      `;
+      break;
+
+    default:
+      throw new Error(`Unsupported table: ${tableName}`);
+  }
 
   return query.trim();
 }
 
-function isColumnInView(columnId: string): boolean {
-  const mappedColumn = COLUMN_TO_VIEW_MAPPING[columnId];
-  if (mappedColumn) {
-    return VIEW_COLUMNS.has(mappedColumn);
-  }
-  return VIEW_COLUMNS.has(columnId);
+function canQueryColumn(columnId: string): boolean {
+  const columnDef = getColumnById(columnId);
+  if (!columnDef) return false;
+  return SUPPORTED_TABLES.has(columnDef.table);
 }
 
 export function canShowSamples(columnId: string): boolean {
-  return isColumnInView(columnId);
+  return canQueryColumn(columnId);
 }
 
 export async function fetchColumnSamples(
@@ -142,8 +211,8 @@ export async function fetchColumnSamples(
 ): Promise<string[]> {
   console.log('[ColumnSamples] Fetching samples for:', columnId, 'customerId:', customerId);
 
-  if (!isColumnInView(columnId)) {
-    console.log('[ColumnSamples] Column not in view, skipping:', columnId);
+  if (!canQueryColumn(columnId)) {
+    console.log('[ColumnSamples] Column not queryable, skipping:', columnId);
     return [];
   }
 
@@ -185,7 +254,8 @@ export async function fetchColumnSamples(
       .map((row: any) => formatSampleValue(
         row.sample_value,
         columnDef.type,
-        columnDef.format
+        columnDef.format,
+        columnId
       ))
       .filter((val: string) => val.trim() !== '');
 

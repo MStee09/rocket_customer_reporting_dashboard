@@ -598,12 +598,13 @@ function extractLearnings(
   conversationHistory: ConversationMessage[]
 ): LearningExtraction[] {
   const learnings: LearningExtraction[] = [];
+  const seenKeys = new Set<string>();
 
   const flagMatch = response.match(/<learning_flag>([\s\S]*?)<\/learning_flag>/);
   if (flagMatch) {
     const flagContent = flagMatch[1];
     const lines: Record<string, string> = {};
-    
+
     for (const line of flagContent.trim().split("\n")) {
       const colonIndex = line.indexOf(":");
       if (colonIndex > 0) {
@@ -614,9 +615,11 @@ function extractLearnings(
     }
 
     if (lines.term) {
+      const normalizedKey = lines.term.toLowerCase().replace(/\s+/g, "_");
+      seenKeys.add(normalizedKey);
       learnings.push({
         type: lines.suggested_category === "product" ? "product" : "terminology",
-        key: lines.term.toLowerCase().replace(/\s+/g, "_"),
+        key: normalizedKey,
         value: lines.ai_understood || lines.user_said || lines.term,
         confidence: lines.confidence === "high" ? 0.9 : lines.confidence === "low" ? 0.5 : 0.7,
         source: "inferred",
@@ -624,31 +627,35 @@ function extractLearnings(
     }
   }
 
-  const termPatterns = [
-    /when I say ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
-    /by ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
-    /['"]?([^'"]+)['"]?\s*(?:means|refers to|is)\s+(.+)/gi,
-  ];
+  if (learnings.length === 0) {
+    const termPatterns = [
+      /when I say ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
+      /by ['"]?([^'"]+)['"]?,?\s*I mean (.+)/gi,
+    ];
 
-  const allUserMessages = [
-    ...conversationHistory.filter((m) => m.role === "user").map((m) => m.content),
-    prompt,
-  ].join("\n");
+    const allUserMessages = [
+      ...conversationHistory.filter((m) => m.role === "user").map((m) => m.content),
+      prompt,
+    ].join("\n");
 
-  for (const pattern of termPatterns) {
-    let match;
-    const regex = new RegExp(pattern.source, pattern.flags);
-    while ((match = regex.exec(allUserMessages)) !== null) {
-      const term = match[1]?.trim();
-      const meaning = match[2]?.trim();
-      if (term && term.length < 50 && meaning) {
-        learnings.push({
-          type: "terminology",
-          key: term.toLowerCase().replace(/\s+/g, "_"),
-          value: meaning,
-          confidence: 1.0,
-          source: "explicit",
-        });
+    for (const pattern of termPatterns) {
+      let match;
+      const regex = new RegExp(pattern.source, pattern.flags);
+      while ((match = regex.exec(allUserMessages)) !== null) {
+        const term = match[1]?.trim();
+        const meaning = match[2]?.trim();
+        const normalizedKey = term?.toLowerCase().replace(/\s+/g, "_");
+
+        if (term && term.length < 50 && meaning && !seenKeys.has(normalizedKey)) {
+          seenKeys.add(normalizedKey);
+          learnings.push({
+            type: "terminology",
+            key: normalizedKey,
+            value: meaning,
+            confidence: 1.0,
+            source: "explicit",
+          });
+        }
       }
     }
   }

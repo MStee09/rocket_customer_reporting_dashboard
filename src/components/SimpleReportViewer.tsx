@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { format } from 'date-fns';
 import FilterSummary from './reports/FilterSummary';
 import { SimpleReportConfig } from '../types/reports';
 import { executeSimpleReport } from '../utils/simpleQueryBuilder';

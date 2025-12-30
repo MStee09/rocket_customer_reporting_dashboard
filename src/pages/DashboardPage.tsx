@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays, subYears } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { LayoutEditorModal } from '../components/LayoutEditorModal';
+import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import {
   DashboardHeader,
@@ -351,8 +352,7 @@ export function DashboardPage() {
           </div>
         )}
 
-        {/* AI Insights temporarily disabled due to edge function deployment issue */}
-        {/* {effectiveCustomerId && (
+        {effectiveCustomerId && (
           <AIInsightsCard
             customerId={effectiveCustomerId}
             dateRange={{
@@ -361,7 +361,7 @@ export function DashboardPage() {
             }}
             className="mb-6"
           />
-        )} */}
+        )}
 
         {comparison?.enabled && currentStats && comparisonStats && !comparisonLoading && (
           <ComparisonMetrics

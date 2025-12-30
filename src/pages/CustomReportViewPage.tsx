@@ -71,6 +71,24 @@ export function CustomReportViewPage() {
   const reportFromList = reports.find((r) => r.id === reportId);
   const report = reportFromList || (newReportFromState?.id === reportId ? newReportFromState : null);
 
+  const isSimpleReport = report ? (report as any).simpleReport !== undefined : false;
+
+  const simpleReportConfig: SimpleReportConfig | null = useMemo(() => {
+    if (!report || !isSimpleReport) return null;
+
+    return {
+      id: report.id,
+      name: report.name,
+      description: report.description,
+      columns: (report as any).simpleReport.columns,
+      isSummary: (report as any).simpleReport.isSummary,
+      groupBy: (report as any).simpleReport.groupBy,
+      visualization: (report as any).simpleReport.visualization,
+      filters: (report as any).simpleReport.filters || [],
+      sorts: (report as any).simpleReport.sorts || [],
+    };
+  }, [report, isSimpleReport]);
+
   useEffect(() => {
     if (!reportsLoading && !report && !newReportFromState && retryCount < 5) {
       const timer = setTimeout(() => {
@@ -269,24 +287,6 @@ export function CustomReportViewPage() {
       </div>
     );
   }
-
-  const isSimpleReport = (report as any).simpleReport !== undefined;
-
-  const simpleReportConfig: SimpleReportConfig | null = useMemo(() => {
-    if (!isSimpleReport) return null;
-
-    return {
-      id: report.id,
-      name: report.name,
-      description: report.description,
-      columns: (report as any).simpleReport.columns,
-      isSummary: (report as any).simpleReport.isSummary,
-      groupBy: (report as any).simpleReport.groupBy,
-      visualization: (report as any).simpleReport.visualization,
-      filters: (report as any).simpleReport.filters || [],
-      sorts: (report as any).simpleReport.sorts || [],
-    };
-  }, [report, isSimpleReport]);
 
   if (isSimpleReport && simpleReportConfig) {
     const customerId = effectiveCustomerIds && effectiveCustomerIds.length > 0 ? effectiveCustomerIds[0] : undefined;

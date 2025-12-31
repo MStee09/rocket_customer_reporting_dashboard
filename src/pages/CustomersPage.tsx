@@ -69,7 +69,7 @@ function CustomerRowActions({ customerId, customerName }: { customerId: number; 
 }
 
 export function CustomersPage() {
-  const { isAdmin, effectiveCustomerIds, isViewingAsCustomer, role } = useAuth();
+  const { isAdmin, effectiveCustomerIds, isViewingAsCustomer, role, isLoading: authLoading } = useAuth();
   const [customers, setCustomers] = useState<CustomerWithStats[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,8 +80,9 @@ export function CustomersPage() {
   const isAdminUser = isAdmin();
 
   useEffect(() => {
+    if (authLoading) return;
     loadCustomers();
-  }, [effectiveCustomerIds, isAdminUser, isViewingAsCustomer]);
+  }, [effectiveCustomerIds, isAdminUser, isViewingAsCustomer, authLoading, role]);
 
   useEffect(() => {
     filterCustomers();
@@ -104,7 +105,14 @@ export function CustomersPage() {
       customerQuery = customerQuery.in('customer_id', effectiveCustomerIds);
     }
 
-    const { data: customersData } = await customerQuery;
+    const { data: customersData, error } = await customerQuery;
+
+    if (error) {
+      console.error('Error loading customers:', error);
+      setCustomers([]);
+      setIsLoading(false);
+      return;
+    }
 
     if (customersData) {
       const enrichedCustomers = await Promise.all(
@@ -156,7 +164,7 @@ export function CustomersPage() {
     navigate(`/shipments?customer=${customerId}`);
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex items-center justify-center py-20">

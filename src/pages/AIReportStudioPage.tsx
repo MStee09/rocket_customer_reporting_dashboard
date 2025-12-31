@@ -137,9 +137,16 @@ export function AIReportStudioPage() {
     ? viewingCustomer?.company_name
     : customers.find((c) => c.customer_id === effectiveCustomerId)?.customer_name;
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      try {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      } catch {
+      }
+    }
+  }, []);
 
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
   useEffect(() => { setEditableTitle(currentReport?.name || 'Untitled Report'); }, [currentReport?.name]);
 
   useEffect(() => {
@@ -205,35 +212,46 @@ export function AIReportStudioPage() {
     }
   }, [effectiveCustomerId, isAdmin, isViewingAsCustomer]);
 
-  const loadReportFromUrl = useCallback(async () => {
-    const reportId = searchParams.get('reportId');
-    const mode = searchParams.get('mode');
-    if (!reportId || !effectiveCustomerId || mode !== 'edit') return;
+  const urlReportId = searchParams.get('reportId');
+  const urlMode = searchParams.get('mode');
 
+  useEffect(() => {
+    if (!urlReportId || !effectiveCustomerId || urlMode !== 'edit') return;
+
+    let isMounted = true;
     setIsLoadingFromUrl(true);
-    try {
-      const report = await loadAIReport(String(effectiveCustomerId), reportId);
-      if (report) {
-        setCurrentReport(report.definition);
-        setIsChatCollapsed(false);
-        setMobileView('chat');
-        setMessages([{
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `I've loaded "${report.name}" for editing. What changes would you like to make?`,
-          timestamp: new Date(),
-        }]);
-        executeReport(report.definition);
-      }
-    } catch (error) {
-      console.error('Failed to load report from URL:', error);
-    } finally {
-      setIsLoadingFromUrl(false);
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, effectiveCustomerId, setSearchParams, executeReport]);
 
-  useEffect(() => { loadReportFromUrl(); }, [loadReportFromUrl]);
+    const loadReport = async () => {
+      try {
+        const report = await loadAIReport(String(effectiveCustomerId), urlReportId);
+        if (report && isMounted) {
+          setCurrentReport(report.definition);
+          setIsChatCollapsed(false);
+          setMobileView('chat');
+          setMessages([{
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `I've loaded "${report.name}" for editing. What changes would you like to make?`,
+            timestamp: new Date(),
+          }]);
+          executeReport(report.definition);
+        }
+      } catch (error) {
+        console.error('Failed to load report from URL:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingFromUrl(false);
+          setSearchParams({}, { replace: true });
+        }
+      }
+    };
+
+    loadReport();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [urlReportId, urlMode, effectiveCustomerId, executeReport, setSearchParams]);
 
   useEffect(() => {
     const checkForContext = () => {

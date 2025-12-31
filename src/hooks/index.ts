@@ -18,3 +18,4 @@ export { useLookupTables } from './useLookupTables';
 export { useComparisonStats } from './useComparisonStats';
 export { useReportCharts } from './useReportCharts';
 export { useSavedViews } from './useSavedViews';
+export { useAIReportStudio } from './useAIReportStudio';

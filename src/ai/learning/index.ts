@@ -12,3 +12,9 @@ export {
   updateProfileField,
   addLearnedTerm,
 } from './profileUpdater';
+
+export { LearningEngine } from './learningEngine';
+export type { LearningExtraction } from './learningEngine';
+
+export { PatternTracker } from './patternTracker';
+export type { UsagePattern, ProactiveInsight } from './patternTracker';

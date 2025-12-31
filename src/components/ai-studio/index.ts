@@ -9,6 +9,8 @@ export { ReportPreviewHeader } from './ReportPreviewHeader';
 export { StudioHeader } from './StudioHeader';
 export { FollowUpSuggestions } from './FollowUpSuggestions';
 export { AIVisualizationStudio } from './AIVisualizationStudio';
+export { OutcomePrompts } from './OutcomePrompts';
+export { ChatInterfaceV2 } from './ChatInterfaceV2';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';
 export type { BuildReportContext } from './ChatInput';
 export type { VisualizationConfig } from './AIVisualizationStudio';

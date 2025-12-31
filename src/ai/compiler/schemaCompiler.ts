@@ -119,8 +119,17 @@ export function formatSchemaForPrompt(schema: SchemaContext, isAdmin: boolean): 
   output += '2. **Respect Group By column** - only fields marked ✓ can be grouped\n';
   output += '3. **Respect Aggregate column** - numeric fields support SUM/AVG, others only COUNT\n';
   if (!isAdmin) {
-    output += '4. **No cost/margin data** - you do not have access to cost, margin, or carrier_cost fields\n';
+    output += '4. **Financial data note**: Use `retail` for customer spend/cost analysis.\n';
+    output += '   The fields `cost`, `margin`, `carrier_cost` are internal Go Rocket data and not available.\n';
   }
+
+  output += '\n### COMMON MAPPINGS\n';
+  output += 'When customers use these terms, map them to the correct fields:\n';
+  output += '- "cost", "spend", "freight cost", "shipping cost" → use `retail` field\n';
+  output += '- "expensive", "most costly" → sort by `retail` descending\n';
+  output += '- "cost per shipment" → avg(retail)\n';
+  output += '- "total spend" → sum(retail)\n';
+  output += '- "cheapest carriers" → carrier_name grouped by avg(retail) ascending\n';
 
   return output;
 }

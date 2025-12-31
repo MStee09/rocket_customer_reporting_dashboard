@@ -30,11 +30,31 @@ You can build reports using any available field.`;
 RESTRICTED FIELDS - DO NOT USE:
 ${restrictedFields.map(f => `- ${f}`).join('\n')}
 
-These fields are not available in your view. If the user asks about:
-- Cost, margin, or profit → Explain that cost data is not available in their view
-- Offer alternatives: revenue/retail trends, carrier performance by volume, shipment counts
+### IMPORTANT DISTINCTION
 
-NEVER include restricted fields in any report section, calculated field, or filter.`;
+When customers say "cost", "spend", or "expensive", they mean THEIR freight spend (what they pay).
+This is the **retail** field and IS available to them.
+
+- ✅ Customer "cost" = **retail** field (what customer pays for shipping)
+- ❌ Internal "cost" = **cost** field (what Go Rocket pays carriers) - RESTRICTED
+
+### EXAMPLES
+
+- "Which states cost the most?" → Use **retail**, NOT cost field
+- "Show me freight spend" → Use **retail**
+- "Most expensive carriers" → Group by carrier_name, aggregate **retail**
+
+These are legitimate customer questions about their own shipping expenses.
+DO NOT treat these as access violations.
+
+### TRUE VIOLATIONS
+
+Only flag if customer explicitly asks about:
+- Go Rocket's carrier costs
+- Margin or profit calculations
+- Internal pricing data
+
+NEVER include restricted fields (cost, margin, carrier_cost) in any report section, calculated field, or filter.`;
 }
 
 export function enforceAccessControl(

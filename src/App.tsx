@@ -99,8 +99,8 @@ function App() {
               {/* Unified Analyze route */}
               <Route path="analyze" element={<AnalyzePage />} />
 
-              {/* Legacy redirects for bookmarks/links */}
-              <Route path="ai-studio" element={<Navigate to="/analyze?mode=ai" replace />} />
+              {/* AI Studio route */}
+              <Route path="ai-studio" element={<AIReportStudioPage />} />
               <Route path="create" element={<Navigate to="/analyze" replace />} />
               <Route path="analytics" element={<Navigate to="/analyze" replace />} />
 

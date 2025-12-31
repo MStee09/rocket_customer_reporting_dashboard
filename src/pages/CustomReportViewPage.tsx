@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -14,7 +14,8 @@ import {
   Pencil,
   Download,
   Mail,
-  Sparkles
+  Sparkles,
+  Check,
 } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,6 +41,7 @@ import { SimpleReportConfig, SimpleReportBuilderState } from '../types/reports';
 import SaveAsWidgetModal from '../components/reports/SaveAsWidgetModal';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
 import { ScheduledReport } from '../types/scheduledReports';
+import { InlineScheduler } from '../components/reports/InlineScheduler';
 import { ExportMenu } from '../components/ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
@@ -64,7 +66,10 @@ export function CustomReportViewPage() {
   const [showSaveAsWidgetModal, setShowSaveAsWidgetModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showInlineScheduler, setShowInlineScheduler] = useState(false);
+  const [scheduleSuccess, setScheduleSuccess] = useState(false);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
+  const inlineSchedulerRef = useRef<HTMLDivElement>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [reportData, setReportData] = useState<Record<string, unknown>[]>([]);
   const [enhancementData, setEnhancementData] = useState<Record<string, unknown>[]>([]);
@@ -111,6 +116,19 @@ export function CustomReportViewPage() {
       loadReportData();
     }
   }, [report, startDate, endDate]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (inlineSchedulerRef.current && !inlineSchedulerRef.current.contains(event.target as Node)) {
+        setShowInlineScheduler(false);
+      }
+    }
+
+    if (showInlineScheduler) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showInlineScheduler]);
 
   const updateDateRange = (preset: DatePreset) => {
     const now = new Date();
@@ -287,6 +305,12 @@ export function CustomReportViewPage() {
     navigate('/scheduled-reports');
   };
 
+  const handleInlineScheduleCreated = (_schedule: ScheduledReport) => {
+    setShowInlineScheduler(false);
+    setScheduleSuccess(true);
+    setTimeout(() => setScheduleSuccess(false), 3000);
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -383,13 +407,53 @@ export function CustomReportViewPage() {
               <LayoutGrid className="w-4 h-4" />
               Save as Widget
             </button>
-            <button
-              onClick={handleScheduleClick}
-              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-            >
-              <Calendar className="w-4 h-4" />
-              Schedule
-            </button>
+            <div className="relative" ref={inlineSchedulerRef}>
+              <button
+                onClick={() => {
+                  const simpleReport = (report as { simpleReport?: { columns?: unknown[] } }).simpleReport;
+                  if (!simpleReport || !simpleReport.columns || simpleReport.columns.length === 0) {
+                    alert('This report cannot be scheduled because it has no columns selected. Please edit the report and add at least one column.');
+                    return;
+                  }
+                  setShowInlineScheduler(!showInlineScheduler);
+                }}
+                disabled={scheduleSuccess}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
+                  scheduleSuccess
+                    ? 'bg-green-600 text-white border-green-600'
+                    : showInlineScheduler
+                    ? 'bg-rocket-100 text-rocket-700 border-rocket-300'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {scheduleSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Scheduled!
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-4 h-4" />
+                    Schedule
+                  </>
+                )}
+              </button>
+              {showInlineScheduler && report && (
+                <div className="absolute right-0 top-full mt-2 z-50">
+                  <InlineScheduler
+                    report={{
+                      id: report.id,
+                      name: report.name,
+                      type: 'custom_report',
+                      simpleReport: (report as { simpleReport?: unknown }).simpleReport,
+                    }}
+                    onScheduleCreated={handleInlineScheduleCreated}
+                    onCancel={() => setShowInlineScheduler(false)}
+                    defaultExpanded={true}
+                  />
+                </div>
+              )}
+            </div>
             <button
               onClick={() => setShowEditModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 transition-colors"

@@ -9,3 +9,4 @@ export { ReportPreviewHeader } from './ReportPreviewHeader';
 export { StudioHeader } from './StudioHeader';
 export { FollowUpSuggestions } from './FollowUpSuggestions';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';
+export type { BuildReportContext } from './ChatInput';

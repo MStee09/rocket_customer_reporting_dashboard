@@ -24,6 +24,8 @@ import {
   deleteAIReport,
   SavedAIReport,
   AILearning,
+  extractReportContextFromConversation,
+  ExtractedReportContext,
 } from '../services/aiReportService';
 import { executeReportData } from '../services/reportDataExecutor';
 import { getDocumentsForContext, buildKnowledgeContext } from '../services/knowledgeBaseService';
@@ -146,6 +148,7 @@ export function AIReportStudioPage() {
     groupByColumns: string[];
     reportName?: string;
   } | null>(null);
+  const [buildReportContext, setBuildReportContext] = useState<ExtractedReportContext | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -159,6 +162,11 @@ export function AIReportStudioPage() {
 
   useEffect(() => { scrollToBottom(); }, [messages]);
   useEffect(() => { setEditableTitle(currentReport?.name || 'Untitled Report'); }, [currentReport?.name]);
+
+  useEffect(() => {
+    const context = extractReportContextFromConversation(messages, currentReport);
+    setBuildReportContext(context);
+  }, [messages, currentReport]);
 
   const loadSavedReports = useCallback(async () => {
     if (!effectiveCustomerId) return;
@@ -465,6 +473,26 @@ export function AIReportStudioPage() {
     }]);
   };
 
+  const handleBuildReportFromContext = (context: ExtractedReportContext) => {
+    setBuilderContext({
+      columns: context.suggestedColumns.map(col => ({
+        id: col,
+        label: col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      })),
+      filters: context.suggestedFilters.map(f => ({
+        columnId: f.column,
+        operator: f.operator,
+        value: f.value,
+        enabled: true,
+      })),
+      sorts: [],
+      isSummary: false,
+      groupByColumns: [],
+      reportName: context.reportName || 'New Report',
+    });
+    setActiveTab('builder');
+  };
+
   const handleExportReport = (report: SavedAIReport) => {
     const blob = new Blob([JSON.stringify(report.definition, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -673,7 +701,20 @@ export function AIReportStudioPage() {
                 enhancementContext={enhancementContext}
               />
               <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
-                <ChatInput onSend={handleSendMessage} isLoading={isGenerating} placeholder="Describe your report..." />
+                <ChatInput
+                  onSend={handleSendMessage}
+                  isLoading={isGenerating}
+                  placeholder="Describe your report..."
+                  buildReportContext={buildReportContext ? {
+                    hasColumns: buildReportContext.hasColumns,
+                    hasFilters: buildReportContext.hasFilters,
+                    hasIntent: buildReportContext.hasIntent,
+                    suggestedColumns: buildReportContext.suggestedColumns,
+                    suggestedFilters: buildReportContext.suggestedFilters,
+                    reportName: buildReportContext.reportName,
+                  } : null}
+                  onBuildReport={handleBuildReportFromContext}
+                />
               </div>
             </div>
           ) : (
@@ -720,7 +761,20 @@ export function AIReportStudioPage() {
                       </div>
                     </div>
                     <div className="flex-shrink-0 border-t border-gray-200 p-3">
-                      <ChatInput onSend={handleSendMessage} isLoading={isGenerating} placeholder="Refine your report..." />
+                      <ChatInput
+                        onSend={handleSendMessage}
+                        isLoading={isGenerating}
+                        placeholder="Refine your report..."
+                        buildReportContext={buildReportContext ? {
+                          hasColumns: buildReportContext.hasColumns,
+                          hasFilters: buildReportContext.hasFilters,
+                          hasIntent: buildReportContext.hasIntent,
+                          suggestedColumns: buildReportContext.suggestedColumns,
+                          suggestedFilters: buildReportContext.suggestedFilters,
+                          reportName: buildReportContext.reportName,
+                        } : null}
+                        onBuildReport={handleBuildReportFromContext}
+                      />
                     </div>
                   </>
                 )}

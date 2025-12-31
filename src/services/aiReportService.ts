@@ -240,3 +240,110 @@ export async function deleteAIReport(
     throw new Error(`Failed to delete report: ${error.message}`);
   }
 }
+
+export interface ExtractedReportContext {
+  hasColumns: boolean;
+  hasFilters: boolean;
+  hasIntent: boolean;
+  suggestedColumns: string[];
+  suggestedFilters: Array<{ column: string; operator: string; value: string }>;
+  reportName?: string;
+  dateRange?: string;
+}
+
+export function extractReportContextFromConversation(
+  messages: ChatMessage[],
+  currentReport: AIReportDefinition | null
+): ExtractedReportContext {
+  const context: ExtractedReportContext = {
+    hasColumns: false,
+    hasFilters: false,
+    hasIntent: false,
+    suggestedColumns: [],
+    suggestedFilters: [],
+  };
+
+  if (currentReport) {
+    context.hasIntent = true;
+    context.hasColumns = true;
+    context.reportName = currentReport.name;
+
+    currentReport.sections.forEach(section => {
+      if (section.type === 'table' && 'config' in section) {
+        const tableConfig = section.config as { columns?: Array<{ field: string }> };
+        if (tableConfig.columns) {
+          context.suggestedColumns.push(...tableConfig.columns.map(c => c.field));
+        }
+      }
+      if (section.type === 'chart' && 'config' in section) {
+        const chartConfig = section.config as { groupBy?: string; metrics?: string[] };
+        if (chartConfig.groupBy) context.suggestedColumns.push(chartConfig.groupBy);
+        if (chartConfig.metrics) context.suggestedColumns.push(...chartConfig.metrics);
+      }
+    });
+
+    if (currentReport.filters && currentReport.filters.length > 0) {
+      context.hasFilters = true;
+      context.suggestedFilters = currentReport.filters.map(f => ({
+        column: f.field,
+        operator: f.operator,
+        value: String(f.value),
+      }));
+    }
+
+    return context;
+  }
+
+  const userMessages = messages.filter(m => m.role === 'user').map(m => m.content.toLowerCase());
+  const allText = userMessages.join(' ');
+
+  const intentKeywords = [
+    'show me', 'what are', 'which', 'how many', 'total', 'average', 'compare',
+    'breakdown', 'by carrier', 'by state', 'by month', 'trend', 'top', 'highest',
+    'lowest', 'cost', 'spend', 'shipment', 'volume', 'report', 'analyze'
+  ];
+  context.hasIntent = intentKeywords.some(keyword => allText.includes(keyword));
+
+  const columnKeywords: Record<string, string> = {
+    'carrier': 'carrier_name',
+    'cost': 'total_cost',
+    'spend': 'total_cost',
+    'state': 'origin_state',
+    'origin': 'origin_state',
+    'destination': 'destination_state',
+    'date': 'pickup_date',
+    'month': 'pickup_date',
+    'mode': 'mode_name',
+    'weight': 'total_weight',
+    'shipment': 'load_id',
+    'customer': 'customer_name',
+    'revenue': 'retail',
+    'margin': 'margin',
+  };
+
+  Object.entries(columnKeywords).forEach(([keyword, column]) => {
+    if (allText.includes(keyword) && !context.suggestedColumns.includes(column)) {
+      context.suggestedColumns.push(column);
+    }
+  });
+
+  context.hasColumns = context.suggestedColumns.length > 0;
+
+  if (allText.includes('last month') || allText.includes('previous month')) {
+    context.dateRange = 'previous_month';
+  } else if (allText.includes('last week') || allText.includes('previous week')) {
+    context.dateRange = 'previous_week';
+  } else if (allText.includes('this quarter') || allText.includes('q4') || allText.includes('q3')) {
+    context.dateRange = 'this_quarter';
+  } else if (allText.includes('this year') || allText.includes('ytd')) {
+    context.dateRange = 'ytd';
+  }
+
+  if (context.hasIntent && context.suggestedColumns.length > 0) {
+    const primaryColumn = context.suggestedColumns[0];
+    const formattedColumn = primaryColumn.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    context.reportName = `${formattedColumn} Analysis`;
+  }
+
+  return context;
+}

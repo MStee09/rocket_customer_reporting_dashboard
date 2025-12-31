@@ -139,6 +139,10 @@ export function ScheduleBuilderSingleScreen({
     }
   }, [state.frequency, existingSchedule, report?.name]);
 
+  const isValid = useCallback(() => {
+    return state.email_recipients.some(r => r.includes('@'));
+  }, [state.email_recipients]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
@@ -192,10 +196,6 @@ export function ScheduleBuilderSingleScreen({
     const newRecipients = [...state.email_recipients];
     newRecipients[index] = value;
     updateState({ email_recipients: newRecipients });
-  };
-
-  const isValid = () => {
-    return state.email_recipients.some(r => r.includes('@'));
   };
 
   const handleSave = async () => {

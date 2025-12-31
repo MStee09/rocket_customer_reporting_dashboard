@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -20,7 +20,7 @@ interface NavItem {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { isAdmin, isViewingAsCustomer, viewingCustomer } = useAuth();
+  const { isAdmin, isViewingAsCustomer, viewingCustomer, isImpersonating, impersonatingCustomer } = useAuth();
   const { pinnedViews } = useSavedViews();
   const [learningQueueCount, setLearningQueueCount] = useState(0);
   const [savedViewsExpanded, setSavedViewsExpanded] = useState(true);
@@ -72,7 +72,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 
-  const shouldShowAdmin = isAdmin() && !isViewingAsCustomer;
+  const shouldShowAdmin = isAdmin();
 
   const isActiveRoute = (item: NavItem) => {
     if (item.matchPaths) {
@@ -118,12 +118,26 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         </div>
 
-        {isViewingAsCustomer && viewingCustomer && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-coral-500/20 border border-coral-500/40 rounded-xl">
+        {isImpersonating && impersonatingCustomer && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-amber-500/20 border border-amber-500/40 rounded-xl">
             <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-coral-400" />
-              <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
-                Viewing As
+              <UserCog className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-semibold text-amber-300 uppercase tracking-wide">
+                Impersonating
+              </span>
+            </div>
+            <div className="text-sm font-medium text-white">
+              {impersonatingCustomer.company_name}
+            </div>
+          </div>
+        )}
+
+        {isViewingAsCustomer && viewingCustomer && !isImpersonating && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-blue-500/20 border border-blue-500/40 rounded-xl">
+            <div className="flex items-center gap-2 mb-1">
+              <Eye className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-semibold text-blue-300 uppercase tracking-wide">
+                Viewing
               </span>
             </div>
             <div className="text-sm font-medium text-white">

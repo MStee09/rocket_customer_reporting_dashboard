@@ -14,6 +14,10 @@ interface AuthContextType extends AuthState {
   setViewingAsCustomerId: (customerId: number | null) => void;
   isViewingAsCustomer: boolean;
   viewingCustomer: { customer_id: number; company_name: string } | null;
+  impersonatingCustomerId: number | null;
+  setImpersonatingCustomerId: (customerId: number | null) => void;
+  isImpersonating: boolean;
+  impersonatingCustomer: { customer_id: number; company_name: string } | null;
   effectiveCustomerIds: number[];
   effectiveCustomerId: number | null;
 }
@@ -22,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SELECTED_CUSTOMER_KEY = 'selectedCustomerId';
 const VIEWING_AS_CUSTOMER_KEY = 'rocket_viewing_as_customer';
+const IMPERSONATING_CUSTOMER_KEY = 'rocket_impersonating_customer';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -33,6 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [viewingAsCustomerId, setViewingAsCustomerIdState] = useState<number | null>(() => {
     const stored = sessionStorage.getItem(VIEWING_AS_CUSTOMER_KEY);
+    return stored ? parseInt(stored, 10) : null;
+  });
+  const [impersonatingCustomerId, setImpersonatingCustomerIdState] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem(IMPERSONATING_CUSTOMER_KEY);
     return stored ? parseInt(stored, 10) : null;
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -83,9 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               customer_id: c.customer_id,
               customer_name: c.company_name,
             }));
-            console.log('[AuthContext] Active customers:', loadedCustomers.map(c =>
-              `${c.customer_name} (ID: ${c.customer_id})`
-            ));
           }
         } else if (userRole === 'customer') {
           console.log('[AuthContext] Loading customer associations');
@@ -196,8 +202,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCustomers([]);
     setSelectedCustomerIdState(null);
     setViewingAsCustomerIdState(null);
+    setImpersonatingCustomerIdState(null);
     localStorage.removeItem(SELECTED_CUSTOMER_KEY);
     sessionStorage.removeItem(VIEWING_AS_CUSTOMER_KEY);
+    sessionStorage.removeItem(IMPERSONATING_CUSTOMER_KEY);
   };
 
   const setSelectedCustomerId = (customerId: number | null) => {
@@ -211,16 +219,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setViewingAsCustomerId = async (customerId: number | null) => {
     if (customerId !== null) {
+      setImpersonatingCustomerIdState(null);
+      sessionStorage.removeItem(IMPERSONATING_CUSTOMER_KEY);
+    }
+
+    if (customerId !== null) {
       const customer = customers.find(c => c.customer_id === customerId);
       if (customer) {
-        console.log(`[Auth] Setting viewing customer: ${customer.customer_name} (ID: ${customerId})`);
+        console.log(`[Auth] Setting view customer: ${customer.customer_name} (ID: ${customerId})`);
 
         const validation = await validateCustomerSelection(customerId, customer.customer_name);
         if (!validation.valid) {
           console.error(`[Auth] Customer validation failed: ${validation.error}`);
         }
-      } else {
-        console.warn(`[Auth] WARNING: Customer ID ${customerId} not found in customer list!`);
       }
     } else {
       console.log('[Auth] Exiting customer view mode');
@@ -234,32 +245,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isAdmin = () => role?.is_admin ?? false;
+  const setImpersonatingCustomerId = async (customerId: number | null) => {
+    if (customerId !== null) {
+      setViewingAsCustomerIdState(null);
+      sessionStorage.removeItem(VIEWING_AS_CUSTOMER_KEY);
+    }
+
+    if (customerId !== null) {
+      const customer = customers.find(c => c.customer_id === customerId);
+      if (customer) {
+        console.log(`[Auth] IMPERSONATING customer: ${customer.customer_name} (ID: ${customerId})`);
+      }
+    } else {
+      console.log('[Auth] Exiting impersonation mode');
+    }
+
+    setImpersonatingCustomerIdState(customerId);
+    if (customerId !== null) {
+      sessionStorage.setItem(IMPERSONATING_CUSTOMER_KEY, customerId.toString());
+    } else {
+      sessionStorage.removeItem(IMPERSONATING_CUSTOMER_KEY);
+    }
+  };
+
+  const isAdmin = () => {
+    if (impersonatingCustomerId !== null) return false;
+    return role?.is_admin ?? false;
+  };
+
   const isCustomer = () => role?.is_customer ?? false;
 
   const customerIds = useMemo(() => customers.map(c => c.customer_id), [customers]);
   const hasMultipleCustomers = customers.length > 1;
 
-  const isViewingAsCustomer = isAdmin() && viewingAsCustomerId !== null;
+  const isViewingAsCustomer = role?.is_admin === true && viewingAsCustomerId !== null && impersonatingCustomerId === null;
   const viewingCustomer = useMemo(() => {
     if (!isViewingAsCustomer || !viewingAsCustomerId) return null;
     const customer = customers.find(c => c.customer_id === viewingAsCustomerId);
     return customer ? { customer_id: viewingAsCustomerId, company_name: customer.customer_name } : null;
   }, [isViewingAsCustomer, viewingAsCustomerId, customers]);
 
+  const isImpersonating = role?.is_admin === true && impersonatingCustomerId !== null;
+  const impersonatingCustomer = useMemo(() => {
+    if (!isImpersonating || !impersonatingCustomerId) return null;
+    const customer = customers.find(c => c.customer_id === impersonatingCustomerId);
+    return customer ? { customer_id: impersonatingCustomerId, company_name: customer.customer_name } : null;
+  }, [isImpersonating, impersonatingCustomerId, customers]);
+
   const effectiveCustomerIds = useMemo(() => {
-    const ids = isViewingAsCustomer && viewingAsCustomerId ? [viewingAsCustomerId] : customerIds;
-    if (ids.length > 0) {
-      console.log('[Auth] Effective customer IDs for queries:', ids);
-    }
-    return ids;
-  }, [isViewingAsCustomer, viewingAsCustomerId, customerIds]);
+    if (impersonatingCustomerId) return [impersonatingCustomerId];
+    if (viewingAsCustomerId) return [viewingAsCustomerId];
+    return customerIds;
+  }, [impersonatingCustomerId, viewingAsCustomerId, customerIds]);
 
   const effectiveCustomerId = useMemo(() => {
-    const id = isViewingAsCustomer ? viewingAsCustomerId : selectedCustomerId;
-    console.log('[Auth] Effective single customer ID:', id);
-    return id;
-  }, [isViewingAsCustomer, viewingAsCustomerId, selectedCustomerId]);
+    if (impersonatingCustomerId) return impersonatingCustomerId;
+    if (viewingAsCustomerId) return viewingAsCustomerId;
+    return selectedCustomerId;
+  }, [impersonatingCustomerId, viewingAsCustomerId, selectedCustomerId]);
 
   const value = {
     user,
@@ -279,6 +322,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setViewingAsCustomerId,
     isViewingAsCustomer,
     viewingCustomer,
+    impersonatingCustomerId,
+    setImpersonatingCustomerId,
+    isImpersonating,
+    impersonatingCustomer,
     effectiveCustomerIds,
     effectiveCustomerId,
   };

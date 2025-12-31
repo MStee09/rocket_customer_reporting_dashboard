@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Eye } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -66,9 +66,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const adminNavItems: NavItem[] = [
     { to: '/customers', icon: Users, label: 'Customers' },
-    { to: '/knowledge-base', icon: BookOpen, label: 'AI Training Data', badge: learningQueueCount },
-    { to: '/users', icon: UserCog, label: 'User Management' },
-    { to: '/schema', icon: Database, label: 'Data Fields' },
+    { to: '/knowledge-base', icon: BookOpen, label: 'AI Knowledge', badge: learningQueueCount },
+    { to: '/users', icon: UserCog, label: 'Users' },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 

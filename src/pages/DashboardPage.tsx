@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays, subYears } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import {
   DashboardHeader,
-  ComparisonMetrics,
   AIReportsSection,
   WidgetGrid,
   AIInsightsPanel,
@@ -15,7 +14,6 @@ import {
 } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
-import { useComparisonStats } from '../hooks/useComparisonStats';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
 import { widgetLibrary, getGlobalWidgets } from '../config/widgetLibrary';
 import { clampWidgetSize, WidgetSizeConstraint, getDefaultSize } from '../config/widgetConstraints';
@@ -23,14 +21,7 @@ import { AdminDashboardPage } from './AdminDashboardPage';
 import { loadCustomWidget, loadAllCustomWidgets } from '../config/widgets/customWidgetStorage';
 import { supabase } from '../lib/supabase';
 
-type ComparisonType = 'previous' | 'lastYear' | 'custom';
 type WidgetSizeValue = 1 | 2 | 3;
-
-interface ComparisonConfig {
-  enabled: boolean;
-  type: ComparisonType;
-  customRange?: { start: Date; end: Date };
-}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -50,9 +41,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [dateRange, setDateRange] = useState('last6months');
-  const [comparison, setComparison] = useState<ComparisonConfig | null>(null);
-  const [showComparisonDropdown, setShowComparisonDropdown] = useState(false);
+  const [dateRange, setDateRange] = useState('last30');
   const [saveNotification, setSaveNotification] = useState(false);
   const [autoSaveNotification, setAutoSaveNotification] = useState(false);
   const [addWidgetNotification, setAddWidgetNotification] = useState(false);
@@ -267,68 +256,6 @@ export function DashboardPage() {
     };
   }, [dateRange]);
 
-  const comparisonDates = useMemo(() => {
-    if (!comparison?.enabled) return null;
-
-    const currentStart = new Date(startDate);
-    const currentEnd = new Date(endDate);
-
-    if (comparison.type === 'custom' && comparison.customRange) {
-      return {
-        start: format(comparison.customRange.start, 'yyyy-MM-dd'),
-        end: format(comparison.customRange.end, 'yyyy-MM-dd'),
-      };
-    }
-
-    if (comparison.type === 'lastYear') {
-      return {
-        start: format(subYears(currentStart, 1), 'yyyy-MM-dd'),
-        end: format(subYears(currentEnd, 1), 'yyyy-MM-dd'),
-      };
-    }
-
-    const duration = currentEnd.getTime() - currentStart.getTime();
-    const dayInMs = 86400000;
-
-    return {
-      start: format(new Date(currentStart.getTime() - duration - dayInMs), 'yyyy-MM-dd'),
-      end: format(new Date(currentStart.getTime() - dayInMs), 'yyyy-MM-dd'),
-    };
-  }, [comparison, startDate, endDate]);
-
-  const { currentStats, comparisonStats, isLoading: comparisonLoading } = useComparisonStats(
-    effectiveCustomerIds,
-    isAdmin(),
-    isViewingAsCustomer,
-    startDate,
-    endDate,
-    comparisonDates?.start || null,
-    comparisonDates?.end || null
-  );
-
-  const dateRangeLabel = useMemo(() => {
-    const rangeLabels: Record<string, string> = {
-      last7: 'Last 7 Days',
-      last30: 'Last 30 Days',
-      last90: 'Last 90 Days',
-      last6months: 'Last 6 Months',
-      lastyear: 'Last Year',
-      thisMonth: 'This Month',
-      thisQuarter: 'This Quarter',
-      thisYear: 'This Year',
-      next30: 'Next 30 Days',
-      next90: 'Next 90 Days',
-      upcoming: 'Upcoming',
-    };
-    return rangeLabels[dateRange] || dateRange;
-  }, [dateRange]);
-
-  const comparisonLabel = useMemo(() => {
-    if (!comparison?.enabled) return '';
-    if (comparison.type === 'previous') return 'Previous Period';
-    if (comparison.type === 'lastYear') return 'Last Year';
-    return 'Custom Period';
-  }, [comparison]);
 
   const handleWidgetRemove = useCallback((widgetId: string) => {
     setLocalLayout(prev => prev.filter(id => id !== widgetId));
@@ -416,12 +343,6 @@ export function DashboardPage() {
           isViewingAsCustomer={isViewingAsCustomer}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          comparison={comparison}
-          onComparisonChange={setComparison}
-          showComparisonDropdown={showComparisonDropdown}
-          onShowComparisonDropdownChange={setShowComparisonDropdown}
-          comparisonDates={comparisonDates}
-          onRefresh={() => window.location.reload()}
           customizeButton={
             <InlineEditToolbar
               isEditing={editMode.state.isEditing}
@@ -470,15 +391,6 @@ export function DashboardPage() {
           />
         )}
 
-        {comparison?.enabled && currentStats && comparisonStats && !comparisonLoading && (
-          <ComparisonMetrics
-            currentStats={currentStats}
-            comparisonStats={comparisonStats}
-            dateRangeLabel={dateRangeLabel}
-            comparisonLabel={comparisonLabel}
-          />
-        )}
-
         <WidgetGrid
           widgets={allWidgetItems}
           customWidgets={customWidgets}
@@ -486,7 +398,6 @@ export function DashboardPage() {
           customerId={customerId?.toString()}
           startDate={startDate}
           endDate={endDate}
-          comparisonDates={comparisonDates}
           isEditMode={editMode.state.isEditing}
           selectedWidgetId={editMode.state.selectedWidgetId}
           onWidgetSelect={editMode.selectWidget}

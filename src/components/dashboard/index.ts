@@ -29,4 +29,3 @@ export { WidgetSkeleton } from './WidgetSkeleton';
 export { EditableWidgetCard } from './EditableWidgetCard';
 export { InlineEditToolbar } from './InlineEditToolbar';
 export { WidgetGalleryModal } from './WidgetGalleryModal';
-export { AttentionSignals } from './AttentionSignals';

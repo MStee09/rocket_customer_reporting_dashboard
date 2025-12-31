@@ -116,7 +116,7 @@ export function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
@@ -127,7 +127,7 @@ export function ReportsPage() {
   const showCustomerComparison = isAdmin() && !isViewingAsCustomer;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-800">Reports & Analytics</h1>
         <p className="text-slate-600 mt-1">Visual insights into your freight data</p>

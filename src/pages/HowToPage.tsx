@@ -240,7 +240,7 @@ export function HowToPage() {
   const currentSubsection = currentSection?.subsections.find(s => s.id === activeSubsection);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50 -m-6 lg:-m-8 min-h-[calc(100vh-4rem)]">
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">

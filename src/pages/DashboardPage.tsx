@@ -396,7 +396,7 @@ export function DashboardPage() {
 
   if (isLoading || widgetsLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl flex items-center justify-center min-h-screen">
+      <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
         <div className="text-slate-600">Loading dashboard...</div>
       </div>
     );
@@ -409,8 +409,8 @@ export function DashboardPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-6 py-8 max-w-[1600px]">
+    <div className="bg-slate-50">
+      <div className="max-w-[1600px] mx-auto">
         <DashboardHeader
           userName={user?.email?.split('@')[0] || 'User'}
           isViewingAsCustomer={isViewingAsCustomer}

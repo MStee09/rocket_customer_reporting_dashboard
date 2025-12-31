@@ -326,7 +326,7 @@ export function CustomReportViewPage() {
 
   if (reportsLoading || (!report && !newReportFromState && retryCount < 5)) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
@@ -336,7 +336,7 @@ export function CustomReportViewPage() {
 
   if (!report) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-12 text-center">
           <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-800 mb-2">Report Not Found</h3>
@@ -358,7 +358,7 @@ export function CustomReportViewPage() {
     const customerId = effectiveCustomerIds && effectiveCustomerIds.length > 0 ? effectiveCustomerIds[0] : undefined;
 
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <button
@@ -548,7 +548,7 @@ export function CustomReportViewPage() {
   const categories = report.config.categories || [];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button

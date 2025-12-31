@@ -353,7 +353,7 @@ export function ShipmentsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-10 h-10 text-rocket-600 animate-spin" />
         </div>
@@ -364,7 +364,7 @@ export function ShipmentsPage() {
   const showFinancials = isAdmin() && !isViewingAsCustomer;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Shipments</h1>
         <p className="text-gray-500 mt-1">Track and manage your shipments</p>

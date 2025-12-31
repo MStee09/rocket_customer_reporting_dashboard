@@ -64,7 +64,9 @@ export function AppLayout() {
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 overflow-y-auto w-full min-w-0">
-          <Outlet />
+          <div className="p-6 lg:p-8">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

@@ -236,8 +236,8 @@ export function CustomerProfileHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="bg-gray-50 -m-6 lg:-m-8 min-h-[calc(100vh-4rem)]">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <button
           onClick={() => navigate(`/admin/customer-profiles/${customerId}/edit`)}
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"

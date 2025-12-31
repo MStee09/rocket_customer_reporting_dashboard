@@ -85,7 +85,7 @@ export function CustomReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-12 h-12 text-rocket-600 animate-spin" />
         </div>
@@ -94,7 +94,7 @@ export function CustomReportsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl mx-auto">
       {isViewingAsCustomer && viewingCustomer && (
         <div className="mb-6 px-4 py-3 bg-orange-500/10 border border-orange-500/40 rounded-lg">
           <div className="flex items-center gap-2">

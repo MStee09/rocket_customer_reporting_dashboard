@@ -16,7 +16,7 @@ export function SchemaExplorerPage() {
   const [activeTab, setActiveTab] = useState<TabId>('tables');
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-800">Schema Explorer</h1>
         <p className="text-slate-600 mt-1">Explore database tables, field mappings, and lookup values</p>

@@ -236,7 +236,7 @@ export function ShipmentDetailPage() {
 
   if (!data?.shipment) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto">
         <div className="text-center py-20">
           <h2 className="text-2xl font-bold text-slate-800 mb-4">Shipment Not Found</h2>
           <button
@@ -251,7 +251,7 @@ export function ShipmentDetailPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto">
       <button
         onClick={() => navigate('/shipments')}
         className="flex items-center gap-2 text-slate-600 hover:text-slate-800 mb-4 print:hidden"

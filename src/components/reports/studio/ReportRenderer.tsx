@@ -153,6 +153,10 @@ interface SectionRendererProps {
 }
 
 function SectionRenderer({ section, data, error, theme, compact = false }: SectionRendererProps) {
+  if (!section || !section.config) {
+    return null;
+  }
+
   if (error) {
     return (
       <div className={`bg-red-50 border border-red-200 rounded-xl ${compact ? 'p-3' : 'p-4'}`}>

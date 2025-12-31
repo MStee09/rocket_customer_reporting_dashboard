@@ -271,7 +271,9 @@ export const executeCustomWidgetQuery = async (
 
       if (orderBy && orderBy.length > 0) {
         const order = orderBy[0];
-        query = query.order(order.field, { ascending: order.direction === 'asc' });
+        if (order.field) {
+          query = query.order(order.field, { ascending: order.direction === 'asc' });
+        }
       }
 
       const { data, error } = await query;

@@ -726,7 +726,7 @@ async function executeTableQuery(
     .gte('pickup_date', dateRange.start.toISOString().split('T')[0])
     .lte('pickup_date', dateRange.end.toISOString().split('T')[0]);
 
-  if (config.sortBy && !config.groupBy) {
+  if (config.sortBy?.field && !config.groupBy) {
     query = query.order(config.sortBy.field, {
       ascending: config.sortBy.direction === 'asc',
     });

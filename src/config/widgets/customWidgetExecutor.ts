@@ -70,7 +70,9 @@ export const executeCustomWidgetQuery = async (
   }
 
   for (const order of query.orderBy || []) {
-    dbQuery = dbQuery.order(order.field, { ascending: order.direction === 'asc' });
+    if (order.field) {
+      dbQuery = dbQuery.order(order.field, { ascending: order.direction === 'asc' });
+    }
   }
 
   if (query.limit) {

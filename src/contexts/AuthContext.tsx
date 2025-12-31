@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, useMemo, ReactNode, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { flushSync } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { AuthState, UserRole, CustomerAssociation } from '../types/auth';
 import { validateCustomerSelection } from '../utils/customerValidation';
@@ -47,7 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
   const loadingUserIdRef = useRef<string | null>(null);
-  const hasInitializedRef = useRef(false);
 
   const loadUserRole = async (userId: string) => {
     if (loadingUserIdRef.current === userId) {
@@ -163,13 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (hasInitializedRef.current) {
-      console.log('[AuthContext] Already initialized, skipping');
-      return;
-    }
-    hasInitializedRef.current = true;
     console.log('[AuthContext] useEffect mounting');
-
     let isMounted = true;
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {

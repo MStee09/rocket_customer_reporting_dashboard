@@ -15,6 +15,7 @@ interface SimpleReportBuilderProps {
   onSave: (config: SimpleReportBuilderState) => void;
   initialState?: Partial<SimpleReportBuilderState>;
   isInline?: boolean;
+  onEnhanceWithAI?: (state: SimpleReportBuilderState) => void;
 }
 
 const categoryIcons = {
@@ -32,7 +33,7 @@ const DEFAULT_LOAD_ID_COLUMN = {
   label: 'Load ID',
 };
 
-export default function SimpleReportBuilder({ onClose, onSave, initialState, isInline = false }: SimpleReportBuilderProps) {
+export default function SimpleReportBuilder({ onClose, onSave, initialState, isInline = false, onEnhanceWithAI }: SimpleReportBuilderProps) {
   const navigate = useNavigate();
   const { isAdmin, isViewingAsCustomer, effectiveCustomerId } = useAuth();
   const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
@@ -323,11 +324,37 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState, isI
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">
-              {initialState?.name ? 'Edit Report' : 'Column Builder'}
+              {initialState?.name ? 'Edit Report' : 'Report Builder'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">Pick columns, reorder them, and choose how to display your data</p>
           </div>
-          {!isInline && (
+          {isInline ? (
+            <button
+              onClick={() => onEnhanceWithAI ? onEnhanceWithAI(state) : handleAnalyzeWithAI()}
+              disabled={state.selectedColumns.length < 2 || isAnalyzing}
+              className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
+                state.selectedColumns.length >= 2
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title={state.selectedColumns.length < 2
+                ? "Select at least 2 columns to enhance with AI"
+                : "Add visualizations and insights with AI"
+              }
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Enhance with AI
+                </>
+              )}
+            </button>
+          ) : (
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="w-6 h-6" />
             </button>

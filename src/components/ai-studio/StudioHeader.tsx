@@ -5,7 +5,7 @@ import {
   MessageSquare,
   BarChart3,
   FolderOpen,
-  Table,
+  FileText,
   ArrowLeft,
 } from 'lucide-react';
 
@@ -109,6 +109,17 @@ export function StudioHeader({
           AI Studio
         </button>
         <button
+          onClick={() => onTabChange('builder')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'builder'
+              ? 'border-rocket-600 text-rocket-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Report Builder
+        </button>
+        <button
           onClick={() => onTabChange('library')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'library'
@@ -127,17 +138,6 @@ export function StudioHeader({
               {savedReportsCount}
             </span>
           )}
-        </button>
-        <button
-          onClick={() => onTabChange('builder')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'builder'
-              ? 'border-rocket-600 text-rocket-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Table className="w-4 h-4" />
-          Column Builder
         </button>
       </div>
     </header>

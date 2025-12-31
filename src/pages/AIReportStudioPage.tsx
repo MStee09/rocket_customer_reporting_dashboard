@@ -494,6 +494,34 @@ export function AIReportStudioPage() {
     }
   };
 
+  const handleEnhanceFromBuilder = useCallback((builderState: SimpleReportBuilderState) => {
+    const columnNames = builderState.selectedColumns.map(c => c.label).join(', ');
+
+    let prompt = `Create a report with these columns: ${columnNames}.`;
+
+    if (builderState.isSummary && builderState.groupByColumns && builderState.groupByColumns.length > 0) {
+      prompt += ` Summarize the data by ${builderState.groupByColumns.join(', ')}.`;
+    }
+
+    if (builderState.filters && builderState.filters.length > 0) {
+      const enabledFilters = builderState.filters.filter((f: { enabled?: boolean }) => f.enabled);
+      if (enabledFilters.length > 0) {
+        prompt += ` Apply ${enabledFilters.length} filter(s).`;
+      }
+    }
+
+    prompt += ' Add an appropriate chart visualization and provide key insights about the data.';
+
+    setActiveTab('create');
+    setCurrentReport(null);
+    setExecutedData(null);
+    setMessages([]);
+
+    setTimeout(() => {
+      handleSendMessage(prompt);
+    }, 150);
+  }, [handleSendMessage]);
+
   const exportableData = useMemo(() => extractExportableData(currentReport, executedData), [currentReport, executedData]);
   const hasExportableData = exportableData.data.length > 0;
 
@@ -556,6 +584,7 @@ export function AIReportStudioPage() {
             onClose={() => setActiveTab('create')}
             onSave={handleSaveCustomReport}
             isInline={true}
+            onEnhanceWithAI={handleEnhanceFromBuilder}
           />
         </div>
       ) : (

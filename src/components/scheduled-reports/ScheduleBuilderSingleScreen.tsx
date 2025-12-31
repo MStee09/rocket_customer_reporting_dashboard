@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   X, Plus, Trash2, ChevronDown, ChevronUp,
-  FileSpreadsheet, Eye, Command
+  FileSpreadsheet, Eye, Command, Calendar, Clock, FileText
 } from 'lucide-react';
 import {
   ScheduleBuilderState,
@@ -457,37 +457,50 @@ export function ScheduleBuilderSingleScreen({
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Delivery includes:</div>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span className="flex items-center gap-1.5">
-                <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                CSV attached
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye className="w-4 h-4 text-blue-600" />
-                View Report link
-              </span>
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div className="text-sm font-medium text-slate-700 mb-3">Email will include:</div>
+            <div className="space-y-2">
+              <div className="flex items-start gap-3 text-sm text-slate-600">
+                <FileSpreadsheet className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium text-slate-700">CSV attachment</span>
+                  <p className="text-slate-500 text-xs mt-0.5">Raw data file, opens in Excel</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 text-sm text-slate-600">
+                <Eye className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="font-medium text-slate-700">View Report link</span>
+                  <p className="text-slate-500 text-xs mt-0.5">Full report with charts - Export to PDF available</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-rocket-50 rounded-lg p-4 border border-rocket-200">
+          <div className="bg-rocket-50 rounded-xl p-4 border border-rocket-200">
             <div className="text-sm text-rocket-800">
-              <div className="font-medium mb-1">Schedule Preview</div>
-              <div>
-                {state.frequency === 'daily' && 'Every day'}
-                {state.frequency === 'weekly' && `Every ${DAYS_OF_WEEK.find(d => d.value === state.day_of_week)?.label || 'Monday'}`}
-                {state.frequency === 'monthly' && `Monthly on day ${state.day_of_month}`}
-                {state.frequency === 'quarterly' && `Quarterly on day ${state.day_of_month}`}
-                {' at '}
-                {formatTime(state.run_time)} {getTimezoneLabel(state.timezone)}
-              </div>
-              <div className="text-rocket-600 mt-1">
-                Next delivery: {formatDate(nextRunDate)}
-                {!isAIReport && dateRange && (
-                  <span className="ml-2">
-                    - Data: {formatDate(dateRange.start)} - {formatDate(dateRange.end)}
+              <div className="font-medium mb-2">Schedule Preview</div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-rocket-600" />
+                  <span>
+                    {state.frequency === 'daily' && 'Every day'}
+                    {state.frequency === 'weekly' && `Every ${DAYS_OF_WEEK.find(d => d.value === state.day_of_week)?.label || 'Monday'}`}
+                    {state.frequency === 'monthly' && `Monthly on day ${state.day_of_month}`}
+                    {state.frequency === 'quarterly' && `Quarterly on day ${state.day_of_month}`}
+                    {' at '}
+                    {formatTime(state.run_time)} {getTimezoneLabel(state.timezone)}
                   </span>
+                </div>
+                <div className="flex items-center gap-2 text-rocket-600">
+                  <Clock className="w-4 h-4" />
+                  <span>Next delivery: {formatDate(nextRunDate)}</span>
+                </div>
+                {!isAIReport && dateRange && (
+                  <div className="flex items-center gap-2 text-rocket-600">
+                    <FileText className="w-4 h-4" />
+                    <span>Data range: {formatDate(dateRange.start)} - {formatDate(dateRange.end)}</span>
+                  </div>
                 )}
               </div>
             </div>

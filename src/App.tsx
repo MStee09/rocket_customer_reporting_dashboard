@@ -8,6 +8,7 @@ import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CarriersPage } from './pages/CarriersPage';
 import { AIReportStudioPage } from './pages/AIReportStudioPage';
+import { AnalyzePage } from './pages/AnalyzePage';
 import { ReportsHubPage } from './pages/ReportsHubPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
 import { CustomReportsPage } from './pages/CustomReportsPage';
@@ -94,9 +95,15 @@ function App() {
                 }
               />
               <Route path="carriers" element={<CarriersPage />} />
-              <Route path="ai-studio" element={<AIReportStudioPage />} />
-              <Route path="create" element={<Navigate to="/ai-studio" replace />} />
-              <Route path="analytics" element={<Navigate to="/ai-studio" replace />} />
+
+              {/* Unified Analyze route */}
+              <Route path="analyze" element={<AnalyzePage />} />
+
+              {/* Legacy redirects for bookmarks/links */}
+              <Route path="ai-studio" element={<Navigate to="/analyze?mode=ai" replace />} />
+              <Route path="create" element={<Navigate to="/analyze" replace />} />
+              <Route path="analytics" element={<Navigate to="/analyze" replace />} />
+
               <Route path="reports" element={<ReportsHubPage />} />
               <Route
                 path="reports/avg-cost-per-unit"

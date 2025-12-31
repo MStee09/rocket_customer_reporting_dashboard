@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, BarChart3, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Rocket } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Database, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -50,10 +50,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/shipments', icon: Truck, label: 'Shipments' },
     {
-      to: '/ai-studio',
-      icon: BarChart3,
-      label: 'Create',
-      matchPaths: ['/ai-studio', '/custom-reports', '/create']
+      to: '/analyze',
+      icon: Search,
+      label: 'Analyze',
+      matchPaths: ['/analyze', '/ai-studio', '/custom-reports', '/create']
     },
     {
       to: '/reports',
@@ -66,9 +66,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const adminNavItems: NavItem[] = [
     { to: '/customers', icon: Users, label: 'Customers' },
-    { to: '/knowledge-base', icon: BookOpen, label: 'Knowledge Base', badge: learningQueueCount },
+    { to: '/knowledge-base', icon: BookOpen, label: 'AI Training Data', badge: learningQueueCount },
     { to: '/users', icon: UserCog, label: 'User Management' },
-    { to: '/schema', icon: Database, label: 'Schema Explorer' },
+    { to: '/schema', icon: Database, label: 'Data Fields' },
     { to: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -83,9 +83,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const navItemClasses = (isActive: boolean) => {
     if (isActive) {
-      return 'flex items-center gap-3 px-4 py-2.5 rounded-md text-white bg-white/10 border-l-[3px] border-rocket-500 shadow-sm';
+      return 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-white bg-white/10 border-l-[3px] border-rocket-500 shadow-sm';
     }
-    return 'flex items-center gap-3 px-4 py-2.5 rounded-md text-charcoal-300 hover:text-white hover:bg-white/10 transition-all duration-150';
+    return 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-charcoal-300 hover:text-white hover:bg-white/10 transition-all duration-150';
   };
 
   return (
@@ -104,20 +104,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         <div className="p-6 border-b border-charcoal-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src="/logo-with_words copy.png"
-                alt="Rocket Shipping"
-                className="h-10 w-auto"
-              />
-              <div>
-                <h1 className="font-bold text-lg text-white">Rocket Shipping</h1>
-                <p className="text-xs text-charcoal-400">Freight Dashboard</p>
-              </div>
-            </div>
+            <img
+              src="/logo-with_words copy.png"
+              alt="Rocket Shipping"
+              className="h-10 w-auto"
+            />
             <button
               onClick={onClose}
-              className="lg:hidden p-1 hover:bg-white/10 rounded transition-colors"
+              className="lg:hidden p-1 hover:bg-white/10 rounded-xl transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -125,7 +119,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {isViewingAsCustomer && viewingCustomer && (
-          <div className="mx-4 mt-4 px-4 py-3 bg-coral-500/20 border border-coral-500/40 rounded-lg">
+          <div className="mx-4 mt-4 px-4 py-3 bg-coral-500/20 border border-coral-500/40 rounded-xl">
             <div className="flex items-center gap-2 mb-1">
               <Users className="w-4 h-4 text-coral-400" />
               <span className="text-xs font-semibold text-coral-300 uppercase tracking-wide">
@@ -160,7 +154,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="pt-4 mt-2 border-t border-charcoal-700">
               <button
                 onClick={() => setSavedViewsExpanded(!savedViewsExpanded)}
-                className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-charcoal-400 hover:text-white transition-colors rounded-lg"
+                className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-charcoal-400 hover:text-white transition-colors rounded-xl"
               >
                 <span className="flex items-center gap-2">
                   <Bookmark className="w-4 h-4" />
@@ -177,7 +171,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <button
                       key={view.id}
                       onClick={() => navigateToView(view)}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-charcoal-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors text-left"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-charcoal-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors text-left"
                     >
                       <Pin className="w-3 h-3 text-rocket-400 flex-shrink-0" />
                       <span className="truncate">{view.name}</span>
@@ -224,7 +218,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <NavLink
             to="/settings/how-to"
             onClick={onClose}
-            className="flex items-center gap-2 px-3 py-2 text-charcoal-300 hover:bg-white/10 hover:text-white rounded-lg transition-colors mb-3"
+            className="flex items-center gap-2 px-3 py-2 text-charcoal-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors mb-3"
           >
             <HelpCircle className="w-4 h-4" />
             <span className="text-sm font-medium">Help & Docs</span>

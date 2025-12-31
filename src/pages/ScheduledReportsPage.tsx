@@ -3,7 +3,7 @@ import { Calendar, Loader2, Users, Shield, Search, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ScheduledReport, ScheduledReportRun } from '../types/scheduledReports';
 import {
-  ScheduleBuilderModal,
+  ScheduleBuilderSingleScreen,
   CreateAdminReportModal,
   ScheduleFilters,
   ScheduleStats,
@@ -503,7 +503,7 @@ export function ScheduledReportsPage() {
       />
 
       {editingSchedule && (
-        <ScheduleBuilderModal
+        <ScheduleBuilderSingleScreen
           isOpen={true}
           onClose={() => setEditingSchedule(null)}
           onSave={(updated) => {

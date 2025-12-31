@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { supabase } from '../lib/supabase';
-import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
+import { ScheduleBuilderSingleScreen } from '../components/scheduled-reports/ScheduleBuilderSingleScreen';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ReportConfig } from '../types/reports';
 
@@ -522,7 +522,7 @@ export function ReportsHubPage() {
       )}
 
       {scheduleModalOpen && (
-        <ScheduleBuilderModal
+        <ScheduleBuilderSingleScreen
           isOpen={scheduleModalOpen}
           report={reportToSchedule ? {
             id: reportToSchedule.id,

@@ -69,7 +69,7 @@ function CustomerRowActions({ customerId, customerName }: { customerId: number; 
 }
 
 export function CustomersPage() {
-  const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
+  const { isAdmin, effectiveCustomerIds, isViewingAsCustomer, role } = useAuth();
   const [customers, setCustomers] = useState<CustomerWithStats[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,9 +77,11 @@ export function CustomersPage() {
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const navigate = useNavigate();
 
+  const isAdminUser = isAdmin();
+
   useEffect(() => {
     loadCustomers();
-  }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer]);
+  }, [effectiveCustomerIds, isAdminUser, isViewingAsCustomer]);
 
   useEffect(() => {
     filterCustomers();
@@ -93,7 +95,12 @@ export function CustomersPage() {
       .select('*')
       .order('company_name');
 
-    if (!isAdmin() || isViewingAsCustomer) {
+    if (!isAdminUser || isViewingAsCustomer) {
+      if (effectiveCustomerIds.length === 0) {
+        setCustomers([]);
+        setIsLoading(false);
+        return;
+      }
       customerQuery = customerQuery.in('customer_id', effectiveCustomerIds);
     }
 
@@ -213,7 +220,7 @@ export function CustomersPage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
                   Total Revenue
                 </th>
-                {isAdmin() && (
+                {isAdminUser && (
                   <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
                     Actions
                   </th>
@@ -256,7 +263,7 @@ export function CustomersPage() {
                   <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
                     {formatCurrency(customer.total_revenue || 0)}
                   </td>
-                  {isAdmin() && (
+                  {isAdminUser && (
                     <td className="px-4 py-3 text-right">
                       <CustomerRowActions
                         customerId={customer.customer_id}

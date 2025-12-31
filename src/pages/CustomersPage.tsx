@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, CheckCircle, XCircle, Loader2, Pause } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, Pause, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/dateUtils';
 import { Customer } from '../types/database';
+import { CustomerActions } from '../components/customers/CustomerActions';
 
 interface CustomerWithStats extends Customer {
   shipment_count?: number;
@@ -88,6 +89,10 @@ export function CustomersPage() {
     setFilteredCustomers(filtered);
   };
 
+  const handleRowClick = (customerId: number) => {
+    navigate(`/shipments?customer=${customerId}`);
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -152,19 +157,27 @@ export function CustomersPage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
                   Total Revenue
                 </th>
+                {isAdmin() && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {filteredCustomers.map((customer, index) => (
                 <tr
                   key={customer.customer_id}
-                  onClick={() => navigate(`/shipments?customer=${customer.customer_id}`)}
+                  onClick={() => handleRowClick(customer.customer_id)}
                   className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors ${
                     index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
                   }`}
                 >
                   <td className="px-4 py-3 text-sm font-medium text-slate-800">
-                    {customer.company_name}
+                    <div className="flex items-center gap-2">
+                      {customer.company_name}
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">
                     {customer.external_customer_id || '-'}
@@ -187,6 +200,14 @@ export function CustomersPage() {
                   <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
                     {formatCurrency(customer.total_revenue || 0)}
                   </td>
+                  {isAdmin() && (
+                    <td className="px-4 py-3 text-right">
+                      <CustomerActions
+                        customerId={customer.customer_id}
+                        customerName={customer.company_name}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

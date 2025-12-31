@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Package, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -7,7 +7,6 @@ import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ShipmentDetailDrawer } from '../components/shipments/ShipmentDetailDrawer';
-import { QuickFilters, quickFilters } from '../components/shipments/QuickFilters';
 import { StatusTabs } from '../components/shipments/StatusTabs';
 import { ShipmentsToolbar } from '../components/shipments/ShipmentsToolbar';
 import { ShipmentRow } from '../components/shipments/ShipmentRow';
@@ -66,6 +65,9 @@ interface Shipment {
   priority: number;
 }
 
+const INITIAL_LOAD_COUNT = 50;
+const LOAD_MORE_COUNT = 50;
+
 export function ShipmentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,22 +75,15 @@ export function ShipmentsPage() {
   const { saveView } = useSavedViews();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<string>('all');
-  const [activeQuickFilters, setActiveQuickFilters] = useState<string[]>([]);
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
-  const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all' || activeQuickFilters.length > 0;
-
-  const toggleQuickFilter = (filterId: string) => {
-    setActiveQuickFilters(prev =>
-      prev.includes(filterId)
-        ? prev.filter(f => f !== filterId)
-        : [...prev, filterId]
-    );
-  };
+  const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all';
 
   useEffect(() => {
     const savedView = location.state?.savedView;
@@ -113,14 +108,9 @@ export function ShipmentsPage() {
     });
   };
 
-  useEffect(() => {
-    if (effectiveCustomerIds.length > 0) {
-      loadShipments();
-    }
-  }, [effectiveCustomerIds]);
-
-  const loadShipments = async () => {
-    setLoading(true);
+  const loadShipments = useCallback(async (offset = 0, append = false) => {
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
 
     let query = supabase
       .from('shipment_secure')
@@ -142,11 +132,14 @@ export function ShipmentsPage() {
       query = query.in('customer_id', effectiveCustomerIds);
     }
 
-    const { data, error } = await query.order('pickup_date', { ascending: false }).limit(500);
+    const { data, error } = await query
+      .order('pickup_date', { ascending: false })
+      .range(offset, offset + LOAD_MORE_COUNT - 1);
 
     if (error) {
       console.error('Error loading shipments:', error);
       setLoading(false);
+      setLoadingMore(false);
       return;
     }
 
@@ -219,11 +212,28 @@ export function ShipmentsPage() {
         };
       });
 
-      setShipments(enrichedData);
+      if (append) {
+        setShipments(prev => [...prev, ...enrichedData]);
+      } else {
+        setShipments(enrichedData);
+      }
+
+      setHasMore(data.length === LOAD_MORE_COUNT);
     }
 
     setLoading(false);
+    setLoadingMore(false);
+  }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer]);
+
+  const handleLoadMore = () => {
+    loadShipments(shipments.length, true);
   };
+
+  useEffect(() => {
+    if (effectiveCustomerIds.length > 0) {
+      loadShipments();
+    }
+  }, [effectiveCustomerIds, loadShipments]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -288,14 +298,6 @@ export function ShipmentsPage() {
       const matchesStatus = activeStatus === 'all' || statusKey === activeStatus;
       if (!matchesStatus) return false;
 
-      if (activeQuickFilters.length > 0) {
-        const matchesQuickFilter = activeQuickFilters.some(filterId => {
-          const filter = quickFilters.find(f => f.id === filterId);
-          return filter?.filter(s);
-        });
-        if (!matchesQuickFilter) return false;
-      }
-
       if (!searchQuery) return true;
 
       const query = searchQuery.toLowerCase().trim();
@@ -313,7 +315,7 @@ export function ShipmentsPage() {
       const combinedText = searchableFields.join(' ');
       return searchTerms.every(term => combinedText.includes(term));
     });
-  }, [shipments, searchQuery, activeStatus, activeQuickFilters]);
+  }, [shipments, searchQuery, activeStatus]);
 
   const shipmentExportData = useMemo(() => {
     return filteredShipments.map(s => ({
@@ -381,13 +383,6 @@ export function ShipmentsPage() {
         filteredCount={filteredShipments.length}
       />
 
-      <QuickFilters
-        shipments={shipments}
-        activeFilters={activeQuickFilters}
-        onToggleFilter={toggleQuickFilter}
-        onClearFilters={() => setActiveQuickFilters([])}
-      />
-
       <div className="flex items-center justify-between mb-6">
         <StatusTabs
           statusCounts={statusCounts}
@@ -398,7 +393,7 @@ export function ShipmentsPage() {
       </div>
 
       <div className="text-sm text-gray-500 mb-4">
-        {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''}
+        Showing {filteredShipments.length} of {shipments.length} shipments
         {searchQuery && ` matching "${searchQuery}"`}
       </div>
 
@@ -424,6 +419,25 @@ export function ShipmentsPage() {
           </div>
         )}
       </div>
+
+      {hasMore && !loading && filteredShipments.length > 0 && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            {loadingMore ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading...
+              </span>
+            ) : (
+              'Load More Shipments'
+            )}
+          </button>
+        </div>
+      )}
 
       <SaveViewModal
         isOpen={showSaveViewModal}

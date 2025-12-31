@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { DateRangeSelector } from './DateRangeSelector';
 
 interface DashboardHeaderProps {
   userName: string;
@@ -27,18 +28,7 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <select
-          value={dateRange}
-          onChange={(e) => onDateRangeChange(e.target.value)}
-          className="h-10 px-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent text-sm bg-white"
-        >
-          <option value="last30">Last 30 Days</option>
-          <option value="last90">Last 90 Days</option>
-          <option value="thisQuarter">This Quarter</option>
-          <option value="thisYear">This Year</option>
-          <option value="last6months">Last 6 Months</option>
-        </select>
-
+        <DateRangeSelector value={dateRange} onChange={onDateRangeChange} />
         {customizeButton}
       </div>
     </div>

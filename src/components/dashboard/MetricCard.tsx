@@ -8,7 +8,7 @@ interface MetricCardProps {
     positive: boolean;
   };
   icon: LucideIcon;
-  iconColor?: 'orange' | 'gold' | 'coral' | 'charcoal' | 'success' | 'info';
+  iconColor?: 'orange' | 'gold' | 'coral' | 'charcoal' | 'success' | 'info' | 'warning';
   isLoading?: boolean;
   onClick?: () => void;
 }
@@ -29,6 +29,7 @@ export function MetricCard({
     charcoal: 'bg-gradient-to-br from-charcoal-600 to-charcoal-800',
     success: 'bg-gradient-to-br from-success to-success-dark',
     info: 'bg-gradient-to-br from-info to-info-dark',
+    warning: 'bg-gradient-to-br from-amber-400 to-amber-600',
   };
 
   return (

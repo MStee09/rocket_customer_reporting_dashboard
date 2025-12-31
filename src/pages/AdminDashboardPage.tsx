@@ -1,17 +1,34 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Package, DollarSign, TrendingUp, Users } from 'lucide-react';
+import { RefreshCw, Package, DollarSign, TrendingUp, Users, Activity, AlertTriangle, Calculator } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { CustomerActivityTable } from '../components/dashboard/CustomerActivityTable';
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
+import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
+import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../hooks/useDashboardData';
+import { useCustomerHealth } from '../hooks/useCustomerHealth';
 
 export function AdminDashboardPage() {
   const [dateRange, setDateRange] = useState('last6months');
   const { setViewingAsCustomerId } = useAuth();
+
+  const {
+    scores: healthScores,
+    alerts: healthAlerts,
+    summary: healthSummary,
+    isLoading: isLoadingHealth,
+    selectedStatus,
+    filterByStatus,
+    acknowledgeAlert,
+    dismissAlert,
+    recalculateScores
+  } = useCustomerHealth();
+
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const [metrics, setMetrics] = useState({
     totalShipments: 0,
@@ -160,6 +177,15 @@ export function AdminDashboardPage() {
     window.location.reload();
   };
 
+  const handleRecalculateHealth = async () => {
+    setIsRecalculating(true);
+    try {
+      await recalculateScores();
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="container mx-auto px-6 py-8 max-w-[1600px]">
@@ -187,6 +213,14 @@ export function AdminDashboardPage() {
               <option value="upcoming">Upcoming (Next Year)</option>
             </select>
             <button
+              onClick={handleRecalculateHealth}
+              disabled={isRecalculating}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
+            >
+              <Calculator className={`w-4 h-4 ${isRecalculating ? 'animate-spin' : ''}`} />
+              {isRecalculating ? 'Calculating...' : 'Calculate Health'}
+            </button>
+            <button
               onClick={handleRefresh}
               className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg flex items-center gap-2 transition-colors text-sm"
             >
@@ -197,7 +231,7 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             <MetricCard
               label="Total Shipments"
               value={metrics.totalShipments}
@@ -226,6 +260,20 @@ export function AdminDashboardPage() {
               iconColor="orange"
               isLoading={isLoadingMetrics}
             />
+            <MetricCard
+              label="Avg Health Score"
+              value={healthSummary?.avgScore ?? 0}
+              icon={Activity}
+              iconColor="info"
+              isLoading={isLoadingHealth}
+            />
+            <MetricCard
+              label="At Risk Customers"
+              value={healthSummary?.atRiskCount ?? 0}
+              icon={AlertTriangle}
+              iconColor="warning"
+              isLoading={isLoadingHealth}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,6 +289,27 @@ export function AdminDashboardPage() {
                 data={topCustomersData}
                 isLoading={isLoadingCustomers}
                 onCustomerClick={handleCustomerClick}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <CustomerHealthMatrix
+                scores={healthScores}
+                isLoading={isLoadingHealth}
+                selectedStatus={selectedStatus}
+                statusCounts={healthSummary?.statusCounts ?? { thriving: 0, healthy: 0, watch: 0, 'at-risk': 0, critical: 0 }}
+                onStatusFilter={filterByStatus}
+                onCustomerClick={handleCustomerClick}
+              />
+            </div>
+            <div>
+              <HealthAlertsPanel
+                alerts={healthAlerts}
+                isLoading={isLoadingHealth}
+                onAcknowledge={acknowledgeAlert}
+                onDismiss={dismissAlert}
               />
             </div>
           </div>

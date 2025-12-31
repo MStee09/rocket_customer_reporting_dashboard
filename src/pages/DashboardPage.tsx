@@ -11,7 +11,10 @@ import {
   AIInsightsPanel,
   InlineEditToolbar,
   WidgetGalleryModal,
+  AttentionSignals,
 } from '../components/dashboard';
+import { useAttentionSignals } from '../hooks/useAttentionSignals';
+import { AttentionSignal } from '../services/attentionSignalService';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
@@ -256,6 +259,21 @@ export function DashboardPage() {
     };
   }, [dateRange]);
 
+  const signalsDateRange = useMemo(() => ({
+    start: startDate,
+    end: endDate,
+  }), [startDate, endDate]);
+
+  const {
+    signals,
+    allClear,
+    isLoading: signalsLoading,
+    refresh: refreshSignals,
+  } = useAttentionSignals({ dateRange: signalsDateRange });
+
+  const handleViewSignalDetails = useCallback((signal: AttentionSignal) => {
+    console.log('View details for signal:', signal);
+  }, []);
 
   const handleWidgetRemove = useCallback((widgetId: string) => {
     setLocalLayout(prev => prev.filter(id => id !== widgetId));
@@ -378,6 +396,16 @@ export function DashboardPage() {
           <div className="fixed top-4 right-4 bg-orange-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
             Widget added to dashboard!
           </div>
+        )}
+
+        {effectiveCustomerId && (
+          <AttentionSignals
+            signals={signals}
+            allClear={allClear}
+            isLoading={signalsLoading}
+            onRefresh={refreshSignals}
+            onViewDetails={handleViewSignalDetails}
+          />
         )}
 
         {effectiveCustomerId && (

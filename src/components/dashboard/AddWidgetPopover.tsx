@@ -73,7 +73,7 @@ export function AddWidgetPopover({
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
+      className="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in"
     >
       <div className="p-3 border-b">
         <div className="relative">

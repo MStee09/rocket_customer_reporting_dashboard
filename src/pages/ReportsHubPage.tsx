@@ -400,24 +400,35 @@ export function ReportsHubPage() {
               </div>
 
               {filteredReports.length === 0 ? (
-                <div className="px-6 py-12 text-center">
-                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600 font-medium mb-1">
+                <div className="px-6 py-16 text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
                     {searchQuery ? 'No reports found' : 'No reports yet'}
-                  </p>
-                  <p className="text-sm text-slate-500 mb-4">
+                  </h3>
+                  <p className="text-slate-500 max-w-sm mx-auto mb-6">
                     {searchQuery
                       ? 'Try adjusting your search or filters'
-                      : 'Get started by creating your first report'}
+                      : 'Create your first report to start tracking your freight data automatically.'}
                   </p>
                   {!searchQuery && (
-                    <Link
-                      to="/ai-studio"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      Create with AI
-                    </Link>
+                    <div className="flex items-center justify-center gap-3">
+                      <Link
+                        to="/ai-studio"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Create with AI
+                      </Link>
+                      <Link
+                        to="/custom-reports"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-medium rounded-lg transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Build Custom
+                      </Link>
+                    </div>
                   )}
                 </div>
               ) : (

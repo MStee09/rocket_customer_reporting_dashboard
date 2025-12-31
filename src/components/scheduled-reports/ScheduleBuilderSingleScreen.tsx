@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   X, Plus, Trash2, ChevronDown, ChevronUp,
-  FileSpreadsheet, Eye
+  FileSpreadsheet, Eye, Command
 } from 'lucide-react';
 import {
   ScheduleBuilderState,
@@ -43,13 +43,13 @@ const FREQUENCIES = [
 ];
 
 const DATE_RANGES = [
-  { value: 'previous_week', label: 'Previous Week' },
-  { value: 'previous_month', label: 'Previous Month' },
-  { value: 'previous_quarter', label: 'Previous Quarter' },
-  { value: 'mtd', label: 'Month to Date' },
-  { value: 'ytd', label: 'Year to Date' },
-  { value: 'rolling', label: 'Rolling...' },
-  { value: 'report_default', label: 'Report Default' },
+  { value: 'previous_week', label: 'Previous Week', tooltip: 'Monday through Sunday of last week' },
+  { value: 'previous_month', label: 'Previous Month', tooltip: 'The entire previous calendar month' },
+  { value: 'previous_quarter', label: 'Previous Quarter', tooltip: 'The entire previous calendar quarter' },
+  { value: 'mtd', label: 'Month to Date', tooltip: 'From the 1st of this month to yesterday' },
+  { value: 'ytd', label: 'Year to Date', tooltip: 'From January 1st to yesterday' },
+  { value: 'rolling', label: 'Rolling...', tooltip: 'Custom rolling window (e.g., last 7 days)' },
+  { value: 'report_default', label: 'Report Default', tooltip: 'Use the date range defined in the report' },
 ];
 
 function detectTimezone(): string {
@@ -138,6 +138,22 @@ export function ScheduleBuilderSingleScreen({
       }));
     }
   }, [state.frequency, existingSchedule, report?.name]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && isValid()) {
+      e.preventDefault();
+      handleSave();
+    }
+  }, [onClose, isValid]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleKeyDown]);
 
   const nextRunDate = useMemo(() => calculateNextRun(state), [state]);
   const dateRange = useMemo(() => calculateDateRange(state, nextRunDate), [state, nextRunDate]);
@@ -278,8 +294,8 @@ export function ScheduleBuilderSingleScreen({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
             <h2 className="text-xl font-semibold">
@@ -308,6 +324,7 @@ export function ScheduleBuilderSingleScreen({
                 {DATE_RANGES.map((range) => (
                   <button
                     key={range.value}
+                    title={range.tooltip}
                     onClick={() => updateState({ date_range_type: range.value as ScheduleBuilderState['date_range_type'] })}
                     className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                       state.date_range_type === range.value
@@ -562,27 +579,33 @@ export function ScheduleBuilderSingleScreen({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !isValid()}
-            className="px-4 py-2 text-sm font-medium text-white bg-rocket-600 rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              existingSchedule ? 'Save Changes' : 'Create Schedule'
-            )}
-          </button>
+        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50">
+          <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
+            <Command className="w-3 h-3" />
+            <span>Enter to save</span>
+          </span>
+          <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !isValid()}
+              className="px-4 py-2 text-sm font-medium text-white bg-rocket-600 rounded-lg hover:bg-rocket-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                existingSchedule ? 'Save Changes' : 'Create Schedule'
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

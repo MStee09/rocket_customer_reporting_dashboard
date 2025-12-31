@@ -13,22 +13,22 @@
 
 @layer components {
   .text-display {
-    @apply text-3xl font-bold tracking-tight text-charcoal-900;
+    @apply text-3xl font-bold tracking-tight text-slate-900;
   }
   .text-title {
-    @apply text-xl font-semibold text-charcoal-800;
+    @apply text-xl font-semibold text-slate-800;
   }
   .text-subtitle {
-    @apply text-lg font-medium text-charcoal-700;
+    @apply text-lg font-medium text-slate-700;
   }
   .text-body {
-    @apply text-sm text-charcoal-600;
+    @apply text-sm text-slate-600;
   }
   .text-caption {
-    @apply text-xs text-charcoal-500;
+    @apply text-xs text-slate-500;
   }
   .text-metric {
-    @apply text-4xl font-bold tabular-nums text-charcoal-900;
+    @apply text-4xl font-bold tabular-nums text-slate-900;
   }
 
   .text-gradient {
@@ -50,17 +50,6 @@
   }
 }
 
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -77,8 +66,15 @@
   }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -86,13 +82,17 @@
 }
 
 .animate-scale-in {
-  animation: scale-in 0.2s ease-out;
+  animation: scale-in 0.15s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
 }
 
 .react-grid-item.react-grid-placeholder {
   background: rgb(249 115 22 / 0.15);
   border: 2px dashed rgb(249 115 22 / 0.5);
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   opacity: 1;
   transition-duration: 100ms;
   z-index: 2;
@@ -122,9 +122,5 @@
   transition: none;
   z-index: 100;
   will-change: transform;
-  cursor: grabbing !important;
-}
-
-.react-grid-item.react-dragging .widget-drag-handle {
   cursor: grabbing !important;
 }

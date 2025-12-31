@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  X, Plus, Trash2, ChevronDown, ChevronUp,
-  FileSpreadsheet, Eye, Command, Calendar, Clock, FileText
+  X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight,
+  FileSpreadsheet, Eye, Command, Calendar, Clock, FileText,
+  RefreshCw, Sparkles
 } from 'lucide-react';
 import {
   ScheduleBuilderState,
@@ -36,20 +37,55 @@ const DAYS_OF_WEEK = [
 ];
 
 const FREQUENCIES = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'daily', label: 'Daily', description: 'Every day' },
+  { value: 'weekly', label: 'Weekly', description: 'Once a week' },
+  { value: 'monthly', label: 'Monthly', description: 'Once a month' },
+  { value: 'quarterly', label: 'Quarterly', description: 'Every 3 months' },
 ];
 
 const DATE_RANGES = [
-  { value: 'previous_week', label: 'Previous Week', tooltip: 'Monday through Sunday of last week' },
-  { value: 'previous_month', label: 'Previous Month', tooltip: 'The entire previous calendar month' },
-  { value: 'previous_quarter', label: 'Previous Quarter', tooltip: 'The entire previous calendar quarter' },
-  { value: 'mtd', label: 'Month to Date', tooltip: 'From the 1st of this month to yesterday' },
-  { value: 'ytd', label: 'Year to Date', tooltip: 'From January 1st to yesterday' },
-  { value: 'rolling', label: 'Rolling...', tooltip: 'Custom rolling window (e.g., last 7 days)' },
-  { value: 'report_default', label: 'Report Default', tooltip: 'Use the date range defined in the report' },
+  {
+    value: 'previous_week',
+    label: 'Previous Week',
+    description: 'Monday through Sunday of last week',
+    icon: Calendar,
+    recommended: ['weekly'],
+  },
+  {
+    value: 'previous_month',
+    label: 'Previous Month',
+    description: 'The entire previous calendar month',
+    icon: Calendar,
+    recommended: ['monthly'],
+  },
+  {
+    value: 'previous_quarter',
+    label: 'Previous Quarter',
+    description: 'The entire previous calendar quarter',
+    icon: Calendar,
+    recommended: ['quarterly'],
+  },
+  {
+    value: 'mtd',
+    label: 'Month to Date',
+    description: 'From the 1st of this month until now',
+    icon: Calendar,
+    recommended: ['daily', 'weekly'],
+  },
+  {
+    value: 'ytd',
+    label: 'Year to Date',
+    description: 'From January 1st until now',
+    icon: Calendar,
+    recommended: ['monthly', 'quarterly'],
+  },
+  {
+    value: 'rolling',
+    label: 'Rolling Window',
+    description: 'Custom rolling period (e.g., last 7 days)',
+    icon: RefreshCw,
+    recommended: ['daily'],
+  },
 ];
 
 function detectTimezone(): string {
@@ -93,7 +129,7 @@ export function ScheduleBuilderSingleScreen({
   const getSmartDateRange = (frequency: string): ScheduleBuilderState['date_range_type'] => {
     if (isAIReport) return 'report_default';
     switch (frequency) {
-      case 'daily': return 'previous_week';
+      case 'daily': return 'mtd';
       case 'weekly': return 'previous_week';
       case 'monthly': return 'previous_month';
       case 'quarterly': return 'previous_quarter';
@@ -129,7 +165,7 @@ export function ScheduleBuilderSingleScreen({
   }));
 
   useEffect(() => {
-    if (!existingSchedule) {
+    if (!existingSchedule && !isAIReport) {
       const freqLabel = FREQUENCIES.find(f => f.value === state.frequency)?.label || 'Weekly';
       setState(prev => ({
         ...prev,
@@ -137,7 +173,7 @@ export function ScheduleBuilderSingleScreen({
         date_range_type: getSmartDateRange(prev.frequency),
       }));
     }
-  }, [state.frequency, existingSchedule, report?.name]);
+  }, [state.frequency, existingSchedule, report?.name, isAIReport]);
 
   const isValid = useCallback(() => {
     return state.email_recipients.some(r => r.includes('@'));
@@ -293,6 +329,13 @@ export function ScheduleBuilderSingleScreen({
 
   if (!isOpen) return null;
 
+  const recommendedRanges = DATE_RANGES.filter(r =>
+    r.recommended.includes(state.frequency)
+  );
+  const otherRanges = DATE_RANGES.filter(r =>
+    !r.recommended.includes(state.frequency)
+  );
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in">
@@ -315,113 +358,205 @@ export function ScheduleBuilderSingleScreen({
             </div>
           )}
 
+          <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <RefreshCw className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-amber-900 mb-1">
+                  Dynamic Data, Every Time
+                </h3>
+                <p className="text-sm text-amber-800">
+                  Your report definition stays the same, but the <strong>data updates automatically</strong> based on the date range you choose below.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {!isAIReport && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data Window
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {DATE_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    title={range.tooltip}
-                    onClick={() => updateState({ date_range_type: range.value as ScheduleBuilderState['date_range_type'] })}
-                    className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-                      state.date_range_type === range.value
-                        ? 'bg-rocket-600 text-white border-rocket-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-rocket-400'
-                    }`}
-                  >
-                    {range.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="w-5 h-5 text-rocket-600" />
+                <label className="text-base font-semibold text-gray-900">
+                  What data should each report include?
+                </label>
               </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Each time this report runs, it will pull data from this time window
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Recommended for {state.frequency} reports
+                </div>
+                {recommendedRanges.map((range) => {
+                  const IconComponent = range.icon;
+                  return (
+                    <button
+                      key={range.value}
+                      onClick={() => updateState({ date_range_type: range.value as ScheduleBuilderState['date_range_type'] })}
+                      className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                        state.date_range_type === range.value
+                          ? 'border-rocket-500 bg-rocket-50'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <IconComponent className={`w-5 h-5 ${
+                          state.date_range_type === range.value ? 'text-rocket-600' : 'text-gray-400'
+                        }`} />
+                        <div className="flex-1">
+                          <div className={`font-medium ${
+                            state.date_range_type === range.value ? 'text-rocket-700' : 'text-gray-900'
+                          }`}>
+                            {range.label}
+                          </div>
+                          <div className="text-sm text-gray-500">{range.description}</div>
+                        </div>
+                        {state.date_range_type === range.value && (
+                          <div className="w-5 h-5 bg-rocket-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {otherRanges.length > 0 && (
+                <details className="group">
+                  <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700 list-none flex items-center gap-1">
+                    <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
+                    More options
+                  </summary>
+                  <div className="mt-2 space-y-2 pl-5">
+                    {otherRanges.map((range) => {
+                      const IconComponent = range.icon;
+                      return (
+                        <button
+                          key={range.value}
+                          onClick={() => updateState({ date_range_type: range.value as ScheduleBuilderState['date_range_type'] })}
+                          className={`w-full p-3 rounded-xl border text-left transition-all ${
+                            state.date_range_type === range.value
+                              ? 'border-rocket-500 bg-rocket-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <IconComponent className={`w-5 h-5 ${
+                              state.date_range_type === range.value ? 'text-rocket-600' : 'text-gray-400'
+                            }`} />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{range.label}</div>
+                              <div className="text-sm text-gray-500">{range.description}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </details>
+              )}
+
               {state.date_range_type === 'rolling' && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Last</span>
-                  <input
-                    type="number"
-                    value={state.rolling_value}
-                    onChange={(e) => updateState({ rolling_value: parseInt(e.target.value) || 7 })}
-                    className="w-16 px-2 py-1 border rounded text-sm"
-                    min="1"
-                  />
-                  <select
-                    value={state.rolling_unit}
-                    onChange={(e) => updateState({ rolling_unit: e.target.value as 'days' | 'weeks' | 'months' })}
-                    className="px-2 py-1 border rounded text-sm"
-                  >
-                    <option value="days">days</option>
-                    <option value="weeks">weeks</option>
-                    <option value="months">months</option>
-                  </select>
+                <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-600">Pull data from the last</span>
+                    <input
+                      type="number"
+                      value={state.rolling_value}
+                      onChange={(e) => updateState({ rolling_value: parseInt(e.target.value) || 7 })}
+                      className="w-16 px-2 py-1 border rounded-lg text-center font-medium"
+                      min="1"
+                    />
+                    <select
+                      value={state.rolling_unit}
+                      onChange={(e) => updateState({ rolling_unit: e.target.value as 'days' | 'weeks' | 'months' })}
+                      className="px-3 py-1 border rounded-lg"
+                    >
+                      <option value="days">days</option>
+                      <option value="weeks">weeks</option>
+                      <option value="months">months</option>
+                    </select>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Frequency
-            </label>
-            <div className="flex gap-2">
-              {FREQUENCIES.map((freq) => (
-                <button
-                  key={freq.value}
-                  onClick={() => updateState({ frequency: freq.value as ScheduleBuilderState['frequency'] })}
-                  className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                    state.frequency === freq.value
-                      ? 'bg-rocket-600 text-white border-rocket-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-rocket-400'
-                  }`}
-                >
-                  {freq.label}
-                </button>
-              ))}
+          <div className="border-t pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-gray-500" />
+              <span className="text-base font-semibold text-gray-900">When to send</span>
             </div>
-          </div>
 
-          {state.frequency === 'weekly' && (
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Day of Week
+                Frequency
               </label>
-              <div className="flex gap-1">
-                {DAYS_OF_WEEK.map((day) => (
+              <div className="grid grid-cols-4 gap-2">
+                {FREQUENCIES.map((freq) => (
                   <button
-                    key={day.value}
-                    onClick={() => updateState({ day_of_week: day.value })}
-                    className={`flex-1 px-2 py-2 text-sm rounded-lg border transition-colors ${
-                      state.day_of_week === day.value
+                    key={freq.value}
+                    onClick={() => updateState({ frequency: freq.value as ScheduleBuilderState['frequency'] })}
+                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      state.frequency === freq.value
                         ? 'bg-rocket-600 text-white border-rocket-600'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-rocket-400'
                     }`}
                   >
-                    {day.label}
+                    {freq.label}
                   </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {['monthly', 'quarterly'].includes(state.frequency) && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Day of Month
-              </label>
-              <select
-                value={state.day_of_month}
-                onChange={(e) => updateState({ day_of_month: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                  <option key={day} value={day}>
-                    {day === 1 ? '1st' : day === 2 ? '2nd' : day === 3 ? '3rd' : `${day}th`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+            {state.frequency === 'weekly' && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Day of Week
+                </label>
+                <div className="flex gap-1">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <button
+                      key={day.value}
+                      onClick={() => updateState({ day_of_week: day.value })}
+                      className={`flex-1 px-2 py-2 text-sm rounded-lg border transition-colors ${
+                        state.day_of_week === day.value
+                          ? 'bg-rocket-600 text-white border-rocket-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-rocket-400'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {['monthly', 'quarterly'].includes(state.frequency) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Day of Month
+                </label>
+                <select
+                  value={state.day_of_month}
+                  onChange={(e) => updateState({ day_of_month: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    <option key={day} value={day}>
+                      {day === 1 ? '1st' : day === 2 ? '2nd' : day === 3 ? '3rd' : `${day}th`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -457,6 +592,38 @@ export function ScheduleBuilderSingleScreen({
             </div>
           </div>
 
+          <div className="bg-gradient-to-r from-rocket-50 to-orange-50 rounded-xl p-4 border border-rocket-200">
+            <div className="text-sm font-medium text-rocket-800 mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Schedule Preview
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2 text-rocket-700">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  {state.frequency === 'daily' && 'Every day'}
+                  {state.frequency === 'weekly' && `Every ${DAYS_OF_WEEK.find(d => d.value === state.day_of_week)?.label || 'Monday'}`}
+                  {state.frequency === 'monthly' && `Monthly on day ${state.day_of_month}`}
+                  {state.frequency === 'quarterly' && `Quarterly on day ${state.day_of_month}`}
+                  {' at '}
+                  {formatTime(state.run_time)} {getTimezoneLabel(state.timezone)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-rocket-600">
+                <Clock className="w-4 h-4" />
+                <span>Next delivery: <strong>{formatDate(nextRunDate)}</strong></span>
+              </div>
+              {!isAIReport && dateRange && (
+                <div className="flex items-center gap-2 text-rocket-600">
+                  <FileText className="w-4 h-4" />
+                  <span>
+                    Will include data from: <strong>{formatDate(dateRange.start)} - {formatDate(dateRange.end)}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
             <div className="text-sm font-medium text-slate-700 mb-3">Email will include:</div>
             <div className="space-y-2">
@@ -473,35 +640,6 @@ export function ScheduleBuilderSingleScreen({
                   <span className="font-medium text-slate-700">View Report link</span>
                   <p className="text-slate-500 text-xs mt-0.5">Full report with charts - Export to PDF available</p>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-rocket-50 rounded-xl p-4 border border-rocket-200">
-            <div className="text-sm text-rocket-800">
-              <div className="font-medium mb-2">Schedule Preview</div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-rocket-600" />
-                  <span>
-                    {state.frequency === 'daily' && 'Every day'}
-                    {state.frequency === 'weekly' && `Every ${DAYS_OF_WEEK.find(d => d.value === state.day_of_week)?.label || 'Monday'}`}
-                    {state.frequency === 'monthly' && `Monthly on day ${state.day_of_month}`}
-                    {state.frequency === 'quarterly' && `Quarterly on day ${state.day_of_month}`}
-                    {' at '}
-                    {formatTime(state.run_time)} {getTimezoneLabel(state.timezone)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-rocket-600">
-                  <Clock className="w-4 h-4" />
-                  <span>Next delivery: {formatDate(nextRunDate)}</span>
-                </div>
-                {!isAIReport && dateRange && (
-                  <div className="flex items-center gap-2 text-rocket-600">
-                    <FileText className="w-4 h-4" />
-                    <span>Data range: {formatDate(dateRange.start)} - {formatDate(dateRange.end)}</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>

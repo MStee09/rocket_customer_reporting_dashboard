@@ -36,8 +36,12 @@ import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ReportEnhancementContext } from '../types/reportEnhancement';
 import { formatContextForAI, generateEnhancementSuggestions } from '../utils/reportEnhancementContext';
+import SimpleReportBuilder from '../components/SimpleReportBuilder';
+import { SimpleReportBuilderState, ReportConfig } from '../types/reports';
+import { useCustomerReports } from '../hooks/useCustomerReports';
+import { filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
 
-type ActiveTab = 'create' | 'library';
+type ActiveTab = 'create' | 'library' | 'builder';
 type SortOption = 'newest' | 'oldest' | 'name';
 
 function generateColumnsFromData(data: Record<string, unknown>[]): ColumnConfig[] {
@@ -105,6 +109,7 @@ export function AIReportStudioPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, viewingCustomer, customers } = useAuth();
+  const { saveReport } = useCustomerReports();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('create');
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -462,6 +467,33 @@ export function AIReportStudioPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleSaveCustomReport = async (config: SimpleReportBuilderState) => {
+    if (!effectiveCustomerId) return;
+    const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
+    const filteredColumns = effectiveIsAdmin
+      ? config.selectedColumns
+      : filterAdminOnlyColumnIds(config.selectedColumns);
+
+    const reportConfig: ReportConfig = {
+      id: crypto.randomUUID(),
+      name: config.name,
+      table: config.table,
+      columns: filteredColumns,
+      filters: config.filters,
+      sortColumn: config.sortColumn,
+      sortDirection: config.sortDirection,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await saveReport(reportConfig);
+      navigate('/reports');
+    } catch (error) {
+      console.error('Failed to save custom report:', error);
+    }
+  };
+
   const exportableData = useMemo(() => extractExportableData(currentReport, executedData), [currentReport, executedData]);
   const hasExportableData = exportableData.data.length > 0;
 
@@ -518,6 +550,14 @@ export function AIReportStudioPage() {
           deleteConfirm={deleteConfirm}
           onDeleteConfirmChange={setDeleteConfirm}
         />
+      ) : activeTab === 'builder' ? (
+        <div className="flex-1 overflow-auto bg-gray-50">
+          <SimpleReportBuilder
+            onClose={() => setActiveTab('create')}
+            onSave={handleSaveCustomReport}
+            isInline={true}
+          />
+        </div>
       ) : (
         <div className="flex-1 flex min-h-0 relative">
           {!hasReport ? (

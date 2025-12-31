@@ -7,7 +7,7 @@ import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CarriersPage } from './pages/CarriersPage';
-import { CreatePage } from './pages/CreatePage';
+import { AIReportStudioPage } from './pages/AIReportStudioPage';
 import { ReportsHubPage } from './pages/ReportsHubPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
 import { CustomReportsPage } from './pages/CustomReportsPage';
@@ -94,8 +94,9 @@ function App() {
                 }
               />
               <Route path="carriers" element={<CarriersPage />} />
-              <Route path="create" element={<CreatePage />} />
-              <Route path="analytics" element={<Navigate to="/create" replace />} />
+              <Route path="ai-studio" element={<AIReportStudioPage />} />
+              <Route path="create" element={<Navigate to="/ai-studio" replace />} />
+              <Route path="analytics" element={<Navigate to="/ai-studio" replace />} />
               <Route path="reports" element={<ReportsHubPage />} />
               <Route
                 path="reports/avg-cost-per-unit"
@@ -107,7 +108,6 @@ function App() {
               />
               <Route path="custom-reports" element={<CustomReportsPage />} />
               <Route path="custom-reports/:reportId" element={<CustomReportViewPage />} />
-              <Route path="ai-studio" element={<Navigate to="/create?tab=ai-studio" replace />} />
               <Route path="ai-reports/:reportId" element={<AIReportViewerPage />} />
               <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
               <Route path="widget-library" element={<WidgetLibraryPage />} />

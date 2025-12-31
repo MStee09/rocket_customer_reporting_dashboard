@@ -50,10 +50,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/shipments', icon: Truck, label: 'Shipments' },
     {
-      to: '/create',
+      to: '/ai-studio',
       icon: BarChart3,
       label: 'Create',
-      matchPaths: ['/create', '/custom-reports']
+      matchPaths: ['/ai-studio', '/custom-reports', '/create']
     },
     {
       to: '/reports',

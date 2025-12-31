@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Table2, Clock, ArrowRight, FolderOpen } from 'lucide-react';
+import { Sparkles, Table2, Clock, ArrowRight, FolderOpen, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
@@ -10,21 +10,17 @@ type AnalyzeTab = 'start' | 'my-reports';
 
 export function AnalyzePage() {
   const navigate = useNavigate();
-  const { user, effectiveCustomerId } = useAuth();
-  const { reports: customReports } = useCustomerReports();
+  const { user, effectiveCustomerId, isLoading: authLoading } = useAuth();
+  const { reports: customReports, isLoading: reportsLoading } = useCustomerReports();
 
   const [activeTab, setActiveTab] = useState<AnalyzeTab>('start');
   const [recentReports, setRecentReports] = useState<Array<{ id: string; name: string; type: 'ai' | 'custom'; date: string }>>([]);
   const [allReports, setAllReports] = useState<SavedAIReport[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
 
-  useEffect(() => {
-    loadReports();
-  }, [user, effectiveCustomerId, customReports]);
-
-  async function loadReports() {
-    if (!user || !effectiveCustomerId) return;
-    setIsLoading(true);
+  const loadReports = useCallback(async () => {
+    if (!user || !effectiveCustomerId || authLoading) return;
+    setIsLoadingReports(true);
 
     try {
       const aiReports = await loadAIReports(effectiveCustomerId.toString());
@@ -51,17 +47,32 @@ export function AnalyzePage() {
     } catch (error) {
       console.error('Failed to load reports:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingReports(false);
     }
-  }
+  }, [user, effectiveCustomerId, authLoading, customReports]);
 
-  const handleAskAI = () => {
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  const handleAskAI = useCallback(() => {
     navigate('/ai-studio');
-  };
+  }, [navigate]);
 
-  const handleBuildReport = () => {
+  const handleBuildReport = useCallback(() => {
     navigate('/custom-reports');
-  };
+  }, [navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="bg-slate-50 -m-6 lg:-m-8 min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-rocket-600 animate-spin mx-auto mb-3" />
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50 -m-6 lg:-m-8 min-h-[calc(100vh-4rem)]">
@@ -211,7 +222,7 @@ export function AnalyzePage() {
           </>
         ) : (
           <div>
-            {isLoading ? (
+            {isLoadingReports || reportsLoading ? (
               <div className="text-center py-12 text-slate-500">Loading reports...</div>
             ) : (allReports.length + customReports.length) === 0 ? (
               <div className="text-center py-12">

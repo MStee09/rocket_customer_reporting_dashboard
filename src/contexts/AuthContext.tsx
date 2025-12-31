@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, ReactNode, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
+import { flushSync } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { AuthState, UserRole, CustomerAssociation } from '../types/auth';
 import { validateCustomerSelection } from '../utils/customerValidation';
@@ -45,8 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? parseInt(stored, 10) : null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const loadingUserIdRef = useRef<string | null>(null);
+  const hasInitializedRef = useRef(false);
 
   const loadUserRole = async (userId: string) => {
+    if (loadingUserIdRef.current === userId) {
+      console.log('[AuthContext] Already loading role for:', userId);
+      return;
+    }
+    loadingUserIdRef.current = userId;
     console.log('[AuthContext] Loading user role for:', userId);
 
     try {
@@ -149,30 +157,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AuthContext] Error in loadUserRole:', error);
       setRole({ user_role: 'customer', is_admin: false, is_customer: true });
       setCustomers([]);
+    } finally {
+      loadingUserIdRef.current = null;
     }
   };
 
   useEffect(() => {
+    if (hasInitializedRef.current) {
+      console.log('[AuthContext] Already initialized, skipping');
+      return;
+    }
+    hasInitializedRef.current = true;
     console.log('[AuthContext] useEffect mounting');
 
+    let isMounted = true;
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
       console.log('[AuthContext] getSession result:', { hasUser: !!session?.user, userId: session?.user?.id });
       setUser(session?.user ?? null);
       if (session?.user) {
         await loadUserRole(session.user.id);
       }
-      console.log('[AuthContext] Setting isLoading to false');
-      setIsLoading(false);
+      if (isMounted) {
+        console.log('[AuthContext] Setting isLoading to false');
+        setIsLoading(false);
+      }
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      if (event === 'INITIAL_SESSION') return;
       (async () => {
         setUser(session?.user ?? null);
         if (session?.user) {
           await loadUserRole(session.user.id);
         } else {
+          loadingUserIdRef.current = null;
           setRole(null);
           setCustomers([]);
           setSelectedCustomerIdState(null);
@@ -181,7 +204,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

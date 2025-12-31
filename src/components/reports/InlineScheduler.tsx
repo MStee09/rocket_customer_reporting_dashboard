@@ -21,6 +21,9 @@ import {
 } from '../../types/scheduledReports';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { useScheduleDefaults } from '../../hooks/useScheduleDefaults';
+import { SmartScheduleHints } from './SmartScheduleHints';
+import { RecentRecipientsDropdown } from './RecentRecipientsDropdown';
 
 interface InlineSchedulerProps {
   report: {
@@ -81,6 +84,7 @@ export function InlineScheduler({
   defaultExpanded = false,
 }: InlineSchedulerProps) {
   const { user, effectiveCustomerId } = useAuth();
+  const { defaults, recordScheduleCreation, suggestDateRange } = useScheduleDefaults();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,18 +92,22 @@ export function InlineScheduler({
 
   const isAIReport = report.type === 'ai_report';
 
-  const [frequency, setFrequency] = useState<Frequency>('weekly');
+  const [frequency, setFrequency] = useState<Frequency>(
+    (defaults.preferredFrequency as Frequency) || 'weekly'
+  );
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
-  const [runTime, setRunTime] = useState('07:00');
-  const [timezone] = useState('America/Chicago');
+  const [runTime, setRunTime] = useState(defaults.preferredTime || '07:00');
+  const [timezone] = useState(defaults.timezone || 'America/Chicago');
   const [dateRangeType, setDateRangeType] = useState<DateRangeType>(
-    isAIReport ? 'report_default' : 'previous_week'
+    isAIReport ? 'report_default' : getSuggestedDateRange((defaults.preferredFrequency as Frequency) || 'weekly')
   );
   const [rollingValue, setRollingValue] = useState(7);
   const [deliverEmail, setDeliverEmail] = useState(true);
   const [deliverNotification, setDeliverNotification] = useState(true);
-  const [emailRecipient, setEmailRecipient] = useState(user?.email || '');
+  const [emailRecipient, setEmailRecipient] = useState(
+    defaults.lastRecipients[0] || user?.email || ''
+  );
   const [formatPdf, setFormatPdf] = useState(true);
   const [formatCsv, setFormatCsv] = useState(false);
 
@@ -226,6 +234,13 @@ export function InlineScheduler({
         .single();
 
       if (insertError) throw insertError;
+
+      recordScheduleCreation({
+        frequency,
+        timezone,
+        run_time: runTime,
+        email_recipients: emailRecipient ? [emailRecipient] : [],
+      });
 
       onScheduleCreated(data);
     } catch (err: unknown) {
@@ -397,6 +412,17 @@ export function InlineScheduler({
                 </div>
               </div>
             </div>
+
+            <SmartScheduleHints
+              currentFrequency={frequency}
+              currentDateRange={dateRangeType}
+              suggestedDateRange={suggestDateRange(frequency)}
+              onApplySuggestion={(suggestion) => {
+                if (suggestion.dateRange) {
+                  setDateRangeType(suggestion.dateRange as DateRangeType);
+                }
+              }}
+            />
           </div>
         )}
 
@@ -427,16 +453,25 @@ export function InlineScheduler({
             </div>
 
             <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={deliverEmail}
-                  onChange={(e) => setDeliverEmail(e.target.checked)}
-                  className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
-                />
-                <Mail className="w-4 h-4 text-slate-500" />
-                <span className="text-sm text-slate-700">Email delivery</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deliverEmail}
+                    onChange={(e) => setDeliverEmail(e.target.checked)}
+                    className="rounded border-slate-300 text-rocket-600 focus:ring-rocket-500"
+                  />
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  <span className="text-sm text-slate-700">Email delivery</span>
+                </label>
+                {deliverEmail && defaults.lastRecipients.length > 0 && (
+                  <RecentRecipientsDropdown
+                    recentRecipients={defaults.lastRecipients}
+                    currentRecipients={emailRecipient ? [emailRecipient] : []}
+                    onAddRecipient={(email) => setEmailRecipient(email)}
+                  />
+                )}
+              </div>
 
               {deliverEmail && (
                 <input

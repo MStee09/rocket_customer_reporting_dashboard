@@ -25,3 +25,7 @@ export { AIInsightsPanel } from './AIInsightsPanel';
 export { AIWidgetRenderer } from './AIWidgetRenderer';
 export { InlineAddWidgetCard } from './InlineAddWidgetCard';
 export { AddWidgetPopover } from './AddWidgetPopover';
+export { WidgetSkeleton } from './WidgetSkeleton';
+export { EditableWidgetCard } from './EditableWidgetCard';
+export { InlineEditToolbar } from './InlineEditToolbar';
+export { WidgetGalleryModal } from './WidgetGalleryModal';

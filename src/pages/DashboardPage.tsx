@@ -1,8 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays, subYears } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutEditorModal } from '../components/LayoutEditorModal';
 import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import {
@@ -11,15 +10,18 @@ import {
   AIReportsSection,
   WidgetGrid,
   AIInsightsPanel,
+  InlineEditToolbar,
+  WidgetGalleryModal,
 } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useComparisonStats } from '../hooks/useComparisonStats';
+import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
 import { widgetLibrary, getGlobalWidgets } from '../config/widgetLibrary';
-import { WidgetSizeLevel } from '../types/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import { loadCustomWidget, loadAllCustomWidgets } from '../config/widgets/customWidgetStorage';
 import { supabase } from '../lib/supabase';
+import { WidgetSizeConstraint } from '../config/widgetConstraints';
 
 type ComparisonType = 'previous' | 'lastYear' | 'custom';
 
@@ -34,11 +36,12 @@ export function DashboardPage() {
   const [dateRange, setDateRange] = useState('last6months');
   const [comparison, setComparison] = useState<ComparisonConfig | null>(null);
   const [showComparisonDropdown, setShowComparisonDropdown] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [saveNotification, setSaveNotification] = useState(false);
   const [addWidgetNotification, setAddWidgetNotification] = useState(false);
   const [aiWidgets, setAiWidgets] = useState<AIReportWidgetConfig[]>([]);
+  const [showGallery, setShowGallery] = useState(false);
   const { user, isAdmin, effectiveCustomerIds, isViewingAsCustomer, effectiveCustomerId } = useAuth();
+  const editMode = useDashboardEditMode();
 
   const showAdminDashboard = isAdmin() && !isViewingAsCustomer;
   const customerId = effectiveCustomerIds.length > 0 ? effectiveCustomerIds[0] : undefined;
@@ -51,12 +54,20 @@ export function DashboardPage() {
   } = useDashboardLayout(customerId);
 
   const { widgets: dashboardWidgets, loading: widgetsLoading } = useDashboardWidgets('overview');
-  const [widgetSizes, setWidgetSizes] = useState<Record<string, WidgetSizeLevel>>(storedWidgetSizes);
-  const [customWidgets, setCustomWidgets] = useState<Record<string, any>>({});
+  const [widgetSizes, setWidgetSizes] = useState<Record<string, WidgetSizeConstraint>>(
+    Object.fromEntries(Object.entries(storedWidgetSizes).map(([k, v]) => [k, (v === 'large' ? 3 : v === 'expanded' ? 2 : 1) as WidgetSizeConstraint]))
+  );
+  const [customWidgets, setCustomWidgets] = useState<Record<string, unknown>>({});
   const [availableWidgets, setAvailableWidgets] = useState<Array<{ id: string; name: string; description: string; type: string; iconColor?: string; category?: string }>>([]);
+  const [editLayout, setEditLayout] = useState<string[]>([]);
+  const [editSizes, setEditSizes] = useState<Record<string, WidgetSizeConstraint>>({});
+  const [hasEditChanges, setHasEditChanges] = useState(false);
 
-  useMemo(() => {
-    setWidgetSizes(storedWidgetSizes);
+  useEffect(() => {
+    const converted = Object.fromEntries(
+      Object.entries(storedWidgetSizes).map(([k, v]) => [k, (v === 'large' ? 3 : v === 'expanded' ? 2 : 1) as WidgetSizeConstraint])
+    );
+    setWidgetSizes(converted);
   }, [storedWidgetSizes]);
 
   useEffect(() => {
@@ -295,15 +306,69 @@ export function DashboardPage() {
     return 'Custom Period';
   }, [comparison]);
 
-  const handleSaveLayout = async (newOrder: string[], newSizes: Record<string, WidgetSizeLevel>) => {
-    const success = await saveLayout(newOrder, newSizes);
+  const handleEnterEditMode = useCallback(() => {
+    const dbWidgetIds = new Set(dashboardWidgets.map(dw => dw.widget_id));
+    const currentLayout = [
+      ...layout.filter(id => !dbWidgetIds.has(id)),
+      ...dashboardWidgets.map(dw => dw.widget_id),
+    ];
+    setEditLayout(currentLayout);
+    setEditSizes({ ...widgetSizes });
+    setHasEditChanges(false);
+    editMode.enterEditMode();
+  }, [layout, dashboardWidgets, widgetSizes, editMode]);
+
+  const handleExitEditMode = useCallback(() => {
+    setHasEditChanges(false);
+    editMode.exitEditMode();
+  }, [editMode]);
+
+  const handleSaveEditMode = useCallback(async () => {
+    const sizeLevelMap: Record<string, string> = {};
+    for (const [k, v] of Object.entries(editSizes)) {
+      sizeLevelMap[k] = v === 3 ? 'large' : v === 2 ? 'expanded' : 'default';
+    }
+    const success = await saveLayout(editLayout, sizeLevelMap);
     if (success) {
-      setWidgetSizes(newSizes);
+      setWidgetSizes(editSizes);
       setSaveNotification(true);
       setTimeout(() => setSaveNotification(false), 2000);
-      setIsEditorOpen(false);
+      editMode.exitEditMode();
+      setHasEditChanges(false);
     }
-  };
+  }, [editLayout, editSizes, saveLayout, editMode]);
+
+  const handleResetLayout = useCallback(() => {
+    const dbWidgetIds = new Set(dashboardWidgets.map(dw => dw.widget_id));
+    const currentLayout = [
+      ...layout.filter(id => !dbWidgetIds.has(id)),
+      ...dashboardWidgets.map(dw => dw.widget_id),
+    ];
+    setEditLayout(currentLayout);
+    setEditSizes({ ...widgetSizes });
+    setHasEditChanges(false);
+  }, [layout, dashboardWidgets, widgetSizes]);
+
+  const handleWidgetRemove = useCallback((widgetId: string) => {
+    setEditLayout(prev => prev.filter(id => id !== widgetId));
+    setHasEditChanges(true);
+  }, []);
+
+  const handleWidgetSizeChange = useCallback((widgetId: string, size: WidgetSizeConstraint) => {
+    setEditSizes(prev => ({ ...prev, [widgetId]: size }));
+    setHasEditChanges(true);
+  }, []);
+
+  const handleReorder = useCallback((newOrder: string[]) => {
+    setEditLayout(newOrder);
+    setHasEditChanges(true);
+  }, []);
+
+  const handleAddWidget = useCallback((widgetId: string, size: WidgetSizeConstraint) => {
+    setEditLayout(prev => [...prev, widgetId]);
+    setEditSizes(prev => ({ ...prev, [widgetId]: size }));
+    setHasEditChanges(true);
+  }, []);
 
   if (showAdminDashboard) {
     return <AdminDashboardPage />;
@@ -337,7 +402,17 @@ export function DashboardPage() {
           onShowComparisonDropdownChange={setShowComparisonDropdown}
           comparisonDates={comparisonDates}
           onRefresh={() => window.location.reload()}
-          onCustomize={() => setIsEditorOpen(true)}
+          customizeButton={
+            <InlineEditToolbar
+              isEditing={editMode.state.isEditing}
+              hasChanges={hasEditChanges}
+              onEnterEdit={handleEnterEditMode}
+              onExitEdit={handleExitEditMode}
+              onSave={handleSaveEditMode}
+              onReset={handleResetLayout}
+              onAddWidget={() => setShowGallery(true)}
+            />
+          }
         />
 
         {saveNotification && (
@@ -373,13 +448,23 @@ export function DashboardPage() {
         )}
 
         <WidgetGrid
-          widgets={allWidgets}
+          widgets={editMode.state.isEditing
+            ? editLayout.map(id => ({ id, source: 'layout' as const }))
+            : allWidgets
+          }
           customWidgets={customWidgets}
-          widgetSizes={widgetSizes}
+          widgetSizes={editMode.state.isEditing ? editSizes : widgetSizes}
           customerId={customerId?.toString()}
           startDate={startDate}
           endDate={endDate}
           comparisonDates={comparisonDates}
+          isEditMode={editMode.state.isEditing}
+          selectedWidgetId={editMode.state.selectedWidgetId}
+          onWidgetSelect={editMode.selectWidget}
+          onWidgetRemove={handleWidgetRemove}
+          onWidgetSizeChange={handleWidgetSizeChange}
+          onReorder={handleReorder}
+          allowHoverDrag={true}
         />
 
         <AIReportsSection
@@ -389,15 +474,12 @@ export function DashboardPage() {
           onRemoveWidget={handleRemoveAIWidget}
         />
 
-        <LayoutEditorModal
-          isOpen={isEditorOpen}
-          onClose={() => setIsEditorOpen(false)}
-          widgetOrder={layout}
-          widgetSizes={widgetSizes}
-          widgetLibrary={widgetLibrary}
-          customWidgets={customWidgets}
-          availableWidgets={availableWidgets}
-          onSave={handleSaveLayout}
+        <WidgetGalleryModal
+          isOpen={showGallery}
+          onClose={() => setShowGallery(false)}
+          onAddWidget={handleAddWidget}
+          currentWidgets={editMode.state.isEditing ? editLayout : allWidgets.map(w => w.id)}
+          isAdmin={isAdmin()}
         />
 
         <style>{`
@@ -411,8 +493,26 @@ export function DashboardPage() {
               transform: translateY(0);
             }
           }
+          @keyframes wiggle {
+            0%, 100% { transform: rotate(-0.3deg); }
+            50% { transform: rotate(0.3deg); }
+          }
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          @keyframes scale-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+          }
           .animate-fade-in {
             animation: fade-in 0.3s ease-out;
+          }
+          .animate-shimmer {
+            animation: shimmer 1.5s infinite;
+          }
+          .animate-scale-in {
+            animation: scale-in 0.15s ease-out forwards;
           }
         `}</style>
       </div>

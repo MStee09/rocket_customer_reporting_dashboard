@@ -1,0 +1,53 @@
+export const designTokens = {
+  widget: {
+    radius: '1rem',
+    radiusLg: '1.25rem',
+    shadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+    shadowHover: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+    shadowEdit: '0 0 0 2px rgb(249 115 22 / 0.5)',
+    padding: '1rem',
+    paddingLg: '1.5rem',
+    gap: '1.5rem',
+    headerHeight: '3.5rem',
+    borderColor: 'rgb(226 232 240)',
+    borderColorHover: 'rgb(203 213 225)',
+  },
+  colors: {
+    primary: '#f97316',
+    success: '#22c55e',
+    info: '#3b82f6',
+    warning: '#eab308',
+    neutral: '#64748b',
+    chart: [
+      '#f97316', '#22c55e', '#3b82f6', '#eab308',
+      '#8b5cf6', '#ec4899', '#06b6d4', '#64748b',
+    ],
+    iconBg: {
+      primary: 'bg-orange-500',
+      success: 'bg-green-500',
+      info: 'bg-blue-500',
+      warning: 'bg-yellow-500',
+      neutral: 'bg-slate-500',
+      violet: 'bg-violet-500',
+      pink: 'bg-pink-500',
+      cyan: 'bg-cyan-500',
+    },
+  },
+  animation: {
+    fast: '150ms',
+    normal: '250ms',
+    slow: '350ms',
+    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  },
+  typography: {
+    kpiValue: {
+      sm: 'text-2xl font-bold',
+      md: 'text-3xl font-bold',
+      lg: 'text-4xl font-bold',
+    },
+    kpiLabel: 'text-sm text-slate-500',
+    widgetTitle: 'text-sm font-semibold text-slate-900',
+    widgetTitleHero: 'text-base font-semibold text-slate-900',
+  },
+};

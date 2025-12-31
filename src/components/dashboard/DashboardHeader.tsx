@@ -1,4 +1,5 @@
-import { RefreshCw, Layout, GitCompare } from 'lucide-react';
+import { ReactNode } from 'react';
+import { RefreshCw, GitCompare } from 'lucide-react';
 
 type ComparisonType = 'previous' | 'lastYear' | 'custom';
 
@@ -19,7 +20,8 @@ interface DashboardHeaderProps {
   onShowComparisonDropdownChange: (show: boolean) => void;
   comparisonDates: { start: string; end: string } | null;
   onRefresh: () => void;
-  onCustomize: () => void;
+  customizeButton?: ReactNode;
+  onCustomize?: () => void;
 }
 
 export function DashboardHeader({
@@ -33,7 +35,7 @@ export function DashboardHeader({
   onShowComparisonDropdownChange,
   comparisonDates,
   onRefresh,
-  onCustomize,
+  customizeButton,
 }: DashboardHeaderProps) {
   return (
     <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -172,13 +174,8 @@ export function DashboardHeader({
           <RefreshCw className="w-4 h-4" />
           Refresh
         </button>
-        <button
-          onClick={onCustomize}
-          className="px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-2 shadow-sm transition-colors text-sm"
-        >
-          <Layout className="w-4 h-4" />
-          Customize
-        </button>
+
+        {customizeButton}
       </div>
     </div>
   );

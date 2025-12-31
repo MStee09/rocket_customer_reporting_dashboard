@@ -12,7 +12,10 @@ export function AdminCustomerSelector() {
     setImpersonatingCustomerId,
     isImpersonating,
     impersonatingCustomer,
+    role,
   } = useAuth();
+
+  const isActuallyAdmin = role?.is_admin ?? false;
 
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +59,8 @@ export function AdminCustomerSelector() {
   const filteredCustomers = customers.filter(customer =>
     customer.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (!isActuallyAdmin) return null;
 
   if (isImpersonating && impersonatingCustomer) {
     return (

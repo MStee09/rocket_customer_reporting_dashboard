@@ -18,12 +18,13 @@ function CustomerRowActions({ customerId, customerName }: { customerId: number; 
     setImpersonatingCustomerId,
     viewingAsCustomerId,
     impersonatingCustomerId,
-    isAdmin,
+    role,
     isViewingAsCustomer,
     isImpersonating,
   } = useAuth();
 
-  if (!isAdmin()) return null;
+  const isActuallyAdmin = role?.is_admin ?? false;
+  if (!isActuallyAdmin) return null;
 
   const isViewing = isViewingAsCustomer && viewingAsCustomerId === customerId;
   const isImpersonatingThis = isImpersonating && impersonatingCustomerId === customerId;
@@ -78,6 +79,7 @@ export function CustomersPage() {
   const navigate = useNavigate();
 
   const isAdminUser = isAdmin();
+  const isActuallyAdmin = role?.is_admin ?? false;
 
   useEffect(() => {
     if (authLoading) return;
@@ -228,7 +230,7 @@ export function CustomersPage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
                   Total Revenue
                 </th>
-                {isAdminUser && (
+                {isActuallyAdmin && (
                   <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">
                     Actions
                   </th>
@@ -271,7 +273,7 @@ export function CustomersPage() {
                   <td className="px-4 py-3 text-sm font-medium text-slate-800 text-right">
                     {formatCurrency(customer.total_revenue || 0)}
                   </td>
-                  {isAdminUser && (
+                  {isActuallyAdmin && (
                     <td className="px-4 py-3 text-right">
                       <CustomerRowActions
                         customerId={customer.customer_id}

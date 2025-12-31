@@ -9,3 +9,5 @@ export {
 } from './WidgetRenderer';
 
 export type { WidgetData, WidgetRenderProps } from './WidgetRenderer';
+
+export { ColumnSizeSelector } from './ColumnSizeSelector';

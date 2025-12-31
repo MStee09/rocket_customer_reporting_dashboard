@@ -1,11 +1,21 @@
 import { DashboardWidgetCard } from '../DashboardWidgetCard';
 import { AIWidgetRenderer } from './AIWidgetRenderer';
+import { InlineAddWidgetCard } from './InlineAddWidgetCard';
 import { widgetLibrary, getEffectiveColSpan, getScaleFactor } from '../../config/widgetLibrary';
 import { WidgetSizeLevel } from '../../types/widgets';
 
 interface WidgetItem {
   id: string;
   source: 'layout' | 'db';
+}
+
+interface AvailableWidget {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  iconColor?: string;
+  category?: string;
 }
 
 interface WidgetGridProps {
@@ -17,6 +27,9 @@ interface WidgetGridProps {
   endDate: string;
   comparisonDates: { start: string; end: string } | null;
   onWidgetRemoved?: () => void;
+  isEditing?: boolean;
+  availableWidgets?: AvailableWidget[];
+  onAddWidget?: (widgetId: string) => void;
 }
 
 function getAIWidgetColSpan(size: string | undefined): string {
@@ -43,7 +56,12 @@ export function WidgetGrid({
   endDate,
   comparisonDates,
   onWidgetRemoved,
+  isEditing = false,
+  availableWidgets = [],
+  onAddWidget,
 }: WidgetGridProps) {
+  const currentWidgetIds = widgets.map(w => w.id);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
       {widgets.map((item) => {
@@ -86,7 +104,7 @@ export function WidgetGrid({
               customerId={customerId}
               dateRange={{ start: startDate, end: endDate }}
               comparisonDateRange={comparisonDates || undefined}
-              isEditing={false}
+              isEditing={isEditing}
               isCustomWidget={isCustom}
               sizeLevel={sizeLevel}
               scaleFactor={scaleFactor}
@@ -97,6 +115,14 @@ export function WidgetGrid({
           </div>
         );
       })}
+
+      {onAddWidget && availableWidgets.length > 0 && (
+        <InlineAddWidgetCard
+          availableWidgets={availableWidgets}
+          currentWidgets={currentWidgetIds}
+          onAddWidget={onAddWidget}
+        />
+      )}
     </div>
   );
 }

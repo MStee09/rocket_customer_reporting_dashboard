@@ -42,6 +42,16 @@ import {
 } from 'lucide-react';
 import { WidgetDefinition, WidgetSizeLevel } from '../types/widgets';
 import { getWidgetColSpan, getWidgetRowSpan } from '../utils/widgetSizing';
+import { ColumnSizeSelector } from './widgets/ColumnSizeSelector';
+
+const getBaseColSpan = (widget: WidgetDefinition | undefined): number => {
+  if (!widget) return 1;
+  if (widget.size === 'hero') return 3;
+  if (widget.type === 'map' || widget.size === 'large') return 2;
+  if (widget.type === 'line_chart' || widget.type === 'bar_chart' || widget.size === 'wide') return 2;
+  if (widget.type === 'table') return 2;
+  return 1;
+};
 
 interface LayoutEditorModalProps {
   isOpen: boolean;
@@ -524,32 +534,18 @@ export function LayoutEditorModal({
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">Size</label>
-                  <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg">
-                    {(['default', 'large', 'xlarge', 'full'] as WidgetSizeLevel[]).map((size) => {
-                      const currentSize = localSizes[selectedWidget!] || 'default';
-                      return (
-                        <button
-                          key={size}
-                          onClick={() => setSize(selectedWidget!, size)}
-                          className={`
-                            px-2 py-2 text-xs font-medium rounded-md transition
-                            ${currentSize === size
-                              ? 'bg-white text-rocket-600 shadow-sm'
-                              : 'text-slate-600 hover:bg-white/50'}
-                          `}
-                        >
-                          {size === 'default' ? 'Auto' : size === 'large' ? 'Large' : size === 'xlarge' ? 'XL' : 'Full'}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Width</label>
+                  <ColumnSizeSelector
+                    value={localSizes[selectedWidget!] || 'default'}
+                    onChange={(size) => setSize(selectedWidget!, size)}
+                    baseColumns={getBaseColSpan(selectedWidgetData)}
+                  />
                   {localSizes[selectedWidget!] && localSizes[selectedWidget!] !== 'default' && (
                     <button
                       onClick={() => resetSize(selectedWidget!)}
                       className="mt-2 text-sm text-rocket-600 hover:underline"
                     >
-                      Reset to auto size
+                      Reset to auto
                     </button>
                   )}
                 </div>

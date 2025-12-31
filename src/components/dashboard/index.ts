@@ -23,3 +23,5 @@ export { WidgetGrid } from './WidgetGrid';
 export { WidgetCard } from './WidgetCard';
 export { AIInsightsPanel } from './AIInsightsPanel';
 export { AIWidgetRenderer } from './AIWidgetRenderer';
+export { InlineAddWidgetCard } from './InlineAddWidgetCard';
+export { AddWidgetPopover } from './AddWidgetPopover';

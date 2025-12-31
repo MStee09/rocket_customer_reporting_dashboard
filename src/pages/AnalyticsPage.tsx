@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Sparkles, FileText, LayoutGrid, ArrowRight, Calendar } from 'lucide-react';
+import { Sparkles, FileText, ArrowRight, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { getSavedViews } from '../services/savedViewsService';
@@ -86,15 +86,6 @@ export function AnalyticsPage() {
       iconColor: 'text-rocket-600',
       hoverBg: 'hover:border-rocket-200',
     },
-    {
-      title: 'Widget Library',
-      description: 'Browse pre-built widgets to add to your dashboard.',
-      icon: LayoutGrid,
-      path: '/widget-library',
-      iconBg: 'bg-violet-100',
-      iconColor: 'text-violet-600',
-      hoverBg: 'hover:border-violet-200',
-    },
   ];
 
   return (
@@ -117,7 +108,7 @@ export function AnalyticsPage() {
             <h3 className="text-lg font-semibold text-slate-900 mb-2">{tool.title}</h3>
             <p className="text-sm text-slate-600 mb-4 leading-relaxed">{tool.description}</p>
             <div className="flex items-center gap-2 text-sm font-medium text-rocket-600 group-hover:gap-3 transition-all">
-              <span>Open {tool.title === 'Widget Library' ? tool.title : tool.title.includes('Builder') ? 'Builder' : 'Studio'}</span>
+              <span>Open {tool.title.includes('Builder') ? 'Builder' : 'Studio'}</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </Link>

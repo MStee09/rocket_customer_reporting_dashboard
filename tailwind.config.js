@@ -4,6 +4,17 @@ export default {
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
   ],
+  safelist: [
+    'col-span-1',
+    'col-span-2',
+    'col-span-3',
+    'md:col-span-1',
+    'md:col-span-2',
+    'md:col-span-3',
+    'lg:col-span-1',
+    'lg:col-span-2',
+    'lg:col-span-3',
+  ],
   theme: {
     extend: {
       colors: {
@@ -103,6 +114,7 @@ export default {
         'shimmer': 'shimmer 2s infinite',
         'pulse-glow': 'pulseGlow 2s infinite',
         'gradient-x': 'gradientX 3s ease infinite',
+        'wiggle': 'wiggle 0.3s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -128,6 +140,10 @@ export default {
         gradientX: {
           '0%, 100%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(-0.5deg)' },
+          '50%': { transform: 'rotate(0.5deg)' },
         },
       },
     },

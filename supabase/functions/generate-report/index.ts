@@ -752,20 +752,26 @@ function validateReportOutput(
 
 function extractFieldReferences(config: any): string[] {
   const fields: string[] = [];
-  
-  if (config.metric?.field) fields.push(config.metric.field);
-  if (config.groupBy) fields.push(config.groupBy);
-  if (config.secondaryGroupBy) fields.push(config.secondaryGroupBy);
+
+  if (config.metric?.field && typeof config.metric.field === 'string') {
+    fields.push(config.metric.field);
+  }
+  if (config.groupBy && typeof config.groupBy === 'string') {
+    fields.push(config.groupBy);
+  }
+  if (config.secondaryGroupBy && typeof config.secondaryGroupBy === 'string') {
+    fields.push(config.secondaryGroupBy);
+  }
 
   if (config.metrics && Array.isArray(config.metrics)) {
     for (const m of config.metrics) {
-      if (m.field) fields.push(m.field);
+      if (m.field && typeof m.field === 'string') fields.push(m.field);
     }
   }
 
   if (config.columns && Array.isArray(config.columns)) {
     for (const col of config.columns) {
-      if (col.field) fields.push(col.field);
+      if (col.field && typeof col.field === 'string') fields.push(col.field);
     }
   }
 

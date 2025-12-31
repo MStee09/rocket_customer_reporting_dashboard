@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileText, Calendar, Search, Plus, MoreVertical, Eye,
-  Clock, Trash2, Edit, Copy, ChevronDown, ChevronUp, Sparkles,
+  Clock, Trash2, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportService';
@@ -10,7 +10,6 @@ import { useCustomerReports } from '../hooks/useCustomerReports';
 import { supabase } from '../lib/supabase';
 import { ScheduleBuilderSingleScreen } from '../components/scheduled-reports/ScheduleBuilderSingleScreen';
 import { formatDistanceToNow, format } from 'date-fns';
-import { ReportConfig } from '../types/reports';
 
 type FilterTab = 'all' | 'ai' | 'custom' | 'scheduled';
 
@@ -61,12 +60,13 @@ function getNextRunDisplay(nextRun: string | null): string {
 
 export function ReportsHubPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, effectiveCustomerId } = useAuth();
   const { reports: customReportsFromStorage, isLoading: customReportsLoading, deleteReport: deleteCustomReport } = useCustomerReports();
 
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const initialTab = (searchParams.get('tab') as FilterTab) || 'all';
+  const [activeTab, setActiveTab] = useState<FilterTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showScheduledSection, setShowScheduledSection] = useState(true);
 
   const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
   const [aiReports, setAIReports] = useState<SavedAIReport[]>([]);
@@ -76,6 +76,16 @@ export function ReportsHubPage() {
   const [reportToSchedule, setReportToSchedule] = useState<{ type: string; id: string; name: string } | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<ScheduledReport | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+
+  const handleTabChange = (tab: FilterTab) => {
+    setActiveTab(tab);
+    if (tab === 'all') {
+      searchParams.delete('tab');
+    } else {
+      searchParams.set('tab', tab);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
 
   useEffect(() => {
     loadAllReports();
@@ -148,7 +158,7 @@ export function ReportsHubPage() {
   }, [reportItems, activeTab, searchQuery]);
 
   const filteredScheduledReports = useMemo(() => {
-    if (activeTab !== 'all' && activeTab !== 'scheduled') return [];
+    if (activeTab !== 'scheduled') return [];
 
     let filtered = scheduledReports;
 
@@ -248,7 +258,7 @@ export function ReportsHubPage() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
                 activeTab === tab.key
                   ? 'bg-rocket-600 text-white'
@@ -288,12 +298,9 @@ export function ReportsHubPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {(activeTab === 'all' || activeTab === 'scheduled') && (
+          {activeTab === 'scheduled' && (
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-              <button
-                onClick={() => setShowScheduledSection(!showScheduledSection)}
-                className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-              >
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-slate-600" />
                   <h2 className="text-lg font-semibold text-slate-900">Scheduled Reports</h2>
@@ -301,100 +308,81 @@ export function ReportsHubPage() {
                     {filteredScheduledReports.length}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Link
-                    to="/scheduled-reports"
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create Schedule
-                  </Link>
-                  {showScheduledSection ? (
-                    <ChevronUp className="w-5 h-5 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400" />
-                  )}
-                </div>
-              </button>
+                <Link
+                  to="/scheduled-reports"
+                  className="px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Manage Schedules
+                </Link>
+              </div>
 
-              {showScheduledSection && (
-                <>
-                  {filteredScheduledReports.length === 0 ? (
-                    <div className="px-6 py-12 text-center border-t border-slate-200">
-                      <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-600 font-medium mb-1">No scheduled reports</p>
-                      <p className="text-sm text-slate-500 mb-4">
-                        Create a schedule to automatically generate reports
-                      </p>
-                      <Link
-                        to="/scheduled-reports"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-lg transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Create Schedule
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-100 border-t border-slate-200">
-                      {filteredScheduledReports.map((schedule) => (
-                        <div
-                          key={schedule.id}
-                          className="px-6 py-4 hover:bg-slate-50 transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-slate-900 truncate">{schedule.name}</h3>
-                                <div className="flex items-center gap-4 mt-1">
-                                  <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    {getFrequencyDisplay(schedule)}
-                                  </span>
-                                  <span className="text-sm text-slate-500">
-                                    Next: {getNextRunDisplay(schedule.next_run_at)}
-                                  </span>
-                                  <span
-                                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                      schedule.is_active
-                                        ? 'bg-green-50 text-green-700'
-                                        : 'bg-slate-100 text-slate-600'
-                                    }`}
-                                  >
-                                    {schedule.is_active ? 'Active' : 'Paused'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={() => handleToggleSchedule(schedule)}
-                                className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              {filteredScheduledReports.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 font-medium mb-1">No scheduled reports</p>
+                  <p className="text-sm text-slate-500 mb-4">
+                    Schedule a report from the AI or Custom tabs to get started
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredScheduledReports.map((schedule) => (
+                    <div
+                      key={schedule.id}
+                      className="px-6 py-4 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-slate-900 truncate">{schedule.name}</h3>
+                            <div className="flex items-center gap-4 mt-1">
+                              <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                                <Clock className="w-3.5 h-3.5" />
+                                {getFrequencyDisplay(schedule)}
+                              </span>
+                              <span className="text-sm text-slate-500">
+                                Next: {getNextRunDisplay(schedule.next_run_at)}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  schedule.is_active
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
                               >
-                                {schedule.is_active ? 'Pause' : 'Resume'}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingSchedule(schedule);
-                                  setScheduleModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSchedule(schedule)}
-                                className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                Delete
-                              </button>
+                                {schedule.is_active ? 'Active' : 'Paused'}
+                              </span>
                             </div>
                           </div>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2 ml-4">
+                          <button
+                            onClick={() => handleToggleSchedule(schedule)}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            {schedule.is_active ? 'Pause' : 'Resume'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingSchedule(schedule);
+                              setScheduleModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSchedule(schedule)}
+                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </>
+                  ))}
+                </div>
               )}
             </div>
           )}

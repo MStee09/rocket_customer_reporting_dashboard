@@ -52,14 +52,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       to: '/analytics',
       icon: BarChart3,
-      label: 'Analytics',
-      matchPaths: ['/analytics', '/ai-studio', '/custom-reports', '/widget-library']
+      label: 'Create',
+      matchPaths: ['/analytics', '/ai-studio', '/custom-reports']
     },
     {
       to: '/reports',
       icon: FileText,
       label: 'Reports',
-      matchPaths: ['/reports', '/scheduled-reports']
+      matchPaths: ['/reports', '/scheduled-reports', '/ai-reports']
     },
     { to: '/carriers', icon: Building2, label: 'Carriers' },
   ];

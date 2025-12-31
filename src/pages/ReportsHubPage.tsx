@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase';
 import { ScheduleBuilderSingleScreen } from '../components/scheduled-reports/ScheduleBuilderSingleScreen';
 import { formatDistanceToNow, format } from 'date-fns';
 
-type FilterTab = 'all' | 'ai' | 'custom' | 'scheduled';
+type FilterTab = 'all' | 'scheduled';
 
 interface ScheduledReport {
   id: string;
@@ -143,19 +143,13 @@ export function ReportsHubPage() {
   const filteredReports = useMemo(() => {
     let filtered = reportItems;
 
-    if (activeTab === 'ai') {
-      filtered = filtered.filter((r) => r.type === 'ai');
-    } else if (activeTab === 'custom') {
-      filtered = filtered.filter((r) => r.type === 'custom');
-    }
-
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((r) => r.name.toLowerCase().includes(query));
     }
 
     return filtered;
-  }, [reportItems, activeTab, searchQuery]);
+  }, [reportItems, searchQuery]);
 
   const filteredScheduledReports = useMemo(() => {
     if (activeTab !== 'scheduled') return [];
@@ -238,9 +232,7 @@ export function ReportsHubPage() {
   }
 
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'ai', label: 'AI Reports', count: aiReports.length },
-    { key: 'custom', label: 'Custom Reports', count: customReportsFromStorage.length },
+    { key: 'all', label: 'All Reports', count: reportItems.length },
     { key: 'scheduled', label: 'Scheduled', count: scheduledReports.length },
   ];
 
@@ -254,25 +246,42 @@ export function ReportsHubPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-rocket-600 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
-              }`}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className={`ml-2 ${activeTab === tab.key ? 'text-rocket-100' : 'text-slate-400'}`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex items-center gap-6 border-b border-slate-200">
+          <button
+            onClick={() => handleTabChange('all')}
+            className={`pb-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'all'
+                ? 'text-rocket-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            All Reports
+            <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">
+              {reportItems.length}
+            </span>
+            {activeTab === 'all' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rocket-600" />
+            )}
+          </button>
+          <button
+            onClick={() => handleTabChange('scheduled')}
+            className={`pb-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'scheduled'
+                ? 'text-rocket-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-4 h-4" />
+              Scheduled
+            </span>
+            <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">
+              {scheduledReports.length}
+            </span>
+            {activeTab === 'scheduled' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rocket-600" />
+            )}
+          </button>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -286,6 +295,13 @@ export function ReportsHubPage() {
               className="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500"
             />
           </div>
+          <Link
+            to="/analyze"
+            className="flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Report
+          </Link>
         </div>
       </div>
 
@@ -413,22 +429,13 @@ export function ReportsHubPage() {
                       : 'Create your first report to start tracking your freight data automatically.'}
                   </p>
                   {!searchQuery && (
-                    <div className="flex items-center justify-center gap-3">
-                      <Link
-                        to="/ai-studio"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Create with AI
-                      </Link>
-                      <Link
-                        to="/custom-reports"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-medium rounded-lg transition-colors"
-                      >
-                        <FileText className="w-4 h-4" />
-                        Build Custom
-                      </Link>
-                    </div>
+                    <Link
+                      to="/analyze"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-rocket-600 hover:bg-rocket-700 text-white font-medium rounded-xl transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Report
+                    </Link>
                   )}
                 </div>
               ) : (
@@ -440,10 +447,10 @@ export function ReportsHubPage() {
                     >
                       <div className="flex-shrink-0">
                         <div
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                             report.type === 'ai'
-                              ? 'bg-amber-100 text-amber-600'
-                              : 'bg-rocket-100 text-rocket-600'
+                              ? 'bg-amber-50 text-amber-600'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           {report.type === 'ai' ? (

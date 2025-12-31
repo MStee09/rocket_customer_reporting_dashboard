@@ -5,6 +5,7 @@ import {
   isValidWidgetSize,
   getSizeLabel,
   clampWidgetSize,
+  isInteractiveWidget,
 } from '../../config/widgetConstraints';
 
 type WidgetSizeValue = 1 | 2 | 3;
@@ -47,6 +48,8 @@ export function EditableWidgetCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const constraints = getWidgetConstraints(widgetId, widgetType);
 
+  const hasInteractiveContent = isInteractiveWidget(widgetType);
+
   useEffect(() => {
     if (!showSizeMenu) return;
 
@@ -72,7 +75,7 @@ export function EditableWidgetCard({
     setShowSizeMenu(false);
   };
 
-  const showHoverDragHandle = !isEditMode && isHovered && allowHoverDrag;
+  const showHoverDragHandle = !isEditMode && isHovered && allowHoverDrag && !hasInteractiveContent;
   const showFullControls = isEditMode;
 
   return (

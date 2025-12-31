@@ -22,7 +22,7 @@ import { DashboardWidgetCard } from '../DashboardWidgetCard';
 import { EditableWidgetCard } from './EditableWidgetCard';
 import { AIWidgetRenderer } from './AIWidgetRenderer';
 import { widgetLibrary } from '../../config/widgetLibrary';
-import { getSizeColSpan, clampWidgetSize, WidgetSizeConstraint } from '../../config/widgetConstraints';
+import { getSizeColSpan, clampWidgetSize, WidgetSizeConstraint, isInteractiveWidget } from '../../config/widgetConstraints';
 
 type WidgetSizeValue = 1 | 2 | 3;
 
@@ -176,7 +176,7 @@ export function WidgetGrid({
             onSelect={() => onWidgetSelect?.(widgetId)}
             onRemove={() => onWidgetRemove?.(widgetId)}
             onSizeChange={(size) => onWidgetSizeChange?.(widgetId, size)}
-            allowHoverDrag={allowHoverDrag && !isEditMode}
+            allowHoverDrag={allowHoverDrag && !isEditMode && !isInteractiveWidget(widget.type)}
             onDragStart={() => {}}
             onDragEnd={() => {}}
           >

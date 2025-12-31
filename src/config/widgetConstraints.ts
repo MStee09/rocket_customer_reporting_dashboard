@@ -72,3 +72,30 @@ export function getSizeColSpan(size: WidgetSizeConstraint): string {
     default: return 'col-span-1';
   }
 }
+
+export function getDefaultSize(widgetId: string, widgetType: string): WidgetSizeConstraint {
+  const constraints = getWidgetConstraints(widgetId, widgetType);
+  return constraints.optimalSize;
+}
+
+export function isInteractiveWidget(widgetType: string): boolean {
+  return widgetType === 'map';
+}
+
+export function getDefaultSizesForLayout(
+  layout: string[],
+  widgetLib: Record<string, { type: string }>
+): Record<string, WidgetSizeConstraint> {
+  const sizes: Record<string, WidgetSizeConstraint> = {};
+
+  for (const widgetId of layout) {
+    const widget = widgetLib[widgetId];
+    if (widget) {
+      sizes[widgetId] = getDefaultSize(widgetId, widget.type);
+    } else {
+      sizes[widgetId] = 1;
+    }
+  }
+
+  return sizes;
+}

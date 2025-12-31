@@ -18,7 +18,7 @@ import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useComparisonStats } from '../hooks/useComparisonStats';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
 import { widgetLibrary, getGlobalWidgets } from '../config/widgetLibrary';
-import { clampWidgetSize, WidgetSizeConstraint } from '../config/widgetConstraints';
+import { clampWidgetSize, WidgetSizeConstraint, getDefaultSize } from '../config/widgetConstraints';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import { loadCustomWidget, loadAllCustomWidgets } from '../config/widgets/customWidgetStorage';
 import { supabase } from '../lib/supabase';
@@ -82,21 +82,38 @@ export function DashboardPage() {
   const debouncedLayout = useDebounce(localLayout, 1000);
   const lastSavedLayoutRef = useRef<string[]>(layout);
 
-  const convertSizes = useCallback((sizes: Record<string, string>): Record<string, WidgetSizeValue> => {
+  const convertSizes = useCallback((
+    sizes: Record<string, string>,
+    currentLayout: string[]
+  ): Record<string, WidgetSizeValue> => {
     const converted: Record<string, WidgetSizeValue> = {};
+
     Object.entries(sizes).forEach(([key, value]) => {
       if (value === 'default' || value === '1') converted[key] = 1;
       else if (value === 'large' || value === 'expanded' || value === '2') converted[key] = 2;
       else if (value === 'xlarge' || value === 'full' || value === '3') converted[key] = 3;
       else converted[key] = 1;
     });
+
+    for (const widgetId of currentLayout) {
+      if (!(widgetId in converted)) {
+        const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
+        if (widget) {
+          const widgetDef = widget as { type: string };
+          converted[widgetId] = getDefaultSize(widgetId, widgetDef.type);
+        } else {
+          converted[widgetId] = 1;
+        }
+      }
+    }
+
     return converted;
-  }, []);
+  }, [customWidgets]);
 
   useEffect(() => {
     if (!editMode.state.isEditing) {
       setLocalLayout(layout);
-      setLocalSizes(convertSizes(storedWidgetSizes));
+      setLocalSizes(convertSizes(storedWidgetSizes, layout));
       lastSavedLayoutRef.current = layout;
     }
   }, [layout, storedWidgetSizes, editMode.state.isEditing, convertSizes]);
@@ -364,7 +381,7 @@ export function DashboardPage() {
 
   const handleResetChanges = useCallback(() => {
     setLocalLayout(layout);
-    setLocalSizes(convertSizes(storedWidgetSizes));
+    setLocalSizes(convertSizes(storedWidgetSizes, layout));
     editMode.setPendingChanges(false);
   }, [layout, storedWidgetSizes, convertSizes, editMode]);
 

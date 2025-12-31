@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   MessageSquare, Database, FileText, Users,
   BookOpen, Lightbulb, Brain, Calculator, Tags,
-  Map, BarChart3,
+  Map, BarChart3, Sparkles, Shield,
   ChevronDown, ChevronRight
 } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -81,6 +81,264 @@ The AI Report Studio lets you create sophisticated reports by simply describing 
 - **List your products** - When asked, tell the AI exactly what to look for
 - **Ask follow-ups** - "Add a trend chart" or "Break it down by carrier too"
 - **Use industry terms** - The AI knows LTL, FTL, CPM, BOL, lane, etc.
+    `
+  },
+  {
+    id: 'how-ai-works',
+    icon: Brain,
+    title: 'How the AI Works',
+    description: 'Understanding the AI system behind the scenes',
+    adminOnly: true,
+    content: `
+## How the AI Actually Works
+
+Think of the AI as a smart analyst who:
+1. **Knows logistics terminology** - LTL, CPM, SCAC, lanes, etc.
+2. **Can query your database** - But checks data quality first
+3. **Remembers what each customer cares about** - Their terms, priorities, products
+4. **Builds reports piece by piece** - Not all at once, which reduces errors
+
+### The Request Flow
+
+When a user asks "Which carriers are driving up my costs?":
+
+**Step 1: Load Context**
+- Who is this customer?
+- Admin or regular user? (determines what data they can see)
+- What fields exist in the database?
+- Any customer-specific terminology?
+
+**Step 2: Investigate with Tools**
+- Explores the "carrier_name" field (how many carriers? good data coverage?)
+- Previews what a grouping would look like (carrier by cost - does it make sense?)
+- Checks if the customer has special terms to understand
+
+**Step 3: Build Incrementally**
+- Adds a stat row for total cost
+- Adds a bar chart of cost by carrier
+- Sets a meaningful report name
+- The AI can loop through this up to 8 times for complex requests
+
+**Step 4: Finalize & Return**
+- Validates the report structure
+- Sends back JSON that the frontend renders as a report
+
+### The Tools the AI Uses
+
+| Tool | What It Does | Example |
+|------|--------------|---------|
+| **explore_field** | Checks a database column | "Is carrier_name 80% populated or 10%?" |
+| **preview_grouping** | Tests a chart before building | "Will this give 5 bars or 500?" |
+| **get_customer_context** | Loads customer-specific info | "This customer calls Cargoglide 'CG'" |
+| **suggest_visualization** | Picks best chart type | "Time data = line chart" |
+| **add_report_section** | Adds a chart/table/stat | Building the actual report |
+| **finalize_report** | Marks complete | Validation and completion |
+
+### Why This Matters for Admins
+
+The AI is only as good as its knowledge. When you:
+- Add terminology -> The AI understands customer language
+- Define products -> The AI can filter correctly
+- Set priorities -> The AI emphasizes what matters
+- Review learned items -> The AI stops making mistakes
+    `
+  },
+  {
+    id: 'knowledge-base-admin',
+    icon: Sparkles,
+    title: 'Managing the Knowledge Base',
+    description: 'How to enrich and maintain AI knowledge',
+    adminOnly: true,
+    content: `
+## The Knowledge System
+
+The AI's knowledge has three layers:
+
+### 1. Global Knowledge (All Customers)
+
+Industry-standard terms everyone uses:
+- "LTL" = Less Than Truckload
+- "SCAC" = Standard Carrier Alpha Code
+- "CPM" = Cost Per Mile
+
+**Where to add:** AI Intelligence page -> Add Knowledge -> Scope: Global
+
+### 2. Customer-Specific Knowledge (One Customer)
+
+Terms unique to one customer:
+- "Acme calls Cargoglide products 'CG'"
+- "Beta Corp's West Region = CA, OR, WA, AZ"
+- "Gamma Inc's fiscal year starts in July"
+
+**Where to add:** Customer Profile Editor OR AI Intelligence -> Scope: Customer
+
+### 3. Learned Knowledge (AI Picks Up)
+
+Things the AI learned from conversations:
+- User corrected "CG" means Cargoglide
+- User always wants bar charts descending
+- User prefers weekly over monthly views
+
+**Where to manage:** AI Intelligence -> Needs Review tab
+
+---
+
+## Weekly Admin Tasks
+
+### 1. Review "Needs Review" Items
+
+**Where:** AI Intelligence page -> Needs Review tab
+
+**What you're looking at:**
+- Items the AI learned automatically from conversations
+- Items that have been corrected (the AI got something wrong)
+- Low-confidence items
+
+**What to do:**
+- Approve if correct -> Becomes trusted knowledge
+- Reject if wrong -> Gets removed
+- Edit if close but needs fixing -> Correct then approve
+
+### 2. Check Global Promotion Suggestions
+
+**Where:** AI Intelligence page -> scroll to "Promote to Global" section
+
+**What you're looking at:**
+- Terms that multiple customers use the same way
+- Example: 3 customers all use "hot shipment" to mean expedited
+
+**What to do:**
+- If the term is truly universal, click "Promote to Global"
+- Now ALL customers benefit from that knowledge
+
+---
+
+## Monthly Admin Tasks
+
+### 3. Review Customer Profiles
+
+**Where:** Knowledge Base -> Profiles tab -> Click a customer
+
+**What to check:**
+- **Priorities** - Are they still accurate? (cost reduction, speed, etc.)
+- **Products** - Any new product lines to add?
+- **Key Markets** - Has their geography changed?
+- **Terminology** - Any new terms they're using?
+
+**Why it matters:** The AI uses this to personalize responses
+
+### 4. Check the Stats Dashboard
+
+**Where:** AI Intelligence page -> top stats cards
+
+**What to look for:**
+- **Total Active** - How many knowledge items exist
+- **Accuracy %** - Are users correcting the AI often?
+- **Auto-Learned** - Is the AI picking up new terms?
+
+**Red flags:**
+- Accuracy below 85% -> AI is making mistakes, review recent items
+- No new learned items -> Learning system might not be working
+- Many items in "Needs Review" -> You're falling behind
+
+---
+
+## Adding Knowledge - Step by Step
+
+### Adding a Customer Term
+
+**Scenario:** Acme Corp always calls their Cargoglide products "CG"
+
+1. Go to **Knowledge Base -> Profiles -> Acme Corp**
+2. Under **Terminology**, click **Add Term**
+3. Fill in:
+   - **Term:** CG
+   - **Meaning:** Cargoglide truck bed slides
+   - **AI Instructions:** When user says CG, filter description for "Cargoglide"
+4. Save
+
+Now when Acme asks "Show me CG shipments" -> The AI knows what to do
+
+### Adding a Product Category
+
+**Scenario:** Customer ships three product types you want to track
+
+1. Go to **Knowledge Base -> Profiles -> [Customer]**
+2. Under **Products**, click **Add Product**
+3. Fill in:
+   - **Name:** Drawer Systems
+   - **Keywords:** drawer, storage, slide
+   - **Search Field:** description
+4. Repeat for other products
+5. Save
+
+Now the AI can filter and group by these product categories
+
+### Adding a Global Term
+
+**Scenario:** You want all customers to understand "DPM" means Deliveries Per Month
+
+1. Go to **AI Intelligence** page
+2. Click **Add Knowledge**
+3. Fill in:
+   - **Type:** Business Term
+   - **Scope:** Global (All Customers)
+   - **Key:** DPM
+   - **Label:** Deliveries Per Month
+   - **Definition:** The count of unique deliveries made in a calendar month
+   - **AI Instructions:** Calculate as COUNT of shipments grouped by month
+4. Save
+
+Now ALL customers can use "DPM" in their conversations
+
+---
+
+## Keeping Knowledge Clean
+
+### Signs of a Healthy Knowledge Base
+
+- Accuracy rate above 90%
+- "Needs Review" queue under 10 items
+- Each active customer has a profile with products/terms
+- Global knowledge covers common industry terms
+- No duplicate terms (check before adding)
+
+### Common Problems and Fixes
+
+**Problem: AI doesn't understand customer terminology**
+> Fix: Add it to their profile or global knowledge
+> Check: Is it spelled the same way the customer uses it?
+
+**Problem: AI keeps suggesting wrong chart types**
+> Fix: Check preferences in customer profile
+> The AI learns from usage - correct it and it will adapt
+
+**Problem: Customer says AI got something wrong**
+> Fix: Check "Needs Review" for corrections
+> If not there, add the correct knowledge manually
+
+**Problem: Same term defined multiple times**
+> Fix: Delete duplicates, keep the most accurate one
+> Use the search filter to find all instances
+
+**Problem: Customer-specific term promoted to global by mistake**
+> Fix: Delete the global version if it's not universal
+> Re-add as customer-specific if needed
+
+---
+
+## Quick Reference
+
+| Task | Where to Go |
+|------|-------------|
+| Review learned terms | AI Intelligence -> Needs Review |
+| Add global terminology | AI Intelligence -> Add Knowledge (Global) |
+| Add customer terminology | Customer Profile -> Terminology |
+| Define customer products | Customer Profile -> Products |
+| Set customer priorities | Customer Profile -> Priorities |
+| Promote term to global | AI Intelligence -> Promotion Suggestions |
+| See AI usage stats | AI Intelligence -> Stats cards |
+| Check what AI knows about a customer | AI Intelligence -> filter by customer |
     `
   },
   {
@@ -165,11 +423,11 @@ Groups nearby points into clusters.
 ### How to Request Visualizations
 
 Just describe what you want to see:
-> "I want to see where my shipments go" → Heat map
-> "Compare my carriers" → Radar or bar chart
-> "Show me the trend" → Line chart
-> "Break it down by..." → Treemap or pie chart
-> "Daily patterns" → Calendar heatmap
+> "I want to see where my shipments go" -> Heat map
+> "Compare my carriers" -> Radar or bar chart
+> "Show me the trend" -> Line chart
+> "Break it down by..." -> Treemap or pie chart
+> "Daily patterns" -> Calendar heatmap
 
 The AI will choose the best visualization for your request, or you can be specific:
 > "Make it a treemap"
@@ -287,31 +545,20 @@ Set up automatic report delivery:
 
 ### Date Filtering
 
-Use the date buttons to change the time period:
-- Last 30 Days
-- Last 90 Days
-- Last 6 Months
-- Last Year
-- YTD (Year to Date)
-- All Time
-- Custom date range
+All reports respect the date filter:
+- Use the date picker to change the range
+- "Last 30 days", "Last 90 days", "Year to date", etc.
+- Custom date ranges are supported
+- The AI will ask about dates if relevant
 
-### Themes & Colors
+### Customizing Colors
 
-Tell the AI to change colors:
-- "Make it green"
-- "Use the purple theme"
-- "Change to teal"
+Request different themes:
+> "Make it blue"
+> "Use green colors"
+> "Orange theme"
 
-Available themes: Blue, Green, Red, Orange, Purple, Teal, Slate
-
-### Add to Dashboard
-
-Add any report as a dashboard widget:
-1. Create and save your report
-2. Click **Add to Dashboard**
-3. Choose widget size
-4. Report appears on your dashboard
+Available themes: Blue, Green, Orange, Purple, Red, Teal, Slate
     `
   },
   {
@@ -403,114 +650,77 @@ List variations to catch all matches.
     `
   },
   {
-    id: 'freight-terminology',
+    id: 'customer-profiles',
     icon: BookOpen,
-    title: 'Freight Terminology',
-    description: 'Industry terms the AI understands',
-    content: `
-## Terms the AI Knows
-
-You can use these freight industry terms and the AI will understand:
-
-### Transportation Modes
-- **LTL** - Less Than Truckload
-- **FTL** - Full Truckload
-- **Parcel** - Small packages (UPS, FedEx)
-- **Intermodal** - Rail + truck
-
-### Documents
-- **BOL** - Bill of Lading
-- **PRO Number** - Carrier's tracking number
-- **PO** - Purchase Order
-
-### Metrics
-- **CPM** - Cost Per Mile
-- **Spend** - Total charges
-- **Volume** - Shipment count or quantity
-
-### Locations
-- **Lane** - Route from origin to destination (e.g., OH to CA)
-- **Origin** - Pickup location
-- **Destination** - Delivery location
-- **Consignee** - Receiver
-- **Shipper** - Sender
-
-### Equipment
-- **Dry Van** - Standard enclosed trailer
-- **Reefer** - Refrigerated trailer
-- **Flatbed** - Open trailer
-
-### Parties
-- **Carrier** - Trucking company
-- **Broker** - Arranges transportation
-- **3PL** - Third-party logistics provider
-
-### Example Usage
-> "Show me LTL spend by carrier"
-> "What's my CPM by lane?"
-> "How many FTL shipments to California?"
-    `
-  },
-  {
-    id: 'knowledge-base',
-    icon: Brain,
-    title: 'AI Knowledge Base',
-    description: 'Manage what the AI knows',
+    title: 'Customer Profiles',
+    description: 'Set up customer-specific AI context',
     adminOnly: true,
     content: `
-## Knowledge Base Overview
+## Customer Intelligence Profiles
 
-The AI Knowledge Base contains everything that helps the AI understand your business.
+Each customer can have a profile that helps the AI understand their business.
 
-### Intelligence Tab
+### Profile Sections
 
-This is where all AI context is managed:
+**Priorities** - What matters most to this customer
+- Cost reduction
+- On-time delivery
+- Specific carrier performance
+- Damage prevention
 
-**Knowledge Types:**
-- **Field Definitions** - What database columns mean
-- **Business Terms** - Industry and company terminology
-- **Calculations** - Formulas and metrics
-- **Products** - Product categorizations
-- **Rules** - Business logic preferences
+**Products** - What they ship
+- Product names and categories
+- Keywords to search for in descriptions
+- Helps AI group and filter correctly
 
-**Features:**
-- Search across all knowledge
-- Filter by type (term, field, calculation)
-- Filter by scope (global vs customer-specific)
-- See confidence scores and usage counts
-- Approve, edit, or reject learned items
+**Key Markets** - Geographic focus
+- Which states/regions matter most
+- Helps AI emphasize relevant data
 
-### Documents Tab
+**Terminology** - Their unique language
+- Abbreviations they use
+- Product nicknames
+- Internal codes
 
-Upload documents the AI can reference:
-- Carrier contracts
-- Service descriptions
-- Company policies
-- Industry guides
+**Benchmark Period** - Default comparison timeframe
+- Last month, last quarter, YoY
+- Used when customer asks "how are we doing?"
 
-### AI Learning
+**Account Notes** - General context
+- Industry they're in
+- Seasonality patterns
+- Special considerations
 
-When you explain something to the AI, it may learn:
-1. AI encounters unknown term
-2. You explain what it means
-3. Term goes to learning queue
-4. Admin reviews and approves
-5. AI knows the term going forward
+### Setting Up a New Customer Profile
 
-### Global vs Customer Terms
+1. Go to **Knowledge Base -> Profiles**
+2. Find the customer (or they'll be auto-created)
+3. Click to open their profile
+4. Fill in each section:
+   - Add their products with keywords
+   - Add any terminology they use
+   - Set their key markets
+   - Note their priorities
+5. Save changes
 
-- **Global** - Industry standard (LTL, FTL, BOL)
-- **Customer** - Your company's specific terms
+### When to Update Profiles
 
-### Customer Profiles
+- Customer mentions new products
+- Customer uses unfamiliar terms
+- Customer's focus changes (new markets, new priorities)
+- After a correction from the customer
+- Quarterly review of all active customers
 
-Set up customer-specific context:
-- Products they ship
-- Terminology they use
-- Benchmark targets
-- Account notes
+### Impact on AI Behavior
 
-This helps the AI provide personalized insights.
+When a customer asks a question, the AI:
+1. Loads their profile
+2. Uses their terminology
+3. Filters by their products (if relevant)
+4. Emphasizes their key markets
+5. Compares to their benchmark period
+
+Better profiles = Better, more personalized AI responses
     `
   },
   {
@@ -609,6 +819,63 @@ If a customer asks about these, the AI responds:
     `
   },
   {
+    id: 'security-access',
+    icon: Shield,
+    title: 'Security & Data Access',
+    description: 'How the AI handles sensitive data',
+    adminOnly: true,
+    content: `
+## Security & Data Access
+
+The AI respects access levels and protects sensitive data.
+
+### Customer Users (Non-Admin)
+
+**CAN see:**
+- Retail (what customer pays)
+- Shipment details (origin, destination, weight, etc.)
+- Carrier names
+- Dates and counts
+- Their own data only
+
+**CANNOT see:**
+- Cost (what Go Rocket pays carriers)
+- Margin (profit)
+- Carrier pay rates
+- Other customers' data
+
+### Admin Users
+
+**CAN see:** Everything
+
+### How It Works
+
+The AI checks the **isAdmin** flag with every request:
+- Admin = Full field access
+- Customer = Restricted view (no cost/margin)
+
+If a customer asks about costs, the AI says:
+> "That information is not available in your view. I can show you retail revenue or shipment counts instead."
+
+### Database Security
+
+- Row-Level Security (RLS) enforces customer isolation
+- Views exclude sensitive columns for customer access
+- Even if the AI tried to access cost data for a customer, the database wouldn't return it
+
+### Audit Logging
+
+Every AI request is logged:
+- What was asked
+- What context was used
+- What was generated
+- Whether it succeeded
+- Tools that were used
+
+This enables: Compliance review, quality monitoring, dispute resolution
+    `
+  },
+  {
     id: 'tips-tricks',
     icon: Lightbulb,
     title: 'Tips & Tricks',
@@ -686,14 +953,33 @@ Geographic visualizations help you:
 
 function renderMarkdown(content: string): string {
   return content
-    .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-slate-800 mt-4 mb-2">$1</h2>')
-    .replace(/^### (.*$)/gm, '<h3 class="font-medium text-slate-700 mt-3 mb-1">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 class="text-lg font-semibold text-slate-800 mt-6 mb-3">$1</h2>')
+    .replace(/^### (.*$)/gm, '<h3 class="font-medium text-slate-700 mt-4 mb-2">$1</h3>')
     .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800">$1</strong>')
-    .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-rocket-300 pl-3 py-1 my-2 text-slate-600 italic bg-rocket-50 rounded-r">$1</blockquote>')
-    .replace(/^- (.*$)/gm, '<li class="ml-4 text-slate-600">$1</li>')
+    .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-rocket-300 pl-3 py-1.5 my-2 text-slate-600 italic bg-rocket-50/50 rounded-r">$1</blockquote>')
+    .replace(/^- (.*$)/gm, '<li class="ml-4 text-slate-600 leading-relaxed">$1</li>')
     .replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc space-y-1 my-2">$&</ul>')
-    .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 text-slate-600"><span class="font-medium text-slate-700">$1.</span> $2</li>')
-    .replace(/\n\n/g, '</p><p class="my-2 text-slate-600">')
+    .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4 text-slate-600 leading-relaxed"><span class="font-medium text-slate-700">$1.</span> $2</li>')
+    .replace(/\| (.*) \|/gm, (match) => {
+      const cells = match.split('|').filter(c => c.trim());
+      const isHeader = cells.some(c => c.includes('---'));
+      if (isHeader) return '';
+      return '<tr class="border-b border-slate-200">' + cells.map(c =>
+        `<td class="px-3 py-2 text-sm text-slate-600">${c.trim()}</td>`
+      ).join('') + '</tr>';
+    })
+    .replace(/(<tr[^>]*>.*<\/tr>\n?)+/g, (match) => {
+      const rows = match.split('</tr>').filter(r => r.trim());
+      if (rows.length === 0) return match;
+      const headerRow = rows[0] + '</tr>';
+      const bodyRows = rows.slice(1).map(r => r.trim() ? r + '</tr>' : '').join('');
+      return `<table class="w-full border-collapse my-4 text-left border border-slate-200 rounded-lg overflow-hidden">
+        <thead class="bg-slate-100">${headerRow.replace(/<td/g, '<th').replace(/<\/td>/g, '</th>')}</thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`;
+    })
+    .replace(/^---$/gm, '<hr class="my-6 border-slate-200" />')
+    .replace(/\n\n/g, '</p><p class="my-2 text-slate-600 leading-relaxed">')
     .trim();
 }
 
@@ -748,7 +1034,7 @@ export function HowToGuide({ isAdmin = false }: HowToGuideProps) {
               </button>
 
               {isExpanded && (
-                <div className="px-6 pb-6 border-t border-slate-100 bg-slate-50">
+                <div className="px-6 pb-6 border-t border-slate-100 bg-slate-50/50">
                   <div
                     className="prose prose-sm max-w-none pt-4"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(section.content) }}

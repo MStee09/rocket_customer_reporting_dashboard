@@ -138,6 +138,14 @@ export function AIReportStudioPage() {
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
   const [enhancementContext, setEnhancementContext] = useState<ReportEnhancementContext | null>(null);
   const [learningToast, setLearningToast] = useState<{ visible: boolean; learnings: AILearning[] }>({ visible: false, learnings: [] });
+  const [builderContext, setBuilderContext] = useState<{
+    columns: Array<{ id: string; label: string; aggregation?: string }>;
+    filters: unknown[];
+    sorts: unknown[];
+    isSummary: boolean;
+    groupByColumns: string[];
+    reportName?: string;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -522,6 +530,61 @@ export function AIReportStudioPage() {
     }, 150);
   }, [handleSendMessage]);
 
+  const extractColumnsFromAIReport = useCallback((report: AIReportDefinition): Array<{ id: string; label: string }> => {
+    const columns: Array<{ id: string; label: string }> = [];
+
+    for (const section of report.sections) {
+      if (section.type === 'table') {
+        const tableConfig = (section as TableSection).config;
+        if (tableConfig?.columns) {
+          for (const col of tableConfig.columns) {
+            if (!columns.some(c => c.id === col.field)) {
+              columns.push({
+                id: col.field,
+                label: col.label || col.field,
+              });
+            }
+          }
+        }
+      }
+
+      if (section.type === 'chart') {
+        const chartConfig = (section as { type: 'chart'; config: { groupBy?: string; metric?: string } }).config;
+        if (chartConfig?.groupBy && !columns.some(c => c.id === chartConfig.groupBy)) {
+          columns.push({
+            id: chartConfig.groupBy,
+            label: chartConfig.groupBy.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          });
+        }
+        if (chartConfig?.metric && !columns.some(c => c.id === chartConfig.metric)) {
+          columns.push({
+            id: chartConfig.metric,
+            label: chartConfig.metric.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          });
+        }
+      }
+    }
+
+    return columns;
+  }, []);
+
+  const handleEditColumnsInBuilder = useCallback(() => {
+    if (!currentReport) return;
+
+    const extractedColumns = extractColumnsFromAIReport(currentReport);
+
+    setBuilderContext({
+      columns: extractedColumns,
+      filters: [],
+      sorts: [],
+      isSummary: false,
+      groupByColumns: [],
+      reportName: currentReport.name,
+    });
+
+    setActiveTab('builder');
+  }, [currentReport, extractColumnsFromAIReport]);
+
   const exportableData = useMemo(() => extractExportableData(currentReport, executedData), [currentReport, executedData]);
   const hasExportableData = exportableData.data.length > 0;
 
@@ -584,6 +647,14 @@ export function AIReportStudioPage() {
             onClose={() => setActiveTab('create')}
             onSave={handleSaveCustomReport}
             isInline={true}
+            initialState={builderContext ? {
+              name: builderContext.reportName || '',
+              selectedColumns: builderContext.columns,
+              filters: builderContext.filters as never[],
+              sorts: builderContext.sorts as never[],
+              isSummary: builderContext.isSummary,
+              groupByColumns: builderContext.groupByColumns,
+            } : undefined}
             onEnhanceWithAI={handleEnhanceFromBuilder}
           />
         </div>
@@ -674,6 +745,7 @@ export function AIReportStudioPage() {
                   hasExportableData={hasExportableData}
                   exportData={exportableData.data}
                   exportColumns={exportableData.columns}
+                  onEditColumns={handleEditColumnsInBuilder}
                 />
                 <div className="flex-1 overflow-y-auto">
                   <div className="relative">

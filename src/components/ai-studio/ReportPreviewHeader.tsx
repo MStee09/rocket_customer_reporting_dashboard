@@ -7,6 +7,7 @@ import {
   Save,
   LayoutDashboard,
   Pencil,
+  Table,
 } from 'lucide-react';
 import { ExportMenu } from '../ui/ExportMenu';
 import { ColumnConfig } from '../../services/exportService';
@@ -30,6 +31,7 @@ interface ReportPreviewHeaderProps {
   hasExportableData: boolean;
   exportData: Record<string, unknown>[];
   exportColumns: ColumnConfig[];
+  onEditColumns?: () => void;
 }
 
 export function ReportPreviewHeader({
@@ -50,6 +52,7 @@ export function ReportPreviewHeader({
   hasExportableData,
   exportData,
   exportColumns,
+  onEditColumns,
 }: ReportPreviewHeaderProps) {
   return (
     <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
@@ -96,6 +99,16 @@ export function ReportPreviewHeader({
           >
             <RefreshCw className={`w-4 h-4 ${isExecuting ? 'animate-spin' : ''}`} />
           </button>
+          {onEditColumns && (
+            <button
+              onClick={onEditColumns}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Edit columns in Report Builder"
+            >
+              <Table className="w-4 h-4" />
+              <span className="hidden sm:inline">Edit Columns</span>
+            </button>
+          )}
           <button
             onClick={onExportPDF}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"

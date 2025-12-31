@@ -7,13 +7,12 @@ import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CarriersPage } from './pages/CarriersPage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
+import { CreatePage } from './pages/CreatePage';
 import { ReportsHubPage } from './pages/ReportsHubPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
 import { CustomReportsPage } from './pages/CustomReportsPage';
 import { CustomReportViewPage } from './pages/CustomReportViewPage';
 import { WidgetLibraryPage } from './pages/WidgetLibraryPage';
-import { AIReportStudioPage } from './pages/AIReportStudioPage';
 import { AIReportViewerPage } from './pages/AIReportViewerPage';
 import { SharedReportPage } from './pages/SharedReportPage';
 import { ScheduledReportsPage } from './pages/ScheduledReportsPage';
@@ -95,7 +94,8 @@ function App() {
                 }
               />
               <Route path="carriers" element={<CarriersPage />} />
-              <Route path="analytics" element={<AnalyticsPage />} />
+              <Route path="create" element={<CreatePage />} />
+              <Route path="analytics" element={<Navigate to="/create" replace />} />
               <Route path="reports" element={<ReportsHubPage />} />
               <Route
                 path="reports/avg-cost-per-unit"
@@ -107,7 +107,7 @@ function App() {
               />
               <Route path="custom-reports" element={<CustomReportsPage />} />
               <Route path="custom-reports/:reportId" element={<CustomReportViewPage />} />
-              <Route path="ai-studio" element={<AIReportStudioPage />} />
+              <Route path="ai-studio" element={<Navigate to="/create?tab=ai-studio" replace />} />
               <Route path="ai-reports/:reportId" element={<AIReportViewerPage />} />
               <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
               <Route path="widget-library" element={<WidgetLibraryPage />} />

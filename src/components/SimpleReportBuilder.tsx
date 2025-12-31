@@ -14,6 +14,7 @@ interface SimpleReportBuilderProps {
   onClose: () => void;
   onSave: (config: SimpleReportBuilderState) => void;
   initialState?: Partial<SimpleReportBuilderState>;
+  isInline?: boolean;
 }
 
 const categoryIcons = {
@@ -31,7 +32,7 @@ const DEFAULT_LOAD_ID_COLUMN = {
   label: 'Load ID',
 };
 
-export default function SimpleReportBuilder({ onClose, onSave, initialState }: SimpleReportBuilderProps) {
+export default function SimpleReportBuilder({ onClose, onSave, initialState, isInline = false }: SimpleReportBuilderProps) {
   const navigate = useNavigate();
   const { isAdmin, isViewingAsCustomer, effectiveCustomerId } = useAuth();
   const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
@@ -308,19 +309,29 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
     return state.selectedColumns.some(col => col.id === columnId);
   };
 
+  const wrapperClasses = isInline
+    ? "h-full flex flex-col"
+    : "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4";
+
+  const containerClasses = isInline
+    ? "bg-white h-full flex flex-col"
+    : "bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col";
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className={wrapperClasses}>
+      <div className={containerClasses}>
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">
-              {initialState?.name ? 'Edit Report' : 'Create Report'}
+              {initialState?.name ? 'Edit Report' : 'Column Builder'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">Pick columns, reorder them, and choose how to display your data</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
-          </button>
+          {!isInline && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="w-6 h-6" />
+            </button>
+          )}
         </div>
 
         <div className="p-6 border-b bg-gray-50">
@@ -554,37 +565,41 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-6 border-t bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t bg-gray-50 flex-shrink-0">
           <div className="text-sm text-gray-600">
             {state.selectedColumns.length} column{state.selectedColumns.length !== 1 ? 's' : ''} selected
             {totalActiveFilters > 0 && ` • ${totalActiveFilters} filter${totalActiveFilters !== 1 ? 's' : ''}`}
             {totalSorts > 0 && ` • ${totalSorts} sort${totalSorts !== 1 ? 's' : ''}`}
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAnalyzeWithAI}
-              disabled={state.selectedColumns.length === 0 || isAnalyzing}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-teal-600 rounded-md hover:from-teal-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
-              title="Open in AI Studio for visualization"
-            >
-              {isAnalyzing ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Analyzing...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Analyze with AI</span>
-                </>
-              )}
-            </button>
+            {!isInline && (
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+            {!isInline && (
+              <button
+                onClick={handleAnalyzeWithAI}
+                disabled={state.selectedColumns.length === 0 || isAnalyzing}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-teal-600 rounded-md hover:from-teal-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                title="Open in AI Studio for visualization"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Analyze with AI</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={handleSave}
               disabled={!state.name.trim() || state.selectedColumns.length === 0}

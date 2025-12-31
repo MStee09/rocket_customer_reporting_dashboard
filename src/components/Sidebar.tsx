@@ -48,7 +48,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/shipments', icon: Truck, label: 'Shipments' },
     {
       to: '/analyze',
       icon: Search,
@@ -62,6 +61,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       matchPaths: ['/reports', '/scheduled-reports', '/ai-reports']
     },
     { to: '/carriers', icon: Building2, label: 'Carriers' },
+  ];
+
+  const detailNavItems: NavItem[] = [
+    { to: '/shipments', icon: Truck, label: 'Shipments' },
   ];
 
   const adminNavItems: NavItem[] = [
@@ -162,6 +165,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               )}
             </NavLink>
           ))}
+
+          <div className="pt-4 mt-2 border-t border-charcoal-700">
+            <div className="px-3 py-2">
+              <span className="text-xs font-medium text-charcoal-500 uppercase tracking-wider">
+                Details
+              </span>
+            </div>
+            {detailNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onClose}
+                className={() => navItemClasses(isActiveRoute(item))}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="font-medium flex-1">{item.label}</span>
+              </NavLink>
+            ))}
+          </div>
 
           {pinnedViews.length > 0 && (
             <div className="pt-4 mt-2 border-t border-charcoal-700">

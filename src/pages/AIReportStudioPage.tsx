@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X, Brain } from 'lucide-react';
+import {
+  Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X, Brain,
+  ArrowLeft, MessageSquare, BarChart3
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ChatMessage,
@@ -8,9 +11,7 @@ import {
   AddToDashboardModal,
   AIReportWidgetConfig,
   SuggestedPrompts,
-  ReportLibrary,
   ReportPreviewHeader,
-  StudioHeader,
   FollowUpSuggestions,
 } from '../components/ai-studio';
 import type { DataProfile } from '../components/ai-studio/SuggestedPrompts';
@@ -21,7 +22,6 @@ import {
   saveAIReport,
   loadAIReports,
   loadAIReport,
-  deleteAIReport,
   SavedAIReport,
   AILearning,
   extractReportContextFromConversation,
@@ -38,13 +38,6 @@ import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ReportEnhancementContext } from '../types/reportEnhancement';
 import { formatContextForAI, generateEnhancementSuggestions } from '../utils/reportEnhancementContext';
-import SimpleReportBuilder from '../components/SimpleReportBuilder';
-import { SimpleReportBuilderState, ReportConfig } from '../types/reports';
-import { useCustomerReports } from '../hooks/useCustomerReports';
-import { filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
-
-type ActiveTab = 'create' | 'library' | 'builder';
-type SortOption = 'newest' | 'oldest' | 'name';
 
 function generateColumnsFromData(data: Record<string, unknown>[]): ColumnConfig[] {
   if (!data.length) return [];
@@ -111,16 +104,13 @@ export function AIReportStudioPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, viewingCustomer, customers } = useAuth();
-  const { saveReport } = useCustomerReports();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('create');
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentReport, setCurrentReport] = useState<AIReportDefinition | null>(null);
   const [executedData, setExecutedData] = useState<ExecutedReportData | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [savedReports, setSavedReports] = useState<SavedAIReport[]>([]);
-  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [knowledgeContext, setKnowledgeContext] = useState<string>('');
   const [widgetContext, setWidgetContext] = useState<any>(null);
   const [isChatCollapsed, setIsChatCollapsed] = useState(false);
@@ -132,22 +122,11 @@ export function AIReportStudioPage() {
   const [editableTitle, setEditableTitle] = useState('');
   const [showAddToDashboard, setShowAddToDashboard] = useState(false);
   const [dashboardAddSuccess, setDashboardAddSuccess] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showSchedulePrompt, setShowSchedulePrompt] = useState(() => !sessionStorage.getItem('hideSchedulePrompt'));
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
   const [enhancementContext, setEnhancementContext] = useState<ReportEnhancementContext | null>(null);
   const [learningToast, setLearningToast] = useState<{ visible: boolean; learnings: AILearning[] }>({ visible: false, learnings: [] });
-  const [builderContext, setBuilderContext] = useState<{
-    columns: Array<{ id: string; label: string; aggregation?: string }>;
-    filters: unknown[];
-    sorts: unknown[];
-    isSummary: boolean;
-    groupByColumns: string[];
-    reportName?: string;
-  } | null>(null);
   const [buildReportContext, setBuildReportContext] = useState<ExtractedReportContext | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -170,14 +149,11 @@ export function AIReportStudioPage() {
 
   const loadSavedReports = useCallback(async () => {
     if (!effectiveCustomerId) return;
-    setIsLoadingSaved(true);
     try {
       const reports = await loadAIReports(String(effectiveCustomerId));
       setSavedReports(reports);
     } catch (error) {
       console.error('Failed to load saved reports:', error);
-    } finally {
-      setIsLoadingSaved(false);
     }
   }, [effectiveCustomerId]);
 
@@ -235,7 +211,6 @@ export function AIReportStudioPage() {
     if (!reportId || !effectiveCustomerId || mode !== 'edit') return;
 
     setIsLoadingFromUrl(true);
-    setActiveTab('create');
     try {
       const report = await loadAIReport(String(effectiveCustomerId), reportId);
       if (report) {
@@ -270,7 +245,6 @@ export function AIReportStudioPage() {
           const isValid = Date.now() - contextTime < 5 * 60 * 1000;
           if (isValid) {
             setWidgetContext(context);
-            setActiveTab('create');
             sessionStorage.removeItem('ai_studio_context');
           } else {
             sessionStorage.removeItem('ai_studio_context');
@@ -294,17 +268,16 @@ export function AIReportStudioPage() {
 
           if (isValid) {
             setEnhancementContext(context);
-            setActiveTab('create');
 
             const suggestions = generateEnhancementSuggestions(context);
             const suggestionsText = suggestions.length > 0
-              ? `\n\n**Suggestions:**\n${suggestions.map(s => `• ${s}`).join('\n')}`
+              ? `\n\n**Suggestions:**\n${suggestions.map(s => `- ${s}`).join('\n')}`
               : '';
 
             const initialMessage: ChatMessageType = {
               id: crypto.randomUUID(),
               role: 'assistant',
-              content: `I've loaded your custom report "${context.sourceReportName}" with ${context.rowCount.toLocaleString()} rows.\n\n**Available columns:**\n${context.columns.map(c => `• **${c.label}** (${c.type})`).join('\n')}${suggestionsText}\n\nWhat visualization would you like to create? You can:\n- Group by any text column and show as a chart\n- Categorize by keywords (e.g., "group description by 'drawer', 'cargoglide', 'toolbox'")\n- Calculate metrics (e.g., "cost per item")\n\nThis will be a **live report** that updates automatically with new data.`,
+              content: `I've loaded your custom report "${context.sourceReportName}" with ${context.rowCount.toLocaleString()} rows.\n\n**Available columns:**\n${context.columns.map(c => `- **${c.label}** (${c.type})`).join('\n')}${suggestionsText}\n\nWhat visualization would you like to create? You can:\n- Group by any text column and show as a chart\n- Categorize by keywords (e.g., "group description by 'drawer', 'cargoglide', 'toolbox'")\n- Calculate metrics (e.g., "cost per item")\n\nThis will be a **live report** that updates automatically with new data.`,
               timestamp: new Date(),
             };
 
@@ -382,24 +355,13 @@ export function AIReportStudioPage() {
         setMessages([]);
         setMobileView('chat');
         setIsChatCollapsed(false);
-        setActiveTab('library');
         setIsSaving(false);
         setSaveSuccess(false);
+        navigate('/analyze?tab=my-reports');
       }, 1500);
     } catch (error) {
       console.error('Failed to save report:', error);
       setIsSaving(false);
-    }
-  };
-
-  const handleDeleteSavedReport = async (reportId: string) => {
-    if (!effectiveCustomerId) return;
-    try {
-      await deleteAIReport(String(effectiveCustomerId), reportId);
-      await loadSavedReports();
-      setDeleteConfirm(null);
-    } catch (error) {
-      console.error('Failed to delete report:', error);
     }
   };
 
@@ -427,7 +389,6 @@ export function AIReportStudioPage() {
     setIsChatCollapsed(false);
     setEditableTitle('');
     setIsEditingTitle(false);
-    setActiveTab('create');
   };
 
   const handleAddToDashboard = (config: AIReportWidgetConfig) => {
@@ -459,104 +420,23 @@ export function AIReportStudioPage() {
     setShowAddToDashboard(true);
   };
 
-  const handleEditReport = (report: SavedAIReport) => {
-    setActiveTab('create');
-    setCurrentReport(report.definition);
-    executeReport(report.definition);
-    setIsChatCollapsed(false);
-    setMobileView('chat');
-    setMessages([{
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `I've loaded "${report.name}" for editing. What changes would you like to make?`,
-      timestamp: new Date(),
-    }]);
-  };
-
   const handleBuildReportFromContext = (context: ExtractedReportContext) => {
-    setBuilderContext({
-      columns: context.suggestedColumns.map(col => ({
-        id: col,
-        label: col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      })),
-      filters: context.suggestedFilters.map(f => ({
-        columnId: f.column,
-        operator: f.operator,
-        value: f.value,
-        enabled: true,
-      })),
-      sorts: [],
-      isSummary: false,
-      groupByColumns: [],
-      reportName: context.reportName || 'New Report',
-    });
-    setActiveTab('builder');
-  };
-
-  const handleExportReport = (report: SavedAIReport) => {
-    const blob = new Blob([JSON.stringify(report.definition, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${report.name.replace(/\s+/g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleSaveCustomReport = async (config: SimpleReportBuilderState) => {
-    if (!effectiveCustomerId) return;
-    const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
-    const filteredColumns = effectiveIsAdmin
-      ? config.selectedColumns
-      : filterAdminOnlyColumnIds(config.selectedColumns);
-
-    const reportConfig: ReportConfig = {
-      id: crypto.randomUUID(),
-      name: config.name,
-      table: config.table,
-      columns: filteredColumns,
-      filters: config.filters,
-      sortColumn: config.sortColumn,
-      sortDirection: config.sortDirection,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      await saveReport(reportConfig);
-      navigate('/reports');
-    } catch (error) {
-      console.error('Failed to save custom report:', error);
-    }
-  };
-
-  const handleEnhanceFromBuilder = useCallback((builderState: SimpleReportBuilderState) => {
-    const columnNames = builderState.selectedColumns.map(c => c.label).join(', ');
-
-    let prompt = `Create a report with these columns: ${columnNames}.`;
-
-    if (builderState.isSummary && builderState.groupByColumns && builderState.groupByColumns.length > 0) {
-      prompt += ` Summarize the data by ${builderState.groupByColumns.join(', ')}.`;
-    }
-
-    if (builderState.filters && builderState.filters.length > 0) {
-      const enabledFilters = builderState.filters.filter((f: { enabled?: boolean }) => f.enabled);
-      if (enabledFilters.length > 0) {
-        prompt += ` Apply ${enabledFilters.length} filter(s).`;
+    navigate('/custom-reports', {
+      state: {
+        initialColumns: context.suggestedColumns.map(col => ({
+          id: col,
+          label: col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        })),
+        initialFilters: context.suggestedFilters.map(f => ({
+          columnId: f.column,
+          operator: f.operator,
+          value: f.value,
+          enabled: true,
+        })),
+        reportName: context.reportName || 'New Report',
       }
-    }
-
-    prompt += ' Add an appropriate chart visualization and provide key insights about the data.';
-
-    setActiveTab('create');
-    setCurrentReport(null);
-    setExecutedData(null);
-    setMessages([]);
-
-    setTimeout(() => {
-      handleSendMessage(prompt);
-    }, 150);
-  }, [handleSendMessage]);
+    });
+  };
 
   const extractColumnsFromAIReport = useCallback((report: AIReportDefinition): Array<{ id: string; label: string }> => {
     const columns: Array<{ id: string; label: string }> = [];
@@ -601,32 +481,72 @@ export function AIReportStudioPage() {
 
     const extractedColumns = extractColumnsFromAIReport(currentReport);
 
-    setBuilderContext({
-      columns: extractedColumns,
-      filters: [],
-      sorts: [],
-      isSummary: false,
-      groupByColumns: [],
-      reportName: currentReport.name,
+    navigate('/custom-reports', {
+      state: {
+        initialColumns: extractedColumns,
+        reportName: currentReport.name,
+      }
     });
-
-    setActiveTab('builder');
-  }, [currentReport, extractColumnsFromAIReport]);
+  }, [currentReport, extractColumnsFromAIReport, navigate]);
 
   const exportableData = useMemo(() => extractExportableData(currentReport, executedData), [currentReport, executedData]);
   const hasExportableData = exportableData.data.length > 0;
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
-      <StudioHeader
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        mobileView={mobileView}
-        onMobileViewChange={setMobileView}
-        hasReport={hasReport}
-        savedReportsCount={savedReports.length}
-        onNewReport={handleNewReport}
-      />
+      <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/analyze')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Back to Analyze"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-semibold text-gray-900">Ask AI</h1>
+              <p className="text-xs text-gray-500">Describe what you want to see</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasReport && (
+              <div className="lg:hidden flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setMobileView('chat')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    mobileView === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </button>
+                <button
+                  onClick={() => setMobileView('preview')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    mobileView === 'preview' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Preview
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={handleNewReport}
+              className="flex items-center gap-2 px-4 py-2 bg-rocket-600 text-white hover:bg-rocket-700 rounded-lg transition-colors font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">New</span>
+            </button>
+          </div>
+        </div>
+      </header>
 
       {enhancementContext && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-6 py-3">
@@ -654,188 +574,154 @@ export function AIReportStudioPage() {
         </div>
       )}
 
-      {activeTab === 'library' ? (
-        <ReportLibrary
-          reports={savedReports}
-          isLoading={isLoadingSaved}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          onEditReport={handleEditReport}
-          onExportReport={handleExportReport}
-          onDeleteReport={handleDeleteSavedReport}
-          onCreateNew={() => setActiveTab('create')}
-          deleteConfirm={deleteConfirm}
-          onDeleteConfirmChange={setDeleteConfirm}
-        />
-      ) : activeTab === 'builder' ? (
-        <div className="flex-1 overflow-auto bg-gray-50">
-          <SimpleReportBuilder
-            onClose={() => setActiveTab('create')}
-            onSave={handleSaveCustomReport}
-            isInline={true}
-            initialState={builderContext ? {
-              name: builderContext.reportName || '',
-              selectedColumns: builderContext.columns,
-              filters: builderContext.filters as never[],
-              sorts: builderContext.sorts as never[],
-              isSummary: builderContext.isSummary,
-              groupByColumns: builderContext.groupByColumns,
-            } : undefined}
-            onEnhanceWithAI={handleEnhanceFromBuilder}
-          />
-        </div>
-      ) : (
-        <div className="flex-1 flex min-h-0 relative">
-          {!hasReport ? (
-            <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
-              <SuggestedPrompts
-                messages={messages}
-                widgetContext={widgetContext}
-                onClearContext={() => setWidgetContext(null)}
-                onSendMessage={handleSendMessage}
-                isGenerating={isGenerating}
-                messagesEndRef={messagesEndRef}
-                dataProfile={dataProfile}
-                enhancementContext={enhancementContext}
+      <div className="flex-1 flex min-h-0 relative">
+        {!hasReport ? (
+          <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
+            <SuggestedPrompts
+              messages={messages}
+              widgetContext={widgetContext}
+              onClearContext={() => setWidgetContext(null)}
+              onSendMessage={handleSendMessage}
+              isGenerating={isGenerating}
+              messagesEndRef={messagesEndRef}
+              dataProfile={dataProfile}
+              enhancementContext={enhancementContext}
+            />
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
+              <ChatInput
+                onSend={handleSendMessage}
+                isLoading={isGenerating}
+                placeholder="Describe your report..."
+                buildReportContext={buildReportContext ? {
+                  hasColumns: buildReportContext.hasColumns,
+                  hasFilters: buildReportContext.hasFilters,
+                  hasIntent: buildReportContext.hasIntent,
+                  suggestedColumns: buildReportContext.suggestedColumns,
+                  suggestedFilters: buildReportContext.suggestedFilters,
+                  reportName: buildReportContext.reportName,
+                } : null}
+                onBuildReport={handleBuildReportFromContext}
               />
-              <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
-                <ChatInput
-                  onSend={handleSendMessage}
-                  isLoading={isGenerating}
-                  placeholder="Describe your report..."
-                  buildReportContext={buildReportContext ? {
-                    hasColumns: buildReportContext.hasColumns,
-                    hasFilters: buildReportContext.hasFilters,
-                    hasIntent: buildReportContext.hasIntent,
-                    suggestedColumns: buildReportContext.suggestedColumns,
-                    suggestedFilters: buildReportContext.suggestedFilters,
-                    reportName: buildReportContext.reportName,
-                  } : null}
-                  onBuildReport={handleBuildReportFromContext}
-                />
-              </div>
             </div>
-          ) : (
-            <div className="flex-1 flex min-h-0">
-              <div className={`${mobileView === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col border-r border-gray-200 bg-white transition-all duration-300 ${isChatCollapsed ? 'lg:w-12' : 'w-full lg:w-[400px] xl:w-[450px]'}`}>
-                {isChatCollapsed ? (
-                  <div className="flex flex-col items-center py-4">
-                    <button onClick={() => setIsChatCollapsed(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Expand chat">
-                      <PanelLeft className="w-5 h-5" />
+          </div>
+        ) : (
+          <div className="flex-1 flex min-h-0">
+            <div className={`${mobileView === 'chat' ? 'flex' : 'hidden'} lg:flex flex-col border-r border-gray-200 bg-white transition-all duration-300 ${isChatCollapsed ? 'lg:w-12' : 'w-full lg:w-[400px] xl:w-[450px]'}`}>
+              {isChatCollapsed ? (
+                <div className="flex flex-col items-center py-4">
+                  <button onClick={() => setIsChatCollapsed(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Expand chat">
+                    <PanelLeft className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+                    <button onClick={handleNewReport} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                      <Plus className="w-4 h-4" />
+                      New Report
+                    </button>
+                    <button onClick={() => setIsChatCollapsed(true)} className="hidden lg:block p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" title="Collapse chat">
+                      <PanelLeftClose className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-                      <button onClick={handleNewReport} className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Plus className="w-4 h-4" />
-                        New Report
-                      </button>
-                      <button onClick={() => setIsChatCollapsed(true)} className="hidden lg:block p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors" title="Collapse chat">
-                        <PanelLeftClose className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4">
-                      {widgetContext && (
-                        <div className="mb-4 p-3 bg-rocket-50 border border-rocket-200 rounded-lg flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-rocket-600" />
-                            <span className="text-sm text-rocket-700">Analyzing: <span className="font-medium">{widgetContext.title}</span></span>
-                          </div>
-                          <button onClick={() => setWidgetContext(null)} className="text-rocket-500 hover:text-rocket-700 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    {widgetContext && (
+                      <div className="mb-4 p-3 bg-rocket-50 border border-rocket-200 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-rocket-600" />
+                          <span className="text-sm text-rocket-700">Analyzing: <span className="font-medium">{widgetContext.title}</span></span>
                         </div>
-                      )}
-                      <div className="space-y-4">
-                        {messages.map((message) => <ChatMessage key={message.id} message={message} isCompact />)}
-                        {isGenerating && (
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Updating report...</span>
-                          </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 border-t border-gray-200 p-3">
-                      <ChatInput
-                        onSend={handleSendMessage}
-                        isLoading={isGenerating}
-                        placeholder="Refine your report..."
-                        buildReportContext={buildReportContext ? {
-                          hasColumns: buildReportContext.hasColumns,
-                          hasFilters: buildReportContext.hasFilters,
-                          hasIntent: buildReportContext.hasIntent,
-                          suggestedColumns: buildReportContext.suggestedColumns,
-                          suggestedFilters: buildReportContext.suggestedFilters,
-                          reportName: buildReportContext.reportName,
-                        } : null}
-                        onBuildReport={handleBuildReportFromContext}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className={`${mobileView === 'preview' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50 min-w-0`}>
-                <ReportPreviewHeader
-                  report={currentReport}
-                  editableTitle={editableTitle}
-                  isEditingTitle={isEditingTitle}
-                  onEditTitle={setIsEditingTitle}
-                  onTitleChange={setEditableTitle}
-                  onRefresh={() => executeReport(currentReport)}
-                  onExportPDF={handleExportPDF}
-                  onEmail={() => setShowEmailModal(true)}
-                  onAddToDashboard={handleAddToDashboardClick}
-                  onSave={handleSaveReport}
-                  isExecuting={isExecuting}
-                  isSaving={isSaving}
-                  saveSuccess={saveSuccess}
-                  dashboardAddSuccess={dashboardAddSuccess}
-                  hasExportableData={hasExportableData}
-                  exportData={exportableData.data}
-                  exportColumns={exportableData.columns}
-                  onEditColumns={handleEditColumnsInBuilder}
-                />
-                <div className="flex-1 overflow-y-auto">
-                  <div className="relative">
-                    {isExecuting && (
-                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
-                        <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg">
-                          <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
-                          <span className="text-gray-700">Loading data...</span>
-                        </div>
+                        <button onClick={() => setWidgetContext(null)} className="text-rocket-500 hover:text-rocket-700 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     )}
-                    <div ref={reportRef} data-report-content className="p-6 bg-white">
-                      <ReportRenderer report={currentReport} data={executedData} isLoading={false} onDateRangeChange={handleDateRangeChange} embedded />
-                      {executedData && currentReport && (
-                        <FollowUpSuggestions
-                          currentReportType={currentReport.sections[0]?.type || 'default'}
-                          groupBy={
-                            (currentReport.sections.find(s => s.type === 'chart') as { config?: { groupBy?: string } })?.config?.groupBy ||
-                            (currentReport.sections.find(s => s.type === 'table') as { config?: { groupBy?: string } })?.config?.groupBy
-                          }
-                          onSuggestionClick={handleSendMessage}
-                        />
+                    <div className="space-y-4">
+                      {messages.map((message) => <ChatMessage key={message.id} message={message} isCompact />)}
+                      {isGenerating && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Updating report...</span>
+                        </div>
                       )}
+                      <div ref={messagesEndRef} />
                     </div>
-                    {showSchedulePrompt && executedData && (
-                      <div className="px-6 pb-6">
-                        <SchedulePromptBanner reportType="ai" reportName={editableTitle || currentReport?.name || 'AI Report'} onDismiss={() => setShowSchedulePrompt(false)} />
+                  </div>
+                  <div className="flex-shrink-0 border-t border-gray-200 p-3">
+                    <ChatInput
+                      onSend={handleSendMessage}
+                      isLoading={isGenerating}
+                      placeholder="Refine your report..."
+                      buildReportContext={buildReportContext ? {
+                        hasColumns: buildReportContext.hasColumns,
+                        hasFilters: buildReportContext.hasFilters,
+                        hasIntent: buildReportContext.hasIntent,
+                        suggestedColumns: buildReportContext.suggestedColumns,
+                        suggestedFilters: buildReportContext.suggestedFilters,
+                        reportName: buildReportContext.reportName,
+                      } : null}
+                      onBuildReport={handleBuildReportFromContext}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className={`${mobileView === 'preview' ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50 min-w-0`}>
+              <ReportPreviewHeader
+                report={currentReport}
+                editableTitle={editableTitle}
+                isEditingTitle={isEditingTitle}
+                onEditTitle={setIsEditingTitle}
+                onTitleChange={setEditableTitle}
+                onRefresh={() => executeReport(currentReport)}
+                onExportPDF={handleExportPDF}
+                onEmail={() => setShowEmailModal(true)}
+                onAddToDashboard={handleAddToDashboardClick}
+                onSave={handleSaveReport}
+                isExecuting={isExecuting}
+                isSaving={isSaving}
+                saveSuccess={saveSuccess}
+                dashboardAddSuccess={dashboardAddSuccess}
+                hasExportableData={hasExportableData}
+                exportData={exportableData.data}
+                exportColumns={exportableData.columns}
+                onEditColumns={handleEditColumnsInBuilder}
+              />
+              <div className="flex-1 overflow-y-auto">
+                <div className="relative">
+                  {isExecuting && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                      <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl shadow-lg">
+                        <Loader2 className="w-5 h-5 animate-spin text-rocket-600" />
+                        <span className="text-gray-700">Loading data...</span>
                       </div>
+                    </div>
+                  )}
+                  <div ref={reportRef} data-report-content className="p-6 bg-white">
+                    <ReportRenderer report={currentReport} data={executedData} isLoading={false} onDateRangeChange={handleDateRangeChange} embedded />
+                    {executedData && currentReport && (
+                      <FollowUpSuggestions
+                        currentReportType={currentReport.sections[0]?.type || 'default'}
+                        groupBy={
+                          (currentReport.sections.find(s => s.type === 'chart') as { config?: { groupBy?: string } })?.config?.groupBy ||
+                          (currentReport.sections.find(s => s.type === 'table') as { config?: { groupBy?: string } })?.config?.groupBy
+                        }
+                        onSuggestionClick={handleSendMessage}
+                      />
                     )}
                   </div>
+                  {showSchedulePrompt && executedData && (
+                    <div className="px-6 pb-6">
+                      <SchedulePromptBanner reportType="ai" reportName={editableTitle || currentReport?.name || 'AI Report'} onDismiss={() => setShowSchedulePrompt(false)} />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {isLoadingFromUrl && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">

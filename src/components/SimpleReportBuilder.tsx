@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, GripVertical, Plus, Package, DollarSign, MapPin, Flag, Truck, Box, Building, ChevronDown, ChevronRight, Filter, ArrowUpDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, GripVertical, Plus, Package, DollarSign, MapPin, Flag, Truck, Box, Building, ChevronDown, ChevronRight, Filter, ArrowUpDown, Sparkles } from 'lucide-react';
 import { COLUMN_CATEGORIES, getColumnsByCategory, getColumnById } from '../config/reportColumns';
 import { SimpleReportColumn, SimpleReportBuilderState } from '../types/reports';
 import { ColumnFilter, ColumnSort } from '../types/filters';
 import { useAuth } from '../contexts/AuthContext';
 import ColumnFilterSection from './reports/ColumnFilterSection';
 import { ColumnPreviewTooltip } from './reports/ColumnPreviewTooltip';
+import { buildEnhancementContext } from '../utils/reportEnhancementContext';
+import { supabase } from '../lib/supabase';
 
 interface SimpleReportBuilderProps {
   onClose: () => void;
@@ -29,8 +32,11 @@ const DEFAULT_LOAD_ID_COLUMN = {
 };
 
 export default function SimpleReportBuilder({ onClose, onSave, initialState }: SimpleReportBuilderProps) {
+  const navigate = useNavigate();
   const { isAdmin, isViewingAsCustomer, effectiveCustomerId } = useAuth();
   const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const getInitialColumns = () => {
     if (initialState?.selectedColumns && initialState.selectedColumns.length > 0) {
@@ -232,6 +238,70 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
       return;
     }
     onSave(state);
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    if (state.selectedColumns.length === 0) {
+      alert('Please select at least one column before analyzing with AI.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const reportName = state.name.trim() || `AI Report ${new Date().toLocaleDateString()}`;
+
+      let sampleData: Record<string, unknown>[] = [];
+
+      if (effectiveCustomerId) {
+        const columnIds = state.selectedColumns.map(c => c.id);
+        const selectFields = columnIds.join(', ');
+
+        const { data, error } = await supabase
+          .from('shipment_report_view')
+          .select(selectFields)
+          .eq('customer_id', effectiveCustomerId)
+          .limit(100);
+
+        if (!error && data) {
+          sampleData = data;
+        }
+      }
+
+      const enhancementContext = buildEnhancementContext(
+        {
+          id: `temp-${Date.now()}`,
+          name: reportName,
+          description: state.description,
+          columns: state.selectedColumns,
+          isSummary: state.isSummary,
+          groupBy: state.groupByColumns,
+          filters: state.filters,
+          sorts: state.sorts
+        },
+        sampleData,
+        { type: 'last30' }
+      );
+
+      sessionStorage.setItem('enhancement_context', JSON.stringify(enhancementContext));
+
+      if (state.name.trim()) {
+        onSave({ ...state });
+      }
+
+      onClose();
+      navigate('/ai-studio', {
+        state: {
+          enhancementMode: true,
+          sourceReport: reportName
+        }
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to analyze with AI. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const isColumnSelected = (columnId: string) => {
@@ -496,6 +566,24 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState }: S
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               Cancel
+            </button>
+            <button
+              onClick={handleAnalyzeWithAI}
+              disabled={state.selectedColumns.length === 0 || isAnalyzing}
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-teal-600 rounded-md hover:from-teal-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+              title="Open in AI Studio for visualization"
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Analyze with AI</span>
+                </>
+              )}
             </button>
             <button
               onClick={handleSave}

@@ -8,5 +8,7 @@ export { ReportLibrary } from './ReportLibrary';
 export { ReportPreviewHeader } from './ReportPreviewHeader';
 export { StudioHeader } from './StudioHeader';
 export { FollowUpSuggestions } from './FollowUpSuggestions';
+export { AIVisualizationStudio } from './AIVisualizationStudio';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';
 export type { BuildReportContext } from './ChatInput';
+export type { VisualizationConfig } from './AIVisualizationStudio';

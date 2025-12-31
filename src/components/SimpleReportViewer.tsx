@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Loader2, AlertCircle, Table as TableIcon, ArrowUp, ArrowDown, ArrowUpDown, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import FilterSummary from './reports/FilterSummary';
 import { SimpleReportConfig } from '../types/reports';
@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLookupTables } from '../hooks/useLookupTables';
 import { ExportMenu } from './ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
+import { AIVisualizationStudio, VisualizationConfig } from './ai-studio';
 
 interface SimpleReportViewerProps {
   config: SimpleReportConfig;
@@ -38,6 +39,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
   const [error, setError] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showVisualizationStudio, setShowVisualizationStudio] = useState(false);
 
   const configKey = useMemo(() => {
     return JSON.stringify({
@@ -136,6 +138,11 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
     });
   }, [filteredConfig.columns]);
 
+  const handleAddVisualization = (vizConfig: VisualizationConfig) => {
+    console.log('Adding visualization to report:', vizConfig);
+    setShowVisualizationStudio(false);
+  };
+
   const formatValue = (value: any, columnDef?: { type?: string; format?: string; id?: string }): string => {
     if (value === null || value === undefined) return 'N/A';
 
@@ -233,12 +240,21 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
         <div className="text-sm text-gray-600">
           {data.length} row{data.length !== 1 ? 's' : ''} returned
         </div>
-        <ExportMenu
-          data={data}
-          columns={exportColumns}
-          filename={filteredConfig.name}
-          title={filteredConfig.name}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowVisualizationStudio(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Add Visualization
+          </button>
+          <ExportMenu
+            data={data}
+            columns={exportColumns}
+            filename={filteredConfig.name}
+            title={filteredConfig.name}
+          />
+        </div>
       </div>
 
       <FilterSummary filters={filteredConfig.filters || []} />
@@ -301,6 +317,16 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
           </p>
         </div>
       )}
+
+      <AIVisualizationStudio
+        isOpen={showVisualizationStudio}
+        onClose={() => setShowVisualizationStudio(false)}
+        reportData={data}
+        availableColumns={filteredConfig.columns.map(c => c.id)}
+        reportName={filteredConfig.name}
+        reportId={filteredConfig.id}
+        onAddVisualization={handleAddVisualization}
+      />
     </div>
   );
 }

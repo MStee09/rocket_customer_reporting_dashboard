@@ -7,7 +7,6 @@ import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ShipmentDetailDrawer } from '../components/shipments/ShipmentDetailDrawer';
-import { StatusTabs } from '../components/shipments/StatusTabs';
 import { ShipmentsToolbar } from '../components/shipments/ShipmentsToolbar';
 import { ShipmentRow } from '../components/shipments/ShipmentRow';
 import { ColumnConfig } from '../services/exportService';
@@ -78,21 +77,17 @@ export function ShipmentsPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeStatus, setActiveStatus] = useState<string>('all');
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
-  const hasActiveFilters = searchQuery.trim() !== '' || activeStatus !== 'all';
+  const hasActiveFilters = searchQuery.trim() !== '';
 
   useEffect(() => {
     const savedView = location.state?.savedView;
     if (savedView) {
       if (savedView.searchQuery !== undefined) {
         setSearchQuery(savedView.searchQuery);
-      }
-      if (savedView.activeStatus !== undefined) {
-        setActiveStatus(savedView.activeStatus);
       }
       window.history.replaceState({}, document.title);
     }
@@ -103,7 +98,7 @@ export function ShipmentsPage() {
       name,
       description: description || undefined,
       viewType: 'shipments',
-      viewConfig: { searchQuery, activeStatus },
+      viewConfig: { searchQuery },
       isPinned: pin,
     });
   };
@@ -235,17 +230,6 @@ export function ShipmentsPage() {
     }
   }, [effectiveCustomerIds, loadShipments]);
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    shipments.forEach((s) => {
-      let statusKey = s.status;
-      if (s.is_cancelled) statusKey = 'Cancelled';
-      else if (s.is_completed) statusKey = 'Completed';
-      counts[statusKey] = (counts[statusKey] || 0) + 1;
-    });
-    return counts;
-  }, [shipments]);
-
   const shipmentExportColumns: ColumnConfig[] = useMemo(() => {
     const baseColumns: ColumnConfig[] = [
       { key: 'load_id', header: 'Load ID', format: 'text', width: 12 },
@@ -290,18 +274,13 @@ export function ShipmentsPage() {
   }, [isAdmin, isViewingAsCustomer]);
 
   const filteredShipments = useMemo(() => {
+    if (!searchQuery) return shipments;
+
     return shipments.filter((s) => {
-      let statusKey = s.status;
-      if (s.is_cancelled) statusKey = 'Cancelled';
-      else if (s.is_completed) statusKey = 'Completed';
-
-      const matchesStatus = activeStatus === 'all' || statusKey === activeStatus;
-      if (!matchesStatus) return false;
-
-      if (!searchQuery) return true;
-
       const query = searchQuery.toLowerCase().trim();
       const searchTerms = query.split(/\s+/).filter(Boolean);
+
+      const statusKey = s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status;
 
       const searchableFields = [
         s.load_id.toString(), s.pro_number, s.po_reference, s.bol_number, s.reference_number,
@@ -315,7 +294,7 @@ export function ShipmentsPage() {
       const combinedText = searchableFields.join(' ');
       return searchTerms.every(term => combinedText.includes(term));
     });
-  }, [shipments, searchQuery, activeStatus]);
+  }, [shipments, searchQuery]);
 
   const shipmentExportData = useMemo(() => {
     return filteredShipments.map(s => ({
@@ -383,15 +362,6 @@ export function ShipmentsPage() {
         filteredCount={filteredShipments.length}
       />
 
-      <div className="flex items-center justify-between mb-6">
-        <StatusTabs
-          statusCounts={statusCounts}
-          activeStatus={activeStatus}
-          onStatusChange={setActiveStatus}
-          totalCount={shipments.length}
-        />
-      </div>
-
       <div className="text-sm text-gray-500 mb-4">
         Showing {filteredShipments.length} of {shipments.length} shipments
         {searchQuery && ` matching "${searchQuery}"`}
@@ -443,7 +413,7 @@ export function ShipmentsPage() {
         isOpen={showSaveViewModal}
         onClose={() => setShowSaveViewModal(false)}
         onSave={handleSaveView}
-        filterSummary={{ searchQuery, activeStatus }}
+        filterSummary={{ searchQuery }}
       />
 
       <EmailReportModal

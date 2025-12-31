@@ -1,15 +1,71 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, CheckCircle, XCircle, Loader2, Pause, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Loader2, Pause, ChevronRight, Eye, UserCog } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/dateUtils';
 import { Customer } from '../types/database';
-import { CustomerActions } from '../components/customers/CustomerActions';
 
 interface CustomerWithStats extends Customer {
   shipment_count?: number;
   total_revenue?: number;
+}
+
+function CustomerRowActions({ customerId, customerName }: { customerId: number; customerName: string }) {
+  const navigate = useNavigate();
+  const {
+    setViewingAsCustomerId,
+    setImpersonatingCustomerId,
+    viewingAsCustomerId,
+    impersonatingCustomerId,
+    isAdmin,
+    isViewingAsCustomer,
+    isImpersonating,
+  } = useAuth();
+
+  if (!isAdmin()) return null;
+
+  const isViewing = isViewingAsCustomer && viewingAsCustomerId === customerId;
+  const isImpersonatingThis = isImpersonating && impersonatingCustomerId === customerId;
+
+  const handleViewData = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewingAsCustomerId(customerId);
+    navigate('/dashboard');
+  };
+
+  const handleImpersonate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImpersonatingCustomerId(customerId);
+    navigate('/dashboard');
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <button
+        onClick={handleViewData}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isViewing
+            ? 'bg-blue-100 text-blue-700'
+            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+        }`}
+      >
+        <Eye className="w-3.5 h-3.5" />
+        View Data
+      </button>
+      <button
+        onClick={handleImpersonate}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          isImpersonatingThis
+            ? 'bg-amber-100 text-amber-700'
+            : 'bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200'
+        }`}
+      >
+        <UserCog className="w-3.5 h-3.5" />
+        Impersonate
+      </button>
+    </div>
+  );
 }
 
 export function CustomersPage() {
@@ -202,7 +258,7 @@ export function CustomersPage() {
                   </td>
                   {isAdmin() && (
                     <td className="px-4 py-3 text-right">
-                      <CustomerActions
+                      <CustomerRowActions
                         customerId={customer.customer_id}
                         customerName={customer.company_name}
                       />

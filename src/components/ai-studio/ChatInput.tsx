@@ -22,7 +22,7 @@ interface ChatInputProps {
 export function ChatInput({
   onSend,
   isLoading,
-  placeholder = 'Describe the report you want to create...',
+  placeholder = 'Ask me anything about your shipping data...',
   suggestions = [],
   buildReportContext,
   onBuildReport,

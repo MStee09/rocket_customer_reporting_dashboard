@@ -609,7 +609,7 @@ export function AIReportStudioPage() {
               <ChatInput
                 onSend={handleSendMessage}
                 isLoading={isGenerating}
-                placeholder="Describe your report..."
+                placeholder="Ask me anything about your shipping data..."
                 buildReportContext={buildReportContext ? {
                   hasColumns: buildReportContext.hasColumns,
                   hasFilters: buildReportContext.hasFilters,
@@ -659,7 +659,7 @@ export function AIReportStudioPage() {
                       {isGenerating && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Updating report...</span>
+                          <span>Thinking...</span>
                         </div>
                       )}
                       <div ref={messagesEndRef} />
@@ -669,7 +669,7 @@ export function AIReportStudioPage() {
                     <ChatInput
                       onSend={handleSendMessage}
                       isLoading={isGenerating}
-                      placeholder="Refine your report..."
+                      placeholder="Ask a question or refine your report..."
                       buildReportContext={buildReportContext ? {
                         hasColumns: buildReportContext.hasColumns,
                         hasFilters: buildReportContext.hasFilters,

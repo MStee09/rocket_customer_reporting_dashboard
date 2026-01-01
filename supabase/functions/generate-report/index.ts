@@ -21,6 +21,15 @@ interface RequestBody {
   knowledgeContext?: string;
   currentReport?: Record<string, unknown>;
   customerName?: string;
+  useTools?: boolean;
+}
+
+interface ToolExecution {
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  result: unknown;
+  timestamp: string;
+  duration?: number;
 }
 
 interface SchemaField {
@@ -74,39 +83,248 @@ interface LearningExtraction {
   key: string;
   value: string;
   confidence: number;
-  source: "explicit" | "inferred";
+  source: "explicit" | "inferred" | "tool";
 }
 
 const ADMIN_ONLY_FIELDS = ["cost", "margin", "margin_percent", "carrier_cost", "cost_per_mile"];
 
+const AI_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "explore_field",
+    description: "Explore a data field to understand its values, distribution, and data quality. ALWAYS use this before building reports to verify fields have data.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        field_name: { type: "string", description: "The field to explore (e.g., 'carrier_name')" },
+        sample_size: { type: "number", description: "Number of sample values (default: 10)" }
+      },
+      required: ["field_name"]
+    }
+  },
+  {
+    name: "preview_grouping",
+    description: "Preview what a grouping would look like with actual data. Use to validate groupBy fields before adding to reports.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        group_by: { type: "string", description: "The field to group by" },
+        metric: { type: "string", description: "The field to aggregate" },
+        aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct", "min", "max"], description: "Aggregation type" },
+        limit: { type: "number", description: "Number of groups to preview (default: 10)" }
+      },
+      required: ["group_by", "metric", "aggregation"]
+    }
+  },
+  {
+    name: "emit_learning",
+    description: "Record something learned about the customer's terminology or preferences.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        learning_type: { type: "string", enum: ["terminology", "product", "preference"], description: "Type of learning" },
+        key: { type: "string", description: "The term or preference key" },
+        value: { type: "string", description: "What it means" },
+        confidence: { type: "string", enum: ["high", "medium", "low"], description: "Confidence level" },
+        maps_to_field: { type: "string", description: "Optional: which database field this relates to" }
+      },
+      required: ["learning_type", "key", "value", "confidence"]
+    }
+  },
+  {
+    name: "finalize_report",
+    description: "Finalize and return the report. Call when ready to deliver.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        report: { type: "object", description: "The complete report definition" },
+        summary: { type: "string", description: "Brief conversational summary" }
+      },
+      required: ["report", "summary"]
+    }
+  },
+  {
+    name: "ask_clarification",
+    description: "Ask a clarifying question when the request is ambiguous.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        question: { type: "string", description: "The clarifying question" },
+        options: { type: "array", items: { type: "string" }, description: "Optional multiple choice options" }
+      },
+      required: ["question"]
+    }
+  }
+];
+
+async function executeExploreField(
+  supabase: SupabaseClient,
+  customerId: string,
+  input: { field_name: string; sample_size?: number }
+): Promise<unknown> {
+  const { field_name, sample_size = 10 } = input;
+
+  try {
+    const { data, error } = await supabase.rpc("explore_single_field", {
+      p_customer_id: customerId,
+      p_field_name: field_name,
+      p_sample_size: sample_size
+    });
+
+    if (error) return { error: error.message };
+    return data || { error: "No data returned" };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Unknown error" };
+  }
+}
+
+async function executePreviewGrouping(
+  supabase: SupabaseClient,
+  customerId: string,
+  input: { group_by: string; metric: string; aggregation: string; limit?: number }
+): Promise<unknown> {
+  const { group_by, metric, aggregation, limit = 15 } = input;
+
+  try {
+    const { data, error } = await supabase.rpc("preview_grouping", {
+      p_customer_id: customerId,
+      p_group_by: group_by,
+      p_metric: metric,
+      p_aggregation: aggregation,
+      p_limit: limit
+    });
+
+    if (error) return { error: error.message };
+
+    const results = data?.results || [];
+    const totalGroups = data?.total_groups || 0;
+
+    let quality = "good";
+    let warning = null;
+
+    if (totalGroups === 0) {
+      quality = "empty";
+      warning = "No data found for this grouping";
+    } else if (totalGroups > 50) {
+      quality = "many_groups";
+      warning = `This grouping has ${totalGroups} unique values - consider using top N limit`;
+    } else if (totalGroups === 1) {
+      quality = "single_group";
+      warning = "Only one group found - might not make a useful chart";
+    }
+
+    return { ...data, quality, warning };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Unknown error" };
+  }
+}
+
+async function executeEmitLearning(
+  supabase: SupabaseClient,
+  customerId: string,
+  input: { learning_type: string; key: string; value: string; confidence: string; maps_to_field?: string }
+): Promise<LearningExtraction> {
+  const confidenceMap: Record<string, number> = { high: 0.9, medium: 0.7, low: 0.5 };
+
+  const learning: LearningExtraction = {
+    type: input.learning_type as "terminology" | "product" | "preference",
+    key: input.key.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
+    value: input.value,
+    confidence: confidenceMap[input.confidence] || 0.7,
+    source: "tool"
+  };
+
+  try {
+    await supabase.from("ai_knowledge").upsert(
+      {
+        knowledge_type: learning.type === "terminology" ? "term" : learning.type,
+        key: learning.key,
+        label: input.key,
+        definition: learning.value,
+        scope: "customer",
+        customer_id: customerId,
+        source: "learned",
+        confidence: learning.confidence,
+        needs_review: learning.confidence < 0.8,
+        is_active: learning.confidence >= 0.8,
+        metadata: input.maps_to_field ? { maps_to_field: input.maps_to_field } : null
+      },
+      { onConflict: "knowledge_type,key,scope,customer_id" }
+    );
+  } catch (e) {
+    console.error("Failed to save learning:", e);
+  }
+
+  return learning;
+}
+
+function executeFinalizeReport(
+  input: { report: unknown; summary: string },
+  availableFields: string[],
+  isAdmin: boolean,
+  customerId: string
+): { report: Record<string, unknown>; summary: string; validation: { valid: boolean; errors: string[] } } {
+  const report = input.report as Record<string, unknown>;
+  const errors: string[] = [];
+
+  if (!report.name) errors.push("Report must have a name");
+  if (!report.sections || !Array.isArray(report.sections)) {
+    errors.push("Report must have a sections array");
+  }
+
+  if (!report.id) report.id = crypto.randomUUID();
+  if (!report.createdAt) report.createdAt = new Date().toISOString();
+  if (!report.dateRange) report.dateRange = { type: "last90" };
+  report.customerId = customerId;
+
+  const sections = (report.sections as unknown[]) || [];
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i] as Record<string, unknown>;
+    const config = section.config as Record<string, unknown> | undefined;
+
+    if (config) {
+      const groupBy = config.groupBy as string | undefined;
+      if (groupBy && !availableFields.includes(groupBy.toLowerCase())) {
+        errors.push(`Section ${i + 1}: Unknown field "${groupBy}"`);
+      }
+
+      const metric = config.metric as Record<string, unknown> | undefined;
+      if (metric?.field && !availableFields.includes((metric.field as string).toLowerCase())) {
+        errors.push(`Section ${i + 1}: Unknown metric field "${metric.field}"`);
+      }
+    }
+  }
+
+  if (!isAdmin) {
+    const reportStr = JSON.stringify(report).toLowerCase();
+    for (const field of ADMIN_ONLY_FIELDS) {
+      if (reportStr.includes(`"${field}"`) || reportStr.includes(`'${field}'`)) {
+        errors.push(`Report contains restricted field: ${field}`);
+      }
+    }
+  }
+
+  return { report, summary: input.summary, validation: { valid: errors.length === 0, errors } };
+}
+
 async function compileSchemaContext(
   supabase: SupabaseClient,
   customerId: string
-): Promise<{ fields: SchemaField[]; dataProfile: DataProfile }> {
+): Promise<{ fields: SchemaField[]; dataProfile: DataProfile; fieldNames: string[] }> {
   const { data: columns } = await supabase
     .from("schema_columns")
     .select("*")
     .eq("view_name", "shipment_report_view")
     .order("ordinal_position");
 
-  const { data: fieldContext } = await supabase
-    .from("field_business_context")
-    .select("*");
+  const { data: fieldContext } = await supabase.from("field_business_context").select("*");
 
   let dataProfile: DataProfile = {
-    totalShipments: 0,
-    stateCount: 0,
-    carrierCount: 0,
-    monthsOfData: 0,
-    topStates: [],
-    topCarriers: [],
-    avgShipmentsPerDay: 0,
+    totalShipments: 0, stateCount: 0, carrierCount: 0, monthsOfData: 0,
+    topStates: [], topCarriers: [], avgShipmentsPerDay: 0,
   };
 
   try {
-    const { data: profileData } = await supabase.rpc("get_customer_data_profile", {
-      p_customer_id: customerId,
-    });
+    const { data: profileData } = await supabase.rpc("get_customer_data_profile", { p_customer_id: customerId });
     if (profileData) {
       dataProfile = {
         totalShipments: profileData.totalShipments || 0,
@@ -139,45 +357,29 @@ async function compileSchemaContext(
     };
   });
 
-  return { fields, dataProfile };
+  return { fields, dataProfile, fieldNames: fields.map(f => f.name.toLowerCase()) };
 }
 
-function formatSchemaForPrompt(
-  fields: SchemaField[],
-  dataProfile: DataProfile,
-  isAdmin: boolean
-): string {
+function formatSchemaForPrompt(fields: SchemaField[], dataProfile: DataProfile, isAdmin: boolean): string {
   let output = "## AVAILABLE DATA FIELDS\n\n";
-  output += "You can ONLY use these fields in reports. Do NOT reference any field not listed here.\n\n";
+  output += "You can ONLY use these fields in reports.\n\n";
   output += "| Field | Type | Group By | Aggregate | Description |\n";
   output += "|-------|------|----------|-----------|-------------|\n";
 
   for (const field of fields) {
     if (!isAdmin && field.adminOnly) continue;
-
     const groupable = field.isGroupable ? "yes" : "";
     const aggregatable = field.isAggregatable ? "SUM/AVG" : "COUNT";
-    const description = field.businessContext || "";
-    const adminNote = field.adminOnly ? " (ADMIN)" : "";
-
-    output += `| ${field.name} | ${field.type} | ${groupable} | ${aggregatable} | ${description}${adminNote} |\n`;
+    output += `| ${field.name} | ${field.type} | ${groupable} | ${aggregatable} | ${field.businessContext || ""} |\n`;
   }
 
   output += "\n## CUSTOMER DATA PROFILE\n\n";
   output += `- **Total Shipments:** ${dataProfile.totalShipments.toLocaleString()}\n`;
-  output += `- **Ships to:** ${dataProfile.stateCount} states`;
-  if (dataProfile.hasCanadaData) output += " (including Canadian provinces)";
-  output += "\n";
+  output += `- **Ships to:** ${dataProfile.stateCount} states${dataProfile.hasCanadaData ? " (including Canada)" : ""}\n`;
   output += `- **Uses:** ${dataProfile.carrierCount} carriers\n`;
   output += `- **Data History:** ${dataProfile.monthsOfData} months\n`;
-  output += `- **Volume:** ~${dataProfile.avgShipmentsPerDay.toFixed(1)} shipments/day\n`;
-
-  if (dataProfile.topStates.length > 0) {
-    output += `- **Top Destinations:** ${dataProfile.topStates.slice(0, 5).join(", ")}\n`;
-  }
-  if (dataProfile.topCarriers.length > 0) {
-    output += `- **Top Carriers:** ${dataProfile.topCarriers.slice(0, 3).join(", ")}\n`;
-  }
+  if (dataProfile.topStates.length > 0) output += `- **Top Destinations:** ${dataProfile.topStates.slice(0, 5).join(", ")}\n`;
+  if (dataProfile.topCarriers.length > 0) output += `- **Top Carriers:** ${dataProfile.topCarriers.slice(0, 3).join(", ")}\n`;
 
   return output;
 }
@@ -200,11 +402,8 @@ async function compileKnowledgeContext(
     .filter((k: any) => k.knowledge_type === "term")
     .filter((k: any) => isAdmin || k.is_visible_to_customers !== false)
     .map((t: any) => ({
-      key: t.key,
-      label: t.label,
-      definition: t.definition || "",
-      aiInstructions: t.ai_instructions,
-      scope: t.scope as "global" | "customer",
+      key: t.key, label: t.label, definition: t.definition || "",
+      aiInstructions: t.ai_instructions, scope: t.scope as "global" | "customer",
       aliases: (t.metadata?.aliases as string[]) || [],
     }));
 
@@ -219,50 +418,30 @@ async function compileKnowledgeContext(
   return { terms, products };
 }
 
-function formatKnowledgeForPrompt(
-  terms: TermDefinition[],
-  products: ProductMapping[]
-): string {
+function formatKnowledgeForPrompt(terms: TermDefinition[], products: ProductMapping[]): string {
   let output = "## KNOWLEDGE BASE\n\n";
 
   const customerTerms = terms.filter((t) => t.scope === "customer");
-  const globalTerms = terms.filter((t) => t.scope === "global");
-
   if (customerTerms.length > 0) {
-    output += "### Customer Terminology (USE THESE)\n";
-    output += "When the customer uses these terms, this is what they mean:\n\n";
+    output += "### Customer Terminology\n";
     for (const term of customerTerms) {
       const aliases = term.aliases?.length ? ` (also: ${term.aliases.join(", ")})` : "";
       output += `- **"${term.key}"**${aliases}: ${term.definition}\n`;
-      if (term.aiInstructions) output += `  - AI Note: ${term.aiInstructions}\n`;
-    }
-    output += "\n";
-  }
-
-  if (globalTerms.length > 0) {
-    output += "### Industry Terms\n";
-    for (const term of globalTerms.slice(0, 15)) {
-      output += `- **${term.key}**: ${term.definition}\n`;
     }
     output += "\n";
   }
 
   if (products.length > 0) {
     output += "### Product Categories\n";
-    output += "When user asks about products, use these categorizations:\n";
     for (const product of products) {
       output += `- **${product.name}**: Search \`${product.searchField}\` for: ${product.keywords.join(", ")}\n`;
     }
-    output += "\n";
   }
 
   return output;
 }
 
-async function getCustomerProfile(
-  supabase: SupabaseClient,
-  customerId: string
-): Promise<CustomerProfile | null> {
+async function getCustomerProfile(supabase: SupabaseClient, customerId: string): Promise<CustomerProfile | null> {
   try {
     const { data: profile } = await supabase
       .from("customer_intelligence_profiles")
@@ -280,306 +459,40 @@ async function getCustomerProfile(
       .eq("knowledge_type", "term")
       .eq("is_active", true);
 
-    const adminTerminology = (profile.terminology || []).map((t: any) => ({
-      term: t.term || t.key,
-      means: t.means || t.definition,
-      source: "admin",
-    }));
-
-    const learnedTerminology = (learnedTerms || []).map((t: any) => ({
-      term: t.key,
-      means: t.definition || t.label,
-      source: "learned",
-    }));
-
     return {
       priorities: profile.priorities || [],
       products: profile.products || [],
       keyMarkets: profile.key_markets || [],
-      terminology: [...adminTerminology, ...learnedTerminology],
+      terminology: [
+        ...(profile.terminology || []).map((t: any) => ({ term: t.term || t.key, means: t.means || t.definition, source: "admin" })),
+        ...(learnedTerms || []).map((t: any) => ({ term: t.key, means: t.definition || t.label, source: "learned" }))
+      ],
       benchmarkPeriod: profile.benchmark_period,
       accountNotes: profile.account_notes,
       preferences: profile.preferences || {},
     };
   } catch (e) {
-    console.error("Failed to get customer profile:", e);
     return null;
   }
 }
 
 function formatProfileForPrompt(profile: CustomerProfile): string {
   let output = "## CUSTOMER INTELLIGENCE\n\n";
-  output += "Use this context to personalize your responses:\n\n";
-
-  if (profile.priorities.length > 0) {
-    output += `**Customer Priorities:** ${profile.priorities.join(", ")}\n`;
-    output += "Frame insights in terms of these priorities when relevant.\n\n";
-  }
-
-  if (profile.keyMarkets.length > 0) {
-    output += `**Key Markets:** ${profile.keyMarkets.join(", ")}\n`;
-    output += "These are their most important regions.\n\n";
-  }
-
+  if (profile.priorities.length > 0) output += `**Priorities:** ${profile.priorities.join(", ")}\n\n`;
+  if (profile.keyMarkets.length > 0) output += `**Key Markets:** ${profile.keyMarkets.join(", ")}\n\n`;
   if (profile.terminology.length > 0) {
-    output += "**Customer Terminology:**\n";
-    for (const term of profile.terminology) {
-      output += `- "${term.term}" -> ${term.means}\n`;
-    }
-    output += "\nUse their terminology when possible.\n\n";
+    output += "**Terminology:**\n";
+    for (const term of profile.terminology) output += `- "${term.term}" -> ${term.means}\n`;
   }
-
-  if (profile.products.length > 0) {
-    output += "**Product Categories:**\n";
-    for (const product of profile.products) {
-      output += `- **${product.name}**: Search \`${product.field}\` for: ${product.keywords.join(", ")}\n`;
-    }
-    output += "\n";
-  }
-
-  const chartPref = profile.preferences?.chartTypes;
-  if (chartPref) {
-    const entries = Object.entries(chartPref).sort((a, b) => (b[1] as number) - (a[1] as number));
-    if (entries.length > 0 && (entries[0][1] as number) > 0.5) {
-      output += `**Note:** This customer often prefers ${entries[0][0]} charts.\n`;
-    }
-  }
-
-  if (profile.accountNotes) {
-    output += `\n**Account Notes:** ${profile.accountNotes}\n`;
-  }
-
   return output;
 }
 
 function getAccessControlPrompt(isAdmin: boolean): string {
   if (isAdmin) {
-    return `## ACCESS LEVEL: ADMIN
-
-You have full access to all data fields including:
-- cost (carrier cost)
-- margin (profit margin)
-- margin_percent
-- cost_per_mile
-- All financial metrics
-
-You can build reports using any available field.`;
+    return `## ACCESS LEVEL: ADMIN\nYou have full access including cost, margin, margin_percent, cost_per_mile.`;
   }
-
-  return `## ACCESS LEVEL: CUSTOMER
-
-RESTRICTED FIELDS - DO NOT USE:
-- cost
-- margin
-- margin_percent
-- cost_per_mile
-- carrier_cost
-
-These fields contain sensitive financial data. If the user asks about:
-- Cost, margin, or profit -> Explain that cost data is not available in their view
-- Offer alternatives: revenue/retail trends, carrier performance by volume, shipment counts
-
-NEVER include restricted fields in any report section, calculated field, or filter.`;
+  return `## ACCESS LEVEL: CUSTOMER\nRESTRICTED FIELDS (DO NOT USE): cost, margin, margin_percent, cost_per_mile, carrier_cost`;
 }
-
-function validateAccessControl(
-  report: any,
-  isAdmin: boolean
-): { valid: boolean; violations: string[] } {
-  if (isAdmin) return { valid: true, violations: [] };
-
-  const violations: string[] = [];
-  const reportStr = JSON.stringify(report).toLowerCase();
-
-  for (const field of ADMIN_ONLY_FIELDS) {
-    if (reportStr.includes(`"${field}"`) || reportStr.includes(`'${field}'`)) {
-      violations.push(`Report contains restricted field: ${field}`);
-    }
-  }
-
-  return { valid: violations.length === 0, violations };
-}
-
-function sanitizeReport(report: any, isAdmin: boolean): any {
-  if (isAdmin) return report;
-
-  const sanitized = JSON.parse(JSON.stringify(report));
-
-  if (sanitized.sections && Array.isArray(sanitized.sections)) {
-    sanitized.sections = sanitized.sections.filter((section: any) => {
-      const sectionStr = JSON.stringify(section).toLowerCase();
-      return !ADMIN_ONLY_FIELDS.some(
-        (field) => sectionStr.includes(`"${field}"`) || sectionStr.includes(`'${field}'`)
-      );
-    });
-  }
-
-  if (sanitized.calculatedFields && Array.isArray(sanitized.calculatedFields)) {
-    sanitized.calculatedFields = sanitized.calculatedFields.filter((calc: any) => {
-      const calcStr = JSON.stringify(calc).toLowerCase();
-      return !ADMIN_ONLY_FIELDS.some(
-        (field) => calcStr.includes(`"${field}"`) || calcStr.includes(`'${field}'`)
-      );
-    });
-  }
-
-  return sanitized;
-}
-
-const DATA_EXPLORATION_BEHAVIOR = `## DATA EXPLORATION BEHAVIOR
-
-When you receive DATA EXPLORATION RESULTS in the context:
-
-1. **Check field coverage before recommending fields**
-   - Fields with <50% coverage may not have useful data
-   - Always prefer fields with higher coverage
-
-2. **Use the best field for the job**
-   - For item counts: Check piece_count, quantity, number_of_pallets - use the one with highest coverage
-   - For products: Check description, commodity_description - use the one with most unique values
-
-3. **Show sample values when categorizing**
-   - Before building categorization rules, show the user sample values
-   - Ask what categories they want based on the actual data
-
-4. **Confirm approach before building**
-   - If coverage is low, warn the user
-   - If there are multiple options, ask which they prefer
-
-5. **Dynamic date ranges**
-   - Always use dynamic date range types (last30, last90, ytd, etc.)
-   - Never use fixed dates - the report should show current data when viewed`;
-
-const LEARNING_BEHAVIOR = `## LEARNING FROM CONVERSATIONS
-
-When you learn something new about the customer's terminology or preferences:
-
-1. **Terminology Learning**
-   If the user defines a term, output a learning flag:
-   
-   <learning_flag>
-   term: CG
-   user_said: When I say CG, I mean Cargoglide products
-   ai_understood: CG refers to Cargoglide truck bed products
-   confidence: high
-   maps_to_field: description
-   </learning_flag>
-
-2. **Product Category Learning**
-   If the user defines product categories:
-   
-   <learning_flag>
-   term: Drawers
-   user_said: Drawers are our Decked drawer systems
-   ai_understood: Decked drawer systems for truck beds
-   confidence: high
-   suggested_category: product
-   </learning_flag>
-
-3. **Correction Detection**
-   If the user corrects you, acknowledge and learn:
-   
-   <learning_flag>
-   term: [corrected term]
-   user_said: No, that's not what I meant
-   ai_understood: [your correction]
-   confidence: medium
-   </learning_flag>
-
-Learning flags help the system remember customer preferences across conversations.`;
-
-const REPORT_STRUCTURE = `## REPORT GENERATION
-
-When generating a report, respond with:
-1. A brief conversational message explaining what you created
-2. The report JSON in a code block
-
-### Report Structure
-\`\`\`json
-{
-  "name": "Report Title",
-  "description": "Brief description",
-  "dateRange": { "type": "last90" },
-  "theme": "blue",
-  "calculatedFields": [...],
-  "sections": [...]
-}
-\`\`\`
-
-### Date Range Types
-- "last7": Last 7 days
-- "last30": Last 30 days  
-- "last90": Last 90 days (default)
-- "last6months": Last 6 months
-- "ytd": Year to date
-- "lastYear": Last 12 months
-- "all": All available data
-
-### Section Types
-- **hero**: Large metric card
-- **stat-row**: Row of 2-4 metrics
-- **chart**: Visualization (bar, line, pie, area, treemap, radar, funnel, heatmap)
-- **table**: Data table with columns
-- **map**: Geographic visualization (choropleth, flow, cluster)
-- **category-grid**: Category breakdown cards
-- **header**: Section divider
-
-### Chart Config
-\`\`\`json
-{
-  "type": "chart",
-  "title": "Revenue by Carrier",
-  "config": {
-    "chartType": "bar",
-    "title": "Revenue by Carrier",
-    "groupBy": "carrier_name",
-    "metric": { "field": "retail", "aggregation": "sum" },
-    "sortBy": "value",
-    "sortOrder": "desc",
-    "limit": 10
-  }
-}
-\`\`\`
-
-### Calculated Fields
-Define at report level, then reference by name:
-\`\`\`json
-"calculatedFields": [{
-  "name": "revenue_per_shipment",
-  "label": "Revenue/Shipment",
-  "formula": "divide",
-  "fields": ["retail", "load_id"],
-  "aggregations": ["sum", "count"],
-  "format": "currency"
-}]
-\`\`\`
-
-### Categorization (in chart/table sections)
-\`\`\`json
-{
-  "type": "chart",
-  "title": "Revenue by Product Category",
-  "config": {
-    "chartType": "pie",
-    "groupBy": "description",
-    "categorization": {
-      "rules": [
-        { "contains": ["cargoglide", "CG"], "category": "Cargoglide" },
-        { "contains": ["drawer", "decked"], "category": "Drawers" }
-      ],
-      "defaultCategory": "Other"
-    },
-    "metric": { "field": "retail", "aggregation": "sum" }
-  }
-}
-\`\`\`
-
-### Important Rules
-1. Only use fields from AVAILABLE DATA FIELDS
-2. Define calculated fields at report level before using
-3. Respect access control restrictions
-4. Use dynamic date ranges, not fixed dates
-5. Include clear titles for each section`;
 
 const CORE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
 
@@ -587,42 +500,101 @@ Your approach:
 - Be conversational but efficient
 - Ask clarifying questions when requests are ambiguous
 - Never guess at what fields or terms mean - ask the user
-- Provide insights when you notice patterns
-- Suggest next steps after generating reports
+- Provide insights when you notice patterns`;
 
-When in doubt, ask. When you know what the user wants, build it.`;
+const TOOL_BEHAVIOR_PROMPT = `## TOOL USAGE BEHAVIOR
 
-function extractLearnings(
-  prompt: string,
-  response: string,
-  conversationHistory: ConversationMessage[]
-): LearningExtraction[] {
+You have tools to help build better reports:
+
+1. **ALWAYS explore data before building reports**
+   - Use explore_field to check field coverage and sample values
+   - Use preview_grouping to validate aggregations
+
+2. **Learn from the user**
+   - When users define terms, use emit_learning to remember
+
+3. **Build incrementally**
+   - Gather information first with tools
+   - Then finalize_report when ready`;
+
+const REPORT_STRUCTURE = `## REPORT STRUCTURE
+
+When generating via finalize_report:
+
+{
+  "name": "Report Title",
+  "description": "Brief description",
+  "dateRange": { "type": "last90" },
+  "theme": "blue",
+  "sections": [...]
+}
+
+### Section Types
+- **hero**: Large metric card
+- **stat-row**: Row of 2-4 metrics
+- **chart**: bar, line, pie, area, treemap, radar, funnel, heatmap
+- **table**: Data table
+- **map**: Geographic (choropleth, flow, cluster)
+
+### Chart Config Example
+{
+  "type": "chart",
+  "title": "Revenue by Carrier",
+  "config": {
+    "chartType": "bar",
+    "groupBy": "carrier_name",
+    "metric": { "field": "retail", "aggregation": "sum" },
+    "sortBy": "value",
+    "sortOrder": "desc",
+    "limit": 10
+  }
+}`;
+
+const LEGACY_LEARNING_BEHAVIOR = `## LEARNING FROM CONVERSATIONS
+
+When you learn something new, output:
+
+<learning_flag>
+term: CG
+user_said: When I say CG, I mean Cargoglide products
+ai_understood: CG refers to Cargoglide truck bed products
+confidence: high
+maps_to_field: description
+</learning_flag>`;
+
+const LEGACY_REPORT_STRUCTURE = `## REPORT GENERATION
+
+Respond with a brief message, then the report JSON:
+
+\`\`\`json
+{
+  "name": "Report Title",
+  "description": "Brief description",
+  "dateRange": { "type": "last90" },
+  "theme": "blue",
+  "sections": [...]
+}
+\`\`\``;
+
+function extractLearnings(prompt: string, response: string, conversationHistory: ConversationMessage[]): LearningExtraction[] {
   const learnings: LearningExtraction[] = [];
   const seenKeys = new Set<string>();
 
   const flagMatch = response.match(/<learning_flag>([\s\S]*?)<\/learning_flag>/);
   if (flagMatch) {
-    const flagContent = flagMatch[1];
     const lines: Record<string, string> = {};
-
-    for (const line of flagContent.trim().split("\n")) {
-      const colonIndex = line.indexOf(":");
-      if (colonIndex > 0) {
-        const key = line.substring(0, colonIndex).trim().toLowerCase();
-        const value = line.substring(colonIndex + 1).trim();
-        if (key && value) lines[key] = value;
-      }
+    for (const line of flagMatch[1].trim().split("\n")) {
+      const idx = line.indexOf(":");
+      if (idx > 0) lines[line.substring(0, idx).trim().toLowerCase()] = line.substring(idx + 1).trim();
     }
 
     if (lines.term) {
-      const normalizedKey = lines.term.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-
-      if (normalizedKey && normalizedKey.length >= 2) {
-        seenKeys.add(normalizedKey);
+      const key = lines.term.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      if (key.length >= 2) {
+        seenKeys.add(key);
         learnings.push({
           type: lines.suggested_category === "product" ? "product" : "terminology",
-          key: normalizedKey,
-          value: lines.ai_understood || lines.user_said || lines.term,
+          key, value: lines.ai_understood || lines.user_said || lines.term,
           confidence: lines.confidence === "high" ? 0.9 : lines.confidence === "low" ? 0.5 : 0.7,
           source: "inferred",
         });
@@ -630,156 +602,57 @@ function extractLearnings(
     }
   }
 
-  if (learnings.length === 0) {
-    const allUserMessages = [
-      ...conversationHistory.filter((m) => m.role === "user").map((m) => m.content),
-      prompt,
-    ].join("\n");
-
-    const explicitPatterns = [
-      /when I say ['"]([^'"]+)['"],?\s*I mean (.+)/gi,
-      /by ['"]([^'"]+)['"],?\s*I mean (.+)/gi,
-    ];
-
-    for (const pattern of explicitPatterns) {
-      let match;
-      const regex = new RegExp(pattern.source, pattern.flags);
-      while ((match = regex.exec(allUserMessages)) !== null) {
-        const term = match[1]?.trim();
-        const meaning = match[2]?.trim();
-
-        if (!term || !meaning) continue;
-
-        const normalizedKey = term.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-
-        if (seenKeys.has(normalizedKey)) continue;
-        if (normalizedKey.length < 2 || normalizedKey.length > 50) continue;
-
-        seenKeys.add(normalizedKey);
-        learnings.push({
-          type: "terminology",
-          key: normalizedKey,
-          value: meaning,
-          confidence: 1.0,
-          source: "explicit",
-        });
-
-        break;
-      }
-    }
-  }
-
   return learnings;
 }
 
-async function saveLearnings(
-  supabase: SupabaseClient,
-  customerId: string,
-  learnings: LearningExtraction[]
-): Promise<void> {
+async function saveLearnings(supabase: SupabaseClient, customerId: string, learnings: LearningExtraction[]): Promise<void> {
   for (const learning of learnings) {
     try {
-      if (learning.type === "terminology" || learning.type === "product") {
-        await supabase.from("ai_knowledge").upsert(
-          {
-            knowledge_type: learning.type === "terminology" ? "term" : "product",
-            key: learning.key,
-            label: learning.value,
-            definition: learning.value,
-            scope: "customer",
-            customer_id: customerId,
-            source: learning.source === "explicit" ? "learned" : "inferred",
-            confidence: learning.confidence,
-            needs_review: learning.confidence < 0.8,
-            is_active: learning.confidence >= 0.8,
-          },
-          {
-            onConflict: "knowledge_type,key,scope,customer_id",
-          }
-        );
-      }
+      await supabase.from("ai_knowledge").upsert({
+        knowledge_type: learning.type === "terminology" ? "term" : "product",
+        key: learning.key, label: learning.value, definition: learning.value,
+        scope: "customer", customer_id: customerId,
+        source: learning.source === "explicit" ? "learned" : "inferred",
+        confidence: learning.confidence, needs_review: learning.confidence < 0.8,
+        is_active: learning.confidence >= 0.8,
+      }, { onConflict: "knowledge_type,key,scope,customer_id" });
     } catch (e) {
-      console.error("Failed to save learning:", learning, e);
+      console.error("Failed to save learning:", e);
     }
   }
 }
 
 const VALID_SECTION_TYPES = ["hero", "stat-row", "category-grid", "chart", "table", "header", "map"];
-const VALID_CHART_TYPES = ["bar", "line", "pie", "treemap", "radar", "area", "scatter", "bump", "funnel", "heatmap"];
 
-function validateReportOutput(
-  report: any,
-  availableFields: string[]
-): { valid: boolean; errors: string[]; warnings: string[] } {
+function validateReportOutput(report: any, availableFields: string[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const warnings: string[] = [];
-
-  if (!report.name || typeof report.name !== "string") {
-    errors.push("Report must have a name");
-  }
-
+  if (!report.name) errors.push("Report must have a name");
   if (!report.sections || !Array.isArray(report.sections)) {
-    errors.push("Report must have a sections array");
-    return { valid: false, errors, warnings };
+    errors.push("Report must have sections array");
+    return { valid: false, errors };
   }
 
   for (let i = 0; i < report.sections.length; i++) {
     const section = report.sections[i];
-    const sectionId = `Section ${i + 1}`;
-
     if (!section.type || !VALID_SECTION_TYPES.includes(section.type)) {
-      errors.push(`${sectionId}: Invalid section type "${section.type}"`);
-      continue;
-    }
-
-    if (section.type === "chart") {
-      const chartType = section.config?.chartType;
-      if (chartType && !VALID_CHART_TYPES.includes(chartType)) {
-        warnings.push(`${sectionId}: Unknown chart type "${chartType}", defaulting to bar`);
-      }
-    }
-
-    const fieldRefs = extractFieldReferences(section.config || {});
-    for (const field of fieldRefs) {
-      if (!isCalculatedField(field) && !availableFields.includes(field.toLowerCase())) {
-        errors.push(`${sectionId}: Unknown field "${field}"`);
-      }
+      errors.push(`Section ${i + 1}: Invalid type "${section.type}"`);
     }
   }
 
-  return { valid: errors.length === 0, errors, warnings };
+  return { valid: errors.length === 0, errors };
 }
 
-function extractFieldReferences(config: any): string[] {
-  const fields: string[] = [];
+function sanitizeReport(report: any, isAdmin: boolean): any {
+  if (isAdmin) return report;
+  const sanitized = JSON.parse(JSON.stringify(report));
 
-  if (config.metric?.field && typeof config.metric.field === 'string') {
-    fields.push(config.metric.field);
+  if (sanitized.sections) {
+    sanitized.sections = sanitized.sections.filter((section: any) => {
+      const str = JSON.stringify(section).toLowerCase();
+      return !ADMIN_ONLY_FIELDS.some(f => str.includes(`"${f}"`));
+    });
   }
-  if (config.groupBy && typeof config.groupBy === 'string') {
-    fields.push(config.groupBy);
-  }
-  if (config.secondaryGroupBy && typeof config.secondaryGroupBy === 'string') {
-    fields.push(config.secondaryGroupBy);
-  }
-
-  if (config.metrics && Array.isArray(config.metrics)) {
-    for (const m of config.metrics) {
-      if (m.field && typeof m.field === 'string') fields.push(m.field);
-    }
-  }
-
-  if (config.columns && Array.isArray(config.columns)) {
-    for (const col of config.columns) {
-      if (col.field && typeof col.field === 'string') fields.push(col.field);
-    }
-  }
-
-  return fields;
-}
-
-function isCalculatedField(fieldName: string): boolean {
-  return fieldName.includes("_per_") || fieldName.startsWith("calc_") || fieldName.startsWith("computed_");
+  return sanitized;
 }
 
 Deno.serve(async (req: Request) => {
@@ -790,191 +663,195 @@ Deno.serve(async (req: Request) => {
   try {
     const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicApiKey) {
-      return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const body: RequestBody = await req.json();
-    const { prompt, conversationHistory, customerId, isAdmin, knowledgeContext, currentReport, customerName } = body;
+    const { prompt, conversationHistory, customerId, isAdmin, knowledgeContext, currentReport, customerName, useTools = true } = body;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`[AI] Building context for customer ${customerId} (admin: ${isAdmin})`);
+    console.log(`[AI] Customer ${customerId}, admin: ${isAdmin}, tools: ${useTools}`);
 
-    const { fields: schemaFields, dataProfile } = await compileSchemaContext(supabase, customerId);
+    const { fields: schemaFields, dataProfile, fieldNames } = await compileSchemaContext(supabase, customerId);
     const schemaPrompt = formatSchemaForPrompt(schemaFields, dataProfile, isAdmin);
-
     const { terms, products } = await compileKnowledgeContext(supabase, customerId, isAdmin);
-    const knowledgePrompt = terms.length > 0 || products.length > 0
-      ? formatKnowledgeForPrompt(terms, products)
-      : "";
-
+    const knowledgePrompt = terms.length > 0 || products.length > 0 ? formatKnowledgeForPrompt(terms, products) : "";
     const profile = await getCustomerProfile(supabase, customerId);
     const profilePrompt = profile ? formatProfileForPrompt(profile) : "";
-
     const accessPrompt = getAccessControlPrompt(isAdmin);
 
-    const systemPromptParts = [
-      CORE_SYSTEM_PROMPT,
-      accessPrompt,
-      schemaPrompt,
-      knowledgePrompt,
-      profilePrompt,
-      DATA_EXPLORATION_BEHAVIOR,
-      LEARNING_BEHAVIOR,
-      REPORT_STRUCTURE,
-    ].filter(Boolean);
+    const availableFieldNames = schemaFields.filter(f => isAdmin || !f.adminOnly).map(f => f.name.toLowerCase());
 
-    let fullSystemPrompt = systemPromptParts.join("\n\n");
+    const systemPromptParts = useTools
+      ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, REPORT_STRUCTURE]
+      : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
 
-    if (customerName) {
-      fullSystemPrompt += `\n\n## CURRENT CUSTOMER\nYou are helping: **${customerName}**\nGenerate reports relevant to their data.`;
-    }
+    let fullSystemPrompt = systemPromptParts.filter(Boolean).join("\n\n");
+    if (customerName) fullSystemPrompt += `\n\n## CURRENT CUSTOMER\nYou are helping: **${customerName}**`;
+    if (knowledgeContext) fullSystemPrompt += `\n\n${knowledgeContext}`;
+    if (currentReport) fullSystemPrompt += `\n\n## CURRENT REPORT (EDITING)\n\`\`\`json\n${JSON.stringify(currentReport, null, 2)}\n\`\`\``;
 
-    if (knowledgeContext) {
-      fullSystemPrompt += `\n\n${knowledgeContext}`;
-    }
-
-    if (currentReport) {
-      fullSystemPrompt += `\n\n## CURRENT REPORT (EDITING)\n\nThe user is viewing this report. Modify it when asked:\n\n\`\`\`json\n${JSON.stringify(currentReport, null, 2)}\n\`\`\`\n\nFor modifications: Keep sections intact unless specifically asked to change.`;
-    }
-
-    console.log(`[AI] System prompt: ${fullSystemPrompt.length} chars, ${terms.length} terms, ${products.length} products`);
-
-    const messages: Anthropic.MessageParam[] = [];
-
-    for (const msg of conversationHistory) {
-      messages.push({ role: msg.role, content: msg.content });
-    }
-
-    messages.push({ role: "user", content: prompt });
+    const messages: Anthropic.MessageParam[] = [
+      ...conversationHistory.map(msg => ({ role: msg.role, content: msg.content })),
+      { role: "user", content: prompt }
+    ];
 
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
-    let response;
-    let responseText = "";
+    if (useTools) {
+      const toolExecutions: ToolExecution[] = [];
+      const learnings: LearningExtraction[] = [];
+      let finalReport: Record<string, unknown> | null = null;
+      let finalMessage = "";
+      let needsClarification = false;
+      let clarificationQuestion = "";
+      let clarificationOptions: string[] | undefined;
 
-    try {
-      response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
-        system: fullSystemPrompt,
-        messages,
-      });
+      const MAX_TURNS = 10;
+      let currentMessages = [...messages];
 
-      const textContent = response.content.find((c) => c.type === "text");
-      if (!textContent || textContent.type !== "text") {
-        throw new Error("No text response from AI");
+      for (let turn = 0; turn < MAX_TURNS; turn++) {
+        console.log(`[AI] Turn ${turn + 1}/${MAX_TURNS}`);
+
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8192,
+          system: fullSystemPrompt,
+          messages: currentMessages,
+          tools: AI_TOOLS,
+          tool_choice: { type: "auto" }
+        });
+
+        if (response.stop_reason === "end_turn") {
+          const textBlock = response.content.find(c => c.type === "text");
+          if (textBlock && textBlock.type === "text") finalMessage = textBlock.text;
+          break;
+        }
+
+        const toolUseBlocks = response.content.filter(c => c.type === "tool_use");
+        if (toolUseBlocks.length === 0) {
+          const textBlock = response.content.find(c => c.type === "text");
+          if (textBlock && textBlock.type === "text") finalMessage = textBlock.text;
+          break;
+        }
+
+        currentMessages.push({ role: "assistant", content: response.content });
+
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const toolUse of toolUseBlocks) {
+          if (toolUse.type !== "tool_use") continue;
+
+          const startTime = Date.now();
+          let result: unknown;
+
+          console.log(`[AI] Tool: ${toolUse.name}`);
+
+          switch (toolUse.name) {
+            case "explore_field":
+              result = await executeExploreField(supabase, customerId, toolUse.input as any);
+              break;
+            case "preview_grouping":
+              result = await executePreviewGrouping(supabase, customerId, toolUse.input as any);
+              break;
+            case "emit_learning":
+              const learning = await executeEmitLearning(supabase, customerId, toolUse.input as any);
+              learnings.push(learning);
+              result = { success: true, learning };
+              break;
+            case "finalize_report":
+              const finalized = executeFinalizeReport(toolUse.input as any, availableFieldNames, isAdmin, customerId);
+              if (finalized.validation.valid) {
+                finalReport = finalized.report;
+                finalMessage = finalized.summary;
+              }
+              result = finalized;
+              break;
+            case "ask_clarification":
+              const input = toolUse.input as { question: string; options?: string[] };
+              needsClarification = true;
+              clarificationQuestion = input.question;
+              clarificationOptions = input.options;
+              result = { needsClarification: true };
+              break;
+            default:
+              result = { error: `Unknown tool: ${toolUse.name}` };
+          }
+
+          toolExecutions.push({
+            toolName: toolUse.name,
+            toolInput: toolUse.input as Record<string, unknown>,
+            result,
+            timestamp: new Date().toISOString(),
+            duration: Date.now() - startTime
+          });
+
+          toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: JSON.stringify(result) });
+        }
+
+        if (finalReport || needsClarification) break;
+        currentMessages.push({ role: "user", content: toolResults });
       }
 
-      responseText = textContent.text;
-    } catch (apiError: any) {
-      console.error("Anthropic API error:", apiError);
+      try {
+        await supabase.from("ai_report_audit").insert({
+          customer_id: parseInt(customerId, 10),
+          user_prompt: prompt,
+          generated_report: finalReport,
+          ai_response: finalMessage.slice(0, 5000),
+          success: !!finalReport,
+          context_used: { toolMode: true, toolExecutions: toolExecutions.length, learnings: learnings.length },
+        });
+      } catch (e) { console.error("Audit error:", e); }
 
-      if (apiError.status === 400 && apiError.error?.error?.message?.includes("credit balance")) {
-        return new Response(
-          JSON.stringify({
-            error: "ai_credits_depleted",
-            report: null,
-            message: "AI service is temporarily unavailable. The AI credit balance needs to be replenished. Please contact your administrator.",
-            userMessage: "The AI assistant is temporarily unavailable due to API credits. Please try again later or contact support.",
-          }),
-          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (apiError.status === 429) {
-        return new Response(
-          JSON.stringify({
-            error: "rate_limit_exceeded",
-            report: null,
-            message: "Too many requests. Please wait a moment and try again.",
-            userMessage: "Too many requests at once. Please wait a few seconds and try again.",
-          }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (apiError.status === 401 || apiError.status === 403) {
-        return new Response(
-          JSON.stringify({
-            error: "api_authentication_failed",
-            report: null,
-            message: "AI service authentication failed. Please contact your administrator.",
-            userMessage: "Unable to connect to the AI service. Please contact support.",
-          }),
-          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          error: "ai_service_error",
-          report: null,
-          message: apiError.message || "AI service encountered an error.",
-          userMessage: "The AI assistant encountered an error. Please try again or contact support if the issue persists.",
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({
+        report: finalReport,
+        message: needsClarification ? clarificationQuestion : finalMessage,
+        toolExecutions,
+        learnings: learnings.length > 0 ? learnings : undefined,
+        needsClarification,
+        clarificationOptions,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 8192,
+      system: fullSystemPrompt,
+      messages,
+    });
+
+    const textContent = response.content.find((c) => c.type === "text");
+    if (!textContent || textContent.type !== "text") throw new Error("No text response");
+
+    const responseText = textContent.text;
 
     let jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
     let jsonStr = jsonMatch ? jsonMatch[1] : "";
-
     if (!jsonMatch) {
       const braceMatch = responseText.match(/\{[\s\S]*"name"[\s\S]*"sections"[\s\S]*\}/);
-      if (braceMatch) {
-        jsonStr = braceMatch[0];
-      }
+      if (braceMatch) jsonStr = braceMatch[0];
     }
 
     let parsedReport = null;
-    let parseError = null;
-
     if (jsonStr) {
       try {
         parsedReport = JSON.parse(jsonStr);
-      } catch (e) {
-        parseError = e;
-        console.error("Failed to parse AI response:", e);
-      }
-    }
-
-    if (parsedReport) {
-      if (!parsedReport.id) {
-        parsedReport.id = crypto.randomUUID();
-      }
-      if (!parsedReport.createdAt) {
-        parsedReport.createdAt = new Date().toISOString();
-      }
-      parsedReport.customerId = customerId;
-
-      const availableFieldNames = schemaFields
-        .filter((f) => isAdmin || !f.adminOnly)
-        .map((f) => f.name.toLowerCase());
-
-      const validation = validateReportOutput(parsedReport, availableFieldNames);
-      
-      if (!validation.valid) {
-        console.warn("[AI] Validation errors:", validation.errors);
-      }
-
-      const accessCheck = validateAccessControl(parsedReport, isAdmin);
-      if (!accessCheck.valid) {
-        console.warn("[AI] Access violations:", accessCheck.violations);
+        if (!parsedReport.id) parsedReport.id = crypto.randomUUID();
+        if (!parsedReport.createdAt) parsedReport.createdAt = new Date().toISOString();
+        parsedReport.customerId = customerId;
         parsedReport = sanitizeReport(parsedReport, isAdmin);
+      } catch (e) {
+        console.error("JSON parse error:", e);
       }
     }
 
     const learnings = extractLearnings(prompt, responseText, conversationHistory);
-    if (learnings.length > 0) {
-      console.log(`[AI] Extracted ${learnings.length} learnings`);
-      await saveLearnings(supabase, customerId, learnings);
-    }
+    if (learnings.length > 0) await saveLearnings(supabase, customerId, learnings);
 
     try {
       await supabase.from("ai_report_audit").insert({
@@ -983,40 +860,29 @@ Deno.serve(async (req: Request) => {
         generated_report: parsedReport,
         ai_response: responseText.slice(0, 5000),
         success: !!parsedReport,
-        context_used: {
-          termsCount: terms.length,
-          productsCount: products.length,
-          hasProfile: !!profile,
-          hasEnhancement: !!knowledgeContext?.includes("CUSTOM REPORT"),
-        },
+        context_used: { toolMode: false, termsCount: terms.length },
       });
-    } catch (auditError) {
-      console.error("Failed to log audit:", auditError);
-    }
+    } catch (e) { console.error("Audit error:", e); }
 
     const cleanMessage = responseText
       .replace(/```json[\s\S]*?```/g, "")
       .replace(/<learning_flag>[\s\S]*?<\/learning_flag>/g, "")
       .trim();
 
-    return new Response(
-      JSON.stringify({
-        report: parsedReport || null,
-        message: cleanMessage || (parsedReport ? "Report generated successfully" : responseText),
-        rawResponse: responseText,
-        learnings: learnings.length > 0 ? learnings : undefined,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      report: parsedReport,
+      message: cleanMessage || (parsedReport ? "Report generated" : responseText),
+      learnings: learnings.length > 0 ? learnings : undefined,
+      toolExecutions: [],
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (error) {
-    console.error("Generate report error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-        report: null,
-        message: "Sorry, I encountered an error generating the report.",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("Error:", error);
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "Unknown error",
+      report: null,
+      message: "Sorry, I encountered an error.",
+      toolExecutions: [],
+    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

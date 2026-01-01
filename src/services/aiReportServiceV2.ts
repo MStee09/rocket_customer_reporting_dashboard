@@ -6,6 +6,22 @@ export interface Message {
   content: string;
 }
 
+export interface ToolExecution {
+  toolName: string;
+  toolInput: Record<string, unknown>;
+  result: unknown;
+  timestamp: string;
+  duration?: number;
+}
+
+export interface LearningV2 {
+  type: 'terminology' | 'product' | 'preference' | 'correction';
+  key: string;
+  value: string;
+  confidence: number;
+  source: 'explicit' | 'inferred' | 'tool';
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -13,7 +29,11 @@ export interface ChatMessage {
   timestamp: Date;
   report?: AIReportDefinition;
   toolsUsed?: string[];
+  toolExecutions?: ToolExecution[];
+  learnings?: LearningV2[];
   error?: string;
+  needsClarification?: boolean;
+  clarificationOptions?: string[];
 }
 
 export interface ConversationState {
@@ -25,7 +45,11 @@ export interface GenerateReportResponse {
   report: AIReportDefinition | null;
   message: string;
   toolsUsed: string[];
+  toolExecutions: ToolExecution[];
+  learnings?: LearningV2[];
   conversationState: ConversationState;
+  needsClarification?: boolean;
+  clarificationOptions?: string[];
 }
 
 export async function generateReportV2(
@@ -34,7 +58,8 @@ export async function generateReportV2(
   customerId: string,
   isAdmin: boolean,
   conversationState?: ConversationState,
-  customerName?: string
+  customerName?: string,
+  useTools: boolean = true
 ): Promise<GenerateReportResponse> {
   const history: Message[] = conversationHistory
     .filter(msg => msg.role === 'user' || msg.role === 'assistant')
@@ -51,7 +76,8 @@ export async function generateReportV2(
         customerId,
         isAdmin,
         customerName,
-        conversationState
+        conversationState,
+        useTools
       }
     });
 
@@ -65,6 +91,7 @@ export async function generateReportV2(
           report: null,
           message: 'The AI assistant is temporarily unavailable due to API credits. Please try again later or contact support.',
           toolsUsed: [],
+          toolExecutions: [],
           conversationState: conversationState || { reportInProgress: null }
         };
       }
@@ -74,6 +101,7 @@ export async function generateReportV2(
           report: null,
           message: 'Too many requests at once. Please wait a few seconds and try again.',
           toolsUsed: [],
+          toolExecutions: [],
           conversationState: conversationState || { reportInProgress: null }
         };
       }
@@ -83,6 +111,7 @@ export async function generateReportV2(
           report: null,
           message: 'Unable to connect to the AI service. Please contact support.',
           toolsUsed: [],
+          toolExecutions: [],
           conversationState: conversationState || { reportInProgress: null }
         };
       }
@@ -91,6 +120,7 @@ export async function generateReportV2(
         report: null,
         message: 'Sorry, I encountered an error. Please try again.',
         toolsUsed: [],
+        toolExecutions: [],
         conversationState: conversationState || { reportInProgress: null }
       };
     }
@@ -101,6 +131,7 @@ export async function generateReportV2(
         report: null,
         message: data.userMessage || data.message || 'Sorry, I encountered an error. Please try again.',
         toolsUsed: data.toolsUsed || [],
+        toolExecutions: data.toolExecutions || [],
         conversationState: data.conversationState || conversationState || { reportInProgress: null }
       };
     }
@@ -119,11 +150,17 @@ export async function generateReportV2(
       }
     }
 
+    const toolsUsed = (data.toolExecutions || []).map((t: ToolExecution) => t.toolName);
+
     return {
       report: data.report || null,
       message: data.message || '',
-      toolsUsed: data.toolsUsed || [],
-      conversationState: data.conversationState || { reportInProgress: null }
+      toolsUsed,
+      toolExecutions: data.toolExecutions || [],
+      learnings: data.learnings,
+      conversationState: data.conversationState || { reportInProgress: null },
+      needsClarification: data.needsClarification,
+      clarificationOptions: data.clarificationOptions
     };
   } catch (err) {
     console.error('AI service error:', err);
@@ -131,9 +168,39 @@ export async function generateReportV2(
       report: null,
       message: 'Sorry, something went wrong. Please try again.',
       toolsUsed: [],
+      toolExecutions: [],
       conversationState: conversationState || { reportInProgress: null }
     };
   }
+}
+
+export function formatToolExecution(execution: ToolExecution): { icon: string; label: string; detail: string } {
+  const { toolName, toolInput, result } = execution;
+  const res = result as Record<string, unknown>;
+
+  switch (toolName) {
+    case 'explore_field':
+      if (res.error) return { icon: 'X', label: `Failed: ${toolInput.field_name}`, detail: String(res.error) };
+      return { icon: 'Search', label: `Explored ${toolInput.field_name}`, detail: `${res.unique_count || 0} values, ${res.populated_percent || 0}% coverage` };
+    case 'preview_grouping':
+      if (res.error) return { icon: 'X', label: `Failed: ${toolInput.group_by}`, detail: String(res.error) };
+      return { icon: 'BarChart2', label: `Previewed ${toolInput.group_by}`, detail: `${res.total_groups || 0} groups` };
+    case 'emit_learning':
+      return { icon: 'Brain', label: `Learned: ${toolInput.key}`, detail: String(toolInput.value) };
+    case 'finalize_report':
+      const validation = res.validation as Record<string, unknown>;
+      return validation?.valid
+        ? { icon: 'CheckCircle', label: 'Built report', detail: 'Ready' }
+        : { icon: 'AlertTriangle', label: 'Validation failed', detail: ((validation?.errors as string[]) || []).join(', ') };
+    case 'ask_clarification':
+      return { icon: 'HelpCircle', label: 'Clarifying', detail: String(toolInput.question) };
+    default:
+      return { icon: 'Wrench', label: toolName, detail: '' };
+  }
+}
+
+export function buildThinkingSteps(toolExecutions: ToolExecution[]): Array<{ icon: string; label: string; detail?: string }> {
+  return toolExecutions.map(e => formatToolExecution(e));
 }
 
 export async function fetchSuggestedPrompts(

@@ -63,7 +63,9 @@ function extractExportableData(
   report: AIReportDefinition | null,
   executedData: ExecutedReportData | null
 ): { data: Record<string, unknown>[]; columns: ColumnConfig[] } {
-  if (!report || !executedData) return { data: [], columns: [] };
+  if (!report || !executedData || !report.sections || !executedData.sections) {
+    return { data: [], columns: [] };
+  }
 
   const tableSections = report.sections
     .map((section, index) => ({ section, index }))
@@ -90,7 +92,12 @@ function extractExportableData(
   if (!sectionData?.data || !Array.isArray(sectionData.data)) return { data: [], columns: [] };
 
   const data = sectionData.data as Record<string, unknown>[];
-  const columns: ColumnConfig[] = tableSection.config.columns.map(col => ({
+  const tableColumns = tableSection.config?.columns;
+  if (!tableColumns || !Array.isArray(tableColumns)) {
+    return { data, columns: generateColumnsFromData(data) };
+  }
+
+  const columns: ColumnConfig[] = tableColumns.map(col => ({
     key: col.field,
     header: col.label,
     format: col.format === 'string' ? 'text' : (col.format || 'text')

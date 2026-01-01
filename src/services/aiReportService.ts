@@ -132,6 +132,7 @@ export async function generateReport(
     message: data.message || '',
     rawResponse: data.rawResponse,
     learnings: data.learnings,
+    reportContext: data.reportContext || null,
   };
 }
 

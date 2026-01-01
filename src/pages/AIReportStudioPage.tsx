@@ -329,6 +329,17 @@ export function AIReportStudioPage() {
       }
 
       const response = await generateReport(content, messages, String(effectiveCustomerId), effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
+
+      if (response.reportContext) {
+        setBuildReportContext({
+          hasIntent: response.reportContext.hasIntent,
+          hasColumns: response.reportContext.hasColumns,
+          hasFilters: response.reportContext.hasFilters,
+          suggestedColumns: response.reportContext.suggestedColumns || [],
+          suggestedFilters: response.reportContext.suggestedFilters || [],
+        });
+      }
+
       const assistantMessage: ChatMessageType = {
         id: crypto.randomUUID(),
         role: 'assistant',

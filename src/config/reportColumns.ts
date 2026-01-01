@@ -1180,6 +1180,100 @@ export const REPORT_COLUMNS: ReportColumn[] = [
     type: 'string',
     description: 'Stock keeping unit',
     groupable: true
+  },
+  {
+    id: 'item_descriptions',
+    label: 'Item Descriptions',
+    table: 'shipment_report_view',
+    column: 'item_descriptions',
+    category: 'lineItems',
+    type: 'string',
+    description: 'Product descriptions for all items in shipment',
+    groupable: true
+  },
+  {
+    id: 'item_count',
+    label: 'Item Count',
+    table: 'shipment_report_view',
+    column: 'item_count',
+    category: 'lineItems',
+    type: 'number',
+    format: 'integer',
+    description: 'Number of line items in shipment',
+    aggregatable: true
+  },
+  {
+    id: 'total_item_weight',
+    label: 'Total Item Weight',
+    table: 'shipment_report_view',
+    column: 'item_weight',
+    category: 'lineItems',
+    type: 'number',
+    format: 'decimal',
+    description: 'Total weight of all items',
+    aggregatable: true
+  },
+  {
+    id: 'total_quantity',
+    label: 'Total Quantity',
+    table: 'shipment_report_view',
+    column: 'total_quantity',
+    category: 'lineItems',
+    type: 'number',
+    format: 'integer',
+    description: 'Total quantity of items',
+    aggregatable: true
+  },
+  {
+    id: 'total_packages',
+    label: 'Total Packages',
+    table: 'shipment_report_view',
+    column: 'total_packages',
+    category: 'lineItems',
+    type: 'number',
+    format: 'integer',
+    description: 'Total number of packages',
+    aggregatable: true
+  },
+  {
+    id: 'shipment_freight_class',
+    label: 'Freight Class',
+    table: 'shipment_report_view',
+    column: 'freight_class',
+    category: 'lineItems',
+    type: 'string',
+    description: 'Freight classification',
+    groupable: true
+  },
+  {
+    id: 'shipment_commodity',
+    label: 'Commodity',
+    table: 'shipment_report_view',
+    column: 'commodity',
+    category: 'lineItems',
+    type: 'string',
+    description: 'Commodity type',
+    groupable: true
+  },
+  {
+    id: 'skus',
+    label: 'SKUs',
+    table: 'shipment_report_view',
+    column: 'skus',
+    category: 'lineItems',
+    type: 'string',
+    description: 'SKU numbers for items',
+    groupable: false
+  },
+  {
+    id: 'has_hazmat',
+    label: 'Has Hazmat',
+    table: 'shipment_report_view',
+    column: 'has_hazmat',
+    category: 'lineItems',
+    type: 'boolean',
+    description: 'Contains hazardous materials',
+    groupable: true
   }
 ];
 

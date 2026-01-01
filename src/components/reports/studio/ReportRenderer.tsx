@@ -17,6 +17,7 @@ import { ReportTable, TableColumn } from './ReportTable';
 import { ReportContainer } from './ReportContainer';
 import { DateRangeSelector, DateRange } from './DateRangeSelector';
 import { ReportMap, MapDataPoint } from './ReportMap';
+import { ErrorBoundary } from '../../ErrorBoundary';
 
 interface MetricResult {
   label: string;
@@ -79,14 +80,26 @@ export function ReportRenderer({
   const reportContent = (
     <div className={`${sectionSpacing} ${containerPadding}`}>
       {report.sections.map((section, index) => (
-        <SectionRenderer
+        <ErrorBoundary
           key={index}
-          section={section}
-          data={data?.sections[index]?.data}
-          error={data?.sections[index]?.error}
-          theme={globalTheme}
-          compact={compact}
-        />
+          fallback={
+            <div className={`bg-red-50 border border-red-200 rounded-xl ${compact ? 'p-3' : 'p-4'}`}>
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertCircle className={`flex-shrink-0 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                <span className={`font-medium ${compact ? 'text-sm' : ''}`}>Section failed to load</span>
+              </div>
+              <p className={`text-red-500 mt-1 ${compact ? 'text-xs' : 'text-sm'}`}>This section encountered an error</p>
+            </div>
+          }
+        >
+          <SectionRenderer
+            section={section}
+            data={data?.sections[index]?.data}
+            error={data?.sections[index]?.error}
+            theme={globalTheme}
+            compact={compact}
+          />
+        </ErrorBoundary>
       ))}
     </div>
   );
@@ -245,14 +258,16 @@ function SectionRenderer({ section, data, error, theme, compact = false }: Secti
 
     case 'table': {
       const tableData = data as Record<string, unknown>[] | null;
-      const columns: TableColumn[] = section.config.columns.map((col, index) => {
+      const columns: TableColumn[] = (section.config.columns || [])
+        .filter((col) => col && col.field && col.label)
+        .map((col, index) => {
         let key = col.field;
         if (col.aggregation && col.aggregation !== 'sum') {
           key = `${col.field}_${col.aggregation}`;
         } else {
-          const duplicatesBefore = section.config.columns
+          const duplicatesBefore = (section.config.columns || [])
             .slice(0, index)
-            .filter((c) => c.field === col.field).length;
+            .filter((c) => c && c.field === col.field).length;
           if (duplicatesBefore > 0) {
             key = `${col.field}_${index}`;
           }

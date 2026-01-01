@@ -4,6 +4,7 @@ import {
   Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X, Brain,
   ArrowLeft, MessageSquare, BarChart3
 } from 'lucide-react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ChatMessage,
@@ -511,6 +512,7 @@ export function AIReportStudioPage() {
   const hasExportableData = exportableData.data.length > 0;
 
   return (
+    <ErrorBoundary>
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -785,6 +787,7 @@ export function AIReportStudioPage() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }
 

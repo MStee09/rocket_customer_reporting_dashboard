@@ -209,6 +209,16 @@ export function AIReportStudioPage() {
 
   const urlReportId = searchParams.get('reportId');
   const urlMode = searchParams.get('mode');
+  const urlQuery = searchParams.get('query');
+
+  useEffect(() => {
+    if (urlQuery && messages.length === 0 && !isGenerating && effectiveCustomerId) {
+      handleSendMessage(urlQuery);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('query');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [urlQuery, effectiveCustomerId]);
 
   useEffect(() => {
     if (!urlReportId || !effectiveCustomerId || urlMode !== 'edit') return;

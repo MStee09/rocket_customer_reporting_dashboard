@@ -25,7 +25,6 @@ import {
   loadAIReport,
   SavedAIReport,
   AILearning,
-  extractReportContextFromConversation,
   ExtractedReportContext,
 } from '../services/aiReportService';
 import { executeReportData } from '../services/reportDataExecutor';
@@ -149,11 +148,6 @@ export function AIReportStudioPage() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
   useEffect(() => { setEditableTitle(currentReport?.name || 'Untitled Report'); }, [currentReport?.name]);
-
-  useEffect(() => {
-    const context = extractReportContextFromConversation(messages, currentReport);
-    setBuildReportContext(context);
-  }, [messages, currentReport]);
 
   const loadSavedReports = useCallback(async () => {
     if (!effectiveCustomerId) return;

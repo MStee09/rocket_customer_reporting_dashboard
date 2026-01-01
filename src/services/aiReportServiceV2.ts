@@ -57,11 +57,51 @@ export async function generateReportV2(
 
     if (error) {
       console.error('Generate report error:', error);
+
+      const errorMessage = error.message || 'Unknown error';
+
+      if (errorMessage.includes('credit balance') || errorMessage.includes('ai_credits_depleted')) {
+        return {
+          report: null,
+          message: 'The AI assistant is temporarily unavailable due to API credits. Please try again later or contact support.',
+          toolsUsed: [],
+          conversationState: conversationState || { reportInProgress: null }
+        };
+      }
+
+      if (errorMessage.includes('rate_limit') || error.status === 429) {
+        return {
+          report: null,
+          message: 'Too many requests at once. Please wait a few seconds and try again.',
+          toolsUsed: [],
+          conversationState: conversationState || { reportInProgress: null }
+        };
+      }
+
+      if (errorMessage.includes('authentication') || error.status === 401 || error.status === 403) {
+        return {
+          report: null,
+          message: 'Unable to connect to the AI service. Please contact support.',
+          toolsUsed: [],
+          conversationState: conversationState || { reportInProgress: null }
+        };
+      }
+
       return {
         report: null,
         message: 'Sorry, I encountered an error. Please try again.',
         toolsUsed: [],
         conversationState: conversationState || { reportInProgress: null }
+      };
+    }
+
+    if (data?.error) {
+      console.error('AI service error:', data.error);
+      return {
+        report: null,
+        message: data.userMessage || data.message || 'Sorry, I encountered an error. Please try again.',
+        toolsUsed: data.toolsUsed || [],
+        conversationState: data.conversationState || conversationState || { reportInProgress: null }
       };
     }
 

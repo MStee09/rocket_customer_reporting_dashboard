@@ -82,9 +82,41 @@ export async function generateReport(
 
   if (error) {
     console.error('Generate report error:', error);
+
+    const errorMessage = error.message || 'Unknown error';
+
+    if (errorMessage.includes('credit balance') || errorMessage.includes('ai_credits_depleted')) {
+      return {
+        report: null,
+        message: 'The AI assistant is temporarily unavailable due to API credits. Please try again later or contact support.',
+      };
+    }
+
+    if (errorMessage.includes('rate_limit') || error.status === 429) {
+      return {
+        report: null,
+        message: 'Too many requests at once. Please wait a few seconds and try again.',
+      };
+    }
+
+    if (errorMessage.includes('authentication') || error.status === 401 || error.status === 403) {
+      return {
+        report: null,
+        message: 'Unable to connect to the AI service. Please contact support.',
+      };
+    }
+
     return {
       report: null,
       message: 'Sorry, I encountered an error. Please try again.',
+    };
+  }
+
+  if (data?.error) {
+    console.error('AI service error:', data.error);
+    return {
+      report: null,
+      message: data.userMessage || data.message || 'Sorry, I encountered an error. Please try again.',
     };
   }
 

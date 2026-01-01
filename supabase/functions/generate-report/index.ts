@@ -855,19 +855,72 @@ Deno.serve(async (req: Request) => {
 
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
-      system: fullSystemPrompt,
-      messages,
-    });
+    let response;
+    let responseText = "";
 
-    const textContent = response.content.find((c) => c.type === "text");
-    if (!textContent || textContent.type !== "text") {
-      throw new Error("No text response from AI");
+    try {
+      response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        system: fullSystemPrompt,
+        messages,
+      });
+
+      const textContent = response.content.find((c) => c.type === "text");
+      if (!textContent || textContent.type !== "text") {
+        throw new Error("No text response from AI");
+      }
+
+      responseText = textContent.text;
+    } catch (apiError: any) {
+      console.error("Anthropic API error:", apiError);
+
+      if (apiError.status === 400 && apiError.error?.error?.message?.includes("credit balance")) {
+        return new Response(
+          JSON.stringify({
+            error: "ai_credits_depleted",
+            report: null,
+            message: "AI service is temporarily unavailable. The AI credit balance needs to be replenished. Please contact your administrator.",
+            userMessage: "The AI assistant is temporarily unavailable due to API credits. Please try again later or contact support.",
+          }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (apiError.status === 429) {
+        return new Response(
+          JSON.stringify({
+            error: "rate_limit_exceeded",
+            report: null,
+            message: "Too many requests. Please wait a moment and try again.",
+            userMessage: "Too many requests at once. Please wait a few seconds and try again.",
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (apiError.status === 401 || apiError.status === 403) {
+        return new Response(
+          JSON.stringify({
+            error: "api_authentication_failed",
+            report: null,
+            message: "AI service authentication failed. Please contact your administrator.",
+            userMessage: "Unable to connect to the AI service. Please contact support.",
+          }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: "ai_service_error",
+          report: null,
+          message: apiError.message || "AI service encountered an error.",
+          userMessage: "The AI assistant encountered an error. Please try again or contact support if the issue persists.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-
-    const responseText = textContent.text;
 
     let jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
     let jsonStr = jsonMatch ? jsonMatch[1] : "";

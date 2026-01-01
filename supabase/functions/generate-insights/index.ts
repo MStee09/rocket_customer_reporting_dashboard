@@ -199,6 +199,21 @@ Write naturally, mention significant changes (>5%), and relate to customer prior
       }),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Anthropic API error:", response.status, errorData);
+
+      if (response.status === 400 && errorData?.error?.message?.includes("credit balance")) {
+        console.log("AI credits depleted, falling back to simple insights");
+      } else if (response.status === 429) {
+        console.log("Rate limit exceeded, falling back to simple insights");
+      } else if (response.status === 401 || response.status === 403) {
+        console.log("Authentication failed, falling back to simple insights");
+      }
+
+      return generateSimpleInsights(current, changes);
+    }
+
     const data = await response.json();
     return data.content?.[0]?.text || generateSimpleInsights(current, changes);
   } catch (e) {

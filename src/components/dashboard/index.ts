@@ -30,3 +30,4 @@ export { EditableWidgetCard } from './EditableWidgetCard';
 export { InlineEditToolbar } from './InlineEditToolbar';
 export { WidgetGalleryModal } from './WidgetGalleryModal';
 export { DateRangeSelector } from './DateRangeSelector';
+export { ProactiveInsightsCard } from './ProactiveInsightsCard';

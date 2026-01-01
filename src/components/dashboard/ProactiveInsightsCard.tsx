@@ -335,7 +335,7 @@ export function ProactiveInsightsCard({
       </div>
 
       <button
-        onClick={() => navigate('/ai-studio?query=' + encodeURIComponent('Give me an overview of my shipping performance'))}
+        onClick={() => navigate('/ai-studio')}
         className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-400 text-sm font-medium transition-colors"
       >
         <Sparkles className="w-4 h-4" />

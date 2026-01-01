@@ -14,6 +14,7 @@ import {
   SuggestedPrompts,
   ReportPreviewHeader,
   FollowUpSuggestions,
+  QueryDetailsPanel,
 } from '../components/ai-studio';
 import type { DataProfile } from '../components/ai-studio/SuggestedPrompts';
 import { ReportRenderer } from '../components/reports/studio';
@@ -742,6 +743,20 @@ export function AIReportStudioPage() {
                   )}
                   <div ref={reportRef} data-report-content className="p-6 bg-white">
                     <ReportRenderer report={currentReport} data={executedData} isLoading={false} onDateRangeChange={handleDateRangeChange} embedded />
+                    {executedData && currentReport && (
+                      <QueryDetailsPanel
+                        dateRange={currentReport.dateRange?.customStart && currentReport.dateRange?.customEnd ? {
+                          start: currentReport.dateRange.customStart,
+                          end: currentReport.dateRange.customEnd,
+                        } : undefined}
+                        recordCount={executedData.totalRecords || executedData.sections?.reduce((sum, s) => sum + (s.data?.length || 0), 0)}
+                        generatedAt={new Date()}
+                        customerName={effectiveCustomerName}
+                        filters={currentReport.sections?.flatMap(s =>
+                          (s as any).config?.filters?.map((f: any) => `${f.field}: ${f.value}`) || []
+                        )}
+                      />
+                    )}
                     {executedData && currentReport && (
                       <FollowUpSuggestions
                         currentReportType={currentReport.sections[0]?.type || 'default'}

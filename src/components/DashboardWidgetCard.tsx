@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { ShipmentFlowMap } from './dashboard/ShipmentFlowMap';
 import { CostPerStateMap } from './dashboard/CostPerStateMap';
+import { WidgetContextFooter } from './dashboard/WidgetContextFooter';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
 import { WidgetRenderer, getWidgetDisplayType } from './widgets/WidgetRenderer';
 import { executeCustomWidgetQuery } from '../utils/customWidgetExecutor';
@@ -601,10 +602,21 @@ export function DashboardWidgetCard({
           )}
         </div>
       </div>
-      <div className={`${widget.type === 'map' ? '' : 'p-4'}`}>
-        <WidgetErrorBoundary widgetName={widget.name}>
-          {renderContent()}
-        </WidgetErrorBoundary>
+      <div className={`${widget.type === 'map' ? '' : 'p-4'} flex-1 flex flex-col`}>
+        <div className="flex-1">
+          <WidgetErrorBoundary widgetName={widget.name}>
+            {renderContent()}
+          </WidgetErrorBoundary>
+        </div>
+
+        {data && (data.type === 'kpi' || widget.type === 'kpi' || widget.type === 'featured_kpi') && (
+          <WidgetContextFooter
+            recordCount={data.metadata?.recordCount}
+            dateRange={data.metadata?.dateRange || { start: dateRange.start, end: dateRange.end }}
+            tooltip={widget.tooltip}
+            dataDefinition={widget.dataDefinition}
+          />
+        )}
       </div>
     </div>
   );

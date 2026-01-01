@@ -14,3 +14,4 @@ export { ChatInterfaceV2 } from './ChatInterfaceV2';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';
 export type { BuildReportContext } from './ChatInput';
 export type { VisualizationConfig } from './AIVisualizationStudio';
+export { QueryDetailsPanel } from './QueryDetailsPanel';

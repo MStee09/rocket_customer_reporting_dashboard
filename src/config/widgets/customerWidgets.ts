@@ -12,6 +12,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'small',
     icon: 'Package',
     iconColor: 'bg-blue-500',
+    dataDefinition: 'Count of all shipments with pickup date in range',
+    tooltip: 'Counts shipments where pickup_date falls within the selected date range',
     whatItShows: {
       summary: 'Shows the total count of all your shipments within the selected date range.',
       columns: [
@@ -41,6 +43,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         value: count || 0,
         label: 'Shipments',
         format: 'number',
+        metadata: {
+          recordCount: count || 0,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -55,6 +61,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'small',
     icon: 'Truck',
     iconColor: 'bg-amber-500',
+    dataDefinition: 'Count of shipments with in_transit status',
+    tooltip: 'Counts shipments where status = in_transit (picked up but not yet delivered)',
     whatItShows: {
       summary: 'Shows how many of your shipments are currently in transit (picked up but not yet delivered).',
       columns: [
@@ -83,6 +91,9 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         value: count || 0,
         label: 'In Transit',
         format: 'number',
+        metadata: {
+          recordCount: count || 0,
+        },
       };
     },
   },
@@ -97,6 +108,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'small',
     icon: 'CheckCircle',
     iconColor: 'bg-green-500',
+    dataDefinition: 'Count of delivered shipments this calendar month',
+    tooltip: 'Counts shipments where status = delivered and delivery_date is in current month',
     whatItShows: {
       summary: 'Shows the count of shipments that have been delivered during the current calendar month.',
       columns: [
@@ -130,6 +143,9 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         value: count || 0,
         label: 'Delivered',
         format: 'number',
+        metadata: {
+          recordCount: count || 0,
+        },
       };
     },
   },
@@ -145,6 +161,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     icon: 'DollarSign',
     iconColor: 'bg-blue-500',
     gradient: 'from-blue-600 to-blue-700',
+    dataDefinition: 'Sum of all shipment retail (billed) amounts',
+    tooltip: 'Total Spend = Sum of retail field for all shipments in date range',
     whatItShows: {
       summary: 'Shows your total freight spending across all shipments in the selected date range.',
       columns: [
@@ -169,12 +187,17 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data } = await query;
       const total = data?.reduce((sum, s) => sum + (s.retail || 0), 0) || 0;
+      const recordCount = data?.length || 0;
 
       return {
         type: 'kpi',
         value: total,
         label: 'Total Spend',
         format: 'currency',
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -190,6 +213,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     icon: 'TrendingUp',
     iconColor: 'bg-emerald-500',
     gradient: 'from-emerald-600 to-emerald-700',
+    dataDefinition: 'Average retail (billed) amount per shipment',
+    tooltip: 'Avg Cost = Total Spend / Number of Shipments',
     whatItShows: {
       summary: 'Shows the average cost you pay per shipment, calculated by dividing total spend by shipment count.',
       columns: [
@@ -214,13 +239,18 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data } = await query;
       const total = data?.reduce((sum, s) => sum + (s.retail || 0), 0) || 0;
-      const avg = data?.length ? total / data.length : 0;
+      const recordCount = data?.length || 0;
+      const avg = recordCount > 0 ? total / recordCount : 0;
 
       return {
         type: 'kpi',
         value: avg,
         label: 'Avg/Shipment',
         format: 'currency',
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -235,6 +265,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'small',
     icon: 'Clock',
     iconColor: 'bg-purple-500',
+    dataDefinition: 'Percentage of deliveries on or before expected date',
+    tooltip: 'On-Time % = (Shipments delivered on/before expected date / Total delivered) x 100',
     whatItShows: {
       summary: 'Shows the percentage of your shipments that were delivered on or before the scheduled delivery date.',
       columns: [
@@ -260,9 +292,19 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       }
 
       const { data } = await query;
+      const recordCount = data?.length || 0;
 
       if (!data?.length) {
-        return { type: 'kpi', value: 0, label: 'On Time', format: 'percent' };
+        return {
+          type: 'kpi',
+          value: 0,
+          label: 'On Time',
+          format: 'percent',
+          metadata: {
+            recordCount: 0,
+            dateRange: { start: dateRange.start, end: dateRange.end },
+          },
+        };
       }
 
       const onTime = data.filter(s =>
@@ -277,6 +319,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         value: pct,
         label: 'On Time',
         format: 'percent',
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -291,6 +337,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'wide',
     icon: 'LineChart',
     iconColor: 'bg-blue-500',
+    dataDefinition: 'Monthly sum of retail amounts over time',
+    tooltip: 'Aggregates total retail spend for each month in the date range',
     whatItShows: {
       summary: 'Shows how your freight spending has changed month over month, helping you identify trends and seasonality.',
       columns: [
@@ -318,6 +366,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       }
 
       const { data } = await query;
+      const recordCount = data?.length || 0;
 
       const byMonth = new Map<string, number>();
       data?.forEach(s => {
@@ -338,6 +387,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       return {
         type: 'chart',
         data: chartData,
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -352,6 +405,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'medium',
     icon: 'PieChart',
     iconColor: 'bg-cyan-500',
+    dataDefinition: 'Shipment count grouped by transportation mode',
+    tooltip: 'Groups shipments by mode field (LTL, FTL, Parcel, etc.) and counts each',
     whatItShows: {
       summary: 'Shows the distribution of your shipments across different transportation modes (LTL, FTL, Parcel, etc.).',
       columns: [
@@ -376,6 +431,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       }
 
       const { data } = await query;
+      const recordCount = data?.length || 0;
 
       const byMode = new Map<string, number>();
       data?.forEach(s => {
@@ -390,6 +446,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       return {
         type: 'chart',
         data: chartData,
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -404,6 +464,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'medium',
     icon: 'PieChart',
     iconColor: 'bg-purple-500',
+    dataDefinition: 'Shipment count grouped by assigned carrier',
+    tooltip: 'Groups shipments by carrier and counts each to show distribution',
     whatItShows: {
       summary: 'Shows how your shipments are distributed across different carriers, helping you understand carrier concentration.',
       columns: [
@@ -429,9 +491,17 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data: shipments } = await shipmentsQuery;
       const shipmentIds = shipments?.map(s => s.shipment_id) || [];
+      const recordCount = shipmentIds.length;
 
       if (shipmentIds.length === 0) {
-        return { type: 'chart', data: [] };
+        return {
+          type: 'chart',
+          data: [],
+          metadata: {
+            recordCount: 0,
+            dateRange: { start: dateRange.start, end: dateRange.end },
+          },
+        };
       }
 
       const { data: shipmentCarriers } = await supabase
@@ -458,6 +528,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       return {
         type: 'chart',
         data: chartData,
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },
@@ -472,6 +546,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     defaultSize: 'wide',
     icon: 'Route',
     iconColor: 'bg-slate-500',
+    dataDefinition: 'Top 10 shipping lanes by shipment count',
+    tooltip: 'Identifies origin-destination state pairs, counts shipments, and calculates average cost per lane',
     whatItShows: {
       summary: 'Shows your most frequently used shipping lanes, ranked by number of shipments. Helps identify your busiest routes.',
       columns: [
@@ -500,9 +576,18 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data: shipments } = await shipmentsQuery;
       const shipmentIds = shipments?.map(s => s.shipment_id) || [];
+      const recordCount = shipmentIds.length;
 
       if (shipmentIds.length === 0) {
-        return { type: 'table', data: [], columns: [] };
+        return {
+          type: 'table',
+          data: [],
+          columns: [],
+          metadata: {
+            recordCount: 0,
+            dateRange: { start: dateRange.start, end: dateRange.end },
+          },
+        };
       }
 
       const { data: addresses } = await supabase
@@ -544,6 +629,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
           { key: 'count', label: 'Shipments', align: 'center', format: 'number' },
           { key: 'avgCost', label: 'Avg Cost', align: 'right', format: 'currency' },
         ],
+        metadata: {
+          recordCount,
+          dateRange: { start: dateRange.start, end: dateRange.end },
+        },
       };
     },
   },

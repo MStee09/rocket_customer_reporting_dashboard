@@ -81,3 +81,22 @@ export interface TableColumn {
   format?: 'number' | 'currency' | 'percent' | 'date';
   width?: string;
 }
+
+export interface WidgetResultMetadata {
+  recordCount?: number;
+  dateRange?: { start: string; end: string };
+  comparisonPeriod?: string;
+  changePercent?: number;
+}
+
+export interface KPIWidgetResult {
+  type: 'kpi';
+  value: number | string;
+  label: string;
+  format?: 'number' | 'currency' | 'percent';
+  trend?: {
+    value: number;
+    positive: boolean;
+  };
+  metadata?: WidgetResultMetadata;
+}

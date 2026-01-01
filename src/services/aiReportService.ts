@@ -68,7 +68,7 @@ export async function generateReport(
       content: msg.report ? JSON.stringify(msg.report) : msg.content,
     }));
 
-  const { data, error } = await supabase.functions.invoke('generate-report-v2', {
+  const { data, error } = await supabase.functions.invoke('generate-report', {
     body: {
       prompt,
       conversationHistory: history,

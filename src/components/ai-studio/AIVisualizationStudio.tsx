@@ -366,7 +366,7 @@ export function AIVisualizationStudio({
     try {
       const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
 
-      const { data, error } = await supabase.functions.invoke('generate-report', {
+      const { data, error } = await supabase.functions.invoke('generate-report-v2', {
         body: {
           prompt: `Create a visualization: ${content}. Available columns: ${availableColumns.join(', ')}. Report: ${reportName}`,
           conversationHistory: messages.map(m => ({

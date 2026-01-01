@@ -11,6 +11,7 @@ import {
   AIInsightsPanel,
   InlineEditToolbar,
   WidgetGalleryModal,
+  ProactiveInsightsCard,
 } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
@@ -380,14 +381,23 @@ export function DashboardPage() {
         )}
 
         {effectiveCustomerId && (
-          <AIInsightsCard
-            customerId={effectiveCustomerId}
-            dateRange={{
-              start: new Date(startDate),
-              end: new Date(endDate),
-            }}
-            className="mb-6"
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <AIInsightsCard
+              customerId={effectiveCustomerId}
+              dateRange={{
+                start: new Date(startDate),
+                end: new Date(endDate),
+              }}
+            />
+            <ProactiveInsightsCard
+              customerId={effectiveCustomerId}
+              isAdmin={isAdmin()}
+              dateRange={{
+                start: new Date(startDate),
+                end: new Date(endDate),
+              }}
+            />
+          </div>
         )}
 
         <WidgetGrid

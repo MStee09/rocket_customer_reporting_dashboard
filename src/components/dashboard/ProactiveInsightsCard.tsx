@@ -22,13 +22,21 @@ interface ProactiveInsightsCardProps {
 
 interface Insight {
   id: string;
-  type: 'volume_spike' | 'volume_drop' | 'spend_spike' | 'spend_drop' | 'carrier_concentration';
-  severity: 'info' | 'warning' | 'critical';
+  type: 'volume_spike' | 'volume_drop' | 'spend_spike' | 'spend_drop' | 'carrier_concentration' | 'carrier_cost_up' | 'carrier_cost_down';
+  severity: 'info' | 'warning' | 'critical' | 'success';
   title: string;
   description: string;
   metric?: string;
   change?: number;
   investigateQuery: string;
+}
+
+interface CarrierCostChange {
+  carrier_name: string;
+  current_avg_cost: number;
+  previous_avg_cost: number;
+  cost_change_percent: number;
+  current_volume: number;
 }
 
 function formatCurrency(value: number): string {
@@ -116,7 +124,66 @@ async function detectInsights(
       }
     }
 
-    const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+    const { data: carrierCostData, error: costError } = await supabase.rpc('get_carrier_cost_changes', {
+      p_customer_id: String(customerId),
+      p_start_date: startDate,
+      p_end_date: endDate
+    });
+
+    if (costError) {
+      console.error('Carrier cost changes error:', costError);
+    }
+
+    if (carrierCostData && Array.isArray(carrierCostData) && carrierCostData.length > 0) {
+      const costIncreases = carrierCostData.filter((c: CarrierCostChange) => c.cost_change_percent > 0);
+      const costDecreases = carrierCostData.filter((c: CarrierCostChange) => c.cost_change_percent < 0);
+
+      if (costIncreases.length >= 3) {
+        const avgIncrease = costIncreases.reduce((sum: number, c: CarrierCostChange) => sum + c.cost_change_percent, 0) / costIncreases.length;
+        insights.push({
+          id: 'carrier_cost_up_multiple',
+          type: 'carrier_cost_up',
+          severity: avgIncrease > 15 ? 'critical' : 'warning',
+          title: 'Multiple Carriers Raising Rates',
+          description: `${costIncreases.length} carriers have increased costs by an average of ${avgIncrease.toFixed(0)}%`,
+          metric: `${costIncreases.map((c: CarrierCostChange) => c.carrier_name).slice(0, 2).join(', ')}${costIncreases.length > 2 ? ` +${costIncreases.length - 2} more` : ''}`,
+          change: avgIncrease,
+          investigateQuery: 'Which carriers are increasing their rates and why?'
+        });
+      } else if (costIncreases.length > 0) {
+        const topIncrease = costIncreases[0];
+        if (topIncrease.cost_change_percent > 10) {
+          insights.push({
+            id: 'carrier_cost_up_' + topIncrease.carrier_name,
+            type: 'carrier_cost_up',
+            severity: topIncrease.cost_change_percent > 20 ? 'warning' : 'info',
+            title: `${topIncrease.carrier_name} Cost Increase`,
+            description: `Average cost per shipment increased by ${topIncrease.cost_change_percent.toFixed(0)}%`,
+            metric: `${formatCurrency(topIncrease.current_avg_cost)} avg cost`,
+            change: topIncrease.cost_change_percent,
+            investigateQuery: `Why did ${topIncrease.carrier_name} costs increase?`
+          });
+        }
+      }
+
+      if (costDecreases.length > 0) {
+        const topDecrease = costDecreases[0];
+        if (Math.abs(topDecrease.cost_change_percent) > 10) {
+          insights.push({
+            id: 'carrier_cost_down_' + topDecrease.carrier_name,
+            type: 'carrier_cost_down',
+            severity: 'success',
+            title: `${topDecrease.carrier_name} Cost Savings`,
+            description: `Average cost per shipment decreased by ${Math.abs(topDecrease.cost_change_percent).toFixed(0)}%`,
+            metric: `${formatCurrency(topDecrease.current_avg_cost)} avg cost`,
+            change: topDecrease.cost_change_percent,
+            investigateQuery: `What drove the cost savings with ${topDecrease.carrier_name}?`
+          });
+        }
+      }
+    }
+
+    const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2, success: 3 };
     insights.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     return insights.slice(0, 4);
@@ -130,15 +197,18 @@ function InsightIcon({ type, severity }: { type: Insight['type']; severity: Insi
   const colorClass = {
     critical: 'text-red-500',
     warning: 'text-amber-500',
-    info: 'text-blue-500'
+    info: 'text-blue-500',
+    success: 'text-green-500'
   }[severity];
 
   switch (type) {
     case 'volume_spike':
     case 'spend_spike':
+    case 'carrier_cost_up':
       return <TrendingUp className={`w-5 h-5 ${colorClass}`} />;
     case 'volume_drop':
     case 'spend_drop':
+    case 'carrier_cost_down':
       return <TrendingDown className={`w-5 h-5 ${colorClass}`} />;
     case 'carrier_concentration':
       return <Truck className={`w-5 h-5 ${colorClass}`} />;
@@ -157,7 +227,8 @@ function InsightCard({
   const severityBg = {
     critical: 'bg-red-50 border-red-200',
     warning: 'bg-amber-50 border-amber-200',
-    info: 'bg-blue-50 border-blue-200'
+    info: 'bg-blue-50 border-blue-200',
+    success: 'bg-green-50 border-green-200'
   }[insight.severity];
 
   return (
@@ -173,7 +244,7 @@ function InsightCard({
             <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
               <span className="font-semibold text-gray-700">{insight.metric}</span>
               {insight.change !== undefined && (
-                <span className={insight.change > 0 ? 'text-green-600' : 'text-red-600'}>
+                <span className={insight.change > 0 ? 'text-red-600' : 'text-green-600'}>
                   ({insight.change > 0 ? '+' : ''}{insight.change.toFixed(0)}%)
                 </span>
               )}
@@ -291,7 +362,7 @@ export function ProactiveInsightsCard({
           Your shipping patterns look normal. We'll alert you if we detect any unusual changes.
         </p>
         <button
-          onClick={() => navigate('/ai-studio?query=' + encodeURIComponent('Give me an overview of my shipping performance'))}
+          onClick={() => navigate('/ai-studio')}
           className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-amber-400 text-sm font-medium transition-colors"
         >
           <Sparkles className="w-4 h-4" />

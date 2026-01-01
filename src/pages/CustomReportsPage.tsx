@@ -1,22 +1,56 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Plus, FileText, BarChart3, Trash2, Users, Calendar, ArrowLeft } from 'lucide-react';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { EmptyReportState } from '../components/EmptyReportState';
 import SimpleReportBuilder from '../components/SimpleReportBuilder';
-import { SimpleReportBuilderState, ReportConfig } from '../types/reports';
+import { SimpleReportBuilderState, ReportConfig, SimpleReportColumn } from '../types/reports';
+import { ColumnFilter } from '../types/filters';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
 import { ScheduledReport } from '../types/scheduledReports';
 
+interface AIStudioNavigationState {
+  initialColumns?: Array<{ id: string; label: string }>;
+  initialFilters?: Array<{ columnId: string; operator: string; value: string; enabled: boolean }>;
+  reportName?: string;
+}
+
 export function CustomReportsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isViewingAsCustomer, viewingCustomer } = useAuth();
   const { reports, isLoading, deleteReport, saveReport } = useCustomerReports();
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [schedulingReport, setSchedulingReport] = useState<{ id: string; name: string } | null>(null);
+  const [initialBuilderData, setInitialBuilderData] = useState<Partial<SimpleReportBuilderState> | null>(null);
+
+  useEffect(() => {
+    const state = location.state as AIStudioNavigationState | null;
+
+    if (state?.initialColumns || state?.initialFilters) {
+      const columns: SimpleReportColumn[] = state.initialColumns || [];
+
+      const filters: ColumnFilter[] = (state.initialFilters || []).map((f, idx) => ({
+        id: `filter-${idx}`,
+        columnId: f.columnId,
+        condition: f.operator as any,
+        value: f.value,
+        enabled: f.enabled,
+      }));
+
+      setInitialBuilderData({
+        name: state.reportName || '',
+        selectedColumns: columns,
+        filters: filters,
+      });
+      setIsBuilderOpen(true);
+
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleScheduleCreated = (_schedule: ScheduledReport) => {
     setSchedulingReport(null);
@@ -229,8 +263,12 @@ export function CustomReportsPage() {
 
       {isBuilderOpen && (
         <SimpleReportBuilder
-          onClose={() => setIsBuilderOpen(false)}
+          onClose={() => {
+            setIsBuilderOpen(false);
+            setInitialBuilderData(null);
+          }}
           onSave={handleSaveReport}
+          initialState={initialBuilderData || undefined}
         />
       )}
 

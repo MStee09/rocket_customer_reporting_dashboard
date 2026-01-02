@@ -12,6 +12,7 @@ export { AIVisualizationStudio } from './AIVisualizationStudio';
 export { OutcomePrompts } from './OutcomePrompts';
 export { ChatInterfaceV2 } from './ChatInterfaceV2';
 export { TokenBudgetIndicator } from './TokenBudgetIndicator';
+export { ThinkingSteps, ThinkingStepsInline } from './ThinkingSteps';
 export type { AIReportWidgetConfig } from './AddToDashboardModal';
 export type { BuildReportContext } from './ChatInput';
 export type { VisualizationConfig } from './AIVisualizationStudio';

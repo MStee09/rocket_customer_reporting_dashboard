@@ -21,8 +21,6 @@ import { useTokenBudget } from '../hooks/useTokenBudget';
 import type { DataProfile } from '../components/ai-studio/SuggestedPrompts';
 import { ReportRenderer } from '../components/reports/studio';
 import {
-  ChatMessage as ChatMessageType,
-  generateReport,
   saveAIReport,
   loadAIReports,
   loadAIReport,
@@ -31,6 +29,11 @@ import {
   ExtractedReportContext,
   AIUsageData,
 } from '../services/aiReportService';
+import {
+  generateReportV2,
+  ChatMessage as ChatMessageTypeV2,
+  ConversationState,
+} from '../services/aiReportServiceV2';
 import { executeReportData } from '../services/reportDataExecutor';
 import { getDocumentsForContext, buildKnowledgeContext } from '../services/knowledgeBaseService';
 import { AIReportDefinition, ExecutedReportData, DateRangeType, TableSection } from '../types/aiReport';
@@ -116,9 +119,10 @@ export function AIReportStudioPage() {
   const location = useLocation();
   const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, isImpersonating, viewingCustomer, customers } = useAuth();
 
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [messages, setMessages] = useState<ChatMessageTypeV2[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentReport, setCurrentReport] = useState<AIReportDefinition | null>(null);
+  const [conversationState, setConversationState] = useState<ConversationState>({ reportInProgress: null });
   const [executedData, setExecutedData] = useState<ExecutedReportData | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [savedReports, setSavedReports] = useState<SavedAIReport[]>([]);
@@ -325,7 +329,7 @@ export function AIReportStudioPage() {
               ? `\n\n**Suggestions:**\n${suggestions.map(s => `- ${s}`).join('\n')}`
               : '';
 
-            const initialMessage: ChatMessageType = {
+            const initialMessage: ChatMessageTypeV2 = {
               id: crypto.randomUUID(),
               role: 'assistant',
               content: `I've loaded your custom report "${context.sourceReportName}" with ${context.rowCount.toLocaleString()} rows.\n\n**Available columns:**\n${context.columns.map(c => `- **${c.label}** (${c.type})`).join('\n')}${suggestionsText}\n\nWhat visualization would you like to create? You can:\n- Group by any text column and show as a chart\n- Categorize by keywords (e.g., "group description by 'drawer', 'cargoglide', 'toolbox'")\n- Calculate metrics (e.g., "cost per item")\n\nThis will be a **live report** that updates automatically with new data.`,
@@ -355,42 +359,46 @@ export function AIReportStudioPage() {
       return;
     }
 
-    const userMessage: ChatMessageType = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
+    const userMessage: ChatMessageTypeV2 = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
     setMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
     setBudgetExhaustedMessage(null);
     const effectiveIsAdmin = isAdmin() && !isImpersonating;
 
     try {
-      let combinedContext = knowledgeContext || '';
-      if (enhancementContext) {
-        combinedContext = formatContextForAI(enhancementContext) + '\n\n' + combinedContext;
-      }
-
       const customerIdToUse = isAdmin() ? "ALL" : String(effectiveCustomerId || "");
-      const response = await generateReport(content, messages, customerIdToUse, effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
+      const response = await generateReportV2(
+        content,
+        messages,
+        customerIdToUse,
+        effectiveIsAdmin,
+        conversationState,
+        effectiveCustomerName || undefined,
+        true,
+        user?.id,
+        user?.email
+      );
+
+      if (response.conversationState) {
+        setConversationState(response.conversationState);
+      }
 
       if (response.usage) {
         recordUsage(response.usage);
       }
 
-      if (response.reportContext) {
-        setBuildReportContext({
-          hasIntent: response.reportContext.hasIntent,
-          hasColumns: response.reportContext.hasColumns,
-          hasFilters: response.reportContext.hasFilters,
-          suggestedColumns: response.reportContext.suggestedColumns || [],
-          suggestedFilters: response.reportContext.suggestedFilters || [],
-        });
-      }
-
       const messageId = crypto.randomUUID();
-      const assistantMessage: ChatMessageType = {
+      const assistantMessage: ChatMessageTypeV2 = {
         id: messageId,
         role: 'assistant',
         content: response.report ? response.message || `I've created "${response.report.name}" for you.` : response.message,
         timestamp: new Date(),
         report: response.report || undefined,
+        toolsUsed: response.toolsUsed,
+        toolExecutions: response.toolExecutions,
+        learnings: response.learnings,
+        needsClarification: response.needsClarification,
+        clarificationOptions: response.clarificationOptions,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -398,21 +406,25 @@ export function AIReportStudioPage() {
         setMessageUsage((prev) => ({ ...prev, [messageId]: response.usage! }));
       }
 
-      if (response.budgetExhausted) {
-        setBudgetExhaustedMessage(response.message || "I've gathered enough information. Let me know if you need more detail on anything specific.");
-      }
-
       if (response.report) {
         setCurrentReport(response.report);
         executeReport(response.report);
         setMobileView('preview');
       }
+
       if (response.learnings && response.learnings.length > 0) {
-        setLearningToast({ visible: true, learnings: response.learnings });
+        const learningsForToast: AILearning[] = response.learnings.map(l => ({
+          type: l.type,
+          key: l.key,
+          value: l.value,
+          confidence: l.confidence,
+          source: l.source === 'tool' ? 'inferred' : l.source,
+        }));
+        setLearningToast({ visible: true, learnings: learningsForToast });
         setTimeout(() => setLearningToast({ visible: false, learnings: [] }), 5000);
       }
     } catch (error) {
-      const errorMessage: ChatMessageType = {
+      const errorMessage: ChatMessageTypeV2 = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: '',
@@ -423,6 +435,10 @@ export function AIReportStudioPage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleClarificationSelect = (option: string) => {
+    handleSendMessage(option);
   };
 
   const handleSaveReport = async () => {
@@ -475,6 +491,8 @@ export function AIReportStudioPage() {
     setIsEditingTitle(false);
     setMessageUsage({});
     setBudgetExhaustedMessage(null);
+    setConversationState({ reportInProgress: null });
+    setBuildReportContext(null);
     resetSession();
   };
 
@@ -738,6 +756,8 @@ export function AIReportStudioPage() {
                           message={message}
                           isCompact
                           usage={messageUsage[message.id]}
+                          onClarificationSelect={handleClarificationSelect}
+                          hasLearning={message.learnings && message.learnings.length > 0}
                         />
                       ))}
                       {isGenerating && (

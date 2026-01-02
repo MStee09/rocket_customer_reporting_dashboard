@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { User, Bot, AlertCircle, Check, Brain, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Bot, AlertCircle, Check, Brain, Zap, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
+import type { ToolExecution, LearningV2 } from '../../services/aiReportServiceV2';
 import { AIReportDefinition } from '../../types/aiReport';
 import { Card } from '../ui/Card';
+import { ThinkingSteps, ThinkingStepsInline } from './ThinkingSteps';
 
 interface UsageInfo {
   inputTokens: number;
@@ -13,12 +15,19 @@ interface UsageInfo {
 }
 
 interface ChatMessageProps {
-  message: ChatMessageType;
+  message: ChatMessageType & {
+    toolExecutions?: ToolExecution[];
+    learnings?: LearningV2[];
+    needsClarification?: boolean;
+    clarificationOptions?: string[];
+  };
   onPreviewReport?: (report: AIReportDefinition) => void;
   onSaveReport?: (report: AIReportDefinition) => void;
+  onClarificationSelect?: (option: string) => void;
   isCompact?: boolean;
   hasLearning?: boolean;
   usage?: UsageInfo;
+  showToolExecutions?: boolean;
 }
 
 function formatTokens(tokens: number): string {
@@ -46,12 +55,17 @@ export function ChatMessage({
   message,
   onPreviewReport,
   onSaveReport,
+  onClarificationSelect,
   isCompact = false,
   hasLearning = false,
   usage,
+  showToolExecutions = true,
 }: ChatMessageProps) {
   const [showUsage, setShowUsage] = useState(false);
   const isUser = message.role === 'user';
+  const hasToolExecutions = message.toolExecutions && message.toolExecutions.length > 0;
+  const hasLearnings = message.learnings && message.learnings.length > 0;
+  const hasClarification = message.needsClarification && message.clarificationOptions && message.clarificationOptions.length > 0;
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
@@ -97,6 +111,25 @@ export function ChatMessage({
           )
         )}
 
+        {hasClarification && !isUser && (
+          <ClarificationOptions
+            options={message.clarificationOptions!}
+            onSelect={onClarificationSelect}
+          />
+        )}
+
+        {showToolExecutions && hasToolExecutions && !isUser && (
+          isCompact ? (
+            <ThinkingStepsInline toolExecutions={message.toolExecutions!} />
+          ) : (
+            <ThinkingSteps toolExecutions={message.toolExecutions!} compact={isCompact} />
+          )
+        )}
+
+        {hasLearnings && !isUser && (
+          <LearningsIndicator learnings={message.learnings!} />
+        )}
+
         <div
           className={`flex items-center gap-2 text-xs text-gray-400 mt-1 ${
             isUser ? 'justify-end' : 'justify-start'
@@ -115,7 +148,7 @@ export function ChatMessage({
                 })
               : ''}
           </span>
-          {hasLearning && !isUser && (
+          {(hasLearning || hasLearnings) && !isUser && (
             <span className="inline-flex items-center gap-1 text-teal-600" title="AI learned something new from this conversation">
               <Brain className="w-3 h-3" />
               <span className="text-[10px]">Learned</span>
@@ -243,6 +276,78 @@ function ReportCard({ report, onPreview, onSave }: ReportCardProps) {
         )}
       </div>
     </Card>
+  );
+}
+
+interface ClarificationOptionsProps {
+  options: string[];
+  onSelect?: (option: string) => void;
+}
+
+function ClarificationOptions({ options, onSelect }: ClarificationOptionsProps) {
+  return (
+    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-left">
+      <div className="flex items-center gap-2 mb-2">
+        <HelpCircle className="w-4 h-4 text-amber-600" />
+        <span className="text-sm font-medium text-amber-800">Choose an option to continue:</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option, index) => (
+          <button
+            key={index}
+            onClick={() => onSelect?.(option)}
+            className="px-3 py-1.5 text-sm bg-white border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 hover:border-amber-400 transition-colors"
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface LearningsIndicatorProps {
+  learnings: LearningV2[];
+}
+
+function LearningsIndicator({ learnings }: LearningsIndicatorProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (learnings.length === 0) return null;
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-700 transition-colors"
+      >
+        <Brain className="w-3 h-3" />
+        <span>Learned {learnings.length} {learnings.length === 1 ? 'thing' : 'things'}</span>
+        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+          {learnings.map((learning, index) => (
+            <div
+              key={index}
+              className="flex items-start gap-2 px-3 py-2 bg-teal-50 rounded-lg text-sm"
+            >
+              <span className="text-teal-500 text-xs uppercase font-medium mt-0.5">
+                {learning.type}
+              </span>
+              <div className="flex-1 min-w-0">
+                <span className="font-medium text-teal-800">{learning.key}:</span>
+                <span className="text-teal-700 ml-1">{learning.value}</span>
+                <span className="text-teal-500 text-xs ml-2">
+                  ({Math.round(learning.confidence * 100)}% confidence)
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

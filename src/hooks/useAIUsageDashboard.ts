@@ -9,6 +9,7 @@ export interface AIUsageSummary {
   avgLatencyMs: number;
   successRate: number;
   uniqueUsers: number;
+  uniqueCustomers: number;
   requestsToday: number;
   costToday: number;
 }
@@ -22,6 +23,15 @@ export interface UserUsageRow {
   totalCostUsd: number;
   avgLatencyMs: number;
   lastUsed: string;
+}
+
+export interface CustomerUsageRow {
+  customerId: number | null;
+  customerName: string;
+  totalRequests: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  uniqueUsers: number;
 }
 
 export interface DailyUsageRow {
@@ -45,6 +55,7 @@ export interface CostSummary {
 export function useAIUsageDashboard(daysBack: number = 30) {
   const [summary, setSummary] = useState<AIUsageSummary | null>(null);
   const [userUsage, setUserUsage] = useState<UserUsageRow[]>([]);
+  const [customerUsage, setCustomerUsage] = useState<CustomerUsageRow[]>([]);
   const [dailyUsage, setDailyUsage] = useState<DailyUsageRow[]>([]);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +75,28 @@ export function useAIUsageDashboard(daysBack: number = 30) {
       if (data) {
         const summaryData = data.summary || {};
 
+        const users: UserUsageRow[] = (data.by_user || [])
+          .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
+          .map((u: Record<string, unknown>) => ({
+            userId: u.user_id as string,
+            userEmail: u.user_email as string,
+            totalRequests: (u.request_count as number) || 0,
+            totalInputTokens: (u.input_tokens as number) || 0,
+            totalOutputTokens: (u.output_tokens as number) || 0,
+            totalCostUsd: (u.total_cost as number) || 0,
+            avgLatencyMs: 0,
+            lastUsed: u.last_request as string
+          }));
+
+        const customers: CustomerUsageRow[] = (data.by_customer || []).map((c: Record<string, unknown>) => ({
+          customerId: c.customer_id as number | null,
+          customerName: (c.customer_name as string) || 'Admin / No Customer',
+          totalRequests: (c.request_count as number) || 0,
+          totalTokens: (c.total_tokens as number) || 0,
+          totalCostUsd: (c.total_cost as number) || 0,
+          uniqueUsers: (c.unique_users as number) || 0
+        }));
+
         setSummary({
           totalRequests: summaryData.total_requests || 0,
           totalInputTokens: summaryData.total_input_tokens || 0,
@@ -73,31 +106,22 @@ export function useAIUsageDashboard(daysBack: number = 30) {
           successRate: summaryData.total_requests > 0
             ? ((summaryData.successful_requests || 0) / summaryData.total_requests * 100)
             : 0,
-          uniqueUsers: (data.by_user || []).length,
+          uniqueUsers: users.length,
+          uniqueCustomers: customers.length,
           requestsToday: data.current_month?.requests || 0,
           costToday: data.current_month?.cost_usd || 0
         });
 
-        setUserUsage((data.by_user || [])
-          .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
-          .map((u: Record<string, unknown>) => ({
-            userId: u.user_id as string,
-            userEmail: u.user_email as string,
-            totalRequests: u.request_count as number,
-            totalInputTokens: u.input_tokens as number,
-            totalOutputTokens: u.output_tokens as number,
-            totalCostUsd: u.total_cost as number,
-            avgLatencyMs: 0,
-            lastUsed: u.last_request as string
-          })));
+        setUserUsage(users);
+        setCustomerUsage(customers);
 
         setDailyUsage((data.daily_trend || []).map((d: Record<string, unknown>) => ({
           date: d.date as string,
-          requests: d.requests as number,
+          requests: (d.requests as number) || 0,
           inputTokens: 0,
           outputTokens: 0,
-          costUsd: d.cost as number,
-          uniqueUsers: d.unique_users as number
+          costUsd: (d.cost as number) || 0,
+          uniqueUsers: (d.unique_users as number) || 0
         })));
       }
     } catch (err) {
@@ -132,6 +156,36 @@ export function useAIUsageDashboard(daysBack: number = 30) {
     setLoading(false);
   }, [daysBack]);
 
+  const fetchUsersForCustomer = useCallback(async (customerId: number | null): Promise<UserUsageRow[]> => {
+    try {
+      const { data, error } = await supabase.rpc('get_ai_usage_by_customer', {
+        p_customer_id: customerId,
+        p_days: daysBack
+      });
+
+      if (error) {
+        console.error('Failed to fetch users for customer:', error);
+        return [];
+      }
+
+      return (data?.users || [])
+        .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
+        .map((u: Record<string, unknown>) => ({
+          userId: u.user_id as string,
+          userEmail: u.user_email as string,
+          totalRequests: (u.request_count as number) || 0,
+          totalInputTokens: (u.input_tokens as number) || 0,
+          totalOutputTokens: (u.output_tokens as number) || 0,
+          totalCostUsd: (u.total_cost as number) || 0,
+          avgLatencyMs: (u.avg_latency_ms as number) || 0,
+          lastUsed: u.last_request as string
+        }));
+    } catch (err) {
+      console.error('Failed to fetch users for customer:', err);
+      return [];
+    }
+  }, [daysBack]);
+
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
@@ -139,11 +193,13 @@ export function useAIUsageDashboard(daysBack: number = 30) {
   return {
     summary,
     userUsage,
+    customerUsage,
     dailyUsage,
     costSummary,
     loading,
     error,
-    refresh: fetchDashboard
+    refresh: fetchDashboard,
+    fetchUsersForCustomer
   };
 }
 

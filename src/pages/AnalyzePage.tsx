@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Sparkles, Table2, Clock, ArrowRight, Loader2, Brain, X } from 'lucide-react';
+import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
@@ -65,10 +65,6 @@ export function AnalyzePage() {
     loadReports();
   }, [loadReports]);
 
-  const handleAskAI = useCallback(() => {
-    navigate('/ai-studio');
-  }, [navigate]);
-
   const handleBuildReport = useCallback(() => {
     navigate('/custom-reports');
   }, [navigate]);
@@ -96,26 +92,7 @@ export function AnalyzePage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          <button
-            onClick={handleAskAI}
-            className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-2">
-              Ask AI
-            </h2>
-            <p className="text-slate-600 text-sm mb-4">
-              Describe what you want in plain language. Best for quick reports.
-            </p>
-            <div className="flex items-center text-orange-600 font-medium text-sm">
-              Get started
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </button>
-
+        <div className="grid md:grid-cols-2 gap-6 mb-12 max-w-3xl mx-auto">
           <button
             onClick={() => setShowInvestigator(true)}
             className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left relative overflow-hidden"
@@ -203,16 +180,12 @@ export function AnalyzePage() {
           </div>
         )}
 
-        <div className="mt-12 p-6 bg-slate-100 rounded-xl">
+        <div className="mt-12 p-6 bg-slate-100 rounded-xl max-w-3xl mx-auto">
           <h4 className="font-medium text-slate-900 mb-3">Quick tips</h4>
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start gap-2">
               <span className="text-orange-500 mt-0.5">-</span>
-              <span><strong>Ask AI</strong> works best for questions like "Show me cost trends by carrier" or "Which lanes have the highest spend?"</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-orange-500 mt-0.5">-</span>
-              <span><strong>The Investigator</strong> goes deeper - finds anomalies, investigates root causes, and provides actionable insights</span>
+              <span><strong>The Investigator</strong> uses AI to analyze your data, find anomalies, investigate root causes, and provide actionable insights</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-500 mt-0.5">-</span>

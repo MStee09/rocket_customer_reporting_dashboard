@@ -442,13 +442,42 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      if (customerId) {
+        const { data: aiEnabled } = await supabase.rpc('is_ai_enabled_for_customer', {
+          p_customer_id: parseInt(customerId, 10)
+        });
+
+        if (aiEnabled === false) {
+          console.log(`[AI] AI disabled for customer ${customerId}`);
+          return new Response(
+            JSON.stringify({
+              error: 'ai_disabled',
+              message: 'AI features are not enabled for this account. Please contact your administrator.',
+              report: null,
+              toolExecutions: []
+            }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      let dailyCap = 5.00;
+      if (customerId) {
+        const { data: capData } = await supabase.rpc('get_customer_daily_cap', {
+          p_customer_id: parseInt(customerId, 10)
+        });
+        if (capData !== null) {
+          dailyCap = capData;
+        }
+      }
+
       const { data: budgetCheck, error: budgetError } = await supabase.rpc('check_user_daily_budget', {
         p_user_id: userId,
-        p_cap: 5.00
+        p_cap: dailyCap
       });
-      
+
       if (!budgetError && budgetCheck && !budgetCheck.allowed) {
-        console.log(`[AI] Daily budget exceeded for user ${userId}: ${budgetCheck.spent_today}`);
+        console.log(`[AI] Daily budget exceeded for user ${userId}: ${budgetCheck.spent_today} / ${dailyCap}`);
         return new Response(
           JSON.stringify({
             error: 'daily_budget_exceeded',

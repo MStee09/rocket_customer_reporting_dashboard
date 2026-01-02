@@ -249,13 +249,13 @@ export function ReportsHubPage() {
         <div className="flex items-center gap-6 border-b border-slate-200">
           <button
             onClick={() => handleTabChange('all')}
-            className={`pb-3 text-sm font-medium transition-colors relative ${
+            className={`pb-3 text-sm font-medium transition-colors relative flex items-center ${
               activeTab === 'all'
                 ? 'text-rocket-600'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
-            All Reports
+            <span>All Reports</span>
             <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">
               {reportItems.length}
             </span>
@@ -265,7 +265,7 @@ export function ReportsHubPage() {
           </button>
           <button
             onClick={() => handleTabChange('scheduled')}
-            className={`pb-3 text-sm font-medium transition-colors relative ${
+            className={`pb-3 text-sm font-medium transition-colors relative flex items-center ${
               activeTab === 'scheduled'
                 ? 'text-rocket-600'
                 : 'text-slate-500 hover:text-slate-700'
@@ -273,7 +273,7 @@ export function ReportsHubPage() {
           >
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              Scheduled
+              <span>Scheduled</span>
             </span>
             <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs">
               {scheduledReports.length}

@@ -69,10 +69,10 @@ export class TokenBudgetService {
   getStatusMessage(): string {
     const status = this.getStatus();
     if (status.percentUsed >= 100) {
-      return `I've used my analysis budget for this request. Here's what I found so far.`;
+      return "I've gathered enough information to give you a solid answer. Want me to dig deeper into any specific area? Just ask a follow-up question.";
     }
     if (status.percentUsed >= this.config.warningThresholdPercent) {
-      return `Note: Approaching analysis limit (${Math.round(status.percentUsed)}% used).`;
+      return "I'm wrapping up my analysis. Let me know if you need more detail on anything specific.";
     }
     return '';
   }

@@ -92,16 +92,18 @@ export function useAIUsageDashboard(daysBack: number = 30) {
         });
 
         // Parse user usage
-        const users = (data.by_user || []).map((u: Record<string, unknown>) => ({
-          userId: u.user_id as string,
-          userEmail: u.user_email as string,
-          totalRequests: u.request_count as number,
-          totalInputTokens: u.input_tokens as number,
-          totalOutputTokens: u.output_tokens as number,
-          totalCostUsd: u.total_cost as number,
-          avgLatencyMs: 0,
-          lastUsed: u.last_request as string
-        }));
+        const users = (data.by_user || [])
+          .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
+          .map((u: Record<string, unknown>) => ({
+            userId: u.user_id as string,
+            userEmail: u.user_email as string,
+            totalRequests: u.request_count as number,
+            totalInputTokens: u.input_tokens as number,
+            totalOutputTokens: u.output_tokens as number,
+            totalCostUsd: u.total_cost as number,
+            avgLatencyMs: 0,
+            lastUsed: u.last_request as string
+          }));
         setUserUsage(users);
 
         // Parse customer usage
@@ -189,16 +191,18 @@ export function useAIUsageDashboard(daysBack: number = 30) {
         return [];
       }
 
-      return (data?.users || []).map((u: Record<string, unknown>) => ({
-        userId: u.user_id as string,
-        userEmail: u.user_email as string,
-        totalRequests: u.request_count as number,
-        totalInputTokens: u.input_tokens as number,
-        totalOutputTokens: u.output_tokens as number,
-        totalCostUsd: u.total_cost as number,
-        avgLatencyMs: u.avg_latency_ms as number || 0,
-        lastUsed: u.last_request as string
-      }));
+      return (data?.users || [])
+        .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
+        .map((u: Record<string, unknown>) => ({
+          userId: u.user_id as string,
+          userEmail: u.user_email as string,
+          totalRequests: u.request_count as number,
+          totalInputTokens: u.input_tokens as number,
+          totalOutputTokens: u.output_tokens as number,
+          totalCostUsd: u.total_cost as number,
+          avgLatencyMs: u.avg_latency_ms as number || 0,
+          lastUsed: u.last_request as string
+        }));
     } catch (err) {
       console.error('Failed to fetch users for customer:', err);
       return [];

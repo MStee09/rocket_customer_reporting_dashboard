@@ -78,16 +78,18 @@ export function useAIUsageDashboard(daysBack: number = 30) {
           costToday: data.current_month?.cost_usd || 0
         });
 
-        setUserUsage((data.by_user || []).map((u: Record<string, unknown>) => ({
-          userId: u.user_id as string,
-          userEmail: u.user_email as string,
-          totalRequests: u.request_count as number,
-          totalInputTokens: u.input_tokens as number,
-          totalOutputTokens: u.output_tokens as number,
-          totalCostUsd: u.total_cost as number,
-          avgLatencyMs: 0,
-          lastUsed: u.last_request as string
-        })));
+        setUserUsage((data.by_user || [])
+          .filter((u: Record<string, unknown>) => u.user_email !== 'test@example.com')
+          .map((u: Record<string, unknown>) => ({
+            userId: u.user_id as string,
+            userEmail: u.user_email as string,
+            totalRequests: u.request_count as number,
+            totalInputTokens: u.input_tokens as number,
+            totalOutputTokens: u.output_tokens as number,
+            totalCostUsd: u.total_cost as number,
+            avgLatencyMs: 0,
+            lastUsed: u.last_request as string
+          })));
 
         setDailyUsage((data.daily_trend || []).map((d: Record<string, unknown>) => ({
           date: d.date as string,

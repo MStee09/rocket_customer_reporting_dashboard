@@ -23,6 +23,7 @@ import {
   buildThinkingSteps
 } from '../../services/aiReportServiceV2';
 import { AIReportDefinition } from '../../types/aiReport';
+import { supabase } from '../../lib/supabase';
 
 interface ChatInterfaceV2Props {
   customerId: string;
@@ -194,6 +195,8 @@ export function ChatInterfaceV2({
     setCurrentThinkingSteps([]);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const response = await generateReportV2(
         messageText,
         messages,
@@ -201,7 +204,9 @@ export function ChatInterfaceV2({
         isAdmin,
         conversationState,
         customerName,
-        true
+        true,
+        user?.id,
+        user?.email
       );
 
       if (response.toolExecutions && response.toolExecutions.length > 0) {

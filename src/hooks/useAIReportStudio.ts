@@ -69,13 +69,18 @@ export function useAIReportStudio({
     setMessages(prev => [...prev, userMessage]);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const response = await generateReportV2(
         message,
         messages,
         customerId,
         isAdmin,
         conversationState,
-        customerName
+        customerName,
+        true,
+        user?.id,
+        user?.email
       );
 
       const assistantMessage: ChatMessage = {

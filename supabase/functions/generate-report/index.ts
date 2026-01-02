@@ -871,8 +871,8 @@ Deno.serve(async (req: Request) => {
         await logUsage(supabase, {
           userId,
           userEmail,
-          customerId,
-          customerName,
+          customerId: isAdmin ? undefined : customerId,
+          customerName: isAdmin ? undefined : customerName,
           requestType: 'report',
           sessionId,
           inputTokens: totalInputTokens,
@@ -965,8 +965,8 @@ Deno.serve(async (req: Request) => {
       await logUsage(supabase, {
         userId,
         userEmail,
-        customerId,
-        customerName,
+        customerId: isAdmin ? undefined : customerId,
+        customerName: isAdmin ? undefined : customerName,
         requestType: 'report',
         sessionId,
         inputTokens: response.usage.input_tokens,
@@ -1029,8 +1029,8 @@ Deno.serve(async (req: Request) => {
       await logUsage(supabase, {
         userId,
         userEmail,
-        customerId,
-        customerName,
+        customerId: isAdmin ? undefined : customerId,
+        customerName: isAdmin ? undefined : customerName,
         requestType: 'report',
         inputTokens: 0,
         outputTokens: 0,

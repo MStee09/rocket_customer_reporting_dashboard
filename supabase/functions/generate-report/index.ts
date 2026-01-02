@@ -6,6 +6,7 @@ import { TokenBudgetService, createBudgetExhaustedResponse } from "./services/to
 import { getClaudeCircuitBreaker, createCircuitOpenResponse } from "./services/circuitBreaker.ts";
 import { RateLimitService, createRateLimitResponse } from "./services/rateLimit.ts";
 import { ContextService } from "./services/contextService.ts";
+import { ToolExecutor, LearningExtraction as ToolLearning } from "./services/toolExecutor.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -210,156 +211,6 @@ const AI_TOOLS: Anthropic.Tool[] = [
     }
   }
 ];
-
-async function executeExploreField(
-  supabase: SupabaseClient,
-  customerId: string,
-  input: { field_name: string; sample_size?: number }
-): Promise<unknown> {
-  const { field_name, sample_size = 10 } = input;
-
-  try {
-    const { data, error } = await supabase.rpc("explore_single_field", {
-      p_customer_id: customerId,
-      p_field_name: field_name,
-      p_sample_size: sample_size
-    });
-
-    if (error) return { error: error.message };
-    return data || { error: "No data returned" };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Unknown error" };
-  }
-}
-
-async function executePreviewGrouping(
-  supabase: SupabaseClient,
-  customerId: string,
-  input: { group_by: string; metric: string; aggregation: string; limit?: number }
-): Promise<unknown> {
-  const { group_by, metric, aggregation, limit = 15 } = input;
-
-  try {
-    const { data, error } = await supabase.rpc("preview_grouping", {
-      p_customer_id: customerId,
-      p_group_by: group_by,
-      p_metric: metric,
-      p_aggregation: aggregation,
-      p_limit: limit
-    });
-
-    if (error) return { error: error.message };
-
-    const results = data?.results || [];
-    const totalGroups = data?.total_groups || 0;
-
-    let quality = "good";
-    let warning = null;
-
-    if (totalGroups === 0) {
-      quality = "empty";
-      warning = "No data found for this grouping";
-    } else if (totalGroups > 50) {
-      quality = "many_groups";
-      warning = `This grouping has ${totalGroups} unique values - consider using top N limit`;
-    } else if (totalGroups === 1) {
-      quality = "single_group";
-      warning = "Only one group found - might not make a useful chart";
-    }
-
-    return { ...data, quality, warning };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Unknown error" };
-  }
-}
-
-async function executeEmitLearning(
-  supabase: SupabaseClient,
-  customerId: string,
-  input: { learning_type: string; key: string; value: string; confidence: string; maps_to_field?: string }
-): Promise<LearningExtraction> {
-  const confidenceMap: Record<string, number> = { high: 0.9, medium: 0.7, low: 0.5 };
-
-  const learning: LearningExtraction = {
-    type: input.learning_type as "terminology" | "product" | "preference",
-    key: input.key.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
-    value: input.value,
-    confidence: confidenceMap[input.confidence] || 0.7,
-    source: "tool"
-  };
-
-  try {
-    await supabase.from("ai_knowledge").upsert(
-      {
-        knowledge_type: learning.type === "terminology" ? "term" : learning.type,
-        key: learning.key,
-        label: input.key,
-        definition: learning.value,
-        scope: "customer",
-        customer_id: customerId,
-        source: "learned",
-        confidence: learning.confidence,
-        needs_review: learning.confidence < 0.8,
-        is_active: learning.confidence >= 0.8,
-        metadata: input.maps_to_field ? { maps_to_field: input.maps_to_field } : null
-      },
-      { onConflict: "knowledge_type,key,scope,customer_id" }
-    );
-  } catch (e) {
-    console.error("Failed to save learning:", e);
-  }
-
-  return learning;
-}
-
-function executeFinalizeReport(
-  input: { report: unknown; summary: string },
-  availableFields: string[],
-  isAdmin: boolean,
-  customerId: string
-): { report: Record<string, unknown>; summary: string; validation: { valid: boolean; errors: string[] } } {
-  const report = input.report as Record<string, unknown>;
-  const errors: string[] = [];
-
-  if (!report.name) errors.push("Report must have a name");
-  if (!report.sections || !Array.isArray(report.sections)) {
-    errors.push("Report must have a sections array");
-  }
-
-  if (!report.id) report.id = crypto.randomUUID();
-  if (!report.createdAt) report.createdAt = new Date().toISOString();
-  if (!report.dateRange) report.dateRange = { type: "last90" };
-  report.customerId = customerId;
-
-  const sections = (report.sections as unknown[]) || [];
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i] as Record<string, unknown>;
-    const config = section.config as Record<string, unknown> | undefined;
-
-    if (config) {
-      const groupBy = config.groupBy as string | undefined;
-      if (groupBy && !availableFields.includes(groupBy.toLowerCase())) {
-        errors.push(`Section ${i + 1}: Unknown field "${groupBy}"`);
-      }
-
-      const metric = config.metric as Record<string, unknown> | undefined;
-      if (metric?.field && !availableFields.includes((metric.field as string).toLowerCase())) {
-        errors.push(`Section ${i + 1}: Unknown metric field "${metric.field}"`);
-      }
-    }
-  }
-
-  if (!isAdmin) {
-    const reportStr = JSON.stringify(report).toLowerCase();
-    const foundRestricted = findRestrictedFieldsInString(reportStr);
-    for (const field of foundRestricted) {
-      errors.push(`Report contains restricted field: ${field}`);
-    }
-  }
-
-  return { report, summary: input.summary, validation: { valid: errors.length === 0, errors } };
-}
-
 
 const CORE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
 
@@ -575,6 +426,8 @@ Deno.serve(async (req: Request) => {
     const { schemaFields, dataProfile, fieldNames, availableFieldNames, terms, products, customerProfile: profile, prompts } = context;
     const { schema: schemaPrompt, knowledge: knowledgePrompt, profile: profilePrompt, access: accessPrompt } = prompts;
 
+    const toolExecutor = new ToolExecutor(supabase, customerId, isAdmin, availableFieldNames);
+
     const systemPromptParts = useTools
       ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, REPORT_STRUCTURE]
       : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
@@ -665,49 +518,26 @@ Deno.serve(async (req: Request) => {
         for (const toolUse of toolUseBlocks) {
           if (toolUse.type !== "tool_use") continue;
 
-          const toolStartTime = Date.now();
-          let result: unknown;
-
           console.log(`[AI] Tool: ${toolUse.name}`);
 
-          switch (toolUse.name) {
-            case "explore_field":
-              result = await executeExploreField(supabase, customerId, toolUse.input as any);
-              break;
-            case "preview_grouping":
-              result = await executePreviewGrouping(supabase, customerId, toolUse.input as any);
-              break;
-            case "emit_learning":
-              const learning = await executeEmitLearning(supabase, customerId, toolUse.input as any);
-              learnings.push(learning);
-              result = { success: true, learning };
-              break;
-            case "finalize_report":
-              const finalized = executeFinalizeReport(toolUse.input as any, availableFieldNames, isAdmin, customerId);
-              if (finalized.validation.valid) {
-                finalReport = finalized.report;
-                finalMessage = finalized.summary;
-              }
-              result = finalized;
-              break;
-            case "ask_clarification":
-              const input = toolUse.input as { question: string; options?: string[] };
-              needsClarification = true;
-              clarificationQuestion = input.question;
-              clarificationOptions = input.options;
-              result = { needsClarification: true };
-              break;
-            default:
-              result = { error: `Unknown tool: ${toolUse.name}` };
+          const execution = await toolExecutor.execute(toolUse.name, toolUse.input as Record<string, unknown>);
+          const result = execution.result;
+
+          if (toolUse.name === 'emit_learning' && (result as any).learning) {
+            learnings.push((result as any).learning);
+          } else if (toolUse.name === 'finalize_report') {
+            const finalized = result as { report: Record<string, unknown>; summary: string; validation: { valid: boolean } };
+            if (finalized.validation.valid) {
+              finalReport = finalized.report;
+              finalMessage = finalized.summary;
+            }
+          } else if (toolUse.name === 'ask_clarification') {
+            needsClarification = true;
+            clarificationQuestion = (toolUse.input as any).question;
+            clarificationOptions = (toolUse.input as any).options;
           }
 
-          toolExecutions.push({
-            toolName: toolUse.name,
-            toolInput: toolUse.input as Record<string, unknown>,
-            result,
-            timestamp: new Date().toISOString(),
-            duration: Date.now() - toolStartTime
-          });
+          toolExecutions.push(execution);
 
           toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: JSON.stringify(result) });
         }

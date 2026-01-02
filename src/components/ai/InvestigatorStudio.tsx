@@ -22,6 +22,7 @@ import {
   RefreshCw,
   HelpCircle,
   Brain,
+  Square,
 } from 'lucide-react';
 import { useInvestigator } from '../../hooks/useInvestigator';
 import type {
@@ -62,6 +63,7 @@ export function InvestigatorStudio({
     messages,
     insights,
     sendMessage,
+    stopGeneration,
     clearConversation,
     needsClarification,
     clarificationQuestion,
@@ -308,17 +310,23 @@ export function InvestigatorStudio({
               }}
             />
           </div>
-          <button
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
-            className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
+          {isLoading ? (
+            <button
+              onClick={stopGeneration}
+              className="p-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all"
+              title="Stop generating"
+            >
+              <Square className="w-5 h-5 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!inputValue.trim()}
+              className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
               <Send className="w-5 h-5" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

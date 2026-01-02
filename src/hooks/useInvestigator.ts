@@ -29,6 +29,7 @@ export interface UseInvestigatorReturn {
   insights: DataInsight[];
   toolExecutions: ToolExecution[];
   sendMessage: (message: string, mode?: 'investigate' | 'build' | 'modify' | 'analyze') => Promise<InvestigatorResponse | null>;
+  stopGeneration: () => void;
   clearConversation: () => void;
   setCurrentReport: (report: ReportDraft | null) => void;
   needsClarification: boolean;
@@ -77,6 +78,7 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
   const clientRef = useRef<InvestigatorClient | null>(null);
   const sessionStartRef = useRef<number>(Date.now());
   const sessionIdRef = useRef<string>(crypto.randomUUID());
+  const abortControllerRef = useRef<AbortController | null>(null);
   const pendingClarificationRef = useRef<{
     originalMessage: string;
     mode: 'investigate' | 'build' | 'modify' | 'analyze';
@@ -84,6 +86,14 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
 
   useEffect(() => {
     clientRef.current = createSecureInvestigator();
+  }, []);
+
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
   }, []);
 
   const sendMessage = useCallback(async (
@@ -94,6 +104,12 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
       setError('Client not initialized');
       return null;
     }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     setIsLoading(true);
     setError(null);
@@ -122,7 +138,11 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
         },
         currentReport: currentReport || undefined,
         mode,
-      });
+      }, signal);
+
+      if (signal.aborted) {
+        return null;
+      }
 
       console.log('[Investigator] Full response:', JSON.stringify(response, null, 2));
 
@@ -174,6 +194,11 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
       return response;
 
     } catch (e) {
+      if (signal.aborted || (e instanceof Error && e.name === 'AbortError')) {
+        setIsLoading(false);
+        return null;
+      }
+
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       setError(errorMessage);
       setIsLoading(false);
@@ -230,6 +255,7 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
     insights,
     toolExecutions,
     sendMessage,
+    stopGeneration,
     clearConversation,
     setCurrentReport,
     needsClarification,

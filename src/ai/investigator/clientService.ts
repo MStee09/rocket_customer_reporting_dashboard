@@ -8,7 +8,7 @@ import type {
 } from './types';
 
 export class InvestigatorClient {
-  async processRequest(request: InvestigatorRequest): Promise<InvestigatorResponse> {
+  async processRequest(request: InvestigatorRequest, signal?: AbortSignal): Promise<InvestigatorResponse> {
     try {
       const { data, error } = await supabase.functions.invoke('generate-report', {
         body: {

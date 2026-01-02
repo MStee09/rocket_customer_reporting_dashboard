@@ -56,41 +56,45 @@ export function useAIUsageDashboard(daysBack: number = 30) {
 
     try {
       const { data, error: rpcError } = await supabase.rpc('get_ai_usage_dashboard', {
-        p_days_back: daysBack
+        p_days: daysBack
       });
 
       if (rpcError) throw rpcError;
 
       if (data) {
+        const summaryData = data.summary || {};
+
         setSummary({
-          totalRequests: data.total_requests || 0,
-          totalInputTokens: data.total_input_tokens || 0,
-          totalOutputTokens: data.total_output_tokens || 0,
-          totalCostUsd: data.total_cost_usd || 0,
-          avgLatencyMs: data.avg_latency_ms || 0,
-          successRate: data.success_rate || 0,
-          uniqueUsers: data.unique_users || 0,
-          requestsToday: data.requests_today || 0,
-          costToday: data.cost_today || 0
+          totalRequests: summaryData.total_requests || 0,
+          totalInputTokens: summaryData.total_input_tokens || 0,
+          totalOutputTokens: summaryData.total_output_tokens || 0,
+          totalCostUsd: summaryData.total_cost_usd || 0,
+          avgLatencyMs: summaryData.avg_latency_ms || 0,
+          successRate: summaryData.total_requests > 0
+            ? ((summaryData.successful_requests || 0) / summaryData.total_requests * 100)
+            : 0,
+          uniqueUsers: (data.by_user || []).length,
+          requestsToday: data.current_month?.requests || 0,
+          costToday: data.current_month?.cost_usd || 0
         });
 
         setUserUsage((data.by_user || []).map((u: Record<string, unknown>) => ({
           userId: u.user_id as string,
           userEmail: u.user_email as string,
-          totalRequests: u.total_requests as number,
-          totalInputTokens: u.total_input_tokens as number,
-          totalOutputTokens: u.total_output_tokens as number,
-          totalCostUsd: u.total_cost_usd as number,
-          avgLatencyMs: u.avg_latency_ms as number,
-          lastUsed: u.last_used as string
+          totalRequests: u.request_count as number,
+          totalInputTokens: u.input_tokens as number,
+          totalOutputTokens: u.output_tokens as number,
+          totalCostUsd: u.total_cost as number,
+          avgLatencyMs: 0,
+          lastUsed: u.last_request as string
         })));
 
-        setDailyUsage((data.by_day || []).map((d: Record<string, unknown>) => ({
+        setDailyUsage((data.daily_trend || []).map((d: Record<string, unknown>) => ({
           date: d.date as string,
           requests: d.requests as number,
-          inputTokens: d.input_tokens as number,
-          outputTokens: d.output_tokens as number,
-          costUsd: d.cost_usd as number,
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: d.cost as number,
           uniqueUsers: d.unique_users as number
         })));
       }
@@ -100,18 +104,23 @@ export function useAIUsageDashboard(daysBack: number = 30) {
     }
 
     try {
-      const { data: costData, error: costError } = await supabase.rpc('get_ai_cost_summary', {
-        p_days_back: daysBack
-      });
+      const { data: costData, error: costError } = await supabase.rpc('get_ai_cost_summary');
 
       if (!costError && costData) {
+        const today = new Date();
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const dayOfMonth = today.getDate();
+        const thisMonthCost = costData.this_month || 0;
+        const avgDailyCost = dayOfMonth > 0 ? thisMonthCost / dayOfMonth : 0;
+        const projectedMonthlyCost = avgDailyCost * daysInMonth;
+
         setCostSummary({
-          periodStart: costData.period_start,
-          periodEnd: costData.period_end,
-          totalCost: costData.total_cost || 0,
-          projectedMonthlyCost: costData.projected_monthly_cost || 0,
-          avgDailyCost: costData.avg_daily_cost || 0,
-          daysInPeriod: costData.days_in_period || 0
+          periodStart: new Date(today.getFullYear(), today.getMonth(), 1).toISOString(),
+          periodEnd: today.toISOString(),
+          totalCost: thisMonthCost,
+          projectedMonthlyCost,
+          avgDailyCost,
+          daysInPeriod: dayOfMonth
         });
       }
     } catch (err) {
@@ -161,7 +170,7 @@ export function useUserAIUsage(userId: string, daysBack: number = 30) {
       try {
         const { data, error } = await supabase.rpc('get_user_ai_usage', {
           p_user_id: userId,
-          p_days_back: daysBack
+          p_days: daysBack
         });
 
         if (!error && data) {

@@ -287,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = () => {
-    if (impersonatingCustomerId !== null) return false;
+    if (role?.is_admin && impersonatingCustomerId !== null) return false;
     return role?.is_admin ?? false;
   };
 

@@ -28,11 +28,26 @@ export interface AILearning {
   source: 'explicit' | 'inferred';
 }
 
+export interface AIUsageData {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  inputCostUsd: number;
+  outputCostUsd: number;
+  totalCostUsd: number;
+  latencyMs: number;
+}
+
 export interface GenerateReportResponse {
   report: AIReportDefinition | null;
   message: string;
   rawResponse?: string;
   learnings?: AILearning[];
+  usage?: AIUsageData;
+  budgetExhausted?: boolean;
+  needsClarification?: boolean;
+  clarificationOptions?: string[];
+  reportContext?: ExtractedReportContext;
 }
 
 export async function generateReport(
@@ -136,7 +151,11 @@ export async function generateReport(
     message: data.message || '',
     rawResponse: data.rawResponse,
     learnings: data.learnings,
-    reportContext: data.reportContext || null,
+    usage: data.usage || undefined,
+    budgetExhausted: data.budgetExhausted || false,
+    needsClarification: data.needsClarification || false,
+    clarificationOptions: data.clarificationOptions,
+    reportContext: data.reportContext || undefined,
   };
 }
 

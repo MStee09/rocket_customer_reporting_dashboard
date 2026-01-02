@@ -1,5 +1,5 @@
 import { FileText, Sparkles, X, Loader2, MapPin, Truck, TrendingUp, DollarSign, BarChart3, PieChart, Table } from 'lucide-react';
-import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
+import { ChatMessage as ChatMessageType, AIUsageData } from '../../services/aiReportService';
 import { ChatMessage } from './ChatMessage';
 import { Card } from '../ui/Card';
 import type { ReportEnhancementContext } from '../../types/reportEnhancement';
@@ -121,6 +121,7 @@ interface SuggestedPromptsProps {
   messagesEndRef: React.RefObject<HTMLDivElement>;
   dataProfile?: DataProfile | null;
   enhancementContext?: ReportEnhancementContext | null;
+  messageUsage?: Record<string, AIUsageData>;
 }
 
 interface EnhancementSuggestion {
@@ -171,6 +172,7 @@ export function SuggestedPrompts({
   messagesEndRef,
   dataProfile,
   enhancementContext,
+  messageUsage,
 }: SuggestedPromptsProps) {
   const dataAwareSuggestions = getDataAwareSuggestions(dataProfile || null);
   const hasDataProfile = dataAwareSuggestions.length > 0;
@@ -272,6 +274,7 @@ export function SuggestedPrompts({
               key={message.id}
               message={message}
               isCompact={false}
+              usage={messageUsage?.[message.id]}
             />
           ))}
           {enhancementSuggestions.length > 0 && !isGenerating && (

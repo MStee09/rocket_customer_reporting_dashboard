@@ -1,7 +1,16 @@
-import { User, Bot, AlertCircle, Check, Brain } from 'lucide-react';
+import { useState } from 'react';
+import { User, Bot, AlertCircle, Check, Brain, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
 import { AIReportDefinition } from '../../types/aiReport';
 import { Card } from '../ui/Card';
+
+interface UsageInfo {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  latencyMs: number;
+}
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -9,6 +18,28 @@ interface ChatMessageProps {
   onSaveReport?: (report: AIReportDefinition) => void;
   isCompact?: boolean;
   hasLearning?: boolean;
+  usage?: UsageInfo;
+}
+
+function formatTokens(tokens: number): string {
+  if (tokens >= 1000) {
+    return `${(tokens / 1000).toFixed(1)}k`;
+  }
+  return tokens.toString();
+}
+
+function formatCost(cost: number): string {
+  if (cost < 0.01) {
+    return `$${cost.toFixed(4)}`;
+  }
+  return `$${cost.toFixed(3)}`;
+}
+
+function formatLatency(ms: number): string {
+  if (ms >= 1000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  return `${ms}ms`;
 }
 
 export function ChatMessage({
@@ -17,7 +48,9 @@ export function ChatMessage({
   onSaveReport,
   isCompact = false,
   hasLearning = false,
+  usage,
 }: ChatMessageProps) {
+  const [showUsage, setShowUsage] = useState(false);
   const isUser = message.role === 'user';
 
   return (
@@ -88,7 +121,41 @@ export function ChatMessage({
               <span className="text-[10px]">Learned</span>
             </span>
           )}
+          {usage && !isUser && (
+            <button
+              onClick={() => setShowUsage(!showUsage)}
+              className="inline-flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors"
+              title="View token usage"
+            >
+              <Zap className="w-3 h-3" />
+              <span className="text-[10px]">{formatTokens(usage.totalTokens)}</span>
+              {showUsage ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
         </div>
+
+        {showUsage && usage && !isUser && (
+          <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs text-gray-500 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-gray-400">Input:</span>{' '}
+                <span className="font-medium text-gray-600">{formatTokens(usage.inputTokens)}</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Output:</span>{' '}
+                <span className="font-medium text-gray-600">{formatTokens(usage.outputTokens)}</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Cost:</span>{' '}
+                <span className="font-medium text-gray-600">{formatCost(usage.totalCostUsd)}</span>
+              </div>
+              <div>
+                <span className="text-gray-400">Latency:</span>{' '}
+                <span className="font-medium text-gray-600">{formatLatency(usage.latencyMs)}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

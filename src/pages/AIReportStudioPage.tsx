@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Sparkles, Loader2, PanelLeftClose, PanelLeft, Plus, X, Brain,
-  ArrowLeft, MessageSquare, BarChart3
+  ArrowLeft, MessageSquare, BarChart3, AlertTriangle
 } from 'lucide-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,7 +15,9 @@ import {
   ReportPreviewHeader,
   FollowUpSuggestions,
   QueryDetailsPanel,
+  TokenBudgetIndicator,
 } from '../components/ai-studio';
+import { useTokenBudget } from '../hooks/useTokenBudget';
 import type { DataProfile } from '../components/ai-studio/SuggestedPrompts';
 import { ReportRenderer } from '../components/reports/studio';
 import {
@@ -27,6 +29,7 @@ import {
   SavedAIReport,
   AILearning,
   ExtractedReportContext,
+  AIUsageData,
 } from '../services/aiReportService';
 import { executeReportData } from '../services/reportDataExecutor';
 import { getDocumentsForContext, buildKnowledgeContext } from '../services/knowledgeBaseService';
@@ -136,6 +139,10 @@ export function AIReportStudioPage() {
   const [enhancementContext, setEnhancementContext] = useState<ReportEnhancementContext | null>(null);
   const [learningToast, setLearningToast] = useState<{ visible: boolean; learnings: AILearning[] }>({ visible: false, learnings: [] });
   const [buildReportContext, setBuildReportContext] = useState<ExtractedReportContext | null>(null);
+  const [messageUsage, setMessageUsage] = useState<Record<string, AIUsageData>>({});
+  const [budgetExhaustedMessage, setBudgetExhaustedMessage] = useState<string | null>(null);
+
+  const { status: budgetStatus, recordUsage, resetSession, isWarning, isExhausted } = useTokenBudget();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -342,9 +349,16 @@ export function AIReportStudioPage() {
 
   const handleSendMessage = async (content: string) => {
     if (!effectiveCustomerId && !isAdmin()) return;
+
+    if (isExhausted) {
+      setBudgetExhaustedMessage("You've reached your analysis limit for this session. Start a new conversation to continue.");
+      return;
+    }
+
     const userMessage: ChatMessageType = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
     setMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
+    setBudgetExhaustedMessage(null);
     const effectiveIsAdmin = isAdmin() && !isImpersonating;
 
     try {
@@ -356,6 +370,10 @@ export function AIReportStudioPage() {
       const customerIdToUse = isAdmin() ? "ALL" : String(effectiveCustomerId || "");
       const response = await generateReport(content, messages, customerIdToUse, effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
 
+      if (response.usage) {
+        recordUsage(response.usage);
+      }
+
       if (response.reportContext) {
         setBuildReportContext({
           hasIntent: response.reportContext.hasIntent,
@@ -366,14 +384,24 @@ export function AIReportStudioPage() {
         });
       }
 
+      const messageId = crypto.randomUUID();
       const assistantMessage: ChatMessageType = {
-        id: crypto.randomUUID(),
+        id: messageId,
         role: 'assistant',
         content: response.report ? response.message || `I've created "${response.report.name}" for you.` : response.message,
         timestamp: new Date(),
         report: response.report || undefined,
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      if (response.usage) {
+        setMessageUsage((prev) => ({ ...prev, [messageId]: response.usage! }));
+      }
+
+      if (response.budgetExhausted) {
+        setBudgetExhaustedMessage(response.message || "I've gathered enough information. Let me know if you need more detail on anything specific.");
+      }
+
       if (response.report) {
         setCurrentReport(response.report);
         executeReport(response.report);
@@ -445,6 +473,9 @@ export function AIReportStudioPage() {
     setIsChatCollapsed(false);
     setEditableTitle('');
     setIsEditingTitle(false);
+    setMessageUsage({});
+    setBudgetExhaustedMessage(null);
+    resetSession();
   };
 
   const handleAddToDashboard = (config: AIReportWidgetConfig) => {
@@ -571,6 +602,12 @@ export function AIReportStudioPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {messages.length > 0 && (
+              <div className="relative">
+                <TokenBudgetIndicator status={budgetStatus} variant="compact" />
+              </div>
+            )}
+
             {hasReport && (
               <div className="lg:hidden flex bg-gray-100 rounded-lg p-1">
                 <button
@@ -643,6 +680,7 @@ export function AIReportStudioPage() {
               messagesEndRef={messagesEndRef}
               dataProfile={dataProfile}
               enhancementContext={enhancementContext}
+              messageUsage={messageUsage}
             />
             <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4">
               <ChatInput
@@ -694,11 +732,26 @@ export function AIReportStudioPage() {
                       </div>
                     )}
                     <div className="space-y-4">
-                      {messages.map((message) => <ChatMessage key={message.id} message={message} isCompact />)}
+                      {messages.map((message) => (
+                        <ChatMessage
+                          key={message.id}
+                          message={message}
+                          isCompact
+                          usage={messageUsage[message.id]}
+                        />
+                      ))}
                       {isGenerating && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Thinking...</span>
+                        </div>
+                      )}
+                      {budgetExhaustedMessage && !isGenerating && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-amber-800">{budgetExhaustedMessage}</p>
+                          </div>
                         </div>
                       )}
                       <div ref={messagesEndRef} />

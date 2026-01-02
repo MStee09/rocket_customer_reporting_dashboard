@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle,
+  Info,
+  ChevronDown,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -60,6 +62,7 @@ interface Alert {
   description: string;
   metric?: string;
   change?: number;
+  methodology?: string;
   investigateQuery: string;
 }
 
@@ -84,6 +87,18 @@ async function detectAlerts(
 ): Promise<Alert[]> {
   const alerts: Alert[] = [];
 
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const periodDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const prevEnd = new Date(start);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - periodDays);
+
+  const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const periodLabel = `${formatDate(start)} - ${formatDate(end)}`;
+  const prevPeriodLabel = `${formatDate(prevStart)} - ${formatDate(prevEnd)}`;
+
   try {
     const { data: periodData } = await supabase.rpc('get_period_comparison', {
       p_customer_id: String(customerId),
@@ -103,6 +118,7 @@ async function detectAlerts(
           description: `${isSpike ? 'Up' : 'Down'} ${Math.abs(volumeChange).toFixed(0)}% vs prior period`,
           metric: `${periodData.current_volume?.toLocaleString() || 0} shipments`,
           change: volumeChange,
+          methodology: `Comparing ${periodLabel} (${periodData.current_volume?.toLocaleString() || 0} shipments) to ${prevPeriodLabel} (${periodData.previous_volume?.toLocaleString() || 0} shipments)`,
           investigateQuery: isSpike
             ? 'What caused my recent volume increase?'
             : 'Why did my shipment volume drop?'
@@ -120,6 +136,7 @@ async function detectAlerts(
           description: `${isSpike ? 'Up' : 'Down'} ${Math.abs(spendChange).toFixed(0)}%`,
           metric: formatCurrency(periodData.current_spend || 0),
           change: spendChange,
+          methodology: `Comparing ${periodLabel} (${formatCurrency(periodData.current_spend || 0)}) to ${prevPeriodLabel} (${formatCurrency(periodData.previous_spend || 0)})`,
           investigateQuery: isSpike
             ? 'Which carriers or lanes are driving up my costs?'
             : 'What led to lower freight spend?'
@@ -143,6 +160,7 @@ async function detectAlerts(
           title: 'High Carrier Concentration',
           description: `${concentrationData.top_carrier_name} handles ${topCarrierPercent.toFixed(0)}%`,
           metric: `${concentrationData.carrier_count} total carriers`,
+          methodology: `Based on ${periodLabel} shipment data. Top carrier has ${topCarrierPercent.toFixed(0)}% of volume out of ${concentrationData.carrier_count} carriers used.`,
           investigateQuery: 'Show me my carrier diversity and suggest alternatives'
         });
       }
@@ -159,6 +177,7 @@ async function detectAlerts(
 
       if (costIncreases.length >= 2) {
         const avgIncrease = costIncreases.reduce((sum: number, c: CarrierCostChange) => sum + c.cost_change_percent, 0) / costIncreases.length;
+        const carrierNames = costIncreases.map((c: CarrierCostChange) => c.carrier_name).slice(0, 3).join(', ');
         alerts.push({
           id: 'carrier_cost_up_multiple',
           type: 'carrier_cost_up',
@@ -167,6 +186,7 @@ async function detectAlerts(
           description: `${costIncreases.length} carriers up avg ${avgIncrease.toFixed(0)}%`,
           metric: costIncreases.map((c: CarrierCostChange) => c.carrier_name).slice(0, 2).join(', '),
           change: avgIncrease,
+          methodology: `Comparing avg shipment cost for ${periodLabel} vs ${prevPeriodLabel}. Affected carriers: ${carrierNames}${costIncreases.length > 3 ? ` and ${costIncreases.length - 3} more` : ''}.`,
           investigateQuery: 'Which carriers are increasing their rates and why?'
         });
       }
@@ -175,7 +195,7 @@ async function detectAlerts(
     const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2, success: 3 };
     alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-    return alerts.slice(0, 3);
+    return alerts;
   } catch (error) {
     console.error('Error detecting alerts:', error);
     return [];
@@ -207,6 +227,7 @@ function AlertIcon({ type, severity }: { type: Alert['type']; severity: Alert['s
 }
 
 function AlertBadge({ alert, onInvestigate }: { alert: Alert; onInvestigate: (query: string) => void }) {
+  const [showTooltip, setShowTooltip] = useState(false);
   const severityBg = {
     critical: 'bg-red-500/20 border-red-500/30 text-red-100',
     warning: 'bg-amber-500/20 border-amber-500/30 text-amber-100',
@@ -215,17 +236,39 @@ function AlertBadge({ alert, onInvestigate }: { alert: Alert; onInvestigate: (qu
   }[alert.severity];
 
   return (
-    <button
-      onClick={() => onInvestigate(alert.investigateQuery)}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${severityBg} hover:opacity-80 transition-opacity text-left`}
-    >
-      <AlertIcon type={alert.type} severity={alert.severity} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{alert.title}</p>
-        <p className="text-xs opacity-80 truncate">{alert.description}</p>
-      </div>
-      <ArrowRight className="w-4 h-4 opacity-60 flex-shrink-0" />
-    </button>
+    <div className="relative">
+      <button
+        onClick={() => onInvestigate(alert.investigateQuery)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${severityBg} hover:opacity-80 transition-opacity text-left w-full`}
+      >
+        <AlertIcon type={alert.type} severity={alert.severity} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium truncate">{alert.title}</p>
+            {alert.methodology && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowTooltip(!showTooltip);
+                }}
+                className="opacity-60 hover:opacity-100 transition-opacity"
+                title="How was this calculated?"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <p className="text-xs opacity-80 truncate">{alert.description}</p>
+        </div>
+        <ArrowRight className="w-4 h-4 opacity-60 flex-shrink-0" />
+      </button>
+      {showTooltip && alert.methodology && (
+        <div className="absolute z-10 top-full left-0 right-0 mt-1 p-2 bg-slate-800 border border-slate-600 rounded-lg text-xs text-slate-300 shadow-lg">
+          <p className="font-medium text-slate-200 mb-1">How this was calculated:</p>
+          <p>{alert.methodology}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -248,6 +291,9 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchKey, setLastFetchKey] = useState<string>('');
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
+
+  const MAX_VISIBLE_ALERTS = 3;
 
   const fetchKey = `${customerId}-${dateRange.start.toISOString()}-${dateRange.end.toISOString()}`;
   const startDateStr = dateRange.start.toISOString().split('T')[0];
@@ -438,15 +484,40 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
 
       {alerts.length > 0 && (
         <div className="border-t border-slate-700/50 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <span className="text-sm font-medium text-slate-300">Attention Needed</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium text-slate-300">Attention Needed</span>
+              {alerts.length > MAX_VISIBLE_ALERTS && (
+                <span className="text-xs text-slate-500">
+                  ({alertsExpanded ? alerts.length : MAX_VISIBLE_ALERTS} of {alerts.length})
+                </span>
+              )}
+            </div>
           </div>
           <div className="grid gap-2">
-            {alerts.map((alert) => (
+            {(alertsExpanded ? alerts : alerts.slice(0, MAX_VISIBLE_ALERTS)).map((alert) => (
               <AlertBadge key={alert.id} alert={alert} onInvestigate={handleInvestigate} />
             ))}
           </div>
+          {alerts.length > MAX_VISIBLE_ALERTS && !alertsExpanded && (
+            <button
+              onClick={() => setAlertsExpanded(true)}
+              className="w-full mt-3 py-2 text-sm text-amber-400 hover:text-amber-300 font-medium flex items-center justify-center gap-1 rounded-lg hover:bg-slate-800/50 transition-colors"
+            >
+              See all {alerts.length} insights
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          )}
+          {alertsExpanded && alerts.length > MAX_VISIBLE_ALERTS && (
+            <button
+              onClick={() => setAlertsExpanded(false)}
+              className="w-full mt-3 py-2 text-sm text-slate-400 hover:text-slate-300 font-medium flex items-center justify-center gap-1 rounded-lg hover:bg-slate-800/50 transition-colors"
+            >
+              Show less
+              <ChevronDown className="w-4 h-4 rotate-180" />
+            </button>
+          )}
         </div>
       )}
 

@@ -217,7 +217,7 @@ export function AIReportStudioPage() {
     setIsExecuting(true);
     const effectiveIsAdmin = isAdmin() && !isImpersonating;
     try {
-      const customerIdToUse = effectiveCustomerId ? String(effectiveCustomerId) : (isAdmin() ? "ALL" : "");
+      const customerIdToUse = isAdmin() ? "ALL" : String(effectiveCustomerId || "");
       const data = await executeReportData(supabase, report, customerIdToUse, effectiveIsAdmin);
       setExecutedData(data);
     } catch (error) {
@@ -353,7 +353,7 @@ export function AIReportStudioPage() {
         combinedContext = formatContextForAI(enhancementContext) + '\n\n' + combinedContext;
       }
 
-      const customerIdToUse = effectiveCustomerId ? String(effectiveCustomerId) : (isAdmin() ? "ALL" : "");
+      const customerIdToUse = isAdmin() ? "ALL" : String(effectiveCustomerId || "");
       const response = await generateReport(content, messages, customerIdToUse, effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
 
       if (response.reportContext) {

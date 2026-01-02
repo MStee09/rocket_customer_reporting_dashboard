@@ -3,6 +3,7 @@ import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { RESTRICTED_FIELDS, isRestrictedField, findRestrictedFieldsInString, getAccessControlPrompt } from "./services/restrictedFields.ts";
 import { TokenBudgetService, createBudgetExhaustedResponse } from "./services/tokenBudget.ts";
+import { getClaudeCircuitBreaker, createCircuitOpenResponse } from "./services/circuitBreaker.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -758,6 +759,15 @@ Deno.serve(async (req: Request) => {
 
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
+    const circuitBreaker = getClaudeCircuitBreaker();
+    if (!circuitBreaker.canExecute()) {
+      console.log('[AI] Circuit breaker OPEN - failing fast');
+      return new Response(
+        JSON.stringify(createCircuitOpenResponse(circuitBreaker.getTimeUntilRetry())),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (useTools) {
       const toolExecutions: ToolExecution[] = [];
       const learnings: LearningExtraction[] = [];
@@ -783,14 +793,21 @@ Deno.serve(async (req: Request) => {
 
         console.log(`[AI] Turn ${turn + 1}/${MAX_TURNS}`);
 
-        const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
-          system: fullSystemPrompt,
-          messages: currentMessages,
-          tools: AI_TOOLS,
-          tool_choice: { type: "auto" }
-        });
+        let response;
+        try {
+          response = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 8192,
+            system: fullSystemPrompt,
+            messages: currentMessages,
+            tools: AI_TOOLS,
+            tool_choice: { type: "auto" }
+          });
+          circuitBreaker.recordSuccess();
+        } catch (apiError) {
+          circuitBreaker.recordFailure(apiError instanceof Error ? apiError : new Error(String(apiError)));
+          throw apiError;
+        }
 
         totalInputTokens += response.usage.input_tokens;
         totalOutputTokens += response.usage.output_tokens;
@@ -927,12 +944,19 @@ Deno.serve(async (req: Request) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
-      system: fullSystemPrompt,
-      messages,
-    });
+    let response;
+    try {
+      response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        system: fullSystemPrompt,
+        messages,
+      });
+      circuitBreaker.recordSuccess();
+    } catch (apiError) {
+      circuitBreaker.recordFailure(apiError instanceof Error ? apiError : new Error(String(apiError)));
+      throw apiError;
+    }
 
     const latencyMs = Date.now() - startTime;
     const textContent = response.content.find((c) => c.type === "text");

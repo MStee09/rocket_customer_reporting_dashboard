@@ -22,6 +22,9 @@ interface RequestBody {
   currentReport?: Record<string, unknown>;
   customerName?: string;
   useTools?: boolean;
+  userId?: string;
+  userEmail?: string;
+  sessionId?: string;
 }
 
 interface ToolExecution {
@@ -87,6 +90,53 @@ interface LearningExtraction {
 }
 
 const ADMIN_ONLY_FIELDS = ["cost", "margin", "margin_percent", "carrier_cost", "cost_per_mile"];
+
+async function logUsage(
+  supabase: SupabaseClient,
+  params: {
+    userId: string;
+    userEmail?: string;
+    customerId?: string;
+    customerName?: string;
+    requestType?: string;
+    sessionId?: string;
+    inputTokens: number;
+    outputTokens: number;
+    modelUsed?: string;
+    latencyMs?: number;
+    toolTurns?: number;
+    status: string;
+    errorMessage?: string;
+  }
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('log_ai_usage', {
+      p_user_id: params.userId,
+      p_user_email: params.userEmail || null,
+      p_customer_id: params.customerId ? parseInt(params.customerId, 10) : null,
+      p_customer_name: params.customerName || null,
+      p_request_type: params.requestType || 'report',
+      p_session_id: params.sessionId || null,
+      p_input_tokens: params.inputTokens || 0,
+      p_output_tokens: params.outputTokens || 0,
+      p_model_used: params.modelUsed || 'claude-sonnet-4-20250514',
+      p_latency_ms: params.latencyMs || null,
+      p_tool_turns: params.toolTurns || 0,
+      p_status: params.status,
+      p_error_message: params.errorMessage || null
+    });
+    
+    if (error) {
+      console.error('[Usage Log] Failed:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (e) {
+    console.error('[Usage Log] Exception:', e);
+    return null;
+  }
+}
 
 const AI_TOOLS: Anthropic.Tool[] = [
   {
@@ -660,6 +710,13 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let supabase: SupabaseClient | undefined;
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  let customerId: string | undefined;
+  let customerName: string | undefined;
+
   try {
     const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicApiKey) {
@@ -668,13 +725,18 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: RequestBody = await req.json();
-    const { prompt, conversationHistory, customerId, isAdmin, knowledgeContext, currentReport, customerName, useTools = true } = body;
+    const { prompt, conversationHistory, isAdmin, knowledgeContext, currentReport, useTools = true, sessionId } = body;
+    customerId = body.customerId;
+    customerName = body.customerName;
+    
+    userId = body.userId;
+    userEmail = body.userEmail;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`[AI] Customer ${customerId}, admin: ${isAdmin}, tools: ${useTools}`);
+    console.log(`[AI] User: ${userEmail || userId || 'unknown'}, Customer: ${customerId}, Admin: ${isAdmin}, Tools: ${useTools}`);
 
     const { fields: schemaFields, dataProfile, fieldNames } = await compileSchemaContext(supabase, customerId);
     const schemaPrompt = formatSchemaForPrompt(schemaFields, dataProfile, isAdmin);
@@ -710,6 +772,8 @@ Deno.serve(async (req: Request) => {
       let needsClarification = false;
       let clarificationQuestion = "";
       let clarificationOptions: string[] | undefined;
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
 
       const MAX_TURNS = 10;
       let currentMessages = [...messages];
@@ -725,6 +789,9 @@ Deno.serve(async (req: Request) => {
           tools: AI_TOOLS,
           tool_choice: { type: "auto" }
         });
+
+        totalInputTokens += response.usage.input_tokens;
+        totalOutputTokens += response.usage.output_tokens;
 
         if (response.stop_reason === "end_turn") {
           const textBlock = response.content.find(c => c.type === "text");
@@ -746,7 +813,7 @@ Deno.serve(async (req: Request) => {
         for (const toolUse of toolUseBlocks) {
           if (toolUse.type !== "tool_use") continue;
 
-          const startTime = Date.now();
+          const toolStartTime = Date.now();
           let result: unknown;
 
           console.log(`[AI] Tool: ${toolUse.name}`);
@@ -787,7 +854,7 @@ Deno.serve(async (req: Request) => {
             toolInput: toolUse.input as Record<string, unknown>,
             result,
             timestamp: new Date().toISOString(),
-            duration: Date.now() - startTime
+            duration: Date.now() - toolStartTime
           });
 
           toolResults.push({ type: "tool_result", tool_use_id: toolUse.id, content: JSON.stringify(result) });
@@ -797,6 +864,24 @@ Deno.serve(async (req: Request) => {
         currentMessages.push({ role: "user", content: toolResults });
       }
 
+      const latencyMs = Date.now() - startTime;
+
+      if (userId) {
+        await logUsage(supabase, {
+          userId,
+          userEmail,
+          customerId,
+          customerName,
+          requestType: 'report',
+          sessionId,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          latencyMs,
+          toolTurns: toolExecutions.length,
+          status: 'success'
+        });
+      }
+
       try {
         await supabase.from("ai_report_audit").insert({
           customer_id: parseInt(customerId, 10),
@@ -804,9 +889,21 @@ Deno.serve(async (req: Request) => {
           generated_report: finalReport,
           ai_response: finalMessage.slice(0, 5000),
           success: !!finalReport,
-          context_used: { toolMode: true, toolExecutions: toolExecutions.length, learnings: learnings.length },
+          context_used: { 
+            toolMode: true, 
+            toolExecutions: toolExecutions.length, 
+            learnings: learnings.length,
+            tokens: { input: totalInputTokens, output: totalOutputTokens },
+            latencyMs,
+            userId,
+            userEmail
+          },
         });
       } catch (e) { console.error("Audit error:", e); }
+
+      const inputCost = totalInputTokens * 0.000003;
+      const outputCost = totalOutputTokens * 0.000015;
+      const totalCost = inputCost + outputCost;
 
       return new Response(JSON.stringify({
         report: finalReport,
@@ -815,6 +912,15 @@ Deno.serve(async (req: Request) => {
         learnings: learnings.length > 0 ? learnings : undefined,
         needsClarification,
         clarificationOptions,
+        usage: {
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          totalTokens: totalInputTokens + totalOutputTokens,
+          inputCostUsd: inputCost,
+          outputCostUsd: outputCost,
+          totalCostUsd: totalCost,
+          latencyMs
+        }
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -825,6 +931,7 @@ Deno.serve(async (req: Request) => {
       messages,
     });
 
+    const latencyMs = Date.now() - startTime;
     const textContent = response.content.find((c) => c.type === "text");
     if (!textContent || textContent.type !== "text") throw new Error("No text response");
 
@@ -853,6 +960,22 @@ Deno.serve(async (req: Request) => {
     const learnings = extractLearnings(prompt, responseText, conversationHistory);
     if (learnings.length > 0) await saveLearnings(supabase, customerId, learnings);
 
+    if (userId) {
+      await logUsage(supabase, {
+        userId,
+        userEmail,
+        customerId,
+        customerName,
+        requestType: 'report',
+        sessionId,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        latencyMs,
+        toolTurns: 0,
+        status: 'success'
+      });
+    }
+
     try {
       await supabase.from("ai_report_audit").insert({
         customer_id: parseInt(customerId, 10),
@@ -860,7 +983,14 @@ Deno.serve(async (req: Request) => {
         generated_report: parsedReport,
         ai_response: responseText.slice(0, 5000),
         success: !!parsedReport,
-        context_used: { toolMode: false, termsCount: terms.length },
+        context_used: { 
+          toolMode: false, 
+          termsCount: terms.length,
+          tokens: { input: response.usage.input_tokens, output: response.usage.output_tokens },
+          latencyMs,
+          userId,
+          userEmail
+        },
       });
     } catch (e) { console.error("Audit error:", e); }
 
@@ -869,15 +999,46 @@ Deno.serve(async (req: Request) => {
       .replace(/<learning_flag>[\s\S]*?<\/learning_flag>/g, "")
       .trim();
 
+    const inputCost = response.usage.input_tokens * 0.000003;
+    const outputCost = response.usage.output_tokens * 0.000015;
+    const totalCost = inputCost + outputCost;
+
     return new Response(JSON.stringify({
       report: parsedReport,
       message: cleanMessage || (parsedReport ? "Report generated" : responseText),
       learnings: learnings.length > 0 ? learnings : undefined,
       toolExecutions: [],
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+        inputCostUsd: inputCost,
+        outputCostUsd: outputCost,
+        totalCostUsd: totalCost,
+        latencyMs
+      }
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("Error:", error);
+    
+    const latencyMs = Date.now() - startTime;
+    
+    if (supabase && userId) {
+      await logUsage(supabase, {
+        userId,
+        userEmail,
+        customerId,
+        customerName,
+        requestType: 'report',
+        inputTokens: 0,
+        outputTokens: 0,
+        latencyMs,
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+    
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "Unknown error",
       report: null,

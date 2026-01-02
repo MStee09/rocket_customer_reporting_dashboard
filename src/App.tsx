@@ -26,6 +26,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { HowToPage } from './pages/HowToPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
+import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
@@ -161,6 +162,14 @@ function App() {
               <Route
                 path="ai-learning"
                 element={<Navigate to="/knowledge-base?tab=learning" replace />}
+              />
+              <Route
+                path="admin/ai-usage"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AIUsageDashboardPage />
+                  </ProtectedRoute>
+                }
               />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="settings/how-to" element={<HowToPage />} />

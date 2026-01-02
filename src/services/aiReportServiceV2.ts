@@ -41,6 +41,16 @@ export interface ConversationState {
   sessionId?: string;
 }
 
+export interface AIUsageInfo {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  inputCostUsd: number;
+  outputCostUsd: number;
+  totalCostUsd: number;
+  latencyMs: number;
+}
+
 export interface GenerateReportResponse {
   report: AIReportDefinition | null;
   message: string;
@@ -50,6 +60,7 @@ export interface GenerateReportResponse {
   conversationState: ConversationState;
   needsClarification?: boolean;
   clarificationOptions?: string[];
+  usage?: AIUsageInfo;
 }
 
 export async function generateReportV2(
@@ -59,7 +70,9 @@ export async function generateReportV2(
   isAdmin: boolean,
   conversationState?: ConversationState,
   customerName?: string,
-  useTools: boolean = true
+  useTools: boolean = true,
+  userId?: string,
+  userEmail?: string
 ): Promise<GenerateReportResponse> {
   const history: Message[] = conversationHistory
     .filter(msg => msg.role === 'user' || msg.role === 'assistant')
@@ -77,7 +90,10 @@ export async function generateReportV2(
         isAdmin,
         customerName,
         conversationState,
-        useTools
+        useTools,
+        userId,
+        userEmail,
+        sessionId: conversationState?.sessionId
       }
     });
 
@@ -160,7 +176,8 @@ export async function generateReportV2(
       learnings: data.learnings,
       conversationState: data.conversationState || { reportInProgress: null },
       needsClarification: data.needsClarification,
-      clarificationOptions: data.clarificationOptions
+      clarificationOptions: data.clarificationOptions,
+      usage: data.usage
     };
   } catch (err) {
     console.error('AI service error:', err);

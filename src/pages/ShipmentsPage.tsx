@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSavedViews } from '../hooks/useSavedViews';
 import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
-import { ShipmentDetailDrawer } from '../components/shipments/ShipmentDetailDrawer';
 import { ShipmentsToolbar } from '../components/shipments/ShipmentsToolbar';
 import { ShipmentRow } from '../components/shipments/ShipmentRow';
 import { ColumnConfig } from '../services/exportService';
@@ -79,7 +78,6 @@ export function ShipmentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
   const hasActiveFilters = searchQuery.trim() !== '';
 
@@ -372,7 +370,7 @@ export function ShipmentsPage() {
           <ShipmentRow
             key={shipment.load_id}
             shipment={shipment}
-            onClick={() => setSelectedShipment(shipment)}
+            onClick={() => navigate(`/shipments/${shipment.load_id}`)}
             showFinancials={showFinancials}
           />
         ))}
@@ -422,22 +420,6 @@ export function ShipmentsPage() {
         reportName="Shipments Export"
         reportData={shipmentExportData}
         reportType="shipments"
-      />
-
-      <ShipmentDetailDrawer
-        shipment={selectedShipment}
-        isOpen={!!selectedShipment}
-        onClose={() => setSelectedShipment(null)}
-        onViewDetails={(shipment) => navigate(`/shipments/${shipment.load_id}`)}
-        onAskAI={(shipment) => {
-          sessionStorage.setItem('ai_studio_context', JSON.stringify({
-            type: 'shipment',
-            shipment: shipment,
-            suggestedPrompt: `Tell me about shipment #${shipment.load_id}`
-          }));
-          navigate('/ai-studio', { state: { hasContext: true } });
-        }}
-        showFinancials={showFinancials}
       />
     </div>
   );

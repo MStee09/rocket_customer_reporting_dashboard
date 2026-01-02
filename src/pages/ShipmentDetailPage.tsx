@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, Loader2, Printer, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
@@ -297,13 +297,29 @@ export function ShipmentDetailPage() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 print:hidden shrink-0"
-          >
-            <Printer className="w-4 h-4" />
-            Print
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                sessionStorage.setItem('ai_studio_context', JSON.stringify({
+                  type: 'shipment',
+                  shipmentId: loadId,
+                  suggestedPrompt: `Tell me about shipment #${loadId}`
+                }));
+                navigate('/ai-studio', { state: { hasContext: true } });
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-sm print:hidden"
+            >
+              <Sparkles className="w-4 h-4" />
+              Ask AI
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2 print:hidden"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+          </div>
         </div>
       </Card>
 

@@ -64,6 +64,12 @@ export function useDashboardStats(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadStats = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('[Dashboard] Loading stats with:', {
@@ -167,6 +173,12 @@ export function useMonthlyTrend(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -248,6 +260,12 @@ export function useShipmentModes(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -304,6 +322,12 @@ export function useCarrierMix(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -376,6 +400,12 @@ export function useTopLanes(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const shipmentTable = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -472,6 +502,12 @@ export function usePerformanceMetrics(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -560,6 +596,12 @@ export function useCostPerStateData(
   }, [effectiveCustomerIds, isAdmin, isViewingAsCustomer, startDate, endDate]);
 
   const loadData = async () => {
+    if (!isAdmin && effectiveCustomerIds.length === 0) {
+      console.log('[Dashboard] No customer IDs available, skipping query');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const shipmentTable = getSecureTable('shipment', isAdmin, isViewingAsCustomer);

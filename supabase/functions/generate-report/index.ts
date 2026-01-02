@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { RESTRICTED_FIELDS, isRestrictedField, findRestrictedFieldsInString, getAccessControlPrompt } from "./services/restrictedFields.ts";
 import { TokenBudgetService, createBudgetExhaustedResponse } from "./services/tokenBudget.ts";
 import { getClaudeCircuitBreaker, createCircuitOpenResponse } from "./services/circuitBreaker.ts";
+import { RateLimitService, createRateLimitResponse } from "./services/rateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -730,6 +731,21 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (userId) {
+      const rateLimitService = new RateLimitService(supabase);
+      const rateLimitResult = await rateLimitService.checkLimit(userId);
+
+      if (!rateLimitResult.allowed) {
+        console.log(`[AI] Rate limit exceeded for user ${userId}`);
+        return new Response(
+          JSON.stringify(createRateLimitResponse(rateLimitResult)),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await rateLimitService.recordRequest(userId, customerId);
+    }
 
     console.log(`[AI] User: ${userEmail || userId || 'unknown'}, Customer: ${customerId}, Admin: ${isAdmin}, Tools: ${useTools}`);
 

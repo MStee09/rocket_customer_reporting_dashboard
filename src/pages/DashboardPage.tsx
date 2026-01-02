@@ -2,16 +2,14 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { AIInsightsCard } from '../components/dashboard/AIInsightsCard';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import {
   DashboardHeader,
   AIReportsSection,
   WidgetGrid,
-  AIInsightsPanel,
   InlineEditToolbar,
   WidgetGalleryModal,
-  ProactiveInsightsCard,
+  UnifiedInsightsCard,
 } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
@@ -381,15 +379,8 @@ export function DashboardPage() {
         )}
 
         {effectiveCustomerId && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <AIInsightsCard
-              customerId={effectiveCustomerId}
-              dateRange={{
-                start: new Date(startDate),
-                end: new Date(endDate),
-              }}
-            />
-            <ProactiveInsightsCard
+          <div className="mb-6">
+            <UnifiedInsightsCard
               customerId={effectiveCustomerId}
               isAdmin={isAdmin()}
               dateRange={{
@@ -459,8 +450,6 @@ export function DashboardPage() {
           }
         `}</style>
       </div>
-
-      <AIInsightsPanel />
     </div>
   );
 }

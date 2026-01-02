@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { RESTRICTED_FIELDS, isRestrictedField, findRestrictedFieldsInString, getAccessControlPrompt } from "./services/restrictedFields.ts";
+import { TokenBudgetService, createBudgetExhaustedResponse } from "./services/tokenBudget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -769,9 +770,17 @@ Deno.serve(async (req: Request) => {
       let totalOutputTokens = 0;
 
       const MAX_TURNS = 10;
+      const budgetService = new TokenBudgetService();
       let currentMessages = [...messages];
 
       for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const budgetCheck = budgetService.canProceed();
+        if (!budgetCheck.allowed) {
+          console.log(`[AI] Budget exhausted: ${budgetCheck.reason}`);
+          finalMessage = budgetService.getStatusMessage();
+          break;
+        }
+
         console.log(`[AI] Turn ${turn + 1}/${MAX_TURNS}`);
 
         const response = await anthropic.messages.create({
@@ -785,6 +794,7 @@ Deno.serve(async (req: Request) => {
 
         totalInputTokens += response.usage.input_tokens;
         totalOutputTokens += response.usage.output_tokens;
+        budgetService.recordUsage(response.usage.input_tokens, response.usage.output_tokens);
 
         if (response.stop_reason === "end_turn") {
           const textBlock = response.content.find(c => c.type === "text");

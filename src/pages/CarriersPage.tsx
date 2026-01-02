@@ -53,7 +53,8 @@ type SortDirection = 'asc' | 'desc';
 
 export function CarriersPage() {
   const navigate = useNavigate();
-  const { effectiveCustomerId } = useAuth();
+  const { effectiveCustomerId, isAdmin, isViewingAsCustomer } = useAuth();
+  const showAllCustomers = isAdmin() && !isViewingAsCustomer;
 
   const [datePreset, setDatePreset] = useState<DateRangePreset>('last30');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
@@ -78,10 +79,10 @@ export function CarriersPage() {
 
   useEffect(() => {
     loadCarrierData();
-  }, [effectiveCustomerId, dateRange]);
+  }, [effectiveCustomerId, dateRange, showAllCustomers]);
 
   async function loadCarrierData() {
-    if (!effectiveCustomerId) {
+    if (!effectiveCustomerId && !showAllCustomers) {
       setLoading(false);
       return;
     }
@@ -97,16 +98,19 @@ export function CarriersPage() {
       let currentQuery = supabase
         .from('shipment_report_view')
         .select('carrier_name, carrier_id, retail, delivered_date, delivery_status')
-        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', startDate)
         .lte('shipped_date', endDate);
 
       let prevQuery = supabase
         .from('shipment_report_view')
         .select('carrier_name, carrier_id, retail')
-        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', prevStartDate)
         .lte('shipped_date', prevEndDate);
+
+      if (!showAllCustomers && effectiveCustomerId) {
+        currentQuery = currentQuery.eq('customer_id', effectiveCustomerId);
+        prevQuery = prevQuery.eq('customer_id', effectiveCustomerId);
+      }
 
       const [currentData, prevData] = await Promise.all([
         currentQuery,
@@ -203,19 +207,24 @@ export function CarriersPage() {
   }
 
   async function loadMonthlyTrends(topCarriers: CarrierTrend[]) {
-    if (!effectiveCustomerId || topCarriers.length === 0) return;
+    if ((!effectiveCustomerId && !showAllCustomers) || topCarriers.length === 0) return;
 
     try {
       const startDate = new Date(dateRange.start);
       startDate.setMonth(startDate.getMonth() - 5);
 
-      const { data } = await supabase
+      let query = supabase
         .from('shipment_report_view')
         .select('carrier_name, retail, shipped_date')
-        .eq('customer_id', effectiveCustomerId)
         .gte('shipped_date', startDate.toISOString().split('T')[0])
         .lte('shipped_date', dateRange.end.toISOString().split('T')[0])
         .in('carrier_name', topCarriers.map(c => c.carrier_name));
+
+      if (!showAllCustomers && effectiveCustomerId) {
+        query = query.eq('customer_id', effectiveCustomerId);
+      }
+
+      const { data } = await query;
 
       if (!data) return;
 

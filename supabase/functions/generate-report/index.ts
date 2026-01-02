@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { RESTRICTED_FIELDS, isRestrictedField, findRestrictedFieldsInString, getAccessControlPrompt } from "./services/restrictedFields.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,7 +90,6 @@ interface LearningExtraction {
   source: "explicit" | "inferred" | "tool";
 }
 
-const ADMIN_ONLY_FIELDS = ["cost", "margin", "margin_percent", "carrier_cost", "cost_per_mile"];
 
 async function logUsage(
   supabase: SupabaseClient,
@@ -347,10 +347,9 @@ function executeFinalizeReport(
 
   if (!isAdmin) {
     const reportStr = JSON.stringify(report).toLowerCase();
-    for (const field of ADMIN_ONLY_FIELDS) {
-      if (reportStr.includes(`"${field}"`) || reportStr.includes(`'${field}'`)) {
-        errors.push(`Report contains restricted field: ${field}`);
-      }
+    const foundRestricted = findRestrictedFieldsInString(reportStr);
+    for (const field of foundRestricted) {
+      errors.push(`Report contains restricted field: ${field}`);
     }
   }
 
@@ -404,7 +403,7 @@ async function compileSchemaContext(
       isAggregatable: col.is_aggregatable ?? false,
       businessContext: context?.business_description,
       aiInstructions: context?.ai_instructions,
-      adminOnly: ADMIN_ONLY_FIELDS.includes(col.column_name) || context?.admin_only,
+      adminOnly: isRestrictedField(col.column_name) || context?.admin_only,
     };
   });
 
@@ -536,13 +535,6 @@ function formatProfileForPrompt(profile: CustomerProfile): string {
     for (const term of profile.terminology) output += `- "${term.term}" -> ${term.means}\n`;
   }
   return output;
-}
-
-function getAccessControlPrompt(isAdmin: boolean): string {
-  if (isAdmin) {
-    return `## ACCESS LEVEL: ADMIN\nYou have full access including cost, margin, margin_percent, cost_per_mile.`;
-  }
-  return `## ACCESS LEVEL: CUSTOMER\nRESTRICTED FIELDS (DO NOT USE): cost, margin, margin_percent, cost_per_mile, carrier_cost`;
 }
 
 const CORE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
@@ -700,7 +692,7 @@ function sanitizeReport(report: any, isAdmin: boolean): any {
   if (sanitized.sections) {
     sanitized.sections = sanitized.sections.filter((section: any) => {
       const str = JSON.stringify(section).toLowerCase();
-      return !ADMIN_ONLY_FIELDS.some(f => str.includes(`"${f}"`));
+      return findRestrictedFieldsInString(str).length === 0;
     });
   }
   return sanitized;

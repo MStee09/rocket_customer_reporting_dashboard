@@ -1,10 +1,6 @@
-// src/ai/compiler/schemaCompiler.ts
-// Compiles database schema into AI context
-
 import { supabase } from '../../lib/supabase';
 import { SchemaContext, SchemaField, DataProfile } from '../types';
-
-const ADMIN_ONLY_FIELDS = ['cost', 'margin', 'carrier_cost'];
+import { isRestrictedField } from '../../security/restrictedFields';
 
 export async function compileSchemaContext(customerId: string): Promise<SchemaContext> {
   // Get schema columns from metadata table
@@ -74,7 +70,7 @@ export async function compileSchemaContext(customerId: string): Promise<SchemaCo
       isAggregatable: col.is_aggregatable ?? false,
       businessContext: context?.business_description,
       aiInstructions: context?.ai_instructions,
-      adminOnly: ADMIN_ONLY_FIELDS.includes(col.column_name) || context?.admin_only,
+      adminOnly: isRestrictedField(col.column_name) || context?.admin_only,
     };
   });
 

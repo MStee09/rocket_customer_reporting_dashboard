@@ -1,3 +1,5 @@
+import { isRestrictedField } from '../security/restrictedFields';
+
 export type SecureTableName =
   | 'shipment'
   | 'shipment_carrier'
@@ -29,14 +31,6 @@ export function getSecureTable(
   return customerViews[baseTable] || baseTable;
 }
 
-const adminOnlyFields = new Set([
-  'cost',
-  'cost_without_tax',
-  'carrier_pay',
-  'cost_amount',
-  'target_rate'
-]);
-
 export function getSelectFields(
   baseFields: string,
   isAdmin: boolean,
@@ -51,7 +45,7 @@ export function getSelectFields(
     .map(f => f.trim())
     .filter(f => {
       const cleanField = f.split('.').pop()?.split(' ')[0] || '';
-      return !adminOnlyFields.has(cleanField);
+      return !isRestrictedField(cleanField);
     });
 
   return fields.join(', ');

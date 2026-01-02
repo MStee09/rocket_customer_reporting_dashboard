@@ -1,15 +1,6 @@
-// src/ai/policies/accessControl.ts
-// Enforces field-level access control on AI outputs
-// This is CODE enforcement, not just prompt instructions
-
 import { AIReportDefinition, ReportSection } from '../../types/aiReport';
-import { AccessRule, AccessContext, AccessControlResult } from '../types';
-
-const ACCESS_RULES: AccessRule[] = [
-  { field: 'cost', requiredRole: 'admin', action: 'hide' },
-  { field: 'margin', requiredRole: 'admin', action: 'hide' },
-  { field: 'carrier_cost', requiredRole: 'admin', action: 'hide' },
-];
+import { AccessContext, AccessControlResult } from '../types';
+import { RESTRICTED_FIELDS, isRestrictedField } from '../../security/restrictedFields';
 
 export function getPromptAccessInstructions(context: AccessContext): string {
   if (context.isAdmin) {
@@ -23,20 +14,18 @@ You have full access to all data fields including:
 You can build reports using any available field.`;
   }
 
-  const restrictedFields = ACCESS_RULES.map(r => r.field);
-
   return `## ACCESS LEVEL: CUSTOMER
 
 RESTRICTED FIELDS - DO NOT USE:
-${restrictedFields.map(f => `- ${f}`).join('\n')}
+${[...RESTRICTED_FIELDS].map(f => `- ${f}`).join('\n')}
 
 ### IMPORTANT DISTINCTION
 
 When customers say "cost", "spend", or "expensive", they mean THEIR freight spend (what they pay).
 This is the **retail** field and IS available to them.
 
-- ✅ Customer "cost" = **retail** field (what customer pays for shipping)
-- ❌ Internal "cost" = **cost** field (what Go Rocket pays carriers) - RESTRICTED
+- Customer "cost" = **retail** field (what customer pays for shipping)
+- Internal "cost" = **cost** field (what Go Rocket pays carriers) - RESTRICTED
 
 ### EXAMPLES
 
@@ -65,14 +54,12 @@ export function enforceAccessControl(
     return { allowed: true, sanitizedReport: report };
   }
 
-  const restrictedFields = ACCESS_RULES.map(r => r.field);
   const violations: string[] = [];
   const sanitized = JSON.parse(JSON.stringify(report)) as AIReportDefinition;
 
-  // Check and remove sections with restricted fields
   for (let i = sanitized.sections.length - 1; i >= 0; i--) {
     const section = sanitized.sections[i];
-    const sectionViolations = checkSectionForViolations(section, restrictedFields);
+    const sectionViolations = checkSectionForViolations(section);
 
     if (sectionViolations.length > 0) {
       violations.push(...sectionViolations.map(v =>
@@ -82,16 +69,14 @@ export function enforceAccessControl(
     }
   }
 
-  // Check calculated fields at report level
   if (sanitized.calculatedFields) {
     for (let i = sanitized.calculatedFields.length - 1; i >= 0; i--) {
       const calc = sanitized.calculatedFields[i];
-      const usesRestricted = restrictedFields.some(f =>
-        calc.formula?.toLowerCase().includes(f) ||
-        calc.fields?.some(cf => cf.toLowerCase() === f)
-      );
+      const formulaHasRestricted = calc.formula &&
+        [...RESTRICTED_FIELDS].some(f => calc.formula!.toLowerCase().includes(f));
+      const fieldsHaveRestricted = calc.fields?.some(cf => isRestrictedField(cf));
 
-      if (usesRestricted) {
+      if (formulaHasRestricted || fieldsHaveRestricted) {
         violations.push(`Calculated field "${calc.name}" uses restricted fields`);
         sanitized.calculatedFields.splice(i, 1);
       }
@@ -109,23 +94,23 @@ export function enforceAccessControl(
   };
 }
 
-function checkSectionForViolations(section: ReportSection, restrictedFields: string[]): string[] {
+function checkSectionForViolations(section: ReportSection): string[] {
   const violations: string[] = [];
   const config = section.config as Record<string, any>;
 
   if (!config) return violations;
 
-  if (config.metric?.field && restrictedFields.includes(config.metric.field.toLowerCase())) {
+  if (config.metric?.field && isRestrictedField(config.metric.field)) {
     violations.push(`uses restricted metric field: ${config.metric.field}`);
   }
 
-  if (config.groupBy && restrictedFields.includes(config.groupBy.toLowerCase())) {
+  if (config.groupBy && isRestrictedField(config.groupBy)) {
     violations.push(`groups by restricted field: ${config.groupBy}`);
   }
 
   if (config.metrics && Array.isArray(config.metrics)) {
     for (const m of config.metrics) {
-      if (m.field && restrictedFields.includes(m.field.toLowerCase())) {
+      if (m.field && isRestrictedField(m.field)) {
         violations.push(`uses restricted metric: ${m.field}`);
       }
     }
@@ -133,7 +118,7 @@ function checkSectionForViolations(section: ReportSection, restrictedFields: str
 
   if (config.columns && Array.isArray(config.columns)) {
     for (const col of config.columns) {
-      if (col.field && restrictedFields.includes(col.field.toLowerCase())) {
+      if (col.field && isRestrictedField(col.field)) {
         violations.push(`displays restricted column: ${col.field}`);
       }
     }
@@ -141,7 +126,7 @@ function checkSectionForViolations(section: ReportSection, restrictedFields: str
 
   if (config.filters && Array.isArray(config.filters)) {
     for (const filter of config.filters) {
-      if (filter.field && restrictedFields.includes(filter.field.toLowerCase())) {
+      if (filter.field && isRestrictedField(filter.field)) {
         violations.push(`filters on restricted field: ${filter.field}`);
       }
     }
@@ -149,11 +134,11 @@ function checkSectionForViolations(section: ReportSection, restrictedFields: str
 
   if (config.calculatedFields && Array.isArray(config.calculatedFields)) {
     for (const calc of config.calculatedFields) {
-      const usesRestricted = restrictedFields.some(f =>
-        calc.formula?.toLowerCase().includes(f) ||
-        calc.fields?.some((cf: string) => cf.toLowerCase() === f)
-      );
-      if (usesRestricted) {
+      const formulaHasRestricted = calc.formula &&
+        [...RESTRICTED_FIELDS].some((f: string) => calc.formula?.toLowerCase().includes(f));
+      const fieldsHaveRestricted = calc.fields?.some((cf: string) => isRestrictedField(cf));
+
+      if (formulaHasRestricted || fieldsHaveRestricted) {
         violations.push(`calculated field uses restricted data`);
       }
     }
@@ -164,11 +149,10 @@ function checkSectionForViolations(section: ReportSection, restrictedFields: str
 
 export function isFieldAccessible(field: string, context: AccessContext): boolean {
   if (context.isAdmin) return true;
-  const restrictedFields = ACCESS_RULES.map(r => r.field);
-  return !restrictedFields.includes(field.toLowerCase());
+  return !isRestrictedField(field);
 }
 
 export function getRestrictedFields(context: AccessContext): string[] {
   if (context.isAdmin) return [];
-  return ACCESS_RULES.map(r => r.field);
+  return [...RESTRICTED_FIELDS];
 }

@@ -68,6 +68,8 @@ export async function generateReport(
       content: msg.report ? JSON.stringify(msg.report) : msg.content,
     }));
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const { data, error } = await supabase.functions.invoke('generate-report', {
     body: {
       prompt,
@@ -77,6 +79,8 @@ export async function generateReport(
       knowledgeContext: combinedContext,
       currentReport: currentReport || undefined,
       customerName: customerName || undefined,
+      userId: user?.id,
+      userEmail: user?.email,
     },
   });
 

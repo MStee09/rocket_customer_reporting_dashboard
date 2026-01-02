@@ -289,11 +289,15 @@ export function buildReportQuery(
     cteFields.push(buildNumericCategorizationCase(reportDef.numericCategorization));
   }
 
-  const escapedCustomerId = escapeString(customerId);
-  let whereClause = `customer_id = '${escapedCustomerId}'`;
-  if (dateFilter) {
-    whereClause += ` AND ${dateFilter}`;
+  let whereClause = '';
+  if (customerId && customerId !== 'ALL') {
+    const escapedCustomerId = escapeString(customerId);
+    whereClause = `customer_id = '${escapedCustomerId}'`;
   }
+  if (dateFilter) {
+    whereClause = whereClause ? `${whereClause} AND ${dateFilter}` : dateFilter;
+  }
+  if (!whereClause) whereClause = '1=1';
 
   const query = `
     WITH report_data AS (
@@ -337,11 +341,15 @@ export function buildAggregatedQuery(
     cteFields.push(buildNumericCategorizationCase(reportDef.numericCategorization));
   }
 
-  const escapedCustomerId = escapeString(customerId);
-  let whereClause = `customer_id = '${escapedCustomerId}'`;
-  if (dateFilter) {
-    whereClause += ` AND ${dateFilter}`;
+  let whereClause = '';
+  if (customerId && customerId !== 'ALL') {
+    const escapedCustomerId = escapeString(customerId);
+    whereClause = `customer_id = '${escapedCustomerId}'`;
   }
+  if (dateFilter) {
+    whereClause = whereClause ? `${whereClause} AND ${dateFilter}` : dateFilter;
+  }
+  if (!whereClause) whereClause = '1=1';
 
   const aggregations = reportDef.metrics.map(m => {
     const agg = m.aggregation.toUpperCase();

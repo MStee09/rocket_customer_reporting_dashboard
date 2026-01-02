@@ -131,6 +131,7 @@ async function logUsage(
       return null;
     }
     
+    console.log('[Usage Log] Success:', data);
     return data;
   } catch (e) {
     console.error('[Usage Log] Exception:', e);
@@ -885,10 +886,10 @@ Deno.serve(async (req: Request) => {
       try {
         await supabase.from("ai_report_audit").insert({
           customer_id: parseInt(customerId, 10),
-          user_prompt: prompt,
-          generated_report: finalReport,
-          ai_response: finalMessage.slice(0, 5000),
-          success: !!finalReport,
+          user_request: prompt,
+          ai_interpretation: finalMessage.slice(0, 5000),
+          report_definition: finalReport,
+          status: !!finalReport ? 'success' : 'pending',
           context_used: { 
             toolMode: true, 
             toolExecutions: toolExecutions.length, 
@@ -979,10 +980,10 @@ Deno.serve(async (req: Request) => {
     try {
       await supabase.from("ai_report_audit").insert({
         customer_id: parseInt(customerId, 10),
-        user_prompt: prompt,
-        generated_report: parsedReport,
-        ai_response: responseText.slice(0, 5000),
-        success: !!parsedReport,
+        user_request: prompt,
+        ai_interpretation: responseText.slice(0, 5000),
+        report_definition: parsedReport,
+        status: !!parsedReport ? 'success' : 'pending',
         context_used: { 
           toolMode: false, 
           termsCount: terms.length,

@@ -23,6 +23,8 @@ export interface UserUsageRow {
   totalCostUsd: number;
   avgLatencyMs: number;
   lastUsed: string;
+  costToday: number;
+  requestsToday: number;
 }
 
 export interface CustomerUsageRow {
@@ -85,7 +87,9 @@ export function useAIUsageDashboard(daysBack: number = 30) {
             totalOutputTokens: (u.output_tokens as number) || 0,
             totalCostUsd: (u.total_cost as number) || 0,
             avgLatencyMs: 0,
-            lastUsed: u.last_request as string
+            lastUsed: u.last_request as string,
+            costToday: (u.cost_today as number) || 0,
+            requestsToday: (u.requests_today as number) || 0
           }));
 
         const customers: CustomerUsageRow[] = (data.by_customer || []).map((c: Record<string, unknown>) => ({
@@ -178,7 +182,9 @@ export function useAIUsageDashboard(daysBack: number = 30) {
           totalOutputTokens: (u.output_tokens as number) || 0,
           totalCostUsd: (u.total_cost as number) || 0,
           avgLatencyMs: (u.avg_latency_ms as number) || 0,
-          lastUsed: u.last_request as string
+          lastUsed: u.last_request as string,
+          costToday: 0,
+          requestsToday: 0
         }));
     } catch (err) {
       console.error('Failed to fetch users for customer:', err);

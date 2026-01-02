@@ -1,13 +1,3 @@
-/**
- * CIRCUIT BREAKER SERVICE
- * Provides graceful degradation when Claude API is unavailable
- *
- * States:
- * - CLOSED: Normal operation
- * - OPEN: Failing fast (too many recent failures)
- * - HALF_OPEN: Testing recovery
- */
-
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 interface CircuitBreakerConfig {

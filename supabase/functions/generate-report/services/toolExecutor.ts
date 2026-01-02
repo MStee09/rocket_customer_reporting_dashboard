@@ -1,8 +1,3 @@
-/**
- * TOOL EXECUTOR SERVICE
- * Handles AI tool execution with timeout protection
- */
-
 import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { isRestrictedField, findRestrictedFieldsInString } from './restrictedFields.ts';
 

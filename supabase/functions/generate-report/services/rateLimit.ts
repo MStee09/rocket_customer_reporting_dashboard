@@ -1,8 +1,3 @@
-/**
- * RATE LIMIT SERVICE
- * Prevents abuse and ensures fair access
- */
-
 import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 interface RateLimitConfig {

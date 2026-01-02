@@ -1,8 +1,3 @@
-/**
- * CONTEXT SERVICE
- * Compiles all context needed for AI report generation
- */
-
 import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { RESTRICTED_FIELDS, isRestrictedField, getAccessControlPrompt } from './restrictedFields.ts';
 

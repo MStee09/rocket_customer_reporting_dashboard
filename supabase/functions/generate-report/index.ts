@@ -23,7 +23,7 @@ interface RequestBody {
   prompt: string;
   conversationHistory: ConversationMessage[];
   customerId: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
   knowledgeContext?: string;
   currentReport?: Record<string, unknown>;
   customerName?: string;
@@ -95,6 +95,27 @@ interface LearningExtraction {
   source: "explicit" | "inferred" | "tool";
 }
 
+async function verifyAdminRole(supabase: SupabaseClient, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) {
+      console.log(`[Auth] No role found for user ${userId}, defaulting to non-admin`);
+      return false;
+    }
+    
+    const isAdmin = data.role === 'admin';
+    console.log(`[Auth] User ${userId} verified role: ${data.role}, isAdmin: ${isAdmin}`);
+    return isAdmin;
+  } catch (e) {
+    console.error('[Auth] Error verifying admin role:', e);
+    return false;
+  }
+}
 
 async function logUsage(
   supabase: SupabaseClient,
@@ -384,6 +405,7 @@ Deno.serve(async (req: Request) => {
   let userEmail: string | undefined;
   let customerId: string | undefined;
   let customerName: string | undefined;
+  let isAdmin = false;
 
   try {
     const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -393,7 +415,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: RequestBody = await req.json();
-    const { prompt, conversationHistory, isAdmin, knowledgeContext, currentReport, useTools = true, sessionId } = body;
+    const { prompt, conversationHistory, knowledgeContext, currentReport, useTools = true, sessionId } = body;
     customerId = body.customerId;
     customerName = body.customerName;
     
@@ -405,6 +427,10 @@ Deno.serve(async (req: Request) => {
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     if (userId) {
+      isAdmin = await verifyAdminRole(supabase, userId);
+    }
+
+    if (userId) {
       const rateLimitService = new RateLimitService(supabase);
       const rateLimitResult = await rateLimitService.checkLimit(userId);
 
@@ -412,6 +438,28 @@ Deno.serve(async (req: Request) => {
         console.log(`[AI] Rate limit exceeded for user ${userId}`);
         return new Response(
           JSON.stringify(createRateLimitResponse(rateLimitResult)),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: budgetCheck, error: budgetError } = await supabase.rpc('check_user_daily_budget', {
+        p_user_id: userId,
+        p_cap: 5.00
+      });
+      
+      if (!budgetError && budgetCheck && !budgetCheck.allowed) {
+        console.log(`[AI] Daily budget exceeded for user ${userId}: ${budgetCheck.spent_today}`);
+        return new Response(
+          JSON.stringify({
+            error: 'daily_budget_exceeded',
+            message: budgetCheck.message,
+            report: null,
+            toolExecutions: [],
+            usage: {
+              spentToday: budgetCheck.spent_today,
+              dailyCap: budgetCheck.daily_cap
+            }
+          }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

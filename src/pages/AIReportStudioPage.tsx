@@ -158,7 +158,11 @@ export function AIReportStudioPage() {
   useEffect(() => { setEditableTitle(currentReport?.name || 'Untitled Report'); }, [currentReport?.name]);
 
   const loadSavedReports = useCallback(async () => {
-    if (!effectiveCustomerId) return;
+    if (!effectiveCustomerId && !isAdmin()) return;
+    if (!effectiveCustomerId) {
+      setSavedReports([]);
+      return;
+    }
     try {
       const reports = await loadAIReports(String(effectiveCustomerId));
       setSavedReports(reports);
@@ -170,7 +174,11 @@ export function AIReportStudioPage() {
   useEffect(() => { loadSavedReports(); }, [loadSavedReports]);
 
   const loadKnowledgeContext = useCallback(async () => {
-    if (!effectiveCustomerId) return;
+    if (!effectiveCustomerId && !isAdmin()) return;
+    if (!effectiveCustomerId) {
+      setKnowledgeContext('');
+      return;
+    }
     try {
       const docs = await getDocumentsForContext(supabase, String(effectiveCustomerId));
       const context = buildKnowledgeContext(docs);
@@ -183,7 +191,11 @@ export function AIReportStudioPage() {
   useEffect(() => { loadKnowledgeContext(); }, [loadKnowledgeContext]);
 
   const loadDataProfile = useCallback(async () => {
-    if (!effectiveCustomerId) return;
+    if (!effectiveCustomerId && !isAdmin()) return;
+    if (!effectiveCustomerId) {
+      setDataProfile(null);
+      return;
+    }
     try {
       const { data, error } = await supabase.rpc('get_customer_data_profile', {
         p_customer_id: String(effectiveCustomerId)
@@ -201,11 +213,12 @@ export function AIReportStudioPage() {
   useEffect(() => { loadDataProfile(); }, [loadDataProfile]);
 
   const executeReport = useCallback(async (report: AIReportDefinition) => {
-    if (!effectiveCustomerId) return;
+    if (!effectiveCustomerId && !isAdmin()) return;
     setIsExecuting(true);
     const effectiveIsAdmin = isAdmin() && !isImpersonating;
     try {
-      const data = await executeReportData(supabase, report, String(effectiveCustomerId), effectiveIsAdmin);
+      const customerIdToUse = effectiveCustomerId ? String(effectiveCustomerId) : (isAdmin() ? "ALL" : "");
+      const data = await executeReportData(supabase, report, customerIdToUse, effectiveIsAdmin);
       setExecutedData(data);
     } catch (error) {
       console.error('Failed to execute report:', error);
@@ -213,7 +226,7 @@ export function AIReportStudioPage() {
     } finally {
       setIsExecuting(false);
     }
-  }, [effectiveCustomerId, isAdmin, isViewingAsCustomer]);
+  }, [effectiveCustomerId, isAdmin, isImpersonating]);
 
   const urlReportId = searchParams.get('reportId');
   const urlMode = searchParams.get('mode');
@@ -328,7 +341,7 @@ export function AIReportStudioPage() {
   }, [location.state]);
 
   const handleSendMessage = async (content: string) => {
-    if (!effectiveCustomerId) return;
+    if (!effectiveCustomerId && !isAdmin()) return;
     const userMessage: ChatMessageType = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
     setMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
@@ -340,7 +353,8 @@ export function AIReportStudioPage() {
         combinedContext = formatContextForAI(enhancementContext) + '\n\n' + combinedContext;
       }
 
-      const response = await generateReport(content, messages, String(effectiveCustomerId), effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
+      const customerIdToUse = effectiveCustomerId ? String(effectiveCustomerId) : (isAdmin() ? "ALL" : "");
+      const response = await generateReport(content, messages, customerIdToUse, effectiveIsAdmin, combinedContext || undefined, currentReport, effectiveCustomerName || undefined);
 
       if (response.reportContext) {
         setBuildReportContext({

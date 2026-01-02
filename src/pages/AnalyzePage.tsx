@@ -1,19 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, Table2, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Sparkles, Table2, Clock, ArrowRight, Loader2, Brain, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { formatDistanceToNow } from 'date-fns';
+import { InvestigatorStudio } from '../components/ai/InvestigatorStudio';
 
 export function AnalyzePage() {
   const navigate = useNavigate();
-  const { user, effectiveCustomerId, isLoading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, effectiveCustomerId, isAdmin, isViewingAsCustomer, viewingCustomer, customers, isLoading: authLoading } = useAuth();
   const { reports: customReports, isLoading: reportsLoading } = useCustomerReports();
 
   const [recentReports, setRecentReports] = useState<Array<{ id: string; name: string; type: 'ai' | 'custom'; date: string }>>([]);
   const [allReports, setAllReports] = useState<SavedAIReport[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [showInvestigator, setShowInvestigator] = useState(false);
+
+  const effectiveCustomerName = isViewingAsCustomer
+    ? viewingCustomer?.company_name
+    : customers.find((c) => c.customer_id === effectiveCustomerId)?.customer_name;
+
+  useEffect(() => {
+    if (searchParams.get('investigator') === 'true') {
+      setShowInvestigator(true);
+    }
+  }, [searchParams]);
 
   const loadReports = useCallback(async () => {
     if (!user || !effectiveCustomerId || authLoading) return;
@@ -83,40 +96,62 @@ export function AnalyzePage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
           <button
             onClick={handleAskAI}
-            className="group p-8 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left"
+            className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left"
           >
-            <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <Sparkles className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
               Ask AI
             </h2>
-            <p className="text-slate-600 mb-4">
-              Describe what you want in plain language. Best for quick exploration and complex questions.
+            <p className="text-slate-600 text-sm mb-4">
+              Describe what you want in plain language. Best for quick reports.
             </p>
-            <div className="flex items-center text-orange-600 font-medium">
+            <div className="flex items-center text-orange-600 font-medium text-sm">
               Get started
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
 
           <button
-            onClick={handleBuildReport}
-            className="group p-8 bg-white rounded-2xl border-2 border-slate-200 hover:border-slate-400 hover:shadow-lg transition-all text-left"
+            onClick={() => setShowInvestigator(true)}
+            className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left relative overflow-hidden"
           >
-            <div className="w-14 h-14 bg-gradient-to-br from-slate-600 to-slate-800 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-              <Table2 className="w-7 h-7 text-white" />
+            <div className="absolute top-2 right-2 px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-medium rounded-full">
+              New
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
+              The Investigator
+            </h2>
+            <p className="text-slate-600 text-sm mb-4">
+              AI-powered deep analysis. Finds anomalies, root causes, and insights.
+            </p>
+            <div className="flex items-center text-orange-600 font-medium text-sm">
+              Launch
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
+
+          <button
+            onClick={handleBuildReport}
+            className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-slate-400 hover:shadow-lg transition-all text-left"
+          >
+            <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-800 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Table2 className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">
               Build Report
             </h2>
-            <p className="text-slate-600 mb-4">
-              Select columns, filters, and groupings manually. Best for precise specifications.
+            <p className="text-slate-600 text-sm mb-4">
+              Select columns, filters, and groupings manually.
             </p>
-            <div className="flex items-center text-slate-700 font-medium">
+            <div className="flex items-center text-slate-700 font-medium text-sm">
               Open builder
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </div>
@@ -176,6 +211,10 @@ export function AnalyzePage() {
               <span><strong>Ask AI</strong> works best for questions like "Show me cost trends by carrier" or "Which lanes have the highest spend?"</span>
             </li>
             <li className="flex items-start gap-2">
+              <span className="text-orange-500 mt-0.5">-</span>
+              <span><strong>The Investigator</strong> goes deeper - finds anomalies, investigates root causes, and provides actionable insights</span>
+            </li>
+            <li className="flex items-start gap-2">
               <span className="text-slate-500 mt-0.5">-</span>
               <span><strong>Build Report</strong> is better when you know exactly which columns and filters you need</span>
             </li>
@@ -186,6 +225,45 @@ export function AnalyzePage() {
           </ul>
         </div>
       </div>
+
+      {showInvestigator && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-orange-50 to-amber-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">The Investigator</h2>
+                  <p className="text-xs text-gray-500">AI-powered deep analysis</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowInvestigator(false);
+                  setSearchParams({});
+                }}
+                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {effectiveCustomerId && (
+                <InvestigatorStudio
+                  customerId={String(effectiveCustomerId)}
+                  customerName={effectiveCustomerName}
+                  isAdmin={isAdmin()}
+                  userId={user?.id}
+                  userEmail={user?.email}
+                  embedded
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

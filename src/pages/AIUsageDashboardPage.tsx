@@ -277,15 +277,15 @@ export function AIUsageDashboardPage() {
           </div>
           <div className="text-sm text-slate-500">
             {viewMode === 'customers'
-              ? `${customerUsage.length} customers`
-              : `${userUsage.length} users`
+              ? `${customerUsage?.length || 0} customers`
+              : `${userUsage?.length || 0} users`
             }
           </div>
         </div>
 
         {viewMode === 'customers' ? (
           <div className="divide-y divide-slate-100">
-            {customerUsage.length === 0 ? (
+            {!customerUsage || customerUsage.length === 0 ? (
               <div className="px-6 py-8 text-center text-slate-500">
                 No customer usage data available
               </div>
@@ -403,7 +403,7 @@ export function AIUsageDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {userUsage.length === 0 ? (
+                {!userUsage || userUsage.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                       No usage data available

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import {
   Cpu, DollarSign, Users, Zap, TrendingUp,
-  RefreshCw, Calendar, BarChart2, ArrowUp, ArrowDown,
-  Building2, ChevronDown, ChevronRight, Loader2
+  RefreshCw, Calendar, BarChart2, Building2, ChevronDown, ChevronRight, User
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAIUsageDashboard, UserUsageRow } from '../hooks/useAIUsageDashboard';
@@ -10,12 +9,26 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
+type ViewMode = 'customers' | 'users';
+
 export function AIUsageDashboardPage() {
   const [daysBack, setDaysBack] = useState(30);
-  const { summary, customerUsage, dailyUsage, costSummary, loading, error, refresh, fetchUsersForCustomer } = useAIUsageDashboard(daysBack);
-  const [expandedCustomers, setExpandedCustomers] = useState<Set<number | null>>(new Set());
+  const [viewMode, setViewMode] = useState<ViewMode>('customers');
+  const [expandedCustomerId, setExpandedCustomerId] = useState<number | null | 'none'>('none');
   const [customerUsers, setCustomerUsers] = useState<Record<string, UserUsageRow[]>>({});
-  const [loadingCustomers, setLoadingCustomers] = useState<Set<string>>(new Set());
+  const [loadingUsers, setLoadingUsers] = useState<string | null>(null);
+
+  const {
+    summary,
+    userUsage,
+    customerUsage,
+    dailyUsage,
+    costSummary,
+    loading,
+    error,
+    refresh,
+    fetchUsersForCustomer
+  } = useAIUsageDashboard(daysBack);
 
   const formatCurrency = (value: number) => {
     if (value < 0.01) return `$${value.toFixed(4)}`;
@@ -29,27 +42,21 @@ export function AIUsageDashboardPage() {
     return value.toLocaleString();
   };
 
-  const toggleCustomerExpand = async (customerId: number | null) => {
-    const key = customerId?.toString() ?? 'null';
-    const newExpanded = new Set(expandedCustomers);
+  const handleExpandCustomer = async (customerId: number | null) => {
+    const key = customerId === null ? 'null' : customerId.toString();
 
-    if (expandedCustomers.has(customerId)) {
-      newExpanded.delete(customerId);
-      setExpandedCustomers(newExpanded);
-    } else {
-      newExpanded.add(customerId);
-      setExpandedCustomers(newExpanded);
+    if (expandedCustomerId === customerId) {
+      setExpandedCustomerId('none');
+      return;
+    }
 
-      if (!customerUsers[key]) {
-        setLoadingCustomers(prev => new Set(prev).add(key));
-        const users = await fetchUsersForCustomer(customerId);
-        setCustomerUsers(prev => ({ ...prev, [key]: users }));
-        setLoadingCustomers(prev => {
-          const next = new Set(prev);
-          next.delete(key);
-          return next;
-        });
-      }
+    setExpandedCustomerId(customerId);
+
+    if (!customerUsers[key]) {
+      setLoadingUsers(key);
+      const users = await fetchUsersForCustomer(customerId);
+      setCustomerUsers(prev => ({ ...prev, [key]: users }));
+      setLoadingUsers(null);
     }
   };
 
@@ -145,10 +152,10 @@ export function AIUsageDashboardPage() {
           color="amber"
         />
         <StatCard
-          icon={Building2}
-          label="Active Customers"
-          value={summary?.uniqueCustomers || 0}
-          subValue={`${summary?.uniqueUsers || 0} users`}
+          icon={Users}
+          label="Active Users"
+          value={summary?.uniqueUsers || 0}
+          subValue={`${(summary?.successRate || 0).toFixed(1)}% success rate`}
           color="rose"
         />
       </div>
@@ -243,113 +250,194 @@ export function AIUsageDashboardPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-slate-400" />
-            Usage by Customer
-          </h3>
-          <p className="text-sm text-slate-500 mt-1">Click a customer to see individual user breakdown</p>
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setViewMode('customers')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'customers'
+                  ? 'bg-rocket-50 text-rocket-700'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              By Customer
+            </button>
+            <button
+              onClick={() => setViewMode('users')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                viewMode === 'users'
+                  ? 'bg-rocket-50 text-rocket-700'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              All Users
+            </button>
+          </div>
+          <div className="text-sm text-slate-500">
+            {viewMode === 'customers'
+              ? `${customerUsage.length} customers`
+              : `${userUsage.length} users`
+            }
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Requests</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Tokens</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Cost</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Users</th>
-              </tr>
-            </thead>
+
+        {viewMode === 'customers' ? (
+          <div className="divide-y divide-slate-100">
             {customerUsage.length === 0 ? (
-              <tbody>
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                    No usage data available
-                  </td>
-                </tr>
-              </tbody>
+              <div className="px-6 py-8 text-center text-slate-500">
+                No customer usage data available
+              </div>
             ) : (
               customerUsage.map((customer) => {
-                const key = customer.customerId?.toString() ?? 'null';
-                const isExpanded = expandedCustomers.has(customer.customerId);
-                const isLoading = loadingCustomers.has(key);
+                const key = customer.customerId === null ? 'null' : customer.customerId.toString();
+                const isExpanded = expandedCustomerId === customer.customerId;
                 const users = customerUsers[key] || [];
+                const isLoading = loadingUsers === key;
 
                 return (
-                  <tbody key={key} className="divide-y divide-slate-100 border-b border-slate-100">
-                    <tr
-                      className="hover:bg-slate-50 cursor-pointer"
-                      onClick={() => toggleCustomerExpand(customer.customerId)}
+                  <div key={key}>
+                    <button
+                      onClick={() => handleExpandCustomer(customer.customerId)}
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {isLoading ? (
-                            <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
-                          ) : isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-slate-400" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-slate-400" />
-                          )}
-                          <div>
-                            <div className="font-medium text-slate-900">{customer.customerName}</div>
-                            {customer.customerId && (
-                              <div className="text-xs text-slate-500">ID: {customer.customerId}</div>
-                            )}
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        )}
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-slate-500" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">
+                            {customer.customerName}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {customer.uniqueUsers} user{customer.uniqueUsers !== 1 ? 's' : ''}
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right font-medium text-slate-900">
-                        {customer.totalRequests.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-600">
-                        {formatNumber(customer.totalTokens)}
-                      </td>
-                      <td className="px-6 py-4 text-right font-medium text-emerald-600">
-                        {formatCurrency(customer.totalCostUsd)}
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-600">
-                        {customer.uniqueUsers}
-                      </td>
-                    </tr>
-                    {isExpanded && users.length > 0 && users.map((user) => (
-                      <tr key={`${key}-${user.userId}`} className="bg-slate-50/50">
-                        <td className="px-6 py-3 pl-14">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            <div>
-                              <div className="text-sm text-slate-700">{user.userEmail}</div>
-                              <div className="text-xs text-slate-400">{user.userId.slice(0, 8)}...</div>
-                            </div>
+                      </div>
+                      <div className="flex items-center gap-8 text-sm">
+                        <div className="text-right">
+                          <div className="text-slate-500 text-xs">Requests</div>
+                          <div className="font-medium text-slate-900">{customer.totalRequests}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-slate-500 text-xs">Tokens</div>
+                          <div className="font-medium text-slate-900">{formatNumber(customer.totalTokens)}</div>
+                        </div>
+                        <div className="text-right min-w-[80px]">
+                          <div className="text-slate-500 text-xs">Cost</div>
+                          <div className="font-medium text-emerald-600">{formatCurrency(customer.totalCostUsd)}</div>
+                        </div>
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="bg-slate-50 border-t border-slate-100">
+                        {isLoading ? (
+                          <div className="px-6 py-4 text-center text-slate-500">
+                            Loading users...
                           </div>
-                        </td>
-                        <td className="px-6 py-3 text-right text-sm text-slate-600">
-                          {user.totalRequests.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-3 text-right text-sm text-slate-600">
-                          {formatNumber(user.totalInputTokens + user.totalOutputTokens)}
-                        </td>
-                        <td className="px-6 py-3 text-right text-sm text-emerald-600">
-                          {formatCurrency(user.totalCostUsd)}
-                        </td>
-                        <td className="px-6 py-3 text-right text-xs text-slate-500">
-                          {user.lastUsed ? format(parseISO(user.lastUsed), 'MMM d') : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                    {isExpanded && !isLoading && users.length === 0 && (
-                      <tr className="bg-slate-50/50">
-                        <td colSpan={5} className="px-6 py-3 pl-14 text-sm text-slate-500">
-                          No user data available
-                        </td>
-                      </tr>
+                        ) : users.length === 0 ? (
+                          <div className="px-6 py-4 text-center text-slate-500">
+                            No user data available for this customer
+                          </div>
+                        ) : (
+                          <table className="w-full">
+                            <thead className="bg-slate-100">
+                              <tr>
+                                <th className="px-6 py-2 text-left text-xs font-medium text-slate-500 uppercase">User</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-slate-500 uppercase">Requests</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-slate-500 uppercase">Input Tokens</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-slate-500 uppercase">Output Tokens</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-slate-500 uppercase">Cost</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-slate-500 uppercase">Last Used</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                              {users.map((user, idx) => (
+                                <tr key={user.userId || idx} className="bg-white">
+                                  <td className="px-6 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <User className="w-4 h-4 text-slate-400" />
+                                      <div>
+                                        <div className="font-medium text-slate-900 text-sm">{user.userEmail || 'Unknown'}</div>
+                                        <div className="text-xs text-slate-400">{user.userId?.slice(0, 8)}...</div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-3 text-right text-sm text-slate-900">{user.totalRequests}</td>
+                                  <td className="px-6 py-3 text-right text-sm text-slate-600">{formatNumber(user.totalInputTokens)}</td>
+                                  <td className="px-6 py-3 text-right text-sm text-slate-600">{formatNumber(user.totalOutputTokens)}</td>
+                                  <td className="px-6 py-3 text-right text-sm font-medium text-emerald-600">{formatCurrency(user.totalCostUsd)}</td>
+                                  <td className="px-6 py-3 text-right text-sm text-slate-500">
+                                    {user.lastUsed ? format(parseISO(user.lastUsed), 'MMM d, h:mm a') : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
                     )}
-                  </tbody>
+                  </div>
                 );
               })
             )}
-          </table>
-        </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Requests</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Input Tokens</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Output Tokens</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Cost</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Last Used</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {userUsage.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                      No usage data available
+                    </td>
+                  </tr>
+                ) : (
+                  userUsage.map((user, idx) => (
+                    <tr key={user.userId || idx} className="hover:bg-slate-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-slate-900">{user.userEmail || 'Unknown'}</div>
+                        <div className="text-xs text-slate-500">{user.userId}</div>
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-900">
+                        {user.totalRequests.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-right text-slate-600">
+                        {formatNumber(user.totalInputTokens)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-slate-600">
+                        {formatNumber(user.totalOutputTokens)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-medium text-emerald-600">
+                        {formatCurrency(user.totalCostUsd)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-slate-500 text-sm">
+                        {user.lastUsed ? format(parseISO(user.lastUsed), 'MMM d, h:mm a') : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
@@ -385,15 +473,13 @@ function StatCard({
   label,
   value,
   subValue,
-  color,
-  trend
+  color
 }: {
-  icon: typeof Cpu | typeof Building2;
+  icon: typeof Cpu;
   label: string;
   value: string | number;
   subValue?: string;
   color: 'emerald' | 'blue' | 'amber' | 'rose';
-  trend?: { value: number; positive: boolean };
 }) {
   const colors = {
     emerald: 'bg-emerald-50 text-emerald-600',
@@ -412,14 +498,7 @@ function StatCard({
       </div>
       <div className="text-2xl font-bold text-slate-900">{value}</div>
       {subValue && (
-        <div className="text-sm text-slate-500 mt-1 flex items-center gap-1">
-          {trend && (
-            trend.positive ? (
-              <ArrowUp className="w-3 h-3 text-emerald-500" />
-            ) : (
-              <ArrowDown className="w-3 h-3 text-red-500" />
-            )
-          )}
+        <div className="text-sm text-slate-500 mt-1">
           {subValue}
         </div>
       )}

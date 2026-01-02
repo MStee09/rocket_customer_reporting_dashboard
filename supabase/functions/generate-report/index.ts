@@ -5,6 +5,7 @@ import { RESTRICTED_FIELDS, isRestrictedField, findRestrictedFieldsInString, get
 import { TokenBudgetService, createBudgetExhaustedResponse } from "./services/tokenBudget.ts";
 import { getClaudeCircuitBreaker, createCircuitOpenResponse } from "./services/circuitBreaker.ts";
 import { RateLimitService, createRateLimitResponse } from "./services/rateLimit.ts";
+import { ContextService } from "./services/contextService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -359,186 +360,6 @@ function executeFinalizeReport(
   return { report, summary: input.summary, validation: { valid: errors.length === 0, errors } };
 }
 
-async function compileSchemaContext(
-  supabase: SupabaseClient,
-  customerId: string
-): Promise<{ fields: SchemaField[]; dataProfile: DataProfile; fieldNames: string[] }> {
-  const { data: columns } = await supabase
-    .from("schema_columns")
-    .select("*")
-    .eq("view_name", "shipment_report_view")
-    .order("ordinal_position");
-
-  const { data: fieldContext } = await supabase.from("field_business_context").select("*");
-
-  let dataProfile: DataProfile = {
-    totalShipments: 0, stateCount: 0, carrierCount: 0, monthsOfData: 0,
-    topStates: [], topCarriers: [], avgShipmentsPerDay: 0,
-  };
-
-  try {
-    const { data: profileData } = await supabase.rpc("get_customer_data_profile", { p_customer_id: customerId });
-    if (profileData) {
-      dataProfile = {
-        totalShipments: profileData.totalShipments || 0,
-        stateCount: profileData.stateCount || 0,
-        carrierCount: profileData.carrierCount || 0,
-        monthsOfData: profileData.monthsOfData || 0,
-        topStates: profileData.topStates || [],
-        topCarriers: profileData.topCarriers || [],
-        avgShipmentsPerDay: profileData.avgShipmentsPerDay || 0,
-        hasCanadaData: profileData.hasCanadaData,
-      };
-    }
-  } catch (e) {
-    console.error("Error fetching data profile:", e);
-  }
-
-  const contextMap = new Map<string, any>();
-  (fieldContext || []).forEach((fc: any) => contextMap.set(fc.field_name, fc));
-
-  const fields: SchemaField[] = (columns || []).map((col: any) => {
-    const context = contextMap.get(col.column_name);
-    return {
-      name: col.column_name,
-      type: col.data_type,
-      isGroupable: col.is_groupable ?? true,
-      isAggregatable: col.is_aggregatable ?? false,
-      businessContext: context?.business_description,
-      aiInstructions: context?.ai_instructions,
-      adminOnly: isRestrictedField(col.column_name) || context?.admin_only,
-    };
-  });
-
-  return { fields, dataProfile, fieldNames: fields.map(f => f.name.toLowerCase()) };
-}
-
-function formatSchemaForPrompt(fields: SchemaField[], dataProfile: DataProfile, isAdmin: boolean): string {
-  let output = "## AVAILABLE DATA FIELDS\n\n";
-  output += "You can ONLY use these fields in reports.\n\n";
-  output += "| Field | Type | Group By | Aggregate | Description |\n";
-  output += "|-------|------|----------|-----------|-------------|\n";
-
-  for (const field of fields) {
-    if (!isAdmin && field.adminOnly) continue;
-    const groupable = field.isGroupable ? "yes" : "";
-    const aggregatable = field.isAggregatable ? "SUM/AVG" : "COUNT";
-    output += `| ${field.name} | ${field.type} | ${groupable} | ${aggregatable} | ${field.businessContext || ""} |\n`;
-  }
-
-  output += "\n## CUSTOMER DATA PROFILE\n\n";
-  output += `- **Total Shipments:** ${dataProfile.totalShipments.toLocaleString()}\n`;
-  output += `- **Ships to:** ${dataProfile.stateCount} states${dataProfile.hasCanadaData ? " (including Canada)" : ""}\n`;
-  output += `- **Uses:** ${dataProfile.carrierCount} carriers\n`;
-  output += `- **Data History:** ${dataProfile.monthsOfData} months\n`;
-  if (dataProfile.topStates.length > 0) output += `- **Top Destinations:** ${dataProfile.topStates.slice(0, 5).join(", ")}\n`;
-  if (dataProfile.topCarriers.length > 0) output += `- **Top Carriers:** ${dataProfile.topCarriers.slice(0, 3).join(", ")}\n`;
-
-  return output;
-}
-
-async function compileKnowledgeContext(
-  supabase: SupabaseClient,
-  customerId: string,
-  isAdmin: boolean
-): Promise<{ terms: TermDefinition[]; products: ProductMapping[] }> {
-  const { data: knowledge } = await supabase
-    .from("ai_knowledge")
-    .select("*")
-    .eq("is_active", true)
-    .or(`scope.eq.global,and(scope.eq.customer,customer_id.eq.${customerId})`)
-    .order("confidence", { ascending: false });
-
-  const allKnowledge = knowledge || [];
-
-  const terms: TermDefinition[] = allKnowledge
-    .filter((k: any) => k.knowledge_type === "term")
-    .filter((k: any) => isAdmin || k.is_visible_to_customers !== false)
-    .map((t: any) => ({
-      key: t.key, label: t.label, definition: t.definition || "",
-      aiInstructions: t.ai_instructions, scope: t.scope as "global" | "customer",
-      aliases: (t.metadata?.aliases as string[]) || [],
-    }));
-
-  const products: ProductMapping[] = allKnowledge
-    .filter((k: any) => k.knowledge_type === "product")
-    .map((p: any) => ({
-      name: p.label || p.key,
-      keywords: (p.metadata?.keywords as string[]) || [],
-      searchField: (p.metadata?.search_field as string) || "description",
-    }));
-
-  return { terms, products };
-}
-
-function formatKnowledgeForPrompt(terms: TermDefinition[], products: ProductMapping[]): string {
-  let output = "## KNOWLEDGE BASE\n\n";
-
-  const customerTerms = terms.filter((t) => t.scope === "customer");
-  if (customerTerms.length > 0) {
-    output += "### Customer Terminology\n";
-    for (const term of customerTerms) {
-      const aliases = term.aliases?.length ? ` (also: ${term.aliases.join(", ")})` : "";
-      output += `- **"${term.key}"**${aliases}: ${term.definition}\n`;
-    }
-    output += "\n";
-  }
-
-  if (products.length > 0) {
-    output += "### Product Categories\n";
-    for (const product of products) {
-      output += `- **${product.name}**: Search \`${product.searchField}\` for: ${product.keywords.join(", ")}\n`;
-    }
-  }
-
-  return output;
-}
-
-async function getCustomerProfile(supabase: SupabaseClient, customerId: string): Promise<CustomerProfile | null> {
-  try {
-    const { data: profile } = await supabase
-      .from("customer_intelligence_profiles")
-      .select("*")
-      .eq("customer_id", parseInt(customerId))
-      .single();
-
-    if (!profile) return null;
-
-    const { data: learnedTerms } = await supabase
-      .from("ai_knowledge")
-      .select("key, label, definition, source")
-      .eq("scope", "customer")
-      .eq("customer_id", customerId)
-      .eq("knowledge_type", "term")
-      .eq("is_active", true);
-
-    return {
-      priorities: profile.priorities || [],
-      products: profile.products || [],
-      keyMarkets: profile.key_markets || [],
-      terminology: [
-        ...(profile.terminology || []).map((t: any) => ({ term: t.term || t.key, means: t.means || t.definition, source: "admin" })),
-        ...(learnedTerms || []).map((t: any) => ({ term: t.key, means: t.definition || t.label, source: "learned" }))
-      ],
-      benchmarkPeriod: profile.benchmark_period,
-      accountNotes: profile.account_notes,
-      preferences: profile.preferences || {},
-    };
-  } catch (e) {
-    return null;
-  }
-}
-
-function formatProfileForPrompt(profile: CustomerProfile): string {
-  let output = "## CUSTOMER INTELLIGENCE\n\n";
-  if (profile.priorities.length > 0) output += `**Priorities:** ${profile.priorities.join(", ")}\n\n`;
-  if (profile.keyMarkets.length > 0) output += `**Key Markets:** ${profile.keyMarkets.join(", ")}\n\n`;
-  if (profile.terminology.length > 0) {
-    output += "**Terminology:**\n";
-    for (const term of profile.terminology) output += `- "${term.term}" -> ${term.means}\n`;
-  }
-  return output;
-}
 
 const CORE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
 
@@ -749,15 +570,10 @@ Deno.serve(async (req: Request) => {
 
     console.log(`[AI] User: ${userEmail || userId || 'unknown'}, Customer: ${customerId}, Admin: ${isAdmin}, Tools: ${useTools}`);
 
-    const { fields: schemaFields, dataProfile, fieldNames } = await compileSchemaContext(supabase, customerId);
-    const schemaPrompt = formatSchemaForPrompt(schemaFields, dataProfile, isAdmin);
-    const { terms, products } = await compileKnowledgeContext(supabase, customerId, isAdmin);
-    const knowledgePrompt = terms.length > 0 || products.length > 0 ? formatKnowledgeForPrompt(terms, products) : "";
-    const profile = await getCustomerProfile(supabase, customerId);
-    const profilePrompt = profile ? formatProfileForPrompt(profile) : "";
-    const accessPrompt = getAccessControlPrompt(isAdmin);
-
-    const availableFieldNames = schemaFields.filter(f => isAdmin || !f.adminOnly).map(f => f.name.toLowerCase());
+    const contextService = new ContextService(supabase);
+    const context = await contextService.compileContext(customerId, isAdmin);
+    const { schemaFields, dataProfile, fieldNames, availableFieldNames, terms, products, customerProfile: profile, prompts } = context;
+    const { schema: schemaPrompt, knowledge: knowledgePrompt, profile: profilePrompt, access: accessPrompt } = prompts;
 
     const systemPromptParts = useTools
       ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, REPORT_STRUCTURE]

@@ -111,7 +111,7 @@ export function AIReportStudioPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, viewingCustomer, customers } = useAuth();
+  const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, isImpersonating, viewingCustomer, customers } = useAuth();
 
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -203,7 +203,7 @@ export function AIReportStudioPage() {
   const executeReport = useCallback(async (report: AIReportDefinition) => {
     if (!effectiveCustomerId) return;
     setIsExecuting(true);
-    const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
+    const effectiveIsAdmin = isAdmin() && !isImpersonating;
     try {
       const data = await executeReportData(supabase, report, String(effectiveCustomerId), effectiveIsAdmin);
       setExecutedData(data);
@@ -332,7 +332,7 @@ export function AIReportStudioPage() {
     const userMessage: ChatMessageType = { id: crypto.randomUUID(), role: 'user', content, timestamp: new Date() };
     setMessages((prev) => [...prev, userMessage]);
     setIsGenerating(true);
-    const effectiveIsAdmin = isAdmin() && !isViewingAsCustomer;
+    const effectiveIsAdmin = isAdmin() && !isImpersonating;
 
     try {
       let combinedContext = knowledgeContext || '';

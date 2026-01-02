@@ -414,7 +414,6 @@ export function AIUsageDashboardPage() {
                     <tr key={user.userId || idx} className="hover:bg-slate-50">
                       <td className="px-6 py-4">
                         <div className="font-medium text-slate-900">{user.userEmail || 'Unknown'}</div>
-                        <div className="text-xs text-slate-500">{user.userId}</div>
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-slate-900">
                         {user.totalRequests.toLocaleString()}

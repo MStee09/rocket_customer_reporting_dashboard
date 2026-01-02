@@ -124,6 +124,8 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
         mode,
       });
 
+      console.log('[Investigator] Full response:', JSON.stringify(response, null, 2));
+
       setUsage(prev => ({
         totalInputTokens: prev.totalInputTokens + response.usage.inputTokens,
         totalOutputTokens: prev.totalOutputTokens + response.usage.outputTokens,

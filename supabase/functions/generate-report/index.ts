@@ -943,6 +943,28 @@ Deno.serve(async (req: Request) => {
         currentMessages.push({ role: "user", content: toolResults });
       }
 
+      if (!finalMessage && toolExecutions.length > 0) {
+        const reportDraft = toolExecutions.find(t => t.toolName === 'create_report_draft');
+        const addedSections = toolExecutions.filter(t => t.toolName === 'add_section');
+
+        if (reportDraft || addedSections.length > 0) {
+          const reportName = (reportDraft?.result as any)?.name || 'Your report';
+          const sectionDescriptions = addedSections.map(s => {
+            const result = s.result as any;
+            return `- **${result.title || result.type}**${result.insight ? `: ${result.insight}` : ''}`;
+          });
+
+          finalMessage = `I've created **${reportName}** with ${addedSections.length} sections:\n\n${sectionDescriptions.join('\n')}\n\nWould you like me to modify any sections or add more?`;
+
+          if (!finalReport && toolExecutor.getCurrentReport()) {
+            finalReport = toolExecutor.getCurrentReport();
+          }
+        } else {
+          const toolNames = [...new Set(toolExecutions.map(t => t.toolName))];
+          finalMessage = `Analysis complete. I used ${toolExecutions.length} tool calls (${toolNames.join(', ')}).`;
+        }
+      }
+
       const latencyMs = Date.now() - startTime;
 
       if (userId) {

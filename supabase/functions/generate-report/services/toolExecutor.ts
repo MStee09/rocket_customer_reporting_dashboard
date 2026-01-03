@@ -54,6 +54,10 @@ export class ToolExecutor {
     this.availableFields = availableFields;
   }
 
+  getCurrentReport(): Record<string, unknown> | null {
+    return this.currentReport as Record<string, unknown> | null;
+  }
+
   async execute(toolName: string, input: Record<string, unknown>): Promise<ToolExecution> {
     const startTime = Date.now();
     let result: unknown;

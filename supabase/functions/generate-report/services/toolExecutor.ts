@@ -425,8 +425,11 @@ export class ToolExecutor {
     return {
       success: true,
       report_id: this.currentReport.id,
-      report: this.currentReport,
-      message: `Created report draft "${name}" with ${theme} theme`
+      name,
+      theme,
+      date_range: dateRange,
+      sections_count: 0,
+      message: `Draft created. Use add_section to build the report incrementally.`
     };
   }
 
@@ -472,11 +475,20 @@ export class ToolExecutor {
       this.currentReport!.sections.push(section);
     }
 
+    const previewSummary = section.data ? {
+      rows: Array.isArray((section.data as any).results) ? (section.data as any).results.length : 0,
+      top_value: Array.isArray((section.data as any).results) && (section.data as any).results[0]
+        ? `${(section.data as any).results[0].name}: ${(section.data as any).results[0].value}`
+        : null
+    } : null;
+
     return {
       success: true,
       section_index: this.currentReport!.sections.length - 1,
-      section,
-      preview_data: section.data,
+      type: sectionType,
+      title,
+      has_data: !!section.data,
+      preview_summary: previewSummary,
       insight: section.insight,
       total_sections: this.currentReport!.sections.length
     };
@@ -574,11 +586,22 @@ export class ToolExecutor {
       }
     }
 
+    const sectionsSummary = this.currentReport.sections.map((s, i) => ({
+      index: i,
+      type: s.type,
+      title: s.title,
+      has_data: !!s.data,
+      insight: s.insight
+    }));
+
     return {
-      report: this.currentReport,
+      report_name: this.currentReport.name,
+      theme: this.currentReport.theme,
       sections_with_data: this.currentReport.sections.filter(s => s.data).length,
       total_sections: this.currentReport.sections.length,
-      narrative: includeNarrative ? this.generateReportNarrative() : undefined
+      sections: sectionsSummary,
+      narrative: includeNarrative ? this.generateReportNarrative() : undefined,
+      ready_to_finalize: true
     };
   }
 

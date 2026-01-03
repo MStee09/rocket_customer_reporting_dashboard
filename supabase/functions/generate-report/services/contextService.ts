@@ -1,5 +1,5 @@
-import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
-import { RESTRICTED_FIELDS, isRestrictedField, getAccessControlPrompt } from './restrictedFields.ts';
+import { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { RESTRICTED_FIELDS, isRestrictedField, getAccessControlPrompt } from "./restrictedFields.ts";
 
 interface SchemaField {
   name: string;
@@ -27,7 +27,7 @@ interface TermDefinition {
   label?: string;
   definition: string;
   aiInstructions?: string;
-  scope: 'global' | 'customer';
+  scope: "global" | "customer";
   aliases?: string[];
 }
 
@@ -47,7 +47,7 @@ interface CustomerProfile {
   preferences?: Record<string, Record<string, number>>;
 }
 
-interface CompiledContext {
+interface ContextResult {
   schemaFields: SchemaField[];
   dataProfile: DataProfile | null;
   fieldNames: string[];
@@ -70,25 +70,25 @@ export class ContextService {
     this.supabase = supabase;
   }
 
-  async compileContext(customerId: string, isAdmin: boolean): Promise<CompiledContext> {
+  async compileContext(customerId: string, isAdmin: boolean): Promise<ContextResult> {
     const [schemaFields, dataProfile, terms, products, customerProfile] = await Promise.all([
       this.fetchSchemaFields(isAdmin),
       this.fetchDataProfile(customerId),
       this.fetchTerms(customerId),
       this.fetchProducts(customerId),
-      this.fetchCustomerProfile(customerId),
+      this.fetchCustomerProfile(customerId)
     ]);
 
-    const fieldNames = schemaFields.map(f => f.name.toLowerCase());
-    const availableFieldNames = isAdmin
-      ? fieldNames
+    const fieldNames = schemaFields.map(f => f.name);
+    const availableFieldNames = isAdmin 
+      ? fieldNames 
       : fieldNames.filter(f => !isRestrictedField(f));
 
     const prompts = {
       schema: this.buildSchemaPrompt(schemaFields, isAdmin),
       knowledge: this.buildKnowledgePrompt(terms, products),
-      profile: this.buildProfilePrompt(customerProfile, dataProfile),
-      access: getAccessControlPrompt(isAdmin),
+      profile: this.buildProfilePrompt(customerProfile),
+      access: getAccessControlPrompt(isAdmin)
     };
 
     return {
@@ -99,7 +99,7 @@ export class ContextService {
       terms,
       products,
       customerProfile,
-      prompts,
+      prompts
     };
   }
 
@@ -108,11 +108,11 @@ export class ContextService {
       const { data, error } = await this.supabase
         .from('schema_columns_metadata')
         .select('column_name, data_type, is_groupable, is_aggregatable, business_context, ai_instructions')
-        .eq('table_name', 'shipment_report_view')
-        .eq('is_active', true);
+        .eq('view_name', 'shipment_report_view');
 
-      if (error || !data?.length) {
-        return this.getDefaultSchemaFields();
+      if (error || !data) {
+        console.error('[Context] Schema fetch error:', error);
+        return this.getDefaultSchema(isAdmin);
       }
 
       return data.map(col => ({
@@ -122,32 +122,52 @@ export class ContextService {
         isAggregatable: col.is_aggregatable ?? false,
         businessContext: col.business_context,
         aiInstructions: col.ai_instructions,
-        adminOnly: isRestrictedField(col.column_name),
+        adminOnly: isRestrictedField(col.column_name)
       }));
-    } catch {
-      return this.getDefaultSchemaFields();
+    } catch (e) {
+      console.error('[Context] Schema exception:', e);
+      return this.getDefaultSchema(isAdmin);
     }
   }
 
-  private getDefaultSchemaFields(): SchemaField[] {
-    return [
-      { name: 'ship_date', type: 'date', isGroupable: true, isAggregatable: false },
+  private getDefaultSchema(isAdmin: boolean): SchemaField[] {
+    const baseFields = [
+      { name: 'pro_number', type: 'text', isGroupable: false, isAggregatable: false },
+      { name: 'customer_name', type: 'text', isGroupable: true, isAggregatable: false },
       { name: 'carrier_name', type: 'text', isGroupable: true, isAggregatable: false },
+      { name: 'origin_city', type: 'text', isGroupable: true, isAggregatable: false },
       { name: 'origin_state', type: 'text', isGroupable: true, isAggregatable: false },
+      { name: 'destination_city', type: 'text', isGroupable: true, isAggregatable: false },
       { name: 'destination_state', type: 'text', isGroupable: true, isAggregatable: false },
+      { name: 'weight', type: 'numeric', isGroupable: false, isAggregatable: true },
       { name: 'retail', type: 'numeric', isGroupable: false, isAggregatable: true },
-      { name: 'total_weight', type: 'numeric', isGroupable: false, isAggregatable: true },
-      { name: 'mode_name', type: 'text', isGroupable: true, isAggregatable: false },
+      { name: 'ship_date', type: 'date', isGroupable: true, isAggregatable: false },
+      { name: 'delivery_date', type: 'date', isGroupable: true, isAggregatable: false },
       { name: 'status', type: 'text', isGroupable: true, isAggregatable: false },
+      { name: 'mode', type: 'text', isGroupable: true, isAggregatable: false }
     ];
+
+    if (isAdmin) {
+      baseFields.push(
+        { name: 'cost', type: 'numeric', isGroupable: false, isAggregatable: true },
+        { name: 'margin', type: 'numeric', isGroupable: false, isAggregatable: true }
+      );
+    }
+
+    return baseFields;
   }
 
   private async fetchDataProfile(customerId: string): Promise<DataProfile | null> {
     try {
       const { data, error } = await this.supabase.rpc('get_customer_data_profile', {
-        p_customer_id: parseInt(customerId, 10),
+        p_customer_id: parseInt(customerId, 10)
       });
-      if (error || !data) return null;
+
+      if (error || !data) {
+        console.error('[Context] Data profile error:', error);
+        return null;
+      }
+
       return {
         totalShipments: data.total_shipments || 0,
         stateCount: data.state_count || 0,
@@ -156,9 +176,10 @@ export class ContextService {
         topStates: data.top_states || [],
         topCarriers: data.top_carriers || [],
         avgShipmentsPerDay: data.avg_shipments_per_day || 0,
-        hasCanadaData: data.has_canada_data || false,
+        hasCanadaData: data.has_canada_data || false
       };
-    } catch {
+    } catch (e) {
+      console.error('[Context] Data profile exception:', e);
       return null;
     }
   }
@@ -167,12 +188,15 @@ export class ContextService {
     try {
       const { data, error } = await this.supabase
         .from('ai_knowledge')
-        .select('key, label, definition, ai_instructions, scope, metadata')
+        .select('key, label, definition, ai_instructions, scope, aliases')
         .eq('knowledge_type', 'term')
         .eq('is_active', true)
-        .or(`scope.eq.global,and(scope.eq.customer,customer_id.eq.${customerId})`);
+        .or(`scope.eq.global,customer_id.eq.${customerId}`);
 
-      if (error || !data) return [];
+      if (error || !data) {
+        console.error('[Context] Terms fetch error:', error);
+        return [];
+      }
 
       return data.map(t => ({
         key: t.key,
@@ -180,9 +204,10 @@ export class ContextService {
         definition: t.definition,
         aiInstructions: t.ai_instructions,
         scope: t.scope as 'global' | 'customer',
-        aliases: t.metadata?.aliases,
+        aliases: t.aliases
       }));
-    } catch {
+    } catch (e) {
+      console.error('[Context] Terms exception:', e);
       return [];
     }
   }
@@ -194,16 +219,20 @@ export class ContextService {
         .select('key, label, definition, metadata')
         .eq('knowledge_type', 'product')
         .eq('is_active', true)
-        .or(`scope.eq.global,and(scope.eq.customer,customer_id.eq.${customerId})`);
+        .or(`scope.eq.global,customer_id.eq.${customerId}`);
 
-      if (error || !data) return [];
+      if (error || !data) {
+        console.error('[Context] Products fetch error:', error);
+        return [];
+      }
 
       return data.map(p => ({
         name: p.label || p.key,
         keywords: p.metadata?.keywords || [p.key],
-        searchField: p.metadata?.search_field || 'description',
+        searchField: p.metadata?.search_field || 'description'
       }));
-    } catch {
+    } catch (e) {
+      console.error('[Context] Products exception:', e);
       return [];
     }
   }
@@ -212,11 +241,13 @@ export class ContextService {
     try {
       const { data, error } = await this.supabase
         .from('customer_profiles')
-        .select('priorities, products, key_markets, terminology, benchmark_period, account_notes, preferences')
+        .select('*')
         .eq('customer_id', parseInt(customerId, 10))
         .maybeSingle();
 
-      if (error || !data) return null;
+      if (error || !data) {
+        return null;
+      }
 
       return {
         priorities: data.priorities || [],
@@ -225,99 +256,82 @@ export class ContextService {
         terminology: data.terminology || [],
         benchmarkPeriod: data.benchmark_period,
         accountNotes: data.account_notes,
-        preferences: data.preferences,
+        preferences: data.preferences
       };
-    } catch {
+    } catch (e) {
+      console.error('[Context] Profile exception:', e);
       return null;
     }
   }
 
   private buildSchemaPrompt(fields: SchemaField[], isAdmin: boolean): string {
     const availableFields = isAdmin ? fields : fields.filter(f => !f.adminOnly);
-
-    const groupableFields = availableFields.filter(f => f.isGroupable);
-    const aggregatableFields = availableFields.filter(f => f.isAggregatable);
-
-    let prompt = `## AVAILABLE DATA FIELDS\n\n`;
-    prompt += `### Fields for grouping (use in groupBy):\n`;
-    prompt += groupableFields.map(f => {
-      let line = `- **${f.name}** (${f.type})`;
-      if (f.businessContext) line += `: ${f.businessContext}`;
-      return line;
+    
+    const fieldList = availableFields.map(f => {
+      let desc = `- **${f.name}** (${f.type})`;
+      if (f.isGroupable) desc += ' [groupable]';
+      if (f.isAggregatable) desc += ' [aggregatable]';
+      if (f.businessContext) desc += `: ${f.businessContext}`;
+      return desc;
     }).join('\n');
 
-    prompt += `\n\n### Fields for metrics (use in aggregations):\n`;
-    prompt += aggregatableFields.map(f => {
-      let line = `- **${f.name}** (${f.type})`;
-      if (f.businessContext) line += `: ${f.businessContext}`;
-      return line;
-    }).join('\n');
-
-    return prompt;
+    return `## AVAILABLE DATA FIELDS\n\n${fieldList}`;
   }
 
   private buildKnowledgePrompt(terms: TermDefinition[], products: ProductMapping[]): string {
-    if (terms.length === 0 && products.length === 0) return '';
+    if (terms.length === 0 && products.length === 0) {
+      return '';
+    }
 
-    let prompt = `## CUSTOMER KNOWLEDGE\n\n`;
+    let prompt = '## BUSINESS KNOWLEDGE\n\n';
 
     if (terms.length > 0) {
-      prompt += `### Terminology:\n`;
-      prompt += terms.map(t => {
-        let line = `- **${t.label || t.key}**: ${t.definition}`;
-        if (t.aiInstructions) line += ` [AI: ${t.aiInstructions}]`;
-        return line;
-      }).join('\n');
-      prompt += '\n\n';
-    }
-
-    if (products.length > 0) {
-      prompt += `### Products:\n`;
-      prompt += products.map(p => 
-        `- **${p.name}**: Search in ${p.searchField} for: ${p.keywords.join(', ')}`
-      ).join('\n');
-    }
-
-    return prompt;
-  }
-
-  private buildProfilePrompt(profile: CustomerProfile | null, dataProfile: DataProfile | null): string {
-    if (!profile && !dataProfile) return '';
-
-    let prompt = `## CUSTOMER CONTEXT\n\n`;
-
-    if (dataProfile) {
-      prompt += `### Data Overview:\n`;
-      prompt += `- Total shipments: ${dataProfile.totalShipments.toLocaleString()}\n`;
-      prompt += `- Active states: ${dataProfile.stateCount}\n`;
-      prompt += `- Active carriers: ${dataProfile.carrierCount}\n`;
-      prompt += `- Data history: ${dataProfile.monthsOfData} months\n`;
-      if (dataProfile.topStates.length > 0) {
-        prompt += `- Top states: ${dataProfile.topStates.slice(0, 5).join(', ')}\n`;
-      }
-      if (dataProfile.topCarriers.length > 0) {
-        prompt += `- Top carriers: ${dataProfile.topCarriers.slice(0, 5).join(', ')}\n`;
-      }
-      if (dataProfile.hasCanadaData) {
-        prompt += `- Note: Customer has Canadian shipment data\n`;
+      prompt += '### Terms & Definitions\n';
+      for (const term of terms) {
+        prompt += `- **${term.label || term.key}**: ${term.definition}`;
+        if (term.aiInstructions) prompt += ` (${term.aiInstructions})`;
+        prompt += '\n';
       }
       prompt += '\n';
     }
 
-    if (profile) {
-      if (profile.priorities.length > 0) {
-        prompt += `### Business Priorities:\n`;
-        prompt += profile.priorities.map(p => `- ${p}`).join('\n');
-        prompt += '\n\n';
+    if (products.length > 0) {
+      prompt += '### Product Mappings\n';
+      for (const product of products) {
+        prompt += `- **${product.name}**: Search "${product.searchField}" for: ${product.keywords.join(', ')}\n`;
       }
+    }
 
-      if (profile.keyMarkets.length > 0) {
-        prompt += `### Key Markets: ${profile.keyMarkets.join(', ')}\n\n`;
-      }
+    return prompt;
+  }
 
-      if (profile.accountNotes) {
-        prompt += `### Account Notes:\n${profile.accountNotes}\n\n`;
+  private buildProfilePrompt(profile: CustomerProfile | null): string {
+    if (!profile) return '';
+
+    let prompt = '## CUSTOMER CONTEXT\n\n';
+
+    if (profile.priorities.length > 0) {
+      prompt += `**Priorities**: ${profile.priorities.join(', ')}\n\n`;
+    }
+
+    if (profile.keyMarkets.length > 0) {
+      prompt += `**Key Markets**: ${profile.keyMarkets.join(', ')}\n\n`;
+    }
+
+    if (profile.terminology.length > 0) {
+      prompt += '**Custom Terms**:\n';
+      for (const t of profile.terminology) {
+        prompt += `- "${t.term}" means ${t.means}\n`;
       }
+      prompt += '\n';
+    }
+
+    if (profile.accountNotes) {
+      prompt += `**Account Notes**: ${profile.accountNotes}\n\n`;
+    }
+
+    if (profile.benchmarkPeriod) {
+      prompt += `**Benchmark Period**: ${profile.benchmarkPeriod}\n\n`;
     }
 
     return prompt;

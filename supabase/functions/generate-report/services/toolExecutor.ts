@@ -1,5 +1,4 @@
-import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
-import { isRestrictedField, findRestrictedFieldsInString } from './restrictedFields.ts';
+import { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 export interface ToolExecution {
   toolName: string;
@@ -10,17 +9,11 @@ export interface ToolExecution {
 }
 
 export interface LearningExtraction {
-  type: 'terminology' | 'product' | 'preference' | 'correction';
+  type: "terminology" | "product" | "preference";
   key: string;
   value: string;
   confidence: number;
-  source: 'explicit' | 'inferred' | 'tool';
-}
-
-export interface FinalizedReport {
-  report: Record<string, unknown>;
-  summary: string;
-  validation: { valid: boolean; errors: string[] };
+  mapsToField?: string;
 }
 
 export class ToolExecutor {
@@ -28,202 +21,202 @@ export class ToolExecutor {
   private customerId: string;
   private isAdmin: boolean;
   private availableFields: string[];
-  private timeoutMs: number;
 
   constructor(
     supabase: SupabaseClient,
     customerId: string,
     isAdmin: boolean,
-    availableFields: string[],
-    timeoutMs: number = 10000
+    availableFields: string[]
   ) {
     this.supabase = supabase;
     this.customerId = customerId;
     this.isAdmin = isAdmin;
     this.availableFields = availableFields;
-    this.timeoutMs = timeoutMs;
   }
 
-  async execute(toolName: string, toolInput: Record<string, unknown>): Promise<ToolExecution> {
+  async execute(toolName: string, input: Record<string, unknown>): Promise<ToolExecution> {
     const startTime = Date.now();
+    let result: unknown;
 
     try {
-      const result = await this.executeWithTimeout(toolName, toolInput);
-      return {
-        toolName,
-        toolInput,
-        result,
-        timestamp: new Date().toISOString(),
-        duration: Date.now() - startTime,
-      };
-    } catch (error) {
-      return {
-        toolName,
-        toolInput,
-        result: { error: error instanceof Error ? error.message : 'Unknown error' },
-        timestamp: new Date().toISOString(),
-        duration: Date.now() - startTime,
-      };
+      switch (toolName) {
+        case 'explore_field':
+          result = await this.exploreField(input);
+          break;
+        case 'preview_grouping':
+          result = await this.previewGrouping(input);
+          break;
+        case 'emit_learning':
+          result = await this.emitLearning(input);
+          break;
+        case 'finalize_report':
+          result = this.finalizeReport(input);
+          break;
+        case 'ask_clarification':
+          result = { question: input.question, options: input.options };
+          break;
+        default:
+          result = { error: `Unknown tool: ${toolName}` };
+      }
+    } catch (e) {
+      result = { error: e instanceof Error ? e.message : 'Tool execution failed' };
     }
+
+    return {
+      toolName,
+      toolInput: input,
+      result,
+      timestamp: new Date().toISOString(),
+      duration: Date.now() - startTime
+    };
   }
 
-  private async executeWithTimeout(toolName: string, toolInput: Record<string, unknown>): Promise<unknown> {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(`Tool '${toolName}' timed out`)), this.timeoutMs);
-    });
+  private async exploreField(input: Record<string, unknown>): Promise<unknown> {
+    const fieldName = input.field_name as string;
+    const sampleSize = (input.sample_size as number) || 10;
 
-    const executionPromise = this.executeToolInternal(toolName, toolInput);
-    return Promise.race([executionPromise, timeoutPromise]);
-  }
-
-  private async executeToolInternal(toolName: string, toolInput: Record<string, unknown>): Promise<unknown> {
-    switch (toolName) {
-      case 'explore_field':
-        return this.exploreField(toolInput as { field_name: string; sample_size?: number });
-      case 'preview_grouping':
-        return this.previewGrouping(toolInput as { group_by: string; metric: string; aggregation: string; limit?: number });
-      case 'emit_learning':
-        return this.emitLearning(toolInput as { learning_type: string; key: string; value: string; confidence: string; maps_to_field?: string });
-      case 'finalize_report':
-        return this.finalizeReport(toolInput as { report: unknown; summary: string });
-      case 'ask_clarification':
-        return { needsClarification: true, ...(toolInput as { question: string; options?: string[] }) };
-      default:
-        return { error: `Unknown tool: ${toolName}` };
-    }
-  }
-
-  private async exploreField(input: { field_name: string; sample_size?: number }): Promise<unknown> {
-    const { field_name, sample_size = 10 } = input;
-
-    if (!this.isAdmin && isRestrictedField(field_name)) {
-      return { error: `Field '${field_name}' is not available` };
+    if (!this.availableFields.includes(fieldName)) {
+      return { error: `Field "${fieldName}" is not available. Available fields: ${this.availableFields.slice(0, 20).join(', ')}...` };
     }
 
     try {
       const { data, error } = await this.supabase.rpc('explore_single_field', {
-        p_customer_id: this.customerId,
-        p_field_name: field_name,
-        p_sample_size: sample_size,
+        p_customer_id: parseInt(this.customerId, 10),
+        p_field_name: fieldName,
+        p_sample_size: sampleSize
       });
-      if (error) return { error: error.message };
-      return data || { error: 'No data returned' };
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      return data || { values: [], totalCount: 0, nullCount: 0 };
     } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Unknown error' };
+      return { error: e instanceof Error ? e.message : 'Failed to explore field' };
     }
   }
 
-  private async previewGrouping(input: { group_by: string; metric: string; aggregation: string; limit?: number }): Promise<unknown> {
-    const { group_by, metric, aggregation, limit = 15 } = input;
+  private async previewGrouping(input: Record<string, unknown>): Promise<unknown> {
+    const groupBy = input.group_by as string;
+    const metric = input.metric as string;
+    const aggregation = input.aggregation as string;
+    const limit = (input.limit as number) || 10;
 
-    if (!this.isAdmin && (isRestrictedField(group_by) || isRestrictedField(metric))) {
-      return { error: 'One or more requested fields are not available' };
+    if (!this.availableFields.includes(groupBy)) {
+      return { error: `Group by field "${groupBy}" is not available` };
+    }
+
+    if (!this.availableFields.includes(metric)) {
+      return { error: `Metric field "${metric}" is not available` };
     }
 
     try {
       const { data, error } = await this.supabase.rpc('preview_grouping', {
-        p_customer_id: this.customerId,
-        p_group_by: group_by,
+        p_customer_id: parseInt(this.customerId, 10),
+        p_group_by: groupBy,
         p_metric: metric,
         p_aggregation: aggregation,
-        p_limit: limit,
+        p_limit: limit
       });
 
-      if (error) return { error: error.message };
-
-      const totalGroups = data?.total_groups || 0;
-      let quality = 'good';
-      let warning = null;
-
-      if (totalGroups === 0) {
-        quality = 'empty';
-        warning = 'No data found for this grouping';
-      } else if (totalGroups > 50) {
-        quality = 'many_groups';
-        warning = `This grouping has ${totalGroups} unique values - consider using top N limit`;
-      } else if (totalGroups === 1) {
-        quality = 'single_group';
-        warning = "Only one group found - might not make a useful chart";
+      if (error) {
+        return { error: error.message };
       }
 
-      return { ...data, quality, warning };
+      return data || { groups: [], total: 0 };
     } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Unknown error' };
+      return { error: e instanceof Error ? e.message : 'Failed to preview grouping' };
     }
   }
 
-  private async emitLearning(input: { learning_type: string; key: string; value: string; confidence: string; maps_to_field?: string }): Promise<{ success: boolean; learning: LearningExtraction }> {
-    const confidenceMap: Record<string, number> = { high: 0.9, medium: 0.7, low: 0.5 };
+  private async emitLearning(input: Record<string, unknown>): Promise<unknown> {
+    const learningType = input.learning_type as string;
+    const key = input.key as string;
+    const value = input.value as string;
+    const confidence = input.confidence as string;
+    const mapsToField = input.maps_to_field as string | undefined;
+
+    const confidenceScore = confidence === 'high' ? 0.9 : confidence === 'low' ? 0.5 : 0.7;
 
     const learning: LearningExtraction = {
-      type: input.learning_type as LearningExtraction['type'],
-      key: input.key.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
-      value: input.value,
-      confidence: confidenceMap[input.confidence] || 0.7,
-      source: 'tool',
+      type: learningType as 'terminology' | 'product' | 'preference',
+      key: key.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+      value,
+      confidence: confidenceScore,
+      mapsToField
     };
 
     try {
       await this.supabase.from('ai_knowledge').upsert({
-        knowledge_type: learning.type === 'terminology' ? 'term' : learning.type,
+        knowledge_type: learningType === 'terminology' ? 'term' : learningType,
         key: learning.key,
-        label: input.key,
-        definition: learning.value,
+        label: key,
+        definition: value,
         scope: 'customer',
         customer_id: this.customerId,
         source: 'learned',
-        confidence: learning.confidence,
-        needs_review: learning.confidence < 0.8,
-        is_active: learning.confidence >= 0.8,
-        metadata: input.maps_to_field ? { maps_to_field: input.maps_to_field } : null,
+        confidence: confidenceScore,
+        needs_review: confidenceScore < 0.8,
+        is_active: confidenceScore >= 0.8,
+        metadata: mapsToField ? { maps_to_field: mapsToField } : null
       }, { onConflict: 'knowledge_type,key,scope,customer_id' });
-    } catch (e) {
-      console.error('Failed to save learning:', e);
-    }
 
-    return { success: true, learning };
+      return { success: true, learning };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'Failed to save learning', learning };
+    }
   }
 
-  private finalizeReport(input: { report: unknown; summary: string }): FinalizedReport {
+  private finalizeReport(input: Record<string, unknown>): unknown {
     const report = input.report as Record<string, unknown>;
-    const errors: string[] = [];
+    const summary = input.summary as string;
 
-    if (!report.name) errors.push('Report must have a name');
-    if (!report.sections || !Array.isArray(report.sections)) {
-      errors.push('Report must have a sections array');
+    if (!report) {
+      return { error: 'No report provided' };
     }
 
-    if (!report.id) report.id = crypto.randomUUID();
-    if (!report.createdAt) report.createdAt = new Date().toISOString();
-    if (!report.dateRange) report.dateRange = { type: 'last90' };
+    if (!report.name) {
+      report.name = 'Generated Report';
+    }
+
+    if (!report.id) {
+      report.id = crypto.randomUUID();
+    }
+
+    if (!report.createdAt) {
+      report.createdAt = new Date().toISOString();
+    }
+
     report.customerId = this.customerId;
 
-    const sections = (report.sections as unknown[]) || [];
-    for (let i = 0; i < sections.length; i++) {
-      const section = sections[i] as Record<string, unknown>;
-      const config = section.config as Record<string, unknown> | undefined;
+    const validation = this.validateReport(report);
 
-      if (config) {
-        const groupBy = config.groupBy as string | undefined;
-        if (groupBy && !this.availableFields.includes(groupBy.toLowerCase())) {
-          errors.push(`Section ${i + 1}: Unknown field "${groupBy}"`);
-        }
+    return {
+      report,
+      summary,
+      validation
+    };
+  }
 
-        const metric = config.metric as Record<string, unknown> | undefined;
-        if (metric?.field && !this.availableFields.includes((metric.field as string).toLowerCase())) {
-          errors.push(`Section ${i + 1}: Unknown metric field "${metric.field}"`);
+  private validateReport(report: Record<string, unknown>): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!report.name) {
+      errors.push('Report must have a name');
+    }
+
+    if (!report.sections || !Array.isArray(report.sections)) {
+      errors.push('Report must have a sections array');
+    } else {
+      const validTypes = ['hero', 'stat-row', 'category-grid', 'chart', 'table', 'header', 'map'];
+      for (let i = 0; i < (report.sections as unknown[]).length; i++) {
+        const section = (report.sections as Record<string, unknown>[])[i];
+        if (!section.type || !validTypes.includes(section.type as string)) {
+          errors.push(`Section ${i + 1}: Invalid or missing type`);
         }
       }
     }
 
-    if (!this.isAdmin) {
-      const reportStr = JSON.stringify(report).toLowerCase();
-      const restrictedFound = findRestrictedFieldsInString(reportStr);
-      for (const field of restrictedFound) {
-        errors.push(`Report contains restricted field: ${field}`);
-      }
-    }
-
-    return { report, summary: input.summary, validation: { valid: errors.length === 0, errors } };
+    return { valid: errors.length === 0, errors };
   }
 }

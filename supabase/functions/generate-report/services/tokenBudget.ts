@@ -1,102 +1,94 @@
-const PRICING = {
-  inputTokenCost: 0.000003,
-  outputTokenCost: 0.000015,
-};
-
-export interface BudgetConfig {
+export interface TokenBudgetConfig {
+  maxInputTokens: number;
+  maxOutputTokens: number;
   maxTotalTokens: number;
-  maxCostUsd: number;
-  maxTurns: number;
-  warningThresholdPercent: number;
+  warningThreshold: number;
 }
 
-const DEFAULT_CONFIG: BudgetConfig = {
-  maxTotalTokens: 50000,
-  maxCostUsd: 0.50,
-  maxTurns: 10,
-  warningThresholdPercent: 80,
+export const DEFAULT_BUDGET_CONFIG: TokenBudgetConfig = {
+  maxInputTokens: 100000,
+  maxOutputTokens: 32000,
+  maxTotalTokens: 130000,
+  warningThreshold: 0.8
 };
 
 export class TokenBudgetService {
-  private config: BudgetConfig;
-  private tokensUsed: number = 0;
-  private costUsed: number = 0;
-  private turnCount: number = 0;
+  private config: TokenBudgetConfig;
+  private usedInputTokens: number = 0;
+  private usedOutputTokens: number = 0;
 
-  constructor(config: Partial<BudgetConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  calculateCost(inputTokens: number, outputTokens: number): number {
-    return inputTokens * PRICING.inputTokenCost + outputTokens * PRICING.outputTokenCost;
-  }
-
-  canProceed(estimatedTokens: number = 10000): { allowed: boolean; reason?: string } {
-    if (this.turnCount >= this.config.maxTurns) {
-      return { allowed: false, reason: `Maximum turns reached (${this.config.maxTurns})` };
-    }
-
-    if (this.tokensUsed + estimatedTokens > this.config.maxTotalTokens) {
-      return { allowed: false, reason: `Token budget exhausted (${this.tokensUsed}/${this.config.maxTotalTokens})` };
-    }
-
-    const estimatedCost = this.calculateCost(estimatedTokens * 0.3, estimatedTokens * 0.7);
-    if (this.costUsed + estimatedCost > this.config.maxCostUsd) {
-      return { allowed: false, reason: `Cost budget exhausted ($${this.costUsed.toFixed(4)}/$${this.config.maxCostUsd})` };
-    }
-
-    return { allowed: true };
+  constructor(config: Partial<TokenBudgetConfig> = {}) {
+    this.config = { ...DEFAULT_BUDGET_CONFIG, ...config };
   }
 
   recordUsage(inputTokens: number, outputTokens: number): void {
-    this.tokensUsed += inputTokens + outputTokens;
-    this.costUsed += this.calculateCost(inputTokens, outputTokens);
-    this.turnCount++;
+    this.usedInputTokens += inputTokens;
+    this.usedOutputTokens += outputTokens;
   }
 
-  getStatus(): { tokensUsed: number; costUsed: number; turnCount: number; percentUsed: number } {
-    const tokenPercent = (this.tokensUsed / this.config.maxTotalTokens) * 100;
-    const costPercent = (this.costUsed / this.config.maxCostUsd) * 100;
-    const turnPercent = (this.turnCount / this.config.maxTurns) * 100;
+  canProceed(): { allowed: boolean; reason?: string; remaining: number } {
+    const totalUsed = this.usedInputTokens + this.usedOutputTokens;
+    const remaining = this.config.maxTotalTokens - totalUsed;
+
+    if (this.usedInputTokens >= this.config.maxInputTokens) {
+      return { allowed: false, reason: 'Input token limit reached', remaining: 0 };
+    }
+
+    if (this.usedOutputTokens >= this.config.maxOutputTokens) {
+      return { allowed: false, reason: 'Output token limit reached', remaining: 0 };
+    }
+
+    if (totalUsed >= this.config.maxTotalTokens) {
+      return { allowed: false, reason: 'Total token limit reached', remaining: 0 };
+    }
+
+    return { allowed: true, remaining };
+  }
+
+  isNearLimit(): boolean {
+    const totalUsed = this.usedInputTokens + this.usedOutputTokens;
+    return totalUsed >= this.config.maxTotalTokens * this.config.warningThreshold;
+  }
+
+  getUsage(): { input: number; output: number; total: number; percentUsed: number } {
+    const total = this.usedInputTokens + this.usedOutputTokens;
     return {
-      tokensUsed: this.tokensUsed,
-      costUsed: this.costUsed,
-      turnCount: this.turnCount,
-      percentUsed: Math.max(tokenPercent, costPercent, turnPercent),
+      input: this.usedInputTokens,
+      output: this.usedOutputTokens,
+      total,
+      percentUsed: (total / this.config.maxTotalTokens) * 100
     };
   }
 
   getStatusMessage(): string {
-    const status = this.getStatus();
-    if (status.percentUsed >= 100) {
-      return "I've gathered enough information to give you a solid answer. Want me to dig deeper into any specific area? Just ask a follow-up question.";
+    const usage = this.getUsage();
+    if (usage.percentUsed >= 100) {
+      return 'I\'ve reached my analysis limit for this conversation. Please start a new conversation for additional analysis.';
     }
-    if (status.percentUsed >= this.config.warningThresholdPercent) {
-      return "I'm wrapping up my analysis. Let me know if you need more detail on anything specific.";
+    if (usage.percentUsed >= 80) {
+      return `Note: I'm at ${Math.round(usage.percentUsed)}% of my analysis capacity. I'll wrap up soon.`;
     }
     return '';
   }
 
-  getTurnCount(): number {
-    return this.turnCount;
+  reset(): void {
+    this.usedInputTokens = 0;
+    this.usedOutputTokens = 0;
   }
 }
 
-export function createBudgetExhaustedResponse(
-  message: string,
-  partialResults?: { toolExecutions?: unknown[]; learnings?: unknown[] }
-): {
-  report: null;
-  message: string;
-  budgetExhausted: true;
-  toolExecutions?: unknown[];
-  learnings?: unknown[];
-} {
+export function createBudgetExhaustedResponse(service: TokenBudgetService): object {
+  const usage = service.getUsage();
   return {
+    success: false,
+    message: service.getStatusMessage(),
     report: null,
-    message,
-    budgetExhausted: true,
-    toolExecutions: partialResults?.toolExecutions,
-    learnings: partialResults?.learnings,
+    toolExecutions: [],
+    usage: {
+      inputTokens: usage.input,
+      outputTokens: usage.output,
+      totalTokens: usage.total,
+      budgetExhausted: true
+    }
   };
 }

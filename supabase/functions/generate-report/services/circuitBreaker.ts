@@ -1,38 +1,37 @@
-export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
-
-interface CircuitBreakerConfig {
+export interface CircuitBreakerConfig {
   failureThreshold: number;
-  failureWindowMs: number;
   resetTimeoutMs: number;
+  halfOpenRequests: number;
 }
 
-const DEFAULT_CONFIG: CircuitBreakerConfig = {
-  failureThreshold: 5,
-  failureWindowMs: 60000,
-  resetTimeoutMs: 60000,
-};
+export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
-class CircuitBreaker {
-  private config: CircuitBreakerConfig;
+export class CircuitBreaker {
   private state: CircuitState = 'CLOSED';
-  private failures: number[] = [];
-  private openedAt?: number;
+  private failureCount: number = 0;
+  private lastFailureTime: number = 0;
   private halfOpenSuccesses: number = 0;
+  private config: CircuitBreakerConfig;
 
   constructor(config: Partial<CircuitBreakerConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = {
+      failureThreshold: config.failureThreshold ?? 3,
+      resetTimeoutMs: config.resetTimeoutMs ?? 60000,
+      halfOpenRequests: config.halfOpenRequests ?? 2
+    };
   }
 
   canExecute(): boolean {
-    this.cleanupOldFailures();
-
-    if (this.state === 'CLOSED') return true;
+    if (this.state === 'CLOSED') {
+      return true;
+    }
 
     if (this.state === 'OPEN') {
-      if (this.openedAt && Date.now() - this.openedAt >= this.config.resetTimeoutMs) {
+      const timeSinceFailure = Date.now() - this.lastFailureTime;
+      if (timeSinceFailure >= this.config.resetTimeoutMs) {
         this.state = 'HALF_OPEN';
         this.halfOpenSuccesses = 0;
-        console.log('[CircuitBreaker] OPEN -> HALF_OPEN');
+        console.log('[CircuitBreaker] Transitioning to HALF_OPEN');
         return true;
       }
       return false;
@@ -44,71 +43,62 @@ class CircuitBreaker {
   recordSuccess(): void {
     if (this.state === 'HALF_OPEN') {
       this.halfOpenSuccesses++;
-      if (this.halfOpenSuccesses >= 2) {
+      if (this.halfOpenSuccesses >= this.config.halfOpenRequests) {
         this.state = 'CLOSED';
-        this.failures = [];
-        console.log('[CircuitBreaker] HALF_OPEN -> CLOSED');
+        this.failureCount = 0;
+        console.log('[CircuitBreaker] Transitioning to CLOSED');
       }
+    } else if (this.state === 'CLOSED') {
+      this.failureCount = 0;
     }
   }
 
-  recordFailure(error?: Error): void {
-    this.failures.push(Date.now());
-    console.error(`[CircuitBreaker] Failure: ${error?.message || 'Unknown'}`);
+  recordFailure(error: Error): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
 
     if (this.state === 'HALF_OPEN') {
       this.state = 'OPEN';
-      this.openedAt = Date.now();
-      console.log('[CircuitBreaker] HALF_OPEN -> OPEN');
-      return;
-    }
-
-    if (this.state === 'CLOSED' && this.getRecentFailures().length >= this.config.failureThreshold) {
+      console.log('[CircuitBreaker] HALF_OPEN failure, returning to OPEN');
+    } else if (this.failureCount >= this.config.failureThreshold) {
       this.state = 'OPEN';
-      this.openedAt = Date.now();
-      console.log('[CircuitBreaker] CLOSED -> OPEN');
+      console.log(`[CircuitBreaker] Threshold reached (${this.failureCount}), transitioning to OPEN`);
     }
-  }
 
-  getTimeUntilRetry(): number {
-    if (this.state !== 'OPEN' || !this.openedAt) return 0;
-    return Math.max(0, this.config.resetTimeoutMs - (Date.now() - this.openedAt));
+    console.error('[CircuitBreaker] Recorded failure:', error.message);
   }
 
   getState(): CircuitState {
     return this.state;
   }
 
-  private getRecentFailures(): number[] {
-    const windowStart = Date.now() - this.config.failureWindowMs;
-    return this.failures.filter(t => t >= windowStart);
-  }
-
-  private cleanupOldFailures(): void {
-    const windowStart = Date.now() - this.config.failureWindowMs;
-    this.failures = this.failures.filter(t => t >= windowStart);
+  getTimeUntilRetry(): number {
+    if (this.state !== 'OPEN') return 0;
+    const elapsed = Date.now() - this.lastFailureTime;
+    return Math.max(0, this.config.resetTimeoutMs - elapsed);
   }
 }
 
-let _instance: CircuitBreaker | null = null;
+let claudeCircuitBreaker: CircuitBreaker | null = null;
 
 export function getClaudeCircuitBreaker(): CircuitBreaker {
-  if (!_instance) {
-    _instance = new CircuitBreaker();
+  if (!claudeCircuitBreaker) {
+    claudeCircuitBreaker = new CircuitBreaker({
+      failureThreshold: 3,
+      resetTimeoutMs: 60000,
+      halfOpenRequests: 2
+    });
   }
-  return _instance;
+  return claudeCircuitBreaker;
 }
 
-export function createCircuitOpenResponse(retryAfterMs: number): {
-  success: false;
-  error: string;
-  message: string;
-  retryAfterSeconds: number;
-} {
+export function createCircuitOpenResponse(retryAfterMs: number): object {
   return {
     success: false,
-    error: 'ai_temporarily_unavailable',
-    message: "AI analysis is temporarily unavailable. Please try again in a few minutes.",
-    retryAfterSeconds: Math.ceil(retryAfterMs / 1000),
+    error: 'service_unavailable',
+    message: 'The AI service is temporarily unavailable. Please try again in a moment.',
+    retryAfterMs,
+    report: null,
+    toolExecutions: []
   };
 }

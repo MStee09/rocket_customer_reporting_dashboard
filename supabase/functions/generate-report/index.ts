@@ -99,17 +99,17 @@ async function verifyAdminRole(supabase: SupabaseClient, userId: string): Promis
   try {
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
+      .select('user_role')
       .eq('user_id', userId)
       .single();
-    
+
     if (error || !data) {
       console.log(`[Auth] No role found for user ${userId}, defaulting to non-admin`);
       return false;
     }
-    
-    const isAdmin = data.role === 'admin';
-    console.log(`[Auth] User ${userId} verified role: ${data.role}, isAdmin: ${isAdmin}`);
+
+    const isAdmin = data.user_role === 'admin';
+    console.log(`[Auth] User ${userId} verified role: ${data.user_role}, isAdmin: ${isAdmin}`);
     return isAdmin;
   } catch (e) {
     console.error('[Auth] Error verifying admin role:', e);

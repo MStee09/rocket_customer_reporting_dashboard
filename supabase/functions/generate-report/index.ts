@@ -415,10 +415,67 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: RequestBody = await req.json();
+
+    const MAX_PROMPT_LENGTH = 10000;
+    const MAX_CONVERSATION_MESSAGES = 50;
+    const MAX_MESSAGE_LENGTH = 5000;
+
+    if (!body.prompt || typeof body.prompt !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'invalid_input', message: 'Prompt is required and must be a string' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (body.prompt.length > MAX_PROMPT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: 'invalid_input', message: `Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (body.conversationHistory) {
+      if (!Array.isArray(body.conversationHistory)) {
+        return new Response(
+          JSON.stringify({ error: 'invalid_input', message: 'Conversation history must be an array' }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (body.conversationHistory.length > MAX_CONVERSATION_MESSAGES) {
+        return new Response(
+          JSON.stringify({ error: 'invalid_input', message: `Conversation history exceeds maximum of ${MAX_CONVERSATION_MESSAGES} messages` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      for (const msg of body.conversationHistory) {
+        if (!msg.role || !['user', 'assistant'].includes(msg.role)) {
+          return new Response(
+            JSON.stringify({ error: 'invalid_input', message: 'Invalid message role in conversation history' }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (typeof msg.content !== 'string' || msg.content.length > MAX_MESSAGE_LENGTH) {
+          return new Response(
+            JSON.stringify({ error: 'invalid_input', message: 'Invalid or too long message content in conversation history' }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    if (body.customerId && !/^\d+$/.test(body.customerId)) {
+      return new Response(
+        JSON.stringify({ error: 'invalid_input', message: 'Invalid customer ID format - must be numeric' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { prompt, conversationHistory, knowledgeContext, currentReport, useTools = true, sessionId } = body;
     customerId = body.customerId;
     customerName = body.customerName;
-    
+
     userId = body.userId;
     userEmail = body.userEmail;
 

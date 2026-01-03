@@ -1,10 +1,54 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
+
+interface RateLimitResult {
+  allowed: boolean;
+  reason?: string;
+}
+
+async function checkRateLimit(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<RateLimitResult> {
+  try {
+    const { data, error } = await supabase.rpc("check_ai_rate_limit", {
+      p_user_id: userId,
+      p_minute_limit: 10,
+      p_hour_limit: 60,
+      p_day_limit: 200,
+    });
+
+    if (error) {
+      console.error("[RateLimit] Check failed:", error);
+      return { allowed: true };
+    }
+
+    return { allowed: data.allowed, reason: data.reason };
+  } catch (e) {
+    console.error("[RateLimit] Exception:", e);
+    return { allowed: true };
+  }
+}
+
+async function recordRequest(
+  supabase: SupabaseClient,
+  userId: string,
+  customerId?: number
+): Promise<void> {
+  try {
+    await supabase.rpc("record_ai_request", {
+      p_user_id: userId,
+      p_customer_id: customerId || null,
+    });
+  } catch (e) {
+    console.error("[RateLimit] Failed to record request:", e);
+  }
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -15,12 +59,29 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { customerId, dateRange } = await req.json();
+    const { customerId, dateRange, userId } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    if (userId) {
+      const rateLimitResult = await checkRateLimit(supabase, userId);
+
+      if (!rateLimitResult.allowed) {
+        console.log(`[Insights] Rate limit exceeded for user ${userId}`);
+        return new Response(
+          JSON.stringify({
+            error: "rate_limit_exceeded",
+            message: rateLimitResult.reason || "Too many requests. Please try again later.",
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await recordRequest(supabase, userId, customerId);
+    }
 
     const currentStart = new Date(dateRange.start);
     const currentEnd = new Date(dateRange.end);

@@ -151,17 +151,58 @@ async function logUsage(
       p_status: params.status,
       p_error_message: params.errorMessage || null
     });
-    
+
     if (error) {
       console.error('[Usage Log] Failed:', error);
       return null;
     }
-    
+
     console.log('[Usage Log] Success:', data);
     return data;
   } catch (e) {
     console.error('[Usage Log] Exception:', e);
     return null;
+  }
+}
+
+async function getRelevantKnowledge(
+  supabase: SupabaseClient,
+  query: string,
+  customerId: string,
+  limit: number = 5
+): Promise<string> {
+  try {
+    const { data, error } = await supabase.functions.invoke('search-knowledge', {
+      body: { query, customerId, threshold: 0.5, limit }
+    });
+
+    if (!error && data?.chunks?.length > 0) {
+      const chunks = data.chunks.map((c: { chunk_text: string; similarity: number }, i: number) =>
+        `[Source ${i + 1} - Relevance: ${Math.round(c.similarity * 100)}%]\n${c.chunk_text}`
+      );
+      return `## RELEVANT KNOWLEDGE BASE CONTENT\n\n${chunks.join('\n\n---\n\n')}`;
+    }
+
+    const { data: docs } = await supabase
+      .from('ai_knowledge_documents')
+      .select('file_name, extracted_text')
+      .eq('customer_id', customerId)
+      .not('extracted_text', 'is', null)
+      .limit(2);
+
+    if (!docs || docs.length === 0) return '';
+
+    const fallbackContext = docs.map(doc => {
+      const preview = doc.extracted_text.length > 1000
+        ? doc.extracted_text.substring(0, 1000) + '...[truncated]'
+        : doc.extracted_text;
+      return `### ${doc.file_name}\n${preview}`;
+    }).join('\n\n');
+
+    return `## KNOWLEDGE BASE (No Embeddings)\n\n${fallbackContext}`;
+  } catch (error) {
+    console.error('[getRelevantKnowledge] Error:', error);
+    return '';
   }
 }
 
@@ -810,11 +851,13 @@ Deno.serve(async (req: Request) => {
     const { schemaFields, dataProfile, fieldNames, availableFieldNames, terms, products, customerProfile: profile, prompts } = context;
     const { schema: schemaPrompt, knowledge: knowledgePrompt, profile: profilePrompt, access: accessPrompt } = prompts;
 
+    const semanticKnowledge = await getRelevantKnowledge(supabase, prompt, customerId, 5);
+
     const toolExecutor = new ToolExecutor(supabase, customerId, isAdmin, availableFieldNames);
 
     const systemPromptParts = useTools
-      ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, REPORT_STRUCTURE]
-      : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
+      ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]
+      : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
 
     let fullSystemPrompt = systemPromptParts.filter(Boolean).join("\n\n");
     if (customerName) fullSystemPrompt += `\n\n## CURRENT CUSTOMER\nYou are helping: **${customerName}**`;

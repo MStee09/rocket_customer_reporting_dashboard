@@ -86,7 +86,39 @@ export async function uploadDocument(
     throw new Error(`Failed to save document: ${error.message}`);
   }
 
+  if (data && extractedText) {
+    embedDocumentInBackground(
+      supabase,
+      data.id,
+      input.scope === 'customer' ? input.customer_id! : 'global',
+      extractedText,
+      input.file.name
+    );
+  }
+
   return data;
+}
+
+async function embedDocumentInBackground(
+  supabase: SupabaseClient,
+  documentId: string,
+  customerId: string,
+  text: string,
+  fileName: string
+): Promise<void> {
+  try {
+    const { data, error } = await supabase.functions.invoke('embed-document', {
+      body: { documentId, customerId, text, fileName }
+    });
+
+    if (error) {
+      console.error('[KnowledgeBase] Embedding failed:', error);
+    } else {
+      console.log(`[KnowledgeBase] Embedded ${data.chunksCreated} chunks for: ${fileName}`);
+    }
+  } catch (err) {
+    console.error('[KnowledgeBase] Embedding error:', err);
+  }
 }
 
 export async function listDocuments(

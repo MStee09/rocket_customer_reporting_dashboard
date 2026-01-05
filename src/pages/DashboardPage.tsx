@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { AIReportWidgetConfig } from '../components/ai-studio';
+import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
+import type { Anomaly } from '../hooks/useAnomalies';
 import {
   DashboardHeader,
   AIReportsSection,
@@ -40,6 +42,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('last30');
   const [saveNotification, setSaveNotification] = useState(false);
   const [autoSaveNotification, setAutoSaveNotification] = useState(false);
@@ -315,6 +318,15 @@ export function DashboardPage() {
     editMode.exitEditMode();
   }, [handleResetChanges, editMode]);
 
+  const handleInvestigateAnomaly = useCallback((anomaly: Anomaly) => {
+    navigate('/analyze', {
+      state: {
+        openInvestigator: true,
+        initialQuery: `Investigate this anomaly: ${anomaly.title}. ${anomaly.description}. Why did ${anomaly.metric} change by ${anomaly.change_percent}%?`
+      }
+    });
+  }, [navigate]);
+
   if (showAdminDashboard) {
     return <AdminDashboardPage />;
   }
@@ -387,6 +399,15 @@ export function DashboardPage() {
                 start: new Date(startDate),
                 end: new Date(endDate),
               }}
+            />
+          </div>
+        )}
+
+        {effectiveCustomerId && (
+          <div className="mb-6">
+            <AnomalyAlerts
+              customerId={String(effectiveCustomerId)}
+              onInvestigate={handleInvestigateAnomaly}
             />
           </div>
         )}

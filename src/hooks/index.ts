@@ -20,3 +20,5 @@ export { useReportCharts } from './useReportCharts';
 export { useSavedViews } from './useSavedViews';
 export { useAIReportStudio } from './useAIReportStudio';
 export { useAIUsageDashboard, useUserAIUsage } from './useAIUsageDashboard';
+export { useAnomalies } from './useAnomalies';
+export type { Anomaly } from './useAnomalies';

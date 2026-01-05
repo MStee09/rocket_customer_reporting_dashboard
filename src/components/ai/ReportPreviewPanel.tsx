@@ -35,7 +35,7 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
     if (report.description) {
       text += `${report.description}\n\n`;
     }
-    text += `Generated: ${new Date(report.metadata.createdAt).toLocaleDateString()}\n\n`;
+    text += `Generated: ${report.metadata?.createdAt ? new Date(report.metadata.createdAt).toLocaleDateString() : 'Just now'}\n\n`;
     text += `---\n\n`;
 
     report.sections.forEach((section, index) => {
@@ -140,7 +140,7 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
 
       <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50">
         <p className="text-xs text-gray-500 text-center">
-          Created {new Date(report.metadata.createdAt).toLocaleString()}
+          Created {report.metadata?.createdAt ? new Date(report.metadata.createdAt).toLocaleString() : 'Just now'}
         </p>
       </div>
     </div>

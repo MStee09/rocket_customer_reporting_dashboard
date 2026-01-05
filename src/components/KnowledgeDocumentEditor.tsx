@@ -135,8 +135,10 @@ export function KnowledgeDocumentEditor({
         .map((k) => k.trim())
         .filter(Boolean);
 
+      let newDocumentId: string;
+
       if (documentId === 'new') {
-        const { error: insertError } = await supabase
+        const { data: insertedDoc, error: insertError } = await supabase
           .from('ai_knowledge_documents')
           .insert({
             created_by: userId,
@@ -154,11 +156,15 @@ export function KnowledgeDocumentEditor({
             file_type: 'md',
             file_size: new Blob([content]).size,
             storage_path: `manual/${Date.now()}_${title.trim().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}.md`,
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) {
           throw new Error(insertError.message);
         }
+
+        newDocumentId = insertedDoc.id;
       } else {
         const { error: updateError } = await supabase
           .from('ai_knowledge_documents')
@@ -180,6 +186,25 @@ export function KnowledgeDocumentEditor({
         if (updateError) {
           throw new Error(updateError.message);
         }
+
+        newDocumentId = documentId;
+      }
+
+      if (newDocumentId && content.trim()) {
+        supabase.functions.invoke('embed-document', {
+          body: {
+            documentId: newDocumentId,
+            customerId: scope === 'customer' ? customerId : 'global',
+            text: content,
+            fileName: title.trim()
+          }
+        }).then(result => {
+          if (result.data?.success) {
+            console.log(`[KnowledgeDoc] Embedded ${result.data.chunksCreated} chunks for: ${title.trim()}`);
+          }
+        }).catch(err => {
+          console.error('[KnowledgeDoc] Embedding failed:', err);
+        });
       }
 
       setSaveSuccess(true);

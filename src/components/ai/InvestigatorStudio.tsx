@@ -26,6 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useInvestigator } from '../../hooks/useInvestigator';
+import { ReportPreviewPanel } from './ReportPreviewPanel';
 import type {
   ConversationMessage,
   DataInsight,
@@ -59,6 +60,7 @@ export function InvestigatorStudio({
   const [mode, setMode] = useState<'investigate' | 'build' | 'analyze'>('investigate');
   const [wasSummarized, setWasSummarized] = useState(false);
   const [tokensSaved, setTokensSaved] = useState<number | undefined>();
+  const [showReportPanel, setShowReportPanel] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,6 +68,7 @@ export function InvestigatorStudio({
     isLoading,
     error,
     messages,
+    currentReport,
     insights,
     sendMessage,
     stopGeneration,
@@ -87,6 +90,12 @@ export function InvestigatorStudio({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (currentReport && currentReport.sections.length > 0) {
+      setShowReportPanel(true);
+    }
+  }, [currentReport]);
 
   const initialQueryProcessedRef = useRef(false);
 
@@ -175,6 +184,16 @@ export function InvestigatorStudio({
                 </button>
               ))}
             </div>
+
+            {currentReport && (
+              <button
+                onClick={() => setShowReportPanel(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">View Report ({currentReport.sections.length})</span>
+              </button>
+            )}
 
             <button
               onClick={clearConversation}
@@ -365,6 +384,20 @@ export function InvestigatorStudio({
           )}
         </div>
       </div>
+
+      {showReportPanel && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40"
+          onClick={() => setShowReportPanel(false)}
+        />
+      )}
+
+      {showReportPanel && currentReport && (
+        <ReportPreviewPanel
+          report={currentReport}
+          onClose={() => setShowReportPanel(false)}
+        />
+      )}
     </div>
   );
 }

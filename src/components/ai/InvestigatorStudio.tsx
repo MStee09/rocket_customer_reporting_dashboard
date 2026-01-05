@@ -40,6 +40,7 @@ interface InvestigatorStudioProps {
   userEmail?: string;
   onReportGenerated?: (report: ReportDraft) => void;
   embedded?: boolean;
+  initialQuery?: string;
 }
 
 export function InvestigatorStudio({
@@ -50,6 +51,7 @@ export function InvestigatorStudio({
   userEmail,
   onReportGenerated,
   embedded = false,
+  initialQuery,
 }: InvestigatorStudioProps) {
   const [inputValue, setInputValue] = useState('');
   const [showToolDetails, setShowToolDetails] = useState(false);
@@ -82,6 +84,19 @@ export function InvestigatorStudio({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const initialQueryProcessedRef = useRef(false);
+
+  useEffect(() => {
+    if (initialQuery && messages.length === 0 && !isLoading && !initialQueryProcessedRef.current) {
+      initialQueryProcessedRef.current = true;
+      setInputValue(initialQuery);
+      const timer = setTimeout(() => {
+        sendMessage(initialQuery, mode);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [initialQuery, messages.length, isLoading, sendMessage, mode]);
 
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isLoading) return;

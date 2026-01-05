@@ -319,12 +319,8 @@ export function DashboardPage() {
   }, [handleResetChanges, editMode]);
 
   const handleInvestigateAnomaly = useCallback((anomaly: Anomaly) => {
-    navigate('/analyze', {
-      state: {
-        openInvestigator: true,
-        initialQuery: `Investigate this anomaly: ${anomaly.title}. ${anomaly.description}. Why did ${anomaly.metric} change by ${anomaly.change_percent}%?`
-      }
-    });
+    const query = `Investigate this anomaly: ${anomaly.title}. ${anomaly.description}. Why did ${anomaly.metric} change by ${anomaly.change_percent}%?`;
+    navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
   }, [navigate]);
 
   if (showAdminDashboard) {

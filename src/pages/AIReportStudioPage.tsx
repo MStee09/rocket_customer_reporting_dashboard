@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Brain } from 'lucide-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,8 @@ import type { ReportDraft } from '../ai/investigator/types';
 
 export function AIReportStudioPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get('query') || undefined;
   const { user, isAdmin, effectiveCustomerId, isViewingAsCustomer, viewingCustomer, customers } = useAuth();
 
   const effectiveCustomerName = isViewingAsCustomer
@@ -55,6 +57,7 @@ export function AIReportStudioPage() {
             userId={user?.id}
             userEmail={user?.email}
             onReportGenerated={handleReportGenerated}
+            initialQuery={initialQuery}
           />
         </div>
       </div>

@@ -32,6 +32,7 @@ interface RequestBody {
   userId?: string;
   userEmail?: string;
   sessionId?: string;
+  mode?: 'investigate' | 'build' | 'analyze';
 }
 
 interface ToolExecution {
@@ -509,6 +510,83 @@ Your approach:
 - Never guess at what fields or terms mean - ask the user
 - Provide insights when you notice patterns`;
 
+const INVESTIGATE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users understand their shipping data through conversational analysis.
+
+## YOUR ROLE IN INVESTIGATE MODE
+You answer questions, explore data, find patterns, and provide insights conversationally. You do NOT create reports unless explicitly asked.
+
+## TOOLS TO USE
+- **explore_field**: Discover what values exist in a field
+- **preview_aggregation**: Get actual numbers for metrics
+- **compare_periods**: Compare time periods
+- **detect_anomalies**: Find unusual patterns
+- **investigate_cause**: Drill into root causes
+- **generate_insight**: Create AI-powered insights
+- **generate_recommendation**: Provide actionable recommendations
+
+## TOOLS TO AVOID (unless user explicitly asks for a report)
+- create_report_draft
+- add_section
+- modify_section
+- finalize_report
+
+## RESPONSE STYLE
+- Be conversational and direct
+- Lead with the answer, then explain
+- Use specific numbers from your tool calls
+- Offer follow-up questions or deeper analysis
+- If the user wants a report, tell them to switch to "Build Report" mode or say "create a report"
+
+## EXAMPLE
+User: "Why is Old Dominion handling 72% of my shipments?"
+Good response: "Old Dominion handles 72% of your shipments primarily because... [explanation with data]. Would you like me to analyze cost efficiency by carrier, or explore alternatives?"
+Bad response: "I've created a report with 4 sections..." (DON'T DO THIS)
+`;
+
+const BUILD_REPORT_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You help users build beautiful, insightful reports from their shipment data.
+
+## YOUR ROLE IN BUILD REPORT MODE
+You create structured reports with sections, charts, and tables. Always start by understanding what the user wants, then build the report incrementally.
+
+## WORKFLOW
+1. Clarify what the user wants in their report
+2. Call create_report_draft to start
+3. Use explore_field and preview_aggregation to understand available data
+4. Add sections one at a time with add_section
+5. Each section should have real data previewed
+6. Ask if user wants modifications or additions
+7. Call finalize_report when complete
+
+## TOOLS TO USE
+- **explore_field**: Discover available data
+- **preview_aggregation**: Get real numbers for sections
+- **create_report_draft**: Start a new report
+- **add_section**: Add sections with data preview
+- **modify_section** / **remove_section**: Edit the report
+- **finalize_report**: Complete the report
+
+## RESPONSE STYLE
+- Confirm understanding before building
+- Show progress as you add sections
+- Include data highlights in your messages
+- Ask for feedback after adding sections
+`;
+
+const ANALYZE_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You perform deep analysis on shipping data.
+
+## YOUR ROLE IN ANALYZE MODE
+You conduct thorough analysis using multiple tools, explore patterns, and provide comprehensive insights. This is for users who want detailed exploration.
+
+## TOOLS TO USE
+- All exploration tools (explore_field, preview_aggregation, compare_periods)
+- All analysis tools (detect_anomalies, investigate_cause)
+- All insight tools (generate_insight, generate_recommendation)
+
+## DO NOT automatically create reports. Focus on analysis and insights.
+`;
+
+const REPORT_TOOLS = ['create_report_draft', 'add_section', 'modify_section', 'remove_section', 'reorder_sections', 'preview_report', 'finalize_report'];
+
 const TOOL_BEHAVIOR_PROMPT = `## TOOL USAGE BEHAVIOR
 
 You have powerful tools to help analyze data and build reports. Use them wisely:
@@ -767,6 +845,7 @@ Deno.serve(async (req: Request) => {
     const { prompt, conversationHistory, knowledgeContext, currentReport, useTools = true, sessionId } = body;
     customerId = body.customerId;
     customerName = body.customerName;
+    const requestMode = body.mode || 'investigate';
 
     userId = body.userId;
     userEmail = body.userEmail;
@@ -845,7 +924,7 @@ Deno.serve(async (req: Request) => {
       await rateLimitService.recordRequest(userId, customerId);
     }
 
-    console.log(`[AI] User: ${userEmail || userId || 'unknown'}, Customer: ${customerId}, Admin: ${isAdmin}, Tools: ${useTools}`);
+    console.log(`[AI] User: ${userEmail || userId || 'unknown'}, Customer: ${customerId}, Admin: ${isAdmin}, Tools: ${useTools}, Mode: ${requestMode}`);
 
     const contextService = new ContextService(supabase);
     const context = await contextService.compileContext(customerId, isAdmin);
@@ -856,8 +935,27 @@ Deno.serve(async (req: Request) => {
 
     const toolExecutor = new ToolExecutor(supabase, customerId, isAdmin, availableFieldNames);
 
+    let modeSystemPrompt: string;
+    switch (requestMode) {
+      case 'build':
+        modeSystemPrompt = BUILD_REPORT_SYSTEM_PROMPT;
+        break;
+      case 'analyze':
+        modeSystemPrompt = ANALYZE_SYSTEM_PROMPT;
+        break;
+      case 'investigate':
+      default:
+        modeSystemPrompt = INVESTIGATE_SYSTEM_PROMPT;
+        break;
+    }
+
+    let availableTools = AI_TOOLS;
+    if (requestMode === 'investigate') {
+      availableTools = AI_TOOLS.filter(tool => !REPORT_TOOLS.includes(tool.name));
+    }
+
     const systemPromptParts = useTools
-      ? [CORE_SYSTEM_PROMPT, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]
+      ? [modeSystemPrompt, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]
       : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
 
     let fullSystemPrompt = systemPromptParts.filter(Boolean).join("\n\n");
@@ -868,7 +966,7 @@ Deno.serve(async (req: Request) => {
     const summarizationResult = await maybeSummarizeConversation(conversationHistory);
 
     if (summarizationResult.summarized) {
-      console.log(`[AI] Summarized conversation: ${summarizationResult.originalCount} → ${summarizationResult.newCount} messages, saved ${summarizationResult.tokensSaved} tokens`);
+      console.log(`[AI] Summarized conversation: ${summarizationResult.originalCount} -> ${summarizationResult.newCount} messages, saved ${summarizationResult.tokensSaved} tokens`);
     }
 
     const messages: Anthropic.MessageParam[] = [
@@ -919,7 +1017,7 @@ Deno.serve(async (req: Request) => {
             max_tokens: 8192,
             system: fullSystemPrompt,
             messages: currentMessages,
-            tools: AI_TOOLS,
+            tools: availableTools,
             tool_choice: { type: "auto" }
           });
           circuitBreaker.recordSuccess();

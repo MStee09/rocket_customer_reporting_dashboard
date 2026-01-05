@@ -24,9 +24,12 @@ import {
   Brain,
   Square,
   Info,
+  Plus,
+  X,
 } from 'lucide-react';
-import { useInvestigator } from '../../hooks/useInvestigator';
+import { useInvestigator, type ReportItem } from '../../hooks/useInvestigator';
 import { ReportPreviewPanel } from './ReportPreviewPanel';
+import { AddToReportButton } from './AddToReportButton';
 import type {
   ConversationMessage,
   DataInsight,
@@ -78,6 +81,10 @@ export function InvestigatorStudio({
     clarificationOptions,
     respondToClarification,
     usage,
+    reportItems,
+    addToReport,
+    removeFromReport,
+    clearReportItems,
   } = useInvestigator({
     customerId,
     customerName,
@@ -234,6 +241,50 @@ export function InvestigatorStudio({
           </div>
         )}
 
+        {reportItems.length > 0 && (
+          <div className="mx-4 mb-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-orange-700 flex items-center gap-1">
+                <FileText className="w-4 h-4" />
+                {reportItems.length} item{reportItems.length > 1 ? 's' : ''} saved for report
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearReportItems}
+                  className="text-xs text-orange-600 hover:text-orange-800"
+                >
+                  Clear all
+                </button>
+                <button
+                  onClick={() => {
+                    const itemsList = reportItems.map(i => `- ${i.title}`).join('\n');
+                    sendMessage(`Create a report with these items:\n${itemsList}`, 'build');
+                  }}
+                  className="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors"
+                >
+                  Build Report
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {reportItems.map(item => (
+                <span
+                  key={item.id}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-orange-200 rounded text-xs text-orange-700"
+                >
+                  {item.title.substring(0, 30)}{item.title.length > 30 ? '...' : ''}
+                  <button
+                    onClick={() => removeFromReport(item.id)}
+                    className="text-orange-400 hover:text-orange-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="p-4 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl mb-4">
@@ -271,6 +322,11 @@ export function InvestigatorStudio({
                 message={message}
                 showToolDetails={showToolDetails}
                 onToggleToolDetails={() => setShowToolDetails(!showToolDetails)}
+                onAddToReport={(insight) => addToReport({
+                  type: 'insight',
+                  title: insight.title || insight.description?.substring(0, 50) || 'Insight',
+                  content: insight as unknown as Record<string, unknown>
+                })}
               />
             ))}
 
@@ -406,9 +462,10 @@ interface MessageBubbleProps {
   message: ConversationMessage;
   showToolDetails: boolean;
   onToggleToolDetails: () => void;
+  onAddToReport?: (insight: DataInsight) => void;
 }
 
-function MessageBubble({ message, showToolDetails, onToggleToolDetails }: MessageBubbleProps) {
+function MessageBubble({ message, showToolDetails, onToggleToolDetails, onAddToReport }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
@@ -468,7 +525,7 @@ function MessageBubble({ message, showToolDetails, onToggleToolDetails }: Messag
         {!isUser && message.insights && message.insights.length > 0 && (
           <div className="mt-2 space-y-1">
             {message.insights.map((insight, i) => (
-              <InsightBadge key={i} insight={insight} />
+              <InsightBadge key={i} insight={insight} onAddToReport={onAddToReport} />
             ))}
           </div>
         )}
@@ -494,7 +551,7 @@ function ToolExecutionBadge({ execution }: { execution: ToolExecution }) {
   );
 }
 
-function InsightBadge({ insight }: { insight: DataInsight }) {
+function InsightBadge({ insight, onAddToReport }: { insight: DataInsight; onAddToReport?: (insight: DataInsight) => void }) {
   const Icon = insight.type === 'anomaly' ? AlertTriangle :
                insight.type === 'trend' ? TrendingUp :
                insight.type === 'recommendation' ? Lightbulb :
@@ -507,7 +564,7 @@ function InsightBadge({ insight }: { insight: DataInsight }) {
   return (
     <div className={`flex items-start gap-2 p-2 rounded-lg border ${colorClass}`}>
       <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-      <div>
+      <div className="flex-1">
         <p className="text-sm font-medium">{insight.title}</p>
         <p className="text-xs opacity-80">{insight.description}</p>
         {insight.suggestedAction && (
@@ -516,6 +573,12 @@ function InsightBadge({ insight }: { insight: DataInsight }) {
           </p>
         )}
       </div>
+      {onAddToReport && (
+        <AddToReportButton
+          insight={{ title: insight.title, text: insight.description, type: insight.type }}
+          onAdd={() => onAddToReport(insight)}
+        />
+      )}
     </div>
   );
 }

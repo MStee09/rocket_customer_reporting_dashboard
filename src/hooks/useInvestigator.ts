@@ -21,6 +21,14 @@ export interface UseInvestigatorOptions {
   onReportUpdate?: (report: ReportDraft) => void;
 }
 
+export interface ReportItem {
+  id: string;
+  type: 'insight' | 'chart' | 'table' | 'metric';
+  title: string;
+  content: Record<string, unknown>;
+  addedAt: string;
+}
+
 export interface UseInvestigatorReturn {
   isLoading: boolean;
   error: string | null;
@@ -43,6 +51,10 @@ export interface UseInvestigatorReturn {
     totalToolCalls: number;
     sessionDuration: number;
   };
+  reportItems: ReportItem[];
+  addToReport: (item: { type: string; title: string; content: Record<string, unknown> }) => void;
+  removeFromReport: (itemId: string) => void;
+  clearReportItems: () => void;
 }
 
 export function useInvestigator(options: UseInvestigatorOptions): UseInvestigatorReturn {
@@ -74,6 +86,7 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
     totalToolCalls: 0,
     sessionDuration: 0,
   });
+  const [reportItems, setReportItems] = useState<ReportItem[]>([]);
 
   const clientRef = useRef<InvestigatorClient | null>(null);
   const sessionStartRef = useRef<number>(Date.now());
@@ -245,6 +258,25 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
       totalToolCalls: 0,
       sessionDuration: 0,
     });
+    setReportItems([]);
+  }, []);
+
+  const addToReport = useCallback((item: { type: string; title: string; content: Record<string, unknown> }) => {
+    setReportItems(prev => [...prev, {
+      id: crypto.randomUUID(),
+      type: item.type as ReportItem['type'],
+      title: item.title,
+      content: item.content,
+      addedAt: new Date().toISOString()
+    }]);
+  }, []);
+
+  const removeFromReport = useCallback((itemId: string) => {
+    setReportItems(prev => prev.filter(item => item.id !== itemId));
+  }, []);
+
+  const clearReportItems = useCallback(() => {
+    setReportItems([]);
   }, []);
 
   return {
@@ -263,5 +295,9 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
     clarificationOptions,
     respondToClarification,
     usage,
+    reportItems,
+    addToReport,
+    removeFromReport,
+    clearReportItems,
   };
 }

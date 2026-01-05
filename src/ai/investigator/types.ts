@@ -238,6 +238,8 @@ export interface InvestigatorResponse {
   needsClarification?: boolean;
   clarificationQuestion?: string;
   clarificationOptions?: string[];
+  summarized?: boolean;
+  tokensSaved?: number;
   usage: {
     inputTokens: number;
     outputTokens: number;

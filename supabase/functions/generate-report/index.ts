@@ -7,6 +7,7 @@ import { getClaudeCircuitBreaker, createCircuitOpenResponse } from "./services/c
 import { RateLimitService, createRateLimitResponse } from "./services/rateLimit.ts";
 import { ContextService } from "./services/contextService.ts";
 import { ToolExecutor, LearningExtraction as ToolLearning } from "./services/toolExecutor.ts";
+import { maybeSummarizeConversation } from "./services/summarizationService.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -864,8 +865,14 @@ Deno.serve(async (req: Request) => {
     if (knowledgeContext) fullSystemPrompt += `\n\n${knowledgeContext}`;
     if (currentReport) fullSystemPrompt += `\n\n## CURRENT REPORT (EDITING)\n\`\`\`json\n${JSON.stringify(currentReport, null, 2)}\n\`\`\``;
 
+    const summarizationResult = await maybeSummarizeConversation(conversationHistory);
+
+    if (summarizationResult.summarized) {
+      console.log(`[AI] Summarized conversation: ${summarizationResult.originalCount} → ${summarizationResult.newCount} messages, saved ${summarizationResult.tokensSaved} tokens`);
+    }
+
     const messages: Anthropic.MessageParam[] = [
-      ...conversationHistory.map(msg => ({ role: msg.role, content: msg.content })),
+      ...summarizationResult.messages.map(msg => ({ role: msg.role, content: msg.content })),
       { role: "user", content: prompt }
     ];
 
@@ -1056,6 +1063,8 @@ Deno.serve(async (req: Request) => {
         learnings: learnings.length > 0 ? learnings : undefined,
         needsClarification,
         clarificationOptions,
+        summarized: summarizationResult.summarized,
+        tokensSaved: summarizationResult.tokensSaved,
         usage: {
           inputTokens: totalInputTokens,
           outputTokens: totalOutputTokens,
@@ -1159,6 +1168,8 @@ Deno.serve(async (req: Request) => {
       message: cleanMessage || (parsedReport ? "Report generated" : responseText),
       learnings: learnings.length > 0 ? learnings : undefined,
       toolExecutions: [],
+      summarized: summarizationResult.summarized,
+      tokensSaved: summarizationResult.tokensSaved,
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

@@ -23,6 +23,7 @@ import {
   HelpCircle,
   Brain,
   Square,
+  Info,
 } from 'lucide-react';
 import { useInvestigator } from '../../hooks/useInvestigator';
 import type {
@@ -56,6 +57,8 @@ export function InvestigatorStudio({
   const [inputValue, setInputValue] = useState('');
   const [showToolDetails, setShowToolDetails] = useState(false);
   const [mode, setMode] = useState<'investigate' | 'build' | 'analyze'>('investigate');
+  const [wasSummarized, setWasSummarized] = useState(false);
+  const [tokensSaved, setTokensSaved] = useState<number | undefined>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -107,7 +110,15 @@ export function InvestigatorStudio({
     if (needsClarification) {
       await respondToClarification(message);
     } else {
-      await sendMessage(message, mode);
+      const response = await sendMessage(message, mode);
+      if (response?.summarized) {
+        setWasSummarized(true);
+        setTokensSaved(response.tokensSaved);
+        setTimeout(() => {
+          setWasSummarized(false);
+          setTokensSaved(undefined);
+        }, 5000);
+      }
     }
   }, [inputValue, isLoading, needsClarification, respondToClarification, sendMessage, mode]);
 
@@ -194,6 +205,16 @@ export function InvestigatorStudio({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {wasSummarized && (
+          <div className="mx-4 mb-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-lg flex items-center gap-2">
+            <Info className="w-4 h-4" />
+            <span>
+              Conversation compressed to save context space
+              {tokensSaved && ` (saved ~${Math.round(tokensSaved / 4)} chars)`}
+            </span>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <div className="p-4 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl mb-4">

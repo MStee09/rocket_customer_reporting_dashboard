@@ -269,25 +269,45 @@ interface SectionContentProps {
   theme: string;
 }
 
+function buildAggregatedValues(sampleData: unknown[]): Record<string, number> {
+  if (!sampleData || sampleData.length === 0) return {};
+
+  const result: Record<string, number> = {};
+
+  sampleData.forEach((item) => {
+    const typedItem = item as Record<string, unknown>;
+    if (typedItem.name && typeof typedItem.value === 'number') {
+      result[String(typedItem.name)] = typedItem.value;
+    }
+  });
+
+  return result;
+}
+
 function SectionContent({ section, theme }: SectionContentProps) {
   const preview = section.preview;
   const config = section.config || {};
 
-  const sampleData = preview?.dataPreview?.sampleData || [];
+  const backendData = (section as { data?: { results?: unknown[] } }).data;
+  const sampleData = backendData?.results || preview?.dataPreview?.sampleData || [];
   const aggregatedValues = preview?.dataPreview?.aggregatedValues || {};
+
+  const finalAggregatedValues = Object.keys(aggregatedValues).length > 0
+    ? aggregatedValues
+    : buildAggregatedValues(sampleData);
 
   switch (section.type) {
     case 'hero':
-      return <HeroSection config={config} aggregatedValues={aggregatedValues} />;
+      return <HeroSection config={config} aggregatedValues={finalAggregatedValues} sampleData={sampleData} />;
 
     case 'chart':
-      return <ChartSection config={config} sampleData={sampleData} aggregatedValues={aggregatedValues} theme={theme} />;
+      return <ChartSection config={config} sampleData={sampleData} aggregatedValues={finalAggregatedValues} theme={theme} />;
 
     case 'table':
       return <TableSection config={config} sampleData={sampleData} />;
 
     case 'stat-row':
-      return <StatRowSection config={config} aggregatedValues={aggregatedValues} />;
+      return <StatRowSection config={config} aggregatedValues={finalAggregatedValues} sampleData={sampleData} />;
 
     default:
       return (
@@ -298,7 +318,7 @@ function SectionContent({ section, theme }: SectionContentProps) {
   }
 }
 
-function HeroSection({ config, aggregatedValues }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown> }) {
+function HeroSection({ config, aggregatedValues, sampleData }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown>; sampleData: unknown[] }) {
   const metrics = (config.metrics as Array<{ label?: string; value?: unknown }>) || [];
 
   let primaryValue: number | string = '--';
@@ -307,16 +327,23 @@ function HeroSection({ config, aggregatedValues }: { config: Record<string, unkn
   if (metrics.length > 0) {
     const primaryMetric = metrics[0];
     primaryLabel = primaryMetric.label || 'Total';
-
-    if (aggregatedValues[primaryLabel]) {
-      primaryValue = aggregatedValues[primaryLabel] as number | string;
-    } else if (typeof primaryMetric.value !== 'undefined') {
+    if (typeof primaryMetric.value !== 'undefined') {
       primaryValue = primaryMetric.value as number | string;
     }
-  } else if (Object.keys(aggregatedValues).length > 0) {
+  }
+
+  if (primaryValue === '--' && Object.keys(aggregatedValues).length > 0) {
     const firstKey = Object.keys(aggregatedValues)[0];
     primaryLabel = firstKey;
     primaryValue = aggregatedValues[firstKey] as number | string;
+  }
+
+  if (primaryValue === '--' && sampleData.length > 0) {
+    const firstItem = sampleData[0] as Record<string, unknown>;
+    if (firstItem.name && firstItem.value !== undefined) {
+      primaryLabel = String(firstItem.name);
+      primaryValue = firstItem.value as number | string;
+    }
   }
 
   const formattedValue = typeof primaryValue === 'number'
@@ -336,12 +363,27 @@ function ChartSection({ config, sampleData, aggregatedValues, theme }: { config:
 
   let chartData: Array<{ name: string; value: number }> = [];
 
-  if (Object.keys(aggregatedValues).length > 0) {
+  if (sampleData.length > 0) {
+    const firstItem = sampleData[0] as Record<string, unknown>;
+    if (firstItem.name !== undefined && firstItem.value !== undefined) {
+      chartData = sampleData.map((item) => {
+        const typedItem = item as Record<string, unknown>;
+        return {
+          name: String(typedItem.name || 'Unknown'),
+          value: typeof typedItem.value === 'number' ? typedItem.value : parseFloat(String(typedItem.value)) || 0
+        };
+      });
+    }
+  }
+
+  if (chartData.length === 0 && Object.keys(aggregatedValues).length > 0) {
     chartData = Object.entries(aggregatedValues).map(([name, value]) => ({
       name: String(name),
       value: typeof value === 'number' ? value : 0
     }));
-  } else if (sampleData.length > 0) {
+  }
+
+  if (chartData.length === 0 && sampleData.length > 0) {
     const groupBy = config.groupBy as string | undefined;
     const metricConfig = config.metric as { field?: string } | undefined;
     const metricField = metricConfig?.field || 'value';
@@ -355,14 +397,6 @@ function ChartSection({ config, sampleData, aggregatedValues, theme }: { config:
         grouped.set(key, (grouped.get(key) || 0) + val);
       });
       chartData = Array.from(grouped.entries()).map(([name, value]) => ({ name, value }));
-    } else {
-      chartData = sampleData.slice(0, 10).map((row, i) => {
-        const typedRow = row as Record<string, unknown>;
-        return {
-          name: (typedRow.name as string) || (typedRow.label as string) || `Item ${i + 1}`,
-          value: typeof typedRow.value === 'number' ? typedRow.value : 0
-        };
-      });
     }
   }
 
@@ -458,7 +492,7 @@ function TableSection({ config, sampleData }: { config: Record<string, unknown>;
   );
 }
 
-function StatRowSection({ config, aggregatedValues }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown> }) {
+function StatRowSection({ config, aggregatedValues, sampleData }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown>; sampleData: unknown[] }) {
   type MetricConfig = { label?: string; field?: string; value?: unknown; color?: string };
   const metrics = (config.metrics as MetricConfig[]) || [];
 
@@ -481,12 +515,22 @@ function StatRowSection({ config, aggregatedValues }: { config: Record<string, u
         color: m.color
       });
     });
-  } else {
+  } else if (Object.keys(aggregatedValues).length > 0) {
     Object.entries(aggregatedValues).forEach(([label, value]) => {
       stats.push({
         label,
         value: typeof value === 'number' ? (value as number).toLocaleString() : String(value)
       });
+    });
+  } else if (sampleData.length > 0) {
+    sampleData.forEach((item) => {
+      const typedItem = item as Record<string, unknown>;
+      if (typedItem.name && typedItem.value !== undefined) {
+        stats.push({
+          label: String(typedItem.name),
+          value: typeof typedItem.value === 'number' ? typedItem.value.toLocaleString() : String(typedItem.value)
+        });
+      }
     });
   }
 

@@ -38,7 +38,7 @@ interface WidgetGridProps {
   customerId: string | undefined;
   startDate: string;
   endDate: string;
-  comparisonDates: { start: string; end: string } | null;
+  comparisonDates?: { start: string; end: string } | null;
   isEditMode?: boolean;
   selectedWidgetId?: string | null;
   onWidgetSelect?: (widgetId: string | null) => void;

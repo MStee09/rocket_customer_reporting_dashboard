@@ -1,25 +1,47 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, ChevronRight, Calendar, Sparkles, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, ChevronRight, Calendar, Sparkles, ArrowLeft, Globe, BarChart3, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
+import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal } from '../components/dashboard';
+import { useDashboardLayout } from '../hooks/useDashboardLayout';
+import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
+import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
+import { widgetLibrary } from '../config/widgetLibrary';
+import { clampWidgetSize, WidgetSizeConstraint, getDefaultSize } from '../config/widgetConstraints';
+import { loadCustomWidget } from '../config/widgets/customWidgetStorage';
+import { supabase } from '../lib/supabase';
+
+type WidgetSizeValue = 1 | 2 | 3;
 
 const ICON_MAP: Record<string, React.ElementType> = {
+  globe: Globe,
   truck: Truck,
   map: MapPin,
   dollar: DollarSign,
   layers: Layers,
   star: Star,
+  chart: BarChart3,
+  clock: Clock,
+};
+
+const WIDGET_SECTIONS: Record<string, string[]> = {
+  'geographic': ['flow_map', 'cost_by_state'],
+  'volume': ['total_shipments', 'in_transit', 'delivered_month'],
+  'financial': ['total_cost', 'avg_cost_shipment', 'monthly_spend'],
+  'performance': ['on_time_pct', 'avg_transit_days', 'carrier_performance'],
+  'breakdown': ['mode_breakdown', 'carrier_mix', 'top_lanes'],
 };
 
 const DEFAULT_SECTIONS = [
-  { id: 'carrier-performance', title: 'Carrier Performance', description: 'Track carrier metrics and on-time performance', icon: 'truck', order: 1 },
-  { id: 'lane-analysis', title: 'Lane Analysis', description: 'Analyze shipping lanes and geographic patterns', icon: 'map', order: 2 },
-  { id: 'cost-analytics', title: 'Cost Analytics', description: 'Deep dive into spend and cost drivers', icon: 'dollar', order: 3 },
-  { id: 'mode-breakdown', title: 'Mode Breakdown', description: 'Compare performance across shipping modes', icon: 'layers', order: 4 },
-  { id: 'custom', title: 'My Analytics', description: 'Your pinned reports and custom widgets', icon: 'star', order: 5 },
+  { id: 'geographic', title: 'Geographic Analysis', description: 'Flow maps and regional cost analysis', icon: 'globe', order: 1 },
+  { id: 'volume', title: 'Volume Metrics', description: 'Shipment counts and delivery tracking', icon: 'truck', order: 2 },
+  { id: 'financial', title: 'Financial Analytics', description: 'Spend tracking and cost analysis', icon: 'dollar', order: 3 },
+  { id: 'performance', title: 'Performance Metrics', description: 'On-time delivery and transit times', icon: 'clock', order: 4 },
+  { id: 'breakdown', title: 'Breakdowns', description: 'Mode, carrier, and lane analysis', icon: 'chart', order: 5 },
+  { id: 'custom', title: 'My Analytics', description: 'Your pinned reports and custom widgets', icon: 'star', order: 6 },
 ];
 
 const DATE_RANGE_OPTIONS = [
@@ -30,16 +52,114 @@ const DATE_RANGE_OPTIONS = [
   { value: 'lastMonth', label: 'Last Month' },
 ];
 
+const DEFAULT_WIDGET_LAYOUT = [
+  'flow_map',
+  'cost_by_state',
+  'total_shipments',
+  'in_transit',
+  'delivered_month',
+  'total_cost',
+  'avg_cost_shipment',
+  'monthly_spend',
+  'on_time_pct',
+  'avg_transit_days',
+  'mode_breakdown',
+  'carrier_mix',
+  'top_lanes',
+];
+
 export function AnalyticsHubPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('last30');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const { effectiveCustomerIds } = useAuth();
+  const [showGallery, setShowGallery] = useState(false);
+  const [saveNotification, setSaveNotification] = useState(false);
+  const { isAdmin, effectiveCustomerIds, effectiveCustomerId } = useAuth();
+
   const customerId = effectiveCustomerIds.length > 0 ? effectiveCustomerIds[0] : undefined;
 
+  const {
+    layout,
+    widgetSizes: storedWidgetSizes,
+    isLoading,
+    saveLayout,
+  } = useDashboardLayout(customerId);
+
+  const { widgets: dashboardWidgets, loading: widgetsLoading } = useDashboardWidgets('overview');
+  const editMode = useDashboardEditMode();
+
+  const [localLayout, setLocalLayout] = useState<string[]>(layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT);
+  const [localSizes, setLocalSizes] = useState<Record<string, WidgetSizeValue>>({});
+  const [customWidgets, setCustomWidgets] = useState<Record<string, unknown>>({});
+
   const currentDateOption = DATE_RANGE_OPTIONS.find(opt => opt.value === dateRange);
+
+  const convertSizes = useCallback((
+    sizes: Record<string, string>,
+    currentLayout: string[]
+  ): Record<string, WidgetSizeValue> => {
+    const converted: Record<string, WidgetSizeValue> = {};
+
+    Object.entries(sizes).forEach(([key, value]) => {
+      if (value === 'default' || value === '1') converted[key] = 1;
+      else if (value === 'large' || value === 'expanded' || value === '2') converted[key] = 2;
+      else if (value === 'xlarge' || value === 'full' || value === '3') converted[key] = 3;
+      else converted[key] = 1;
+    });
+
+    for (const widgetId of currentLayout) {
+      if (!(widgetId in converted)) {
+        const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
+        if (widget) {
+          const widgetDef = widget as { type: string };
+          converted[widgetId] = getDefaultSize(widgetId, widgetDef.type);
+        } else {
+          converted[widgetId] = 1;
+        }
+      }
+    }
+
+    return converted;
+  }, [customWidgets]);
+
+  useEffect(() => {
+    if (!editMode.state.isEditing) {
+      const effectiveLayout = layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT;
+      setLocalLayout(effectiveLayout);
+      setLocalSizes(convertSizes(storedWidgetSizes, effectiveLayout));
+    }
+  }, [layout, storedWidgetSizes, editMode.state.isEditing, convertSizes]);
+
+  useEffect(() => {
+    const loadCustomWidgetsFromStorage = async () => {
+      const widgets: Record<string, unknown> = {};
+      const dbWidgetIds = new Set(dashboardWidgets.map(dw => dw.widget_id));
+      const allWidgetIds = new Set([
+        ...dashboardWidgets.map(dw => dw.widget_id),
+        ...localLayout.filter(id => !dbWidgetIds.has(id)),
+      ]);
+
+      for (const widgetId of allWidgetIds) {
+        if (widgetLibrary[widgetId]) continue;
+        const customWidget = await loadCustomWidget(
+          supabase,
+          widgetId,
+          isAdmin(),
+          effectiveCustomerId || undefined
+        );
+        if (customWidget) {
+          widgets[widgetId] = customWidget;
+        }
+      }
+      setCustomWidgets(widgets);
+    };
+
+    if (dashboardWidgets.length > 0 || localLayout.length > 0) {
+      loadCustomWidgetsFromStorage();
+    }
+  }, [dashboardWidgets, localLayout, effectiveCustomerId, isAdmin]);
 
   const { startDate, endDate } = useMemo(() => {
     const now = new Date();
@@ -60,6 +180,13 @@ export function AnalyticsHubPage() {
       endDate: format(end, 'yyyy-MM-dd'),
     };
   }, [dateRange]);
+
+  const getWidgetsForSection = (sectionId: string) => {
+    const sectionWidgetIds = WIDGET_SECTIONS[sectionId] || [];
+    return localLayout
+      .filter(id => sectionWidgetIds.includes(id))
+      .map(id => ({ id, source: 'layout' as const }));
+  };
 
   const handleAskAI = useCallback((sectionId: string) => {
     const section = DEFAULT_SECTIONS.find(s => s.id === sectionId);
@@ -83,12 +210,75 @@ export function AnalyticsHubPage() {
     });
   };
 
+  const handleWidgetRemove = useCallback((widgetId: string) => {
+    setLocalLayout(prev => prev.filter(id => id !== widgetId));
+    editMode.setPendingChanges(true);
+  }, [editMode]);
+
+  const handleWidgetSizeChange = useCallback((widgetId: string, size: WidgetSizeConstraint) => {
+    const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
+    if (widget) {
+      const widgetDef = widget as { type: string };
+      const clampedSize = clampWidgetSize(size, widgetId, widgetDef.type);
+      setLocalSizes(prev => ({ ...prev, [widgetId]: clampedSize }));
+      editMode.setPendingChanges(true);
+    }
+  }, [customWidgets, editMode]);
+
+  const handleReorder = useCallback((newOrder: string[]) => {
+    setLocalLayout(newOrder);
+    editMode.setPendingChanges(true);
+  }, [editMode]);
+
+  const handleAddWidget = useCallback((widgetId: string, size: WidgetSizeConstraint) => {
+    if (!localLayout.includes(widgetId)) {
+      setLocalLayout(prev => [...prev, widgetId]);
+      setLocalSizes(prev => ({ ...prev, [widgetId]: size }));
+      editMode.setPendingChanges(true);
+    }
+    setShowGallery(false);
+  }, [localLayout, editMode]);
+
+  const handleSaveChanges = useCallback(async () => {
+    const sizesToSave: Record<string, string> = {};
+    Object.entries(localSizes).forEach(([key, value]) => {
+      sizesToSave[key] = String(value);
+    });
+
+    const success = await saveLayout(localLayout, sizesToSave);
+    if (success) {
+      editMode.exitEditMode();
+      setSaveNotification(true);
+      setTimeout(() => setSaveNotification(false), 2000);
+    }
+  }, [localLayout, localSizes, saveLayout, editMode]);
+
+  const handleResetChanges = useCallback(() => {
+    const effectiveLayout = layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT;
+    setLocalLayout(effectiveLayout);
+    setLocalSizes(convertSizes(storedWidgetSizes, effectiveLayout));
+    editMode.setPendingChanges(false);
+  }, [layout, storedWidgetSizes, convertSizes, editMode]);
+
+  const handleCancelEdit = useCallback(() => {
+    handleResetChanges();
+    editMode.exitEditMode();
+  }, [handleResetChanges, editMode]);
+
   const filteredSections = searchQuery
     ? DEFAULT_SECTIONS.filter(s =>
         s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : DEFAULT_SECTIONS;
+
+  if (isLoading || widgetsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-600">Loading analytics...</div>
+      </div>
+    );
+  }
 
   return (
     <DashboardAlertProvider customerId={customerId}>
@@ -109,6 +299,16 @@ export function AnalyticsHubPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <InlineEditToolbar
+                isEditing={editMode.state.isEditing}
+                hasChanges={editMode.state.pendingChanges}
+                onEnterEdit={editMode.enterEditMode}
+                onExitEdit={handleCancelEdit}
+                onSave={handleSaveChanges}
+                onReset={handleResetChanges}
+                onAddWidget={() => setShowGallery(true)}
+              />
+
               <div className="relative">
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
@@ -143,13 +343,17 @@ export function AnalyticsHubPage() {
                   </>
                 )}
               </div>
-
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium">
-                <Plus className="w-4 h-4" />
-                Add Widget
-              </button>
             </div>
           </div>
+
+          {saveNotification && (
+            <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Layout saved!
+            </div>
+          )}
 
           <div className="relative max-w-md mb-8">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -162,10 +366,12 @@ export function AnalyticsHubPage() {
             />
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {filteredSections.map((section) => {
               const Icon = ICON_MAP[section.icon] || Star;
               const isCollapsed = collapsedSections.has(section.id);
+              const sectionWidgets = getWidgetsForSection(section.id);
+              const hasWidgets = sectionWidgets.length > 0;
 
               return (
                 <div key={section.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -181,6 +387,11 @@ export function AnalyticsHubPage() {
                         <h2 className="font-semibold text-slate-900">{section.title}</h2>
                         <p className="text-sm text-slate-500">{section.description}</p>
                       </div>
+                      {hasWidgets && (
+                        <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
+                          {sectionWidgets.length} widget{sectionWidgets.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -203,16 +414,38 @@ export function AnalyticsHubPage() {
 
                   {!isCollapsed && (
                     <div className="p-5">
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-                          <Plus className="w-8 h-8 text-slate-400" />
+                      {hasWidgets ? (
+                        <WidgetGrid
+                          widgets={sectionWidgets}
+                          customWidgets={customWidgets}
+                          widgetSizes={localSizes}
+                          customerId={customerId?.toString()}
+                          startDate={startDate}
+                          endDate={endDate}
+                          comparisonDates={null}
+                          isEditMode={editMode.state.isEditing}
+                          selectedWidgetId={editMode.state.selectedWidgetId}
+                          onWidgetSelect={editMode.selectWidget}
+                          onWidgetRemove={handleWidgetRemove}
+                          onWidgetSizeChange={handleWidgetSizeChange}
+                          onReorder={handleReorder}
+                          allowHoverDrag={true}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
+                            <Plus className="w-8 h-8 text-slate-400" />
+                          </div>
+                          <p className="text-slate-600 font-medium mb-1">No widgets yet</p>
+                          <p className="text-sm text-slate-400 mb-4">Add widgets or pin reports to see them here</p>
+                          <button
+                            onClick={() => setShowGallery(true)}
+                            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+                          >
+                            + Add your first widget
+                          </button>
                         </div>
-                        <p className="text-slate-600 font-medium mb-1">No widgets yet</p>
-                        <p className="text-sm text-slate-400 mb-4">Add widgets or pin reports to see them here</p>
-                        <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">
-                          + Add your first widget
-                        </button>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -226,6 +459,14 @@ export function AnalyticsHubPage() {
             </div>
           )}
         </div>
+
+        <WidgetGalleryModal
+          isOpen={showGallery}
+          onClose={() => setShowGallery(false)}
+          onAddWidget={handleAddWidget}
+          currentWidgets={localLayout}
+          isAdmin={isAdmin()}
+        />
       </div>
 
       <AlertInspectorPanel />

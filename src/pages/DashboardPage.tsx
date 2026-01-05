@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
+import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AIReportWidgetConfig } from '../components/ai-studio';
 import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import type { Anomaly } from '../hooks/useAnomalies';
@@ -13,6 +14,7 @@ import {
   WidgetGalleryModal,
   UnifiedInsightsCard,
 } from '../components/dashboard';
+import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
@@ -342,9 +344,10 @@ export function DashboardPage() {
   }));
 
   return (
-    <div className="bg-slate-50">
-      <div className="max-w-[1600px] mx-auto">
-        <DashboardHeader
+    <DashboardAlertProvider customerId={customerId}>
+      <div className="bg-slate-50">
+        <div className="max-w-[1600px] mx-auto">
+          <DashboardHeader
           userName={user?.email?.split('@')[0] || 'User'}
           isViewingAsCustomer={isViewingAsCustomer}
           dateRange={dateRange}
@@ -439,34 +442,37 @@ export function DashboardPage() {
           isAdmin={isAdmin()}
         />
 
-        <style>{`
-          @keyframes fade-in {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes wiggle {
-            0%, 100% { transform: rotate(-0.3deg); }
-            50% { transform: rotate(0.3deg); }
-          }
-          @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-          }
-          @keyframes scale-in {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-          }
-          .animate-fade-in {
-            animation: fade-in 0.3s ease-out;
-          }
-          .animate-shimmer {
-            animation: shimmer 1.5s infinite;
-          }
-          .animate-scale-in {
-            animation: scale-in 0.15s ease-out forwards;
-          }
-        `}</style>
+          <style>{`
+            @keyframes fade-in {
+              from { opacity: 0; transform: translateY(-10px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes wiggle {
+              0%, 100% { transform: rotate(-0.3deg); }
+              50% { transform: rotate(0.3deg); }
+            }
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+            @keyframes scale-in {
+              from { opacity: 0; transform: scale(0.95); }
+              to { opacity: 1; transform: scale(1); }
+            }
+            .animate-fade-in {
+              animation: fade-in 0.3s ease-out;
+            }
+            .animate-shimmer {
+              animation: shimmer 1.5s infinite;
+            }
+            .animate-scale-in {
+              animation: scale-in 0.15s ease-out forwards;
+            }
+          `}</style>
+        </div>
       </div>
-    </div>
+
+      <AlertInspectorPanel />
+    </DashboardAlertProvider>
   );
 }

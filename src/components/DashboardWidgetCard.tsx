@@ -10,6 +10,7 @@ import { CostPerStateMap } from './dashboard/CostPerStateMap';
 import { WidgetContextFooter } from './dashboard/WidgetContextFooter';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
 import { WidgetRenderer, getWidgetDisplayType } from './widgets/WidgetRenderer';
+import { WidgetAlertBadge } from './dashboard/widgets';
 import { executeCustomWidgetQuery } from '../utils/customWidgetExecutor';
 import { getColumnById } from '../config/reportColumns';
 import { useLookupTables } from '../hooks/useLookupTables';
@@ -570,6 +571,7 @@ export function DashboardWidgetCard({
                 <Camera className="w-3 h-3" />
               </span>
             )}
+            <WidgetAlertBadge widgetKey={widget.id} />
           </div>
           {isHeroWidget && <p className="text-xs text-slate-500 truncate">{widget.description}</p>}
         </div>

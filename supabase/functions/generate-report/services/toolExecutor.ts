@@ -122,10 +122,13 @@ export class ToolExecutor {
 
         // === INSIGHT TOOLS ===
         case 'generate_insight':
-          result = this.generateInsight(input);
+          result = await this.generateInsight(input);
           break;
         case 'generate_recommendation':
-          result = this.generateRecommendation(input);
+          result = await this.generateRecommendation(input);
+          break;
+        case 'generate_section_insight':
+          result = await this.generateSectionInsightWithHaiku(input);
           break;
 
         // === CLARIFICATION TOOLS ===
@@ -791,56 +794,218 @@ export class ToolExecutor {
   }
 
   // ==========================================
-  // INSIGHT TOOLS
+  // INSIGHT TOOLS (Claude Haiku Powered)
   // ==========================================
 
-  private generateInsight(input: Record<string, unknown>): unknown {
-    const data = input.data as Record<string, unknown>;
+  private async generateInsight(input: Record<string, unknown>): Promise<unknown> {
+    const dataPoint = input.data_point as string || JSON.stringify(input.data || {}).substring(0, 200);
     const context = input.context as string;
-    const comparisonType = input.comparison_type as string | undefined;
-    const audience = (input.audience as string) || 'analyst';
+    const audience = (input.audience as string) || 'operations';
+    const insightType = (input.type as string) || 'observation';
 
-    const insight = this.buildInsightText(data, context, comparisonType, audience);
+    const prompt = `You are a freight logistics analyst generating insights for a ${audience} audience.
 
-    return {
-      insight,
-      context,
-      audience,
-      comparison_type: comparisonType,
-      generated_at: new Date().toISOString()
-    };
+Data Point: ${dataPoint}
+Context: ${context}
+Insight Type: ${insightType}
+
+Generate a concise, actionable insight (2-3 sentences max). Be specific and quantitative where possible. Focus on business impact and next steps.
+
+For ${audience}:
+- executive: Focus on cost impact, strategic implications, bottom-line effect
+- operations: Focus on efficiency, process improvements, operational changes
+- finance: Focus on spend patterns, budget impact, cost optimization`;
+
+    try {
+      const startTime = Date.now();
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') || '',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 150,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Haiku API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const insight = data.content?.[0]?.text || this.generateFallbackInsight(dataPoint, context, audience);
+      const latencyMs = Date.now() - startTime;
+
+      try {
+        await this.supabase.from('ai_insight_log').insert({
+          customer_id: this.customerId,
+          insight_type: insightType,
+          insight_text: insight,
+          context_summary: context?.substring(0, 200),
+          audience,
+          tokens_used: data.usage?.output_tokens || 0,
+          model_used: 'claude-3-haiku-20240307',
+          latency_ms: latencyMs
+        });
+      } catch (logError) {
+        console.error('[generateInsight] Failed to log insight:', logError);
+      }
+
+      return {
+        success: true,
+        insight,
+        audience,
+        type: insightType,
+        model: 'claude-3-haiku',
+        latency_ms: latencyMs
+      };
+
+    } catch (error) {
+      console.error('[generateInsight] Haiku error, using fallback:', error);
+      return {
+        success: true,
+        insight: this.generateFallbackInsight(dataPoint, context, audience),
+        audience,
+        type: insightType,
+        model: 'fallback'
+      };
+    }
   }
 
-  private generateRecommendation(input: Record<string, unknown>): unknown {
+  private generateFallbackInsight(dataPoint: string, context: string, audience: string): string {
+    const templates: Record<string, string[]> = {
+      executive: [
+        `${dataPoint} represents a key metric for cost management. ${context ? 'Given ' + context + ', this' : 'This'} warrants strategic review.`,
+        `Analysis shows ${dataPoint}. Consider reviewing carrier contracts to optimize spend.`
+      ],
+      operations: [
+        `${dataPoint} indicates an opportunity for process optimization. ${context ? context + ' suggests' : 'Consider'} reviewing routing efficiency.`,
+        `Operational data shows ${dataPoint}. Review carrier allocation for efficiency gains.`
+      ],
+      finance: [
+        `${dataPoint} impacts budget forecasting. ${context ? 'With ' + context + ', recommend' : 'Recommend'} quarterly spend review.`,
+        `Financial analysis: ${dataPoint}. Consider cost allocation adjustments.`
+      ]
+    };
+
+    const options = templates[audience] || templates.operations;
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  private async generateRecommendation(input: Record<string, unknown>): Promise<unknown> {
     const finding = input.finding as string;
-    const dataSupport = input.data_support as Record<string, unknown>;
-    const actionType = input.action_type as string;
-    const urgency = (input.urgency as string) || 'this_month';
+    const goal = (input.goal as string) || 'cost optimization';
+    const constraints = input.constraints as string[];
+    const priority = (input.priority as string) || 'medium';
 
-    const urgencyLabels = {
-      immediate: '🔴 Immediate Action Required',
-      this_week: '🟠 Address This Week',
-      this_month: '🟡 Review This Month',
-      next_quarter: '🟢 Plan for Next Quarter'
-    };
+    const prompt = `You are a freight logistics consultant providing actionable recommendations.
 
-    const actionVerbs = {
-      negotiate: 'Negotiate',
-      investigate: 'Investigate',
-      monitor: 'Monitor',
-      change: 'Implement change to',
-      escalate: 'Escalate'
-    };
+Finding: ${finding}
+Goal: ${goal}
+Priority: ${priority}
+${constraints?.length ? 'Constraints: ' + constraints.join(', ') : ''}
 
-    return {
-      finding,
-      recommendation: `${actionVerbs[actionType as keyof typeof actionVerbs] || 'Review'}: ${finding}`,
-      action_type: actionType,
-      urgency,
-      urgency_label: urgencyLabels[urgency as keyof typeof urgencyLabels] || urgency,
-      data_support: dataSupport,
-      generated_at: new Date().toISOString()
-    };
+Provide a specific, actionable recommendation (2-3 sentences). Include:
+1. What action to take
+2. Expected impact/benefit
+3. Timeline or urgency`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') || '',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 200,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Haiku API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const recommendation = data.content?.[0]?.text || this.generateFallbackRecommendation(finding, goal);
+
+      return {
+        success: true,
+        recommendation,
+        goal,
+        priority,
+        model: 'claude-3-haiku'
+      };
+
+    } catch (error) {
+      console.error('[generateRecommendation] Haiku error, using fallback:', error);
+      return {
+        success: true,
+        recommendation: this.generateFallbackRecommendation(finding, goal),
+        goal,
+        priority,
+        model: 'fallback'
+      };
+    }
+  }
+
+  private generateFallbackRecommendation(finding: string, goal: string): string {
+    return `Based on ${finding}, recommend conducting a detailed analysis to support ${goal}. Schedule a review within the next 2 weeks to identify specific optimization opportunities.`;
+  }
+
+  private async generateSectionInsightWithHaiku(input: Record<string, unknown>): Promise<unknown> {
+    const sectionType = input.section_type as string;
+    const sectionTitle = input.title as string;
+    const dataPreview = input.data_preview as string;
+    const metric = input.metric as string;
+
+    const prompt = `Generate a one-line insight for a ${sectionType} titled "${sectionTitle}".
+Data: ${dataPreview}
+Metric: ${metric}
+
+Write a brief, specific insight (1 sentence) highlighting the key takeaway. Be quantitative.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') || '',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 60,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Haiku API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        insight: data.content?.[0]?.text || `Key finding from ${sectionTitle}`,
+        model: 'claude-3-haiku'
+      };
+
+    } catch (error) {
+      return {
+        success: true,
+        insight: `Key finding from ${sectionTitle}`,
+        model: 'fallback'
+      };
+    }
   }
 
   // ==========================================
@@ -992,10 +1157,5 @@ export class ToolExecutor {
     }
 
     return `This ${this.currentReport.name} contains ${this.currentReport.sections.length} sections analyzing your shipping data.`;
-  }
-
-  private buildInsightText(data: Record<string, unknown>, context: string, comparisonType?: string, audience?: string): string {
-    const style = audience === 'executive' ? 'high-level' : 'detailed';
-    return `Analysis of ${context}: ${JSON.stringify(data).substring(0, 200)}...`;
   }
 }

@@ -949,10 +949,7 @@ Deno.serve(async (req: Request) => {
         break;
     }
 
-    let availableTools = AI_TOOLS;
-    if (requestMode === 'investigate') {
-      availableTools = AI_TOOLS.filter(tool => !REPORT_TOOLS.includes(tool.name));
-    }
+    const availableTools = AI_TOOLS;
 
     const systemPromptParts = useTools
       ? [modeSystemPrompt, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]

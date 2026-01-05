@@ -22,6 +22,7 @@ import { DashboardWidgetCard } from '../DashboardWidgetCard';
 import { AIWidgetRenderer } from './AIWidgetRenderer';
 import { widgetLibrary } from '../../config/widgetLibrary';
 import { getSizeColSpan, clampWidgetSize, WidgetSizeConstraint, isInteractiveWidget, isValidWidgetSize, getSizeLabel, getWidgetConstraints } from '../../config/widgetConstraints';
+import { useDashboardAlerts } from '../../contexts/DashboardAlertContext';
 
 type WidgetSizeValue = 1 | 2 | 3;
 
@@ -92,6 +93,11 @@ function SortableWidgetWrapper({
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  const { getStateForWidget, getMaxSeverityForWidget, getAlertsForWidget } = useDashboardAlerts();
+  const alertState = getStateForWidget(id);
+  const maxSeverity = getMaxSeverityForWidget(id);
+  const hasAlerts = alertState === 'active';
+
   const constraints = getWidgetConstraints(id, widgetType);
   const isMapWidget = isInteractiveWidget(widgetType);
 
@@ -107,6 +113,18 @@ function SortableWidgetWrapper({
   };
 
   const showHoverHandle = !isEditMode && isHovered && !isMapWidget && !disabled;
+
+  const getAlertStyles = () => {
+    if (isEditMode) return '';
+    if (!hasAlerts) {
+      return 'border-slate-200 hover:shadow-lg hover:border-slate-300';
+    }
+    const severity = maxSeverity || 'warning';
+    if (severity === 'critical') {
+      return 'border-red-500 border-2 shadow-lg shadow-red-500/20 ring-2 ring-red-500/10';
+    }
+    return 'border-orange-500 border-2 shadow-lg shadow-orange-500/20 ring-2 ring-orange-500/10';
+  };
 
   return (
     <div
@@ -225,17 +243,19 @@ function SortableWidgetWrapper({
       )}
 
       <div
-        className={`bg-white rounded-2xl border overflow-hidden transition-all duration-200 h-full ${
+        className={`bg-white rounded-2xl border overflow-hidden transition-all duration-300 h-full ${
           isEditMode
             ? isSelected
               ? 'ring-2 ring-orange-500 border-orange-500'
               : 'border-slate-200 hover:border-orange-300'
-            : 'border-slate-200 hover:shadow-lg hover:border-slate-300'
+            : getAlertStyles()
         } ${isDragging ? 'opacity-50 scale-[0.98] shadow-2xl' : ''}`}
         style={{
           animation: isEditMode && !isDragging ? 'wiggle 0.3s ease-in-out infinite' : undefined,
         }}
         onClick={() => isEditMode && onSelect()}
+        data-widget-id={id}
+        data-alert-state={alertState}
       >
         {children}
       </div>

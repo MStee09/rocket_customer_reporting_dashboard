@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { PulseDashboardPage } from './pages/PulseDashboardPage';
+import { AnalyticsHubPage } from './pages/AnalyticsHubPage';
 import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
@@ -84,7 +86,9 @@ function App() {
               }
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="dashboard" element={<PulseDashboardPage />} />
+              <Route path="dashboard/full" element={<DashboardPage />} />
+              <Route path="analytics" element={<AnalyticsHubPage />} />
               <Route path="shipments" element={<ShipmentsPage />} />
               <Route path="shipments/:loadId" element={<ShipmentDetailPage />} />
               <Route
@@ -103,7 +107,6 @@ function App() {
               {/* AI Studio route */}
               <Route path="ai-studio" element={<AIReportStudioPage />} />
               <Route path="create" element={<Navigate to="/analyze" replace />} />
-              <Route path="analytics" element={<Navigate to="/analyze" replace />} />
 
               <Route path="reports" element={<ReportsHubPage />} />
               <Route

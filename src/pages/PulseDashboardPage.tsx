@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
-import { PulseHeader, CoreKPIRow, ExploreAnalyticsCTA } from '../components/pulse';
+import {
+  PulseHeader,
+  ExploreAnalyticsCTA,
+  ExecutiveMetricsRow,
+  SpendTrendChart,
+  TopCarriersCompact,
+} from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
 import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
@@ -62,7 +68,7 @@ export function PulseDashboardPage() {
             onDateRangeChange={setDateRange}
           />
 
-          <div className="space-y-4 mt-6">
+          <div className="space-y-6 mt-6">
             {effectiveCustomerId && (
               <UnifiedInsightsCard
                 customerId={effectiveCustomerId}
@@ -82,11 +88,26 @@ export function PulseDashboardPage() {
             )}
 
             {customerId && (
-              <CoreKPIRow
+              <ExecutiveMetricsRow
                 customerId={customerId.toString()}
                 startDate={startDate}
                 endDate={endDate}
               />
+            )}
+
+            {customerId && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <SpendTrendChart
+                  customerId={customerId.toString()}
+                  startDate={startDate}
+                  endDate={endDate}
+                />
+                <TopCarriersCompact
+                  customerId={customerId.toString()}
+                  startDate={startDate}
+                  endDate={endDate}
+                />
+              </div>
             )}
 
             <ExploreAnalyticsCTA onClick={handleExploreAnalytics} />

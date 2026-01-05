@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   X,
   Download,
   FileText,
+  ChevronDown,
+  ChevronUp,
+  Printer,
+  Copy,
+  Check,
   BarChart3,
   Table,
   Hash,
-  TrendingUp,
-  ChevronRight,
-  Printer,
-  Copy,
-  Check
+  TrendingUp
 } from 'lucide-react';
 import type { ReportDraft, DraftSection } from '../../ai/investigator/types';
+import { ReportChart } from '../reports/studio/ReportChart';
+import { ReportTable } from '../reports/studio/ReportTable';
 
 interface ReportPreviewPanelProps {
   report: ReportDraft;
@@ -20,8 +23,35 @@ interface ReportPreviewPanelProps {
   onExport?: () => void;
 }
 
-export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewPanelProps) {
+const CHART_COLORS = [
+  '#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ef4444',
+  '#14b8a6', '#f59e0b', '#6366f1', '#ec4899', '#84cc16'
+];
+
+export function ReportPreviewPanel({ report, onClose }: ReportPreviewPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(report.sections.map(s => s.id)));
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    setExpandedSections(new Set(report.sections.map(s => s.id)));
+  };
+
+  const collapseAll = () => {
+    setExpandedSections(new Set());
+  };
 
   const handleCopyToClipboard = async () => {
     const reportText = generateReportText(report);
@@ -41,13 +71,18 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
     report.sections.forEach((section, index) => {
       text += `## ${index + 1}. ${section.title || `Section ${index + 1}`}\n`;
       text += `Type: ${section.type}\n`;
-      if (section.preview?.dataPreview) {
-        text += `Data: ${section.preview.dataPreview.rowCount} rows\n`;
+
+      if (section.preview?.dataPreview?.aggregatedValues) {
+        text += `\nData:\n`;
+        Object.entries(section.preview.dataPreview.aggregatedValues).forEach(([key, value]) => {
+          text += `- ${key}: ${typeof value === 'number' ? value.toLocaleString() : value}\n`;
+        });
       }
-      if (section.insights?.length > 0) {
+
+      if (section.insights && section.insights.length > 0) {
         text += `\nInsights:\n`;
         section.insights.forEach(insight => {
-          text += `- ${insight.title}: ${insight.description}\n`;
+          text += `- ${insight.text}\n`;
         });
       }
       text += `\n`;
@@ -60,33 +95,37 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
     window.print();
   };
 
+  const handleExportPDF = async () => {
+    window.print();
+  };
+
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
-      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[560px] lg:w-[640px] bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200 print:relative print:w-full print:shadow-none print:border-none">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50 print:bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center print:hidden">
               <FileText className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900 truncate max-w-[280px]">
+              <h2 className="font-semibold text-gray-900 truncate max-w-[320px]">
                 {report.name}
               </h2>
               <p className="text-xs text-gray-500">
-                {report.sections.length} sections • {report.theme} theme
+                {report.sections.length} sections {report.theme ? `• ${report.theme} theme` : ''}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors print:hidden"
           >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
       </div>
 
-      <div className="flex-shrink-0 px-4 py-2 border-b border-gray-100 flex gap-2">
+      <div className="flex-shrink-0 px-4 py-2 border-b border-gray-100 flex items-center gap-2 print:hidden">
         <button
           onClick={handleCopyToClipboard}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -101,18 +140,31 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
           <Printer className="w-4 h-4" />
           Print
         </button>
-        {onExport && (
-          <button
-            onClick={onExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors ml-auto"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
-        )}
+        <button
+          onClick={handleExportPDF}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-500 text-white hover:bg-orange-600 rounded-lg transition-colors ml-auto"
+        >
+          <Download className="w-4 h-4" />
+          Export PDF
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-shrink-0 px-4 py-2 border-b border-gray-100 flex items-center justify-between print:hidden">
+        <span className="text-xs text-gray-500">
+          {expandedSections.size} of {report.sections.length} sections expanded
+        </span>
+        <div className="flex gap-2">
+          <button onClick={expandAll} className="text-xs text-orange-600 hover:underline">
+            Expand all
+          </button>
+          <span className="text-gray-300">|</span>
+          <button onClick={collapseAll} className="text-xs text-orange-600 hover:underline">
+            Collapse all
+          </button>
+        </div>
+      </div>
+
+      <div ref={reportRef} className="flex-1 overflow-y-auto p-4 space-y-4 print:overflow-visible">
         {report.description && (
           <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
             {report.description}
@@ -120,12 +172,15 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
         )}
 
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Report Sections
-          </h3>
-
           {report.sections.map((section, index) => (
-            <SectionCard key={section.id} section={section} index={index} />
+            <SectionRenderer
+              key={section.id}
+              section={section}
+              index={index}
+              expanded={expandedSections.has(section.id)}
+              onToggle={() => toggleSection(section.id)}
+              theme={report.theme || 'blue'}
+            />
           ))}
         </div>
 
@@ -133,12 +188,11 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
           <div className="text-center py-8 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No sections added yet</p>
-            <p className="text-sm">Ask The Investigator to add sections to your report</p>
           </div>
         )}
       </div>
 
-      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50">
+      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50 print:bg-white">
         <p className="text-xs text-gray-500 text-center">
           Created {report.metadata?.createdAt ? new Date(report.metadata.createdAt).toLocaleString() : 'Just now'}
         </p>
@@ -147,9 +201,15 @@ export function ReportPreviewPanel({ report, onClose, onExport }: ReportPreviewP
   );
 }
 
-function SectionCard({ section, index }: { section: DraftSection; index: number }) {
-  const [expanded, setExpanded] = useState(false);
+interface SectionRendererProps {
+  section: DraftSection;
+  index: number;
+  expanded: boolean;
+  onToggle: () => void;
+  theme: string;
+}
 
+function SectionRenderer({ section, index, expanded, onToggle, theme }: SectionRendererProps) {
   const getSectionIcon = (type: string) => {
     switch (type) {
       case 'hero': return <Hash className="w-4 h-4" />;
@@ -161,7 +221,7 @@ function SectionCard({ section, index }: { section: DraftSection; index: number 
   };
 
   const typeColors: Record<string, string> = {
-    hero: 'bg-purple-100 text-purple-700',
+    hero: 'bg-blue-100 text-blue-700',
     chart: 'bg-blue-100 text-blue-700',
     table: 'bg-green-100 text-green-700',
     'stat-row': 'bg-amber-100 text-amber-700',
@@ -169,10 +229,10 @@ function SectionCard({ section, index }: { section: DraftSection; index: number 
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden print:break-inside-avoid">
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left"
+        onClick={onToggle}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left print:hover:bg-white"
       >
         <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
           {index + 1}
@@ -181,64 +241,271 @@ function SectionCard({ section, index }: { section: DraftSection; index: number 
           <p className="font-medium text-gray-900 truncate">
             {section.title || `Section ${index + 1}`}
           </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${typeColors[section.type] || 'bg-gray-100 text-gray-700'}`}>
-              {getSectionIcon(section.type)}
-              {section.type}
-            </span>
-            {section.preview?.dataPreview && (
-              <span className="text-xs text-gray-500">
-                {section.preview.dataPreview.rowCount} rows
-              </span>
-            )}
-          </div>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium mt-1 ${typeColors[section.type] || 'bg-gray-100 text-gray-700'}`}>
+            {getSectionIcon(section.type)}
+            {section.type}
+          </span>
         </div>
-        <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        <div className="print:hidden">
+          {expanded ? (
+            <ChevronUp className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          )}
+        </div>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 pt-0 border-t border-gray-100">
-          {section.preview?.dataPreview && (
-            <div className="mt-2">
-              <p className="text-xs font-medium text-gray-500 mb-1">
-                Preview: {section.preview.dataPreview.rowCount} rows
-              </p>
-              {section.preview.dataPreview.aggregatedValues && (
-                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                  {Object.entries(section.preview.dataPreview.aggregatedValues).map(([key, value]) => (
-                    <div key={key}>
-                      <span className="font-medium">{key}:</span> {typeof value === 'number' ? value.toLocaleString() : value}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {section.insights && section.insights.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500 mb-1">Insights:</p>
-              <ul className="space-y-1">
-                {section.insights.map((insight, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-orange-500 mt-1">•</span>
-                    <span>
-                      <span className="font-medium">{insight.title}:</span> {insight.description}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {section.config && Object.keys(section.config).length > 0 && (
-            <div className="mt-3 p-2 bg-gray-50 rounded text-xs font-mono text-gray-600 overflow-x-auto">
-              {JSON.stringify(section.config, null, 2).substring(0, 200)}
-              {JSON.stringify(section.config).length > 200 && '...'}
-            </div>
-          )}
+        <div className="px-4 pb-4 border-t border-gray-100">
+          <SectionContent section={section} theme={theme} />
         </div>
       )}
+    </div>
+  );
+}
+
+interface SectionContentProps {
+  section: DraftSection;
+  theme: string;
+}
+
+function SectionContent({ section, theme }: SectionContentProps) {
+  const preview = section.preview;
+  const config = section.config || {};
+
+  const sampleData = preview?.dataPreview?.sampleData || [];
+  const aggregatedValues = preview?.dataPreview?.aggregatedValues || {};
+
+  switch (section.type) {
+    case 'hero':
+      return <HeroSection config={config} aggregatedValues={aggregatedValues} />;
+
+    case 'chart':
+      return <ChartSection config={config} sampleData={sampleData} aggregatedValues={aggregatedValues} theme={theme} />;
+
+    case 'table':
+      return <TableSection config={config} sampleData={sampleData} />;
+
+    case 'stat-row':
+      return <StatRowSection config={config} aggregatedValues={aggregatedValues} />;
+
+    default:
+      return (
+        <div className="py-4 text-center text-gray-500 text-sm">
+          <p>Preview not available for {section.type} sections</p>
+        </div>
+      );
+  }
+}
+
+function HeroSection({ config, aggregatedValues }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown> }) {
+  const metrics = (config.metrics as Array<{ label?: string; value?: unknown }>) || [];
+
+  let primaryValue: number | string = '--';
+  let primaryLabel = (config.label as string) || 'Total';
+
+  if (metrics.length > 0) {
+    const primaryMetric = metrics[0];
+    primaryLabel = primaryMetric.label || 'Total';
+
+    if (aggregatedValues[primaryLabel]) {
+      primaryValue = aggregatedValues[primaryLabel] as number | string;
+    } else if (typeof primaryMetric.value !== 'undefined') {
+      primaryValue = primaryMetric.value as number | string;
+    }
+  } else if (Object.keys(aggregatedValues).length > 0) {
+    const firstKey = Object.keys(aggregatedValues)[0];
+    primaryLabel = firstKey;
+    primaryValue = aggregatedValues[firstKey] as number | string;
+  }
+
+  const formattedValue = typeof primaryValue === 'number'
+    ? primaryValue.toLocaleString()
+    : primaryValue;
+
+  return (
+    <div className="py-6 text-center">
+      <p className="text-4xl font-bold text-gray-900">{formattedValue}</p>
+      <p className="text-sm text-gray-500 mt-1">{primaryLabel}</p>
+    </div>
+  );
+}
+
+function ChartSection({ config, sampleData, aggregatedValues, theme }: { config: Record<string, unknown>; sampleData: unknown[]; aggregatedValues: Record<string, unknown>; theme: string }) {
+  const chartType = (config.chartType as string) || 'bar';
+
+  let chartData: Array<{ name: string; value: number }> = [];
+
+  if (Object.keys(aggregatedValues).length > 0) {
+    chartData = Object.entries(aggregatedValues).map(([name, value]) => ({
+      name: String(name),
+      value: typeof value === 'number' ? value : 0
+    }));
+  } else if (sampleData.length > 0) {
+    const groupBy = config.groupBy as string | undefined;
+    const metricConfig = config.metric as { field?: string } | undefined;
+    const metricField = metricConfig?.field || 'value';
+
+    if (groupBy) {
+      const grouped = new Map<string, number>();
+      sampleData.forEach((row) => {
+        const typedRow = row as Record<string, unknown>;
+        const key = String(typedRow[groupBy] || 'Unknown');
+        const val = typeof typedRow[metricField] === 'number' ? typedRow[metricField] as number : 0;
+        grouped.set(key, (grouped.get(key) || 0) + val);
+      });
+      chartData = Array.from(grouped.entries()).map(([name, value]) => ({ name, value }));
+    } else {
+      chartData = sampleData.slice(0, 10).map((row, i) => {
+        const typedRow = row as Record<string, unknown>;
+        return {
+          name: (typedRow.name as string) || (typedRow.label as string) || `Item ${i + 1}`,
+          value: typeof typedRow.value === 'number' ? typedRow.value : 0
+        };
+      });
+    }
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="py-8 text-center text-gray-500 text-sm">
+        <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <p>No chart data available</p>
+      </div>
+    );
+  }
+
+  const coloredData = chartData.map((d, i) => ({
+    ...d,
+    color: CHART_COLORS[i % CHART_COLORS.length]
+  }));
+
+  const metricConfig = config.metric as { field?: string } | undefined;
+  const format = (config.format as 'currency' | 'number' | 'percent') || (metricConfig?.field === 'retail' ? 'currency' : 'number');
+  const mappedType = chartType === 'donut' ? 'pie' : chartType;
+
+  return (
+    <div className="py-4">
+      <ReportChart
+        type={mappedType as 'bar' | 'line' | 'pie' | 'area' | 'treemap' | 'radar' | 'calendar' | 'bump' | 'waterfall'}
+        data={coloredData}
+        height={280}
+        format={format}
+        colors={CHART_COLORS}
+        showLegend={chartType === 'pie' || chartType === 'donut'}
+        theme={theme as 'blue' | 'green' | 'orange' | 'purple' | 'slate'}
+      />
+    </div>
+  );
+}
+
+function TableSection({ config, sampleData }: { config: Record<string, unknown>; sampleData: unknown[] }) {
+  if (sampleData.length === 0) {
+    return (
+      <div className="py-8 text-center text-gray-500 text-sm">
+        <Table className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <p>No table data available</p>
+      </div>
+    );
+  }
+
+  type ColumnConfig = { field?: string; key?: string; label?: string; format?: string };
+  type MetricConfig = { field?: string; label?: string; format?: string };
+
+  let columns: Array<{ key: string; label: string; format?: 'currency' | 'number' | 'percent' | 'date' | 'string' }> = [];
+
+  if (config.columns && Array.isArray(config.columns)) {
+    columns = (config.columns as ColumnConfig[]).map((col) => ({
+      key: col.field || col.key || '',
+      label: col.label || col.field || col.key || '',
+      format: col.format as 'currency' | 'number' | 'percent' | 'date' | 'string' | undefined
+    }));
+  } else if (config.metrics && Array.isArray(config.metrics)) {
+    if (config.groupBy) {
+      columns.push({ key: config.groupBy as string, label: config.groupBy as string });
+    }
+    (config.metrics as MetricConfig[]).forEach((m) => {
+      columns.push({
+        key: m.field || m.label || '',
+        label: m.label || m.field || '',
+        format: m.format as 'currency' | 'number' | 'percent' | 'date' | 'string' | undefined
+      });
+    });
+  } else {
+    const firstRow = sampleData[0] as Record<string, unknown>;
+    columns = Object.keys(firstRow).slice(0, 6).map(key => ({
+      key,
+      label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    }));
+  }
+
+  const tableData = sampleData.slice(0, 10) as Array<Record<string, unknown>>;
+
+  return (
+    <div className="py-4">
+      <ReportTable
+        columns={columns}
+        data={tableData}
+        maxRows={10}
+        compact
+      />
+      {sampleData.length > 10 && (
+        <p className="text-xs text-gray-400 mt-2 text-center">
+          Showing 10 of {sampleData.length} rows
+        </p>
+      )}
+    </div>
+  );
+}
+
+function StatRowSection({ config, aggregatedValues }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown> }) {
+  type MetricConfig = { label?: string; field?: string; value?: unknown; color?: string };
+  const metrics = (config.metrics as MetricConfig[]) || [];
+
+  const stats: Array<{ label: string; value: string | number; color?: string }> = [];
+
+  if (metrics.length > 0) {
+    metrics.forEach((m) => {
+      const label = m.label || m.field || '';
+      let value: unknown = '--';
+
+      if (aggregatedValues[label]) {
+        value = aggregatedValues[label];
+      } else if (typeof m.value !== 'undefined') {
+        value = m.value;
+      }
+
+      stats.push({
+        label,
+        value: typeof value === 'number' ? value.toLocaleString() : String(value),
+        color: m.color
+      });
+    });
+  } else {
+    Object.entries(aggregatedValues).forEach(([label, value]) => {
+      stats.push({
+        label,
+        value: typeof value === 'number' ? (value as number).toLocaleString() : String(value)
+      });
+    });
+  }
+
+  if (stats.length === 0) {
+    return (
+      <div className="py-4 text-center text-gray-500 text-sm">
+        <p>No stats data available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+      {stats.map((stat, i) => (
+        <div key={i} className="text-center p-3 bg-gray-50 rounded-lg">
+          <p className="text-xl font-semibold text-gray-900">{stat.value}</p>
+          <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+        </div>
+      ))}
     </div>
   );
 }

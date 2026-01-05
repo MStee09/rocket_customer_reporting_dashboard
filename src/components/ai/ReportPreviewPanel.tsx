@@ -319,15 +319,18 @@ function SectionContent({ section, theme }: SectionContentProps) {
 }
 
 function HeroSection({ config, aggregatedValues, sampleData }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown>; sampleData: unknown[] }) {
-  const metrics = (config.metrics as Array<{ label?: string; value?: unknown }>) || [];
+  type MetricDef = { label?: string; value?: unknown; format?: string };
+  const metrics = (config.metrics as MetricDef[]) || [];
 
   let primaryValue: number | string = '--';
   let primaryLabel = (config.label as string) || 'Total';
+  let format: string | undefined;
 
   if (metrics.length > 0) {
     const primaryMetric = metrics[0];
     primaryLabel = primaryMetric.label || 'Total';
-    if (typeof primaryMetric.value !== 'undefined') {
+    format = primaryMetric.format;
+    if (typeof primaryMetric.value !== 'undefined' && primaryMetric.value !== null) {
       primaryValue = primaryMetric.value as number | string;
     }
   }
@@ -340,15 +343,36 @@ function HeroSection({ config, aggregatedValues, sampleData }: { config: Record<
 
   if (primaryValue === '--' && sampleData.length > 0) {
     const firstItem = sampleData[0] as Record<string, unknown>;
-    if (firstItem.name && firstItem.value !== undefined) {
-      primaryLabel = String(firstItem.name);
-      primaryValue = firstItem.value as number | string;
+    if (firstItem.name !== undefined && typeof firstItem.value === 'number') {
+      const total = sampleData.reduce((sum, item) => {
+        const typedItem = item as Record<string, unknown>;
+        return sum + (typeof typedItem.value === 'number' ? typedItem.value : 0);
+      }, 0);
+      primaryValue = total;
+      primaryLabel = (config.label as string) || 'Total';
     }
   }
 
-  const formattedValue = typeof primaryValue === 'number'
-    ? primaryValue.toLocaleString()
-    : primaryValue;
+  if (primaryValue === '--' && config.value !== undefined) {
+    primaryValue = config.value as number | string;
+  }
+
+  if (!format) {
+    format = config.format as string | undefined;
+  }
+
+  let formattedValue: string;
+  if (typeof primaryValue === 'number') {
+    if (format === 'currency') {
+      formattedValue = `$${primaryValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } else if (format === 'percent') {
+      formattedValue = `${primaryValue.toFixed(1)}%`;
+    } else {
+      formattedValue = primaryValue.toLocaleString();
+    }
+  } else {
+    formattedValue = String(primaryValue);
+  }
 
   return (
     <div className="py-6 text-center">
@@ -446,9 +470,21 @@ function TableSection({ config, sampleData }: { config: Record<string, unknown>;
   type ColumnConfig = { field?: string; key?: string; label?: string; format?: string };
   type MetricConfig = { field?: string; label?: string; format?: string };
 
+  const firstRow = sampleData[0] as Record<string, unknown>;
   let columns: Array<{ key: string; label: string; format?: 'currency' | 'number' | 'percent' | 'date' | 'string' }> = [];
 
-  if (config.columns && Array.isArray(config.columns)) {
+  if (firstRow.name !== undefined && firstRow.value !== undefined && Object.keys(firstRow).length <= 3) {
+    const groupByLabel = (config.groupBy as string) || 'Category';
+    const metricDef = config.metric as MetricConfig | undefined;
+    const metricsDef = config.metrics as MetricConfig[] | undefined;
+    const metricLabel = metricDef?.label || metricsDef?.[0]?.label || 'Value';
+    const format = (config.format as string) || metricDef?.format || metricsDef?.[0]?.format;
+
+    columns = [
+      { key: 'name', label: groupByLabel },
+      { key: 'value', label: metricLabel, format: format as 'currency' | 'number' | 'percent' | undefined }
+    ];
+  } else if (config.columns && Array.isArray(config.columns)) {
     columns = (config.columns as ColumnConfig[]).map((col) => ({
       key: col.field || col.key || '',
       label: col.label || col.field || col.key || '',
@@ -466,26 +502,25 @@ function TableSection({ config, sampleData }: { config: Record<string, unknown>;
       });
     });
   } else {
-    const firstRow = sampleData[0] as Record<string, unknown>;
     columns = Object.keys(firstRow).slice(0, 6).map(key => ({
       key,
       label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     }));
   }
 
-  const tableData = sampleData.slice(0, 10) as Array<Record<string, unknown>>;
+  const tableData = sampleData.slice(0, 15) as Array<Record<string, unknown>>;
 
   return (
     <div className="py-4">
       <ReportTable
         columns={columns}
         data={tableData}
-        maxRows={10}
+        maxRows={15}
         compact
       />
-      {sampleData.length > 10 && (
+      {sampleData.length > 15 && (
         <p className="text-xs text-gray-400 mt-2 text-center">
-          Showing 10 of {sampleData.length} rows
+          Showing 15 of {sampleData.length} rows
         </p>
       )}
     </div>
@@ -493,42 +528,50 @@ function TableSection({ config, sampleData }: { config: Record<string, unknown>;
 }
 
 function StatRowSection({ config, aggregatedValues, sampleData }: { config: Record<string, unknown>; aggregatedValues: Record<string, unknown>; sampleData: unknown[] }) {
-  type MetricConfig = { label?: string; field?: string; value?: unknown; color?: string };
+  type MetricConfig = { label?: string; field?: string; value?: unknown; color?: string; format?: string };
   const metrics = (config.metrics as MetricConfig[]) || [];
 
-  const stats: Array<{ label: string; value: string | number; color?: string }> = [];
+  const stats: Array<{ label: string; value: unknown; format?: string }> = [];
+
+  const formatStatValue = (value: unknown, format?: string): string => {
+    if (value === '--' || value === null || value === undefined) return '--';
+    if (typeof value !== 'number') return String(value);
+
+    if (format === 'currency') {
+      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (format === 'percent') {
+      return `${value.toFixed(1)}%`;
+    }
+    return value.toLocaleString();
+  };
 
   if (metrics.length > 0) {
     metrics.forEach((m) => {
-      const label = m.label || m.field || '';
+      const label = m.label || m.field || 'Metric';
       let value: unknown = '--';
 
-      if (aggregatedValues[label]) {
-        value = aggregatedValues[label];
-      } else if (typeof m.value !== 'undefined') {
+      if (typeof m.value !== 'undefined' && m.value !== null) {
         value = m.value;
+      } else if (aggregatedValues[label] !== undefined) {
+        value = aggregatedValues[label];
+      } else if (m.field && aggregatedValues[m.field] !== undefined) {
+        value = aggregatedValues[m.field];
       }
 
-      stats.push({
-        label,
-        value: typeof value === 'number' ? value.toLocaleString() : String(value),
-        color: m.color
-      });
+      stats.push({ label, value, format: m.format });
     });
   } else if (Object.keys(aggregatedValues).length > 0) {
     Object.entries(aggregatedValues).forEach(([label, value]) => {
-      stats.push({
-        label,
-        value: typeof value === 'number' ? (value as number).toLocaleString() : String(value)
-      });
+      stats.push({ label, value });
     });
   } else if (sampleData.length > 0) {
-    sampleData.forEach((item) => {
+    sampleData.slice(0, 4).forEach((item) => {
       const typedItem = item as Record<string, unknown>;
       if (typedItem.name && typedItem.value !== undefined) {
         stats.push({
           label: String(typedItem.name),
-          value: typeof typedItem.value === 'number' ? typedItem.value.toLocaleString() : String(typedItem.value)
+          value: typedItem.value
         });
       }
     });
@@ -546,7 +589,7 @@ function StatRowSection({ config, aggregatedValues, sampleData }: { config: Reco
     <div className="py-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
       {stats.map((stat, i) => (
         <div key={i} className="text-center p-3 bg-gray-50 rounded-lg">
-          <p className="text-xl font-semibold text-gray-900">{stat.value}</p>
+          <p className="text-xl font-semibold text-gray-900">{formatStatValue(stat.value, stat.format)}</p>
           <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
         </div>
       ))}

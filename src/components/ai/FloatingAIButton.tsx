@@ -1,7 +1,73 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Sparkles, X, Send } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+
+const CONTEXT_SUGGESTIONS: Record<string, string[]> = {
+  '/': [
+    "What's driving spend this month?",
+    'Which carriers have the best on-time rate?',
+    'Compare this month to last month',
+  ],
+  '/dashboard': [
+    "What's changed vs last month?",
+    'Show me any anomalies or alerts',
+    'Break down spend by carrier',
+  ],
+  '/shipments': [
+    'Which carriers have late deliveries?',
+    'Show high-cost shipments',
+    'Compare shipments by mode',
+  ],
+  '/shipment-detail': [
+    'Show other shipments on this route',
+    'What accessorials were charged?',
+    'Show notes on this shipment',
+  ],
+  '/analytics': [
+    "What's driving spend this month?",
+    'Which lanes cost the most?',
+    'Show carrier performance comparison',
+  ],
+  '/ai-studio': [
+    'Create a report on carrier performance',
+    'Analyze my shipping patterns',
+    'What should I focus on this month?',
+  ],
+  '/carriers': [
+    'Compare carrier costs on the same lanes',
+    'Which carrier is most reliable?',
+    'Show carrier volume trends',
+  ],
+  '/reports': [
+    'Create a monthly summary report',
+    'Build a carrier comparison report',
+    'Generate an executive dashboard',
+  ],
+  default: [
+    "What's my total spend this month?",
+    'Show late deliveries',
+    'Which carriers do I use most?',
+  ],
+};
+
+function getContextSuggestions(pathname: string): string[] {
+  if (CONTEXT_SUGGESTIONS[pathname]) {
+    return CONTEXT_SUGGESTIONS[pathname];
+  }
+
+  if (pathname.match(/^\/shipments\/\d+/)) {
+    return CONTEXT_SUGGESTIONS['/shipment-detail'];
+  }
+
+  for (const [path, suggestions] of Object.entries(CONTEXT_SUGGESTIONS)) {
+    if (path !== 'default' && pathname.startsWith(path)) {
+      return suggestions;
+    }
+  }
+
+  return CONTEXT_SUGGESTIONS.default;
+}
 
 export function FloatingAIButton() {
   const navigate = useNavigate();
@@ -12,13 +78,32 @@ export function FloatingAIButton() {
 
   const isOnAIStudio = location.pathname.startsWith('/ai-studio');
 
+  const suggestions = useMemo(
+    () => getContextSuggestions(location.pathname),
+    [location.pathname]
+  );
+
   if (isOnAIStudio) return null;
 
   const handleQuickSubmit = () => {
     if (!quickQuery.trim()) return;
     const customerIdStr = effectiveCustomerId ? String(effectiveCustomerId) : '';
-    navigate(`/ai-studio?query=${encodeURIComponent(quickQuery)}${customerIdStr ? `&customerId=${customerIdStr}` : ''}`);
+    navigate(
+      `/ai-studio?query=${encodeURIComponent(quickQuery)}${
+        customerIdStr ? `&customerId=${customerIdStr}` : ''
+      }`
+    );
     setQuickQuery('');
+    setIsExpanded(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    const customerIdStr = effectiveCustomerId ? String(effectiveCustomerId) : '';
+    navigate(
+      `/ai-studio?query=${encodeURIComponent(suggestion)}${
+        customerIdStr ? `&customerId=${customerIdStr}` : ''
+      }`
+    );
     setIsExpanded(false);
   };
 
@@ -73,16 +158,19 @@ export function FloatingAIButton() {
               </button>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {['Top carriers', 'Spend trend', 'Late deliveries'].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  onClick={() => setQuickQuery(suggestion)}
-                  className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
-                >
-                  {suggestion}
-                </button>
-              ))}
+            <div className="mt-3">
+              <div className="text-xs text-slate-500 mb-2">Suggested for this page:</div>
+              <div className="flex flex-col gap-1.5">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="text-left px-3 py-2 text-sm bg-slate-50 hover:bg-rocket-50 hover:text-rocket-700 text-slate-700 rounded-lg transition-colors"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button

@@ -2,9 +2,12 @@ import { useState } from 'react';
 import {
   Book, Search, ChevronRight, ChevronDown,
   LayoutDashboard, Truck, BarChart3,
-  Building2, Settings, Bell, BookOpen, MessageCircle
+  Building2, Settings, Bell, BookOpen, MessageCircle,
+  PlayCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { resetWelcomeTour } from '../components/onboarding';
+import { useNavigate } from 'react-router-dom';
 import {
   OverviewContent,
   NavigationContent,
@@ -102,11 +105,17 @@ function PrevNextButton({
 }
 
 export function HowToPage() {
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<string[]>(['getting-started']);
   const [activeSection, setActiveSection] = useState('getting-started');
   const [activeSubsection, setActiveSubsection] = useState('overview');
+
+  const handleReplayTour = () => {
+    resetWelcomeTour();
+    navigate('/');
+  };
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -254,15 +263,25 @@ export function HowToPage() {
               </div>
             </div>
 
-            <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search documentation..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
-              />
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleReplayTour}
+                className="flex items-center gap-2 px-4 py-2 bg-rocket-50 hover:bg-rocket-100 text-rocket-700 rounded-lg transition-colors text-sm font-medium"
+              >
+                <PlayCircle className="w-4 h-4" />
+                Replay Welcome Tour
+              </button>
+
+              <div className="relative w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search documentation..."
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-rocket-500 focus:border-rocket-500"
+                />
+              </div>
             </div>
           </div>
         </div>

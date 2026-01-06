@@ -1,1 +1,1 @@
-export { WelcomeModal, useWelcomeModal } from './WelcomeModal';
+export { WelcomeModal, useWelcomeModal, resetWelcomeTour } from './WelcomeModal';

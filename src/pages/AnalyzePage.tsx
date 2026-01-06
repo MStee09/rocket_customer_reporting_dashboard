@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles } from 'lucide-react';
+import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { formatDistanceToNow } from 'date-fns';
 import { InvestigatorStudio } from '../components/ai/InvestigatorStudio';
+import { InvestigatorV3 } from '../components/ai/InvestigatorV3';
 
 export function AnalyzePage() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export function AnalyzePage() {
   const [allReports, setAllReports] = useState<SavedAIReport[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
   const [showInvestigator, setShowInvestigator] = useState(false);
+  const [investigatorMode, setInvestigatorMode] = useState<'fast' | 'deep'>('fast');
 
   const effectiveCustomerName = isViewingAsCustomer
     ? viewingCustomer?.company_name
@@ -209,21 +211,52 @@ export function AnalyzePage() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900">The Investigator</h2>
-                  <p className="text-xs text-gray-500">AI-powered deep analysis</p>
+                  <p className="text-xs text-gray-500">AI-powered analysis</p>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setShowInvestigator(false);
-                  setSearchParams({});
-                }}
-                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex bg-slate-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setInvestigatorMode('fast')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      investigatorMode === 'fast'
+                        ? 'bg-white text-orange-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                    title="Quick answers in ~2 seconds"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Fast
+                  </button>
+                  <button
+                    onClick={() => setInvestigatorMode('deep')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      investigatorMode === 'deep'
+                        ? 'bg-white text-orange-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                    title="Deep investigation with visible reasoning (10-30s)"
+                  >
+                    <Brain className="w-3.5 h-3.5" />
+                    Deep
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowInvestigator(false);
+                    setSearchParams({});
+                  }}
+                  className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
+
             <div className="flex-1 overflow-hidden">
-              {effectiveCustomerId && (
+              {effectiveCustomerId && investigatorMode === 'fast' && (
                 <InvestigatorStudio
                   customerId={String(effectiveCustomerId)}
                   customerName={effectiveCustomerName}
@@ -232,6 +265,9 @@ export function AnalyzePage() {
                   userEmail={user?.email}
                   embedded
                 />
+              )}
+              {effectiveCustomerId && investigatorMode === 'deep' && (
+                <InvestigatorV3 />
               )}
             </div>
           </div>

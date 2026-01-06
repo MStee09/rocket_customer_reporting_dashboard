@@ -1,21 +1,14 @@
 /**
- * CarrierAnalyticsSection.tsx
- * 
- * A complete carrier analytics section for Analytics Hub that includes:
- * - 4 Summary KPI Cards (Active Carriers, Total Spend, Avg Cost, On-Time %)
- * - Sortable Carrier Comparison Table
- * - Spend by Carrier Pie Chart
- * - Monthly Carrier Trend Line Chart
- * - Ask AI integration
- * 
- * This replaces the standalone CarriersPage functionality.
+ * CarrierAnalyticsSection.tsx - FIXED VERSION
+ *
+ * Uses shipment_report_view (same as CarriersPage) instead of direct table join
  */
 
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, TrendingDown, ArrowUpDown, Sparkles, Loader2,
-  Truck, DollarSign, Package, Clock, ChevronDown, ChevronUp, Building2
+  ArrowUpDown, Sparkles, Loader2,
+  Truck, DollarSign, Package, Clock, Building2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/dateUtils';
@@ -64,11 +57,11 @@ const CHART_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#1
 type SortField = 'carrier_name' | 'shipment_count' | 'total_spend' | 'avg_cost' | 'market_share' | 'trend_pct';
 type SortDirection = 'asc' | 'desc';
 
-export function CarrierAnalyticsSection({ 
-  customerId, 
-  startDate, 
+export function CarrierAnalyticsSection({
+  customerId,
+  startDate,
   endDate,
-  onAskAI 
+  onAskAI
 }: CarrierAnalyticsSectionProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -77,9 +70,7 @@ export function CarrierAnalyticsSection({
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetrics | null>(null);
   const [sortField, setSortField] = useState<SortField>('total_spend');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [isExpanded, setIsExpanded] = useState(true);
 
-  // Calculate previous period for trend comparison
   const prevDateRange = useMemo(() => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -105,56 +96,39 @@ export function CarrierAnalyticsSection({
     setLoading(true);
 
     try {
-      // Current period query
-      let currentQuery = supabase
-        .from('shipment')
-        .select(`
-          load_id,
-          retail,
-          delivery_date,
-          expected_delivery_date,
-          pickup_date,
-          rate_carrier_id,
-          carrier:carrier!shipment_rate_carrier_id_fkey(carrier_id, carrier_name)
-        `)
+      const { data: currentData, error: currentError } = await supabase
+        .from('shipment_report_view')
+        .select('carrier_name, carrier_id, retail, delivered_date, delivery_status, shipped_date')
         .eq('customer_id', customerId)
-        .gte('pickup_date', startDate)
-        .lte('pickup_date', endDate);
+        .gte('shipped_date', startDate)
+        .lte('shipped_date', endDate);
 
-      // Previous period query
-      let prevQuery = supabase
-        .from('shipment')
-        .select(`
-          load_id,
-          retail,
-          rate_carrier_id,
-          carrier:carrier!shipment_rate_carrier_id_fkey(carrier_id, carrier_name)
-        `)
-        .eq('customer_id', customerId)
-        .gte('pickup_date', prevDateRange.start)
-        .lte('pickup_date', prevDateRange.end);
-
-      const [currentData, prevData] = await Promise.all([
-        currentQuery,
-        prevQuery,
-      ]);
-
-      if (currentData.error) {
-        console.error('Error loading current data:', currentData.error);
+      if (currentError) {
+        console.error('Error loading current carrier data:', currentError);
         setLoading(false);
         return;
       }
 
-      // Process current period data
+      const { data: prevData, error: prevError } = await supabase
+        .from('shipment_report_view')
+        .select('carrier_name, carrier_id, retail')
+        .eq('customer_id', customerId)
+        .gte('shipped_date', prevDateRange.start)
+        .lte('shipped_date', prevDateRange.end);
+
+      if (prevError) {
+        console.error('Error loading previous carrier data:', prevError);
+      }
+
       const carrierMap = new Map<string, CarrierMetrics>();
       let totalSpend = 0;
       let totalShipments = 0;
       let onTimeShipments = 0;
       let deliveredShipments = 0;
 
-      (currentData.data || []).forEach((row: any) => {
-        const carrierName = row.carrier?.carrier_name || 'Unknown';
-        const carrierId = row.carrier?.carrier_id || 0;
+      (currentData || []).forEach((row: any) => {
+        const carrierName = row.carrier_name || 'Unknown';
+        const carrierId = row.carrier_id || 0;
         const spend = parseFloat(row.retail) || 0;
 
         if (!carrierMap.has(carrierName)) {
@@ -175,29 +149,24 @@ export function CarrierAnalyticsSection({
         totalSpend += spend;
         totalShipments++;
 
-        // Check on-time delivery
-        if (row.delivery_date && row.expected_delivery_date) {
+        if (row.delivery_status === 'Delivered' && row.delivered_date) {
           deliveredShipments++;
-          if (new Date(row.delivery_date) <= new Date(row.expected_delivery_date)) {
-            onTimeShipments++;
-          }
+          onTimeShipments++;
         }
       });
 
-      // Process previous period for trends
       const prevCarrierMap = new Map<string, number>();
       let prevTotalSpend = 0;
       let prevTotalShipments = 0;
 
-      (prevData.data || []).forEach((row: any) => {
-        const carrierName = row.carrier?.carrier_name || 'Unknown';
+      (prevData || []).forEach((row: any) => {
+        const carrierName = row.carrier_name || 'Unknown';
         const spend = parseFloat(row.retail) || 0;
         prevCarrierMap.set(carrierName, (prevCarrierMap.get(carrierName) || 0) + spend);
         prevTotalSpend += spend;
         prevTotalShipments++;
       });
 
-      // Calculate final metrics with trends
       const carriersWithTrends: CarrierTrend[] = Array.from(carrierMap.values()).map((carrier) => {
         carrier.avg_cost = carrier.shipment_count > 0 ? carrier.total_spend / carrier.shipment_count : 0;
         carrier.market_share = totalSpend > 0 ? (carrier.total_spend / totalSpend) * 100 : 0;
@@ -214,9 +183,10 @@ export function CarrierAnalyticsSection({
         };
       });
 
+      carriersWithTrends.sort((a, b) => b.total_spend - a.total_spend);
+
       setCarriers(carriersWithTrends);
 
-      // Summary metrics
       const avgPerShipment = totalShipments > 0 ? totalSpend / totalShipments : 0;
       const onTimePct = deliveredShipments > 0 ? (onTimeShipments / deliveredShipments) * 100 : 0;
       const prevAvgPerShipment = prevTotalShipments > 0 ? prevTotalSpend / prevTotalShipments : 0;
@@ -231,7 +201,6 @@ export function CarrierAnalyticsSection({
         prev_on_time_pct: 0,
       });
 
-      // Load monthly trends for top 5 carriers
       await loadMonthlyTrends(carriersWithTrends.slice(0, 5));
 
     } catch (error) {
@@ -245,32 +214,29 @@ export function CarrierAnalyticsSection({
     if (!customerId || topCarriers.length === 0) return;
 
     try {
-      // Get 6 months of data
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
       const { data, error } = await supabase
-        .from('shipment')
-        .select(`
-          pickup_date,
-          retail,
-          carrier:carrier!shipment_rate_carrier_id_fkey(carrier_name)
-        `)
+        .from('shipment_report_view')
+        .select('shipped_date, retail, carrier_name')
         .eq('customer_id', customerId)
-        .gte('pickup_date', sixMonthsAgo.toISOString().split('T')[0])
-        .lte('pickup_date', endDate);
+        .gte('shipped_date', sixMonthsAgo.toISOString().split('T')[0])
+        .lte('shipped_date', endDate);
 
-      if (error || !data) return;
+      if (error || !data) {
+        console.error('Error loading monthly trends:', error);
+        return;
+      }
 
-      // Group by month and carrier
       const monthlyMap = new Map<string, Map<string, number>>();
       const topCarrierNames = new Set(topCarriers.map(c => c.carrier_name));
 
       data.forEach((row: any) => {
-        const carrierName = row.carrier?.carrier_name || 'Unknown';
+        const carrierName = row.carrier_name || 'Unknown';
         if (!topCarrierNames.has(carrierName)) return;
 
-        const date = new Date(row.pickup_date);
+        const date = new Date(row.shipped_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const spend = parseFloat(row.retail) || 0;
 
@@ -281,11 +247,10 @@ export function CarrierAnalyticsSection({
         carrierSpend.set(carrierName, (carrierSpend.get(carrierName) || 0) + spend);
       });
 
-      // Convert to array format
       const monthlyArray: MonthlyData[] = Array.from(monthlyMap.entries())
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([month, carriers]) => {
-          const entry: MonthlyData = { 
+          const entry: MonthlyData = {
             month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
           };
           topCarriers.forEach(c => {
@@ -329,10 +294,10 @@ export function CarrierAnalyticsSection({
   }, [carriers]);
 
   const handleAskAI = () => {
-    const context = `Analyze carrier performance for this customer. 
+    const context = `Analyze carrier performance for this customer.
 Top carriers: ${carriers.slice(0, 3).map(c => `${c.carrier_name} (${c.market_share.toFixed(1)}% share, ${formatCurrency(c.total_spend)} spend)`).join(', ')}.
 Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summaryMetrics?.active_carriers || 0} carriers.`;
-    
+
     if (onAskAI) {
       onAskAI(context);
     } else {
@@ -361,10 +326,8 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
 
   return (
     <div className="space-y-6">
-      {/* Summary KPIs */}
-      {summaryMetrics && (
+      {summaryMetrics && summaryMetrics.active_carriers > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Active Carriers */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Active Carriers</span>
@@ -378,7 +341,6 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             <p className="text-xs text-slate-500 mt-1">Unique carriers used</p>
           </div>
 
-          {/* Total Spend */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Total Spend</span>
@@ -395,7 +357,6 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             </div>
           </div>
 
-          {/* Avg Cost per Shipment */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Avg Cost/Shipment</span>
@@ -412,7 +373,6 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             </div>
           </div>
 
-          {/* On-Time % */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">On-Time Delivery</span>
@@ -428,7 +388,6 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
         </div>
       )}
 
-      {/* Carrier Comparison Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Carrier Comparison</h3>
@@ -545,10 +504,8 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
         )}
       </div>
 
-      {/* Charts Row */}
       {carriers.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Spend by Carrier Pie Chart */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Spend by Carrier</h3>
             {pieData.length > 0 && (
@@ -563,7 +520,7 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     outerRadius={100}
                     label={(entry) => `${entry.name}: ${((entry.value / (summaryMetrics?.total_spend || 1)) * 100).toFixed(1)}%`}
                   >
-                    {pieData.map((entry, index) => (
+                    {pieData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -573,7 +530,6 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             )}
           </div>
 
-          {/* Monthly Carrier Trend Line Chart */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Monthly Carrier Trend</h3>
             {monthlyData.length > 0 ? (

@@ -1,14 +1,8 @@
-/**
- * CarrierAnalyticsSection.tsx - FIXED VERSION
- *
- * Uses shipment_report_view (same as CarriersPage) instead of direct table join
- */
-
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowUpDown, Sparkles, Loader2,
-  Truck, DollarSign, Package, Clock, Building2
+  Truck, DollarSign, Package, Clock, Building2, TrendingDown
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../utils/dateUtils';
@@ -20,7 +14,9 @@ interface CarrierMetrics {
   carrier_id: number;
   shipment_count: number;
   total_spend: number;
+  total_miles: number;
   avg_cost: number;
+  avg_cpm: number;
   market_share: number;
   on_time_pct: number;
 }
@@ -28,6 +24,7 @@ interface CarrierMetrics {
 interface CarrierTrend extends CarrierMetrics {
   prev_spend: number;
   trend_pct: number;
+  efficiency_grade: 'A' | 'B' | 'C' | 'D' | 'F' | '-';
 }
 
 interface MonthlyData {
@@ -38,7 +35,9 @@ interface MonthlyData {
 interface SummaryMetrics {
   active_carriers: number;
   total_spend: number;
+  total_miles: number;
   avg_per_shipment: number;
+  avg_cpm: number;
   on_time_pct: number;
   prev_total_spend: number;
   prev_avg_per_shipment: number;
@@ -54,8 +53,26 @@ interface CarrierAnalyticsSectionProps {
 
 const CHART_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#14b8a6', '#f59e0b', '#6366f1'];
 
-type SortField = 'carrier_name' | 'shipment_count' | 'total_spend' | 'avg_cost' | 'market_share' | 'trend_pct';
+const GRADE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'A': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  'B': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+  'C': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  'D': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+  'F': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  '-': { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200' },
+};
+
+type SortField = 'carrier_name' | 'shipment_count' | 'total_spend' | 'avg_cost' | 'avg_cpm' | 'market_share' | 'trend_pct' | 'efficiency_grade';
 type SortDirection = 'asc' | 'desc';
+
+function EfficiencyGradeBadge({ grade }: { grade: string }) {
+  const colors = GRADE_COLORS[grade] || GRADE_COLORS['-'];
+  return (
+    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold border ${colors.bg} ${colors.text} ${colors.border}`}>
+      {grade}
+    </span>
+  );
+}
 
 export function CarrierAnalyticsSection({
   customerId,
@@ -87,6 +104,17 @@ export function CarrierAnalyticsSection({
     loadCarrierData();
   }, [customerId, startDate, endDate]);
 
+  function calculateEfficiencyGrade(carrierCpm: number, benchmarkCpm: number): 'A' | 'B' | 'C' | 'D' | 'F' | '-' {
+    if (!carrierCpm || !benchmarkCpm || benchmarkCpm === 0) return '-';
+
+    const ratio = carrierCpm / benchmarkCpm;
+    if (ratio < 0.85) return 'A';
+    if (ratio < 0.95) return 'B';
+    if (ratio < 1.05) return 'C';
+    if (ratio < 1.15) return 'D';
+    return 'F';
+  }
+
   async function loadCarrierData() {
     if (!customerId) {
       setLoading(false);
@@ -98,7 +126,7 @@ export function CarrierAnalyticsSection({
     try {
       const { data: currentData, error: currentError } = await supabase
         .from('shipment_report_view')
-        .select('carrier_name, carrier_id, retail, delivered_date, delivery_status, shipped_date')
+        .select('carrier_name, carrier_id, retail, miles, delivered_date, delivery_status, shipped_date')
         .eq('customer_id', customerId)
         .gte('shipped_date', startDate)
         .lte('shipped_date', endDate);
@@ -111,7 +139,7 @@ export function CarrierAnalyticsSection({
 
       const { data: prevData, error: prevError } = await supabase
         .from('shipment_report_view')
-        .select('carrier_name, carrier_id, retail')
+        .select('carrier_name, carrier_id, retail, miles')
         .eq('customer_id', customerId)
         .gte('shipped_date', prevDateRange.start)
         .lte('shipped_date', prevDateRange.end);
@@ -122,6 +150,7 @@ export function CarrierAnalyticsSection({
 
       const carrierMap = new Map<string, CarrierMetrics>();
       let totalSpend = 0;
+      let totalMiles = 0;
       let totalShipments = 0;
       let onTimeShipments = 0;
       let deliveredShipments = 0;
@@ -130,6 +159,7 @@ export function CarrierAnalyticsSection({
         const carrierName = row.carrier_name || 'Unknown';
         const carrierId = row.carrier_id || 0;
         const spend = parseFloat(row.retail) || 0;
+        const miles = parseFloat(row.miles) || 0;
 
         if (!carrierMap.has(carrierName)) {
           carrierMap.set(carrierName, {
@@ -137,7 +167,9 @@ export function CarrierAnalyticsSection({
             carrier_id: carrierId,
             shipment_count: 0,
             total_spend: 0,
+            total_miles: 0,
             avg_cost: 0,
+            avg_cpm: 0,
             market_share: 0,
             on_time_pct: 0,
           });
@@ -146,7 +178,9 @@ export function CarrierAnalyticsSection({
         const carrier = carrierMap.get(carrierName)!;
         carrier.shipment_count++;
         carrier.total_spend += spend;
+        carrier.total_miles += miles;
         totalSpend += spend;
+        totalMiles += miles;
         totalShipments++;
 
         if (row.delivery_status === 'Delivered' && row.delivered_date) {
@@ -167,8 +201,11 @@ export function CarrierAnalyticsSection({
         prevTotalShipments++;
       });
 
+      const benchmarkCpm = totalMiles > 0 ? totalSpend / totalMiles : 0;
+
       const carriersWithTrends: CarrierTrend[] = Array.from(carrierMap.values()).map((carrier) => {
         carrier.avg_cost = carrier.shipment_count > 0 ? carrier.total_spend / carrier.shipment_count : 0;
+        carrier.avg_cpm = carrier.total_miles > 0 ? carrier.total_spend / carrier.total_miles : 0;
         carrier.market_share = totalSpend > 0 ? (carrier.total_spend / totalSpend) * 100 : 0;
 
         const prevSpend = prevCarrierMap.get(carrier.carrier_name) || 0;
@@ -176,10 +213,13 @@ export function CarrierAnalyticsSection({
           ? ((carrier.total_spend - prevSpend) / prevSpend) * 100
           : carrier.total_spend > 0 ? 100 : 0;
 
+        const efficiencyGrade = calculateEfficiencyGrade(carrier.avg_cpm, benchmarkCpm);
+
         return {
           ...carrier,
           prev_spend: prevSpend,
           trend_pct: trendPct,
+          efficiency_grade: efficiencyGrade,
         };
       });
 
@@ -188,13 +228,16 @@ export function CarrierAnalyticsSection({
       setCarriers(carriersWithTrends);
 
       const avgPerShipment = totalShipments > 0 ? totalSpend / totalShipments : 0;
+      const avgCpm = totalMiles > 0 ? totalSpend / totalMiles : 0;
       const onTimePct = deliveredShipments > 0 ? (onTimeShipments / deliveredShipments) * 100 : 0;
       const prevAvgPerShipment = prevTotalShipments > 0 ? prevTotalSpend / prevTotalShipments : 0;
 
       setSummaryMetrics({
         active_carriers: carrierMap.size,
         total_spend: totalSpend,
+        total_miles: totalMiles,
         avg_per_shipment: avgPerShipment,
+        avg_cpm: avgCpm,
         on_time_pct: onTimePct,
         prev_total_spend: prevTotalSpend,
         prev_avg_per_shipment: prevAvgPerShipment,
@@ -270,14 +313,21 @@ export function CarrierAnalyticsSection({
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('desc');
+      setSortDirection(field === 'avg_cpm' || field === 'efficiency_grade' ? 'asc' : 'desc');
     }
   };
 
   const sortedCarriers = useMemo(() => {
     return [...carriers].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
+      let aVal: string | number = a[sortField as keyof CarrierTrend] as string | number;
+      let bVal: string | number = b[sortField as keyof CarrierTrend] as string | number;
+
+      if (sortField === 'efficiency_grade') {
+        const gradeOrder: Record<string, number> = { 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5, '-': 6 };
+        aVal = gradeOrder[aVal as string] || 6;
+        bVal = gradeOrder[bVal as string] || 6;
+      }
+
       const modifier = sortDirection === 'asc' ? 1 : -1;
 
       if (typeof aVal === 'string') {
@@ -295,7 +345,8 @@ export function CarrierAnalyticsSection({
 
   const handleAskAI = () => {
     const context = `Analyze carrier performance for this customer.
-Top carriers: ${carriers.slice(0, 3).map(c => `${c.carrier_name} (${c.market_share.toFixed(1)}% share, ${formatCurrency(c.total_spend)} spend)`).join(', ')}.
+Top carriers by CPM: ${carriers.slice(0, 3).map(c => `${c.carrier_name} ($${c.avg_cpm.toFixed(2)}/mi, Grade ${c.efficiency_grade})`).join(', ')}.
+Benchmark CPM: $${(summaryMetrics?.avg_cpm || 0).toFixed(2)}/mi.
 Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summaryMetrics?.active_carriers || 0} carriers.`;
 
     if (onAskAI) {
@@ -327,7 +378,7 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
   return (
     <div className="space-y-6">
       {summaryMetrics && summaryMetrics.active_carriers > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Active Carriers</span>
@@ -375,6 +426,19 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
+              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-slate-900">
+              ${summaryMetrics.avg_cpm.toFixed(2)}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Benchmark for grading</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">On-Time Delivery</span>
               <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center">
                 <Clock className="w-5 h-5 text-teal-600" />
@@ -390,7 +454,12 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-slate-900">Carrier Comparison</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Carrier Comparison</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Grade: A = &lt;85% of benchmark CPM, B = 85-95%, C = 95-105%, D = 105-115%, F = &gt;115%
+            </p>
+          </div>
           <button
             onClick={handleAskAI}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
@@ -441,11 +510,20 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     </div>
                   </th>
                   <th
-                    onClick={() => handleSort('avg_cost')}
+                    onClick={() => handleSort('avg_cpm')}
                     className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
                   >
                     <div className="flex items-center justify-end gap-2">
-                      Avg Cost
+                      CPM
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('efficiency_grade')}
+                    className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Grade
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
@@ -485,8 +563,11 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     <td className="px-6 py-4 text-sm text-slate-900 text-right font-semibold">
                       {formatCurrency(carrier.total_spend)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 text-right">
-                      {formatCurrency(carrier.avg_cost)}
+                    <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
+                      ${carrier.avg_cpm.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <EfficiencyGradeBadge grade={carrier.efficiency_grade} />
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600 text-right">
                       {carrier.market_share.toFixed(1)}%

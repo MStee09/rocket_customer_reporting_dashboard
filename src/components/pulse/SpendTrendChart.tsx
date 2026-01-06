@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, DollarSign, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
@@ -41,9 +41,10 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
         if (error) {
           console.error('Error loading spend trend:', error);
           setData([]);
-          setTotalSpend(0);
-          setSpendChange(0);
-        } else if (trendData && trendData.length > 0) {
+          return;
+        }
+
+        if (trendData && trendData.length > 0) {
           setData(trendData);
           const total = trendData.reduce((sum: number, d: DailySpend) => sum + Number(d.spend), 0);
           setTotalSpend(total);
@@ -57,8 +58,6 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
           }
         } else {
           setData([]);
-          setTotalSpend(0);
-          setSpendChange(0);
         }
       } catch (err) {
         console.error('Error:', err);
@@ -68,7 +67,9 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
       }
     }
 
-    loadTrendData();
+    if (customerId) {
+      loadTrendData();
+    }
   }, [customerId, startDate, endDate]);
 
   const chartData = useMemo(() => {
@@ -81,16 +82,24 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <div className="h-4 bg-slate-100 rounded animate-pulse w-32 mb-4" />
-        <div className="h-48 bg-slate-50 rounded animate-pulse" />
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-slate-100 rounded-xl animate-pulse" />
+          <div>
+            <div className="h-5 bg-slate-100 rounded w-28 mb-1 animate-pulse" />
+            <div className="h-4 bg-slate-100 rounded w-24 animate-pulse" />
+          </div>
+        </div>
+        <div className="h-48 bg-slate-50 rounded-xl animate-pulse" />
       </div>
     );
   }
 
-  if (data.length === 0) {
+  const hasData = data.length > 0 && data.some(d => Number(d.spend) > 0);
+
+  if (!hasData) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
             <DollarSign className="w-5 h-5 text-emerald-600" />
@@ -100,8 +109,8 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
             <p className="text-sm text-slate-500">Daily freight spend</p>
           </div>
         </div>
-        <div className="h-48 flex items-center justify-center text-slate-500">
-          No spend data available for this period
+        <div className="h-48 flex items-center justify-center text-slate-400 bg-slate-50 rounded-xl">
+          No spend data for this period
         </div>
       </div>
     );
@@ -111,7 +120,7 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
   const trendColor = spendChange > 1 ? 'text-red-500' : spendChange < -1 ? 'text-emerald-600' : 'text-slate-500';
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
@@ -126,11 +135,20 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
           <div className="text-2xl font-bold text-slate-900">
             {formatCurrency(totalSpend)}
           </div>
-          <div className={`flex items-center gap-1 justify-end ${trendColor}`}>
-            <TrendIcon className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              {spendChange > 0 ? '+' : ''}{spendChange.toFixed(1)}% vs prior
-            </span>
+          <div className="flex items-center gap-1.5 justify-end mt-1">
+            {Math.abs(spendChange) < 1 ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-medium text-emerald-600">Stable</span>
+              </>
+            ) : (
+              <>
+                <TrendIcon className={`w-4 h-4 ${trendColor}`} />
+                <span className={`text-sm font-medium ${trendColor}`}>
+                  {spendChange > 0 ? '+' : ''}{spendChange.toFixed(1)}%
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -140,7 +158,7 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
           <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.15} />
                 <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
               </linearGradient>
             </defs>
@@ -156,7 +174,7 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
               tickLine={false}
               tick={{ fontSize: 11, fill: '#94A3B8' }}
               tickFormatter={(value) => formatCurrency(value)}
-              width={60}
+              width={55}
             />
             <Tooltip
               contentStyle={{
@@ -164,9 +182,10 @@ export function SpendTrendChart({ customerId, startDate, endDate }: SpendTrendCh
                 border: 'none',
                 borderRadius: '8px',
                 color: '#F8FAFC',
+                fontSize: '13px',
               }}
               formatter={(value: number) => [formatCurrency(value), 'Spend']}
-              labelFormatter={(label) => `Date: ${label}`}
+              labelFormatter={(label) => label}
             />
             <Area
               type="monotone"

@@ -8,7 +8,6 @@ import { AnalyticsHubPage } from './pages/AnalyticsHubPage';
 import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
-import { CarriersPage } from './pages/CarriersPage';
 import { AIReportStudioPage } from './pages/AIReportStudioPage';
 import { ReportsHubPage } from './pages/ReportsHubPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
@@ -98,7 +97,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="carriers" element={<CarriersPage />} />
+              <Route path="carriers" element={<Navigate to="/analytics" replace />} />
 
               {/* AI Studio - primary route */}
               <Route path="ai-studio" element={<AIReportStudioPage />} />

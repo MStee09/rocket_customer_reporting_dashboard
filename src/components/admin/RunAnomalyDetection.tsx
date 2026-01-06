@@ -3,7 +3,7 @@ import { Play, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface RunAnomalyDetectionProps {
-  customerId?: string;
+  customerId?: number | string;
 }
 
 export function RunAnomalyDetection({ customerId }: RunAnomalyDetectionProps) {
@@ -16,8 +16,9 @@ export function RunAnomalyDetection({ customerId }: RunAnomalyDetectionProps) {
 
     try {
       if (customerId) {
+        const customerIdNum = typeof customerId === 'string' ? parseInt(customerId, 10) : customerId;
         const { data, error } = await supabase.rpc('run_anomaly_detection', {
-          p_customer_id: customerId
+          p_customer_id: customerIdNum
         });
 
         if (error) throw error;

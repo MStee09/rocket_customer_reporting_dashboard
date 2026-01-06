@@ -54,7 +54,7 @@ export function AnalyticsPage() {
         <h3 className="font-semibold text-slate-900 mb-2">Pro Tip</h3>
         <p className="text-slate-600">
           Use the <strong>AI Report Studio</strong> to describe what you need in plain English.
-          Claude will build visualizations, tables, and insights automatically.
+          The AI will build visualizations, tables, and insights automatically.
           Or use the <strong>Custom Builder</strong> for precise control over columns and groupings.
         </p>
       </div>

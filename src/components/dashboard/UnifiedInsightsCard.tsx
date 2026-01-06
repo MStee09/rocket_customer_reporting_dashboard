@@ -379,7 +379,7 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
             </div>
             <div>
               <h3 className="font-semibold">AI Insights</h3>
-              <p className="text-sm text-slate-400">Powered by Claude</p>
+              <p className="text-sm text-slate-400">AI-powered analytics</p>
             </div>
           </div>
           <button onClick={handleRefresh} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">

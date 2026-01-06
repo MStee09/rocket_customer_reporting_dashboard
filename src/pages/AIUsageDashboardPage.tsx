@@ -734,11 +734,11 @@ export function AIUsageDashboardPage() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="bg-white rounded-lg p-4 border border-slate-200">
-            <div className="text-slate-500 mb-1">Claude Sonnet 4 - Input</div>
+            <div className="text-slate-500 mb-1">AI Model - Input</div>
             <div className="text-xl font-semibold text-slate-900">$3.00 / MTok</div>
           </div>
           <div className="bg-white rounded-lg p-4 border border-slate-200">
-            <div className="text-slate-500 mb-1">Claude Sonnet 4 - Output</div>
+            <div className="text-slate-500 mb-1">AI Model - Output</div>
             <div className="text-xl font-semibold text-slate-900">$15.00 / MTok</div>
           </div>
           <div className="bg-white rounded-lg p-4 border border-slate-200">

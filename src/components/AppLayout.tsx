@@ -35,21 +35,30 @@ export function AppLayout() {
         }`}
       >
         {isImpersonating && impersonatingCustomer && (
-          <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-3 shadow-lg z-[100]">
-            <div className="flex items-center justify-center gap-3">
-              <AlertTriangle className="w-5 h-5 animate-pulse" />
+          <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white px-4 py-3 shadow-2xl z-[100]">
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 20px)'
+              }}
+            />
+            <div className="relative flex items-center justify-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full">
+                <AlertTriangle className="w-5 h-5 animate-pulse" />
+                <span className="font-black text-sm uppercase tracking-wide">Impersonation Mode</span>
+              </div>
               <span className="font-bold text-lg">
-                IMPERSONATING: {impersonatingCustomer.company_name}
+                {impersonatingCustomer.company_name}
               </span>
-              <span className="text-red-100 text-sm hidden sm:inline mx-2">
-                — Actions you take will affect customer data
+              <span className="text-red-200 text-sm hidden sm:inline mx-2">
+                - Actions affect customer data
               </span>
               <button
                 onClick={() => setShowExitConfirm(true)}
-                className="flex items-center gap-1.5 bg-white text-red-600 px-4 py-1.5 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold ml-4 shadow-md"
+                className="flex items-center gap-1.5 bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold ml-4 shadow-lg animate-pulse"
               >
                 <X className="w-4 h-4" />
-                Exit Impersonation
+                Exit Now
               </button>
             </div>
           </div>
@@ -62,7 +71,7 @@ export function AppLayout() {
               Viewing data for: {viewingCustomer.company_name}
             </span>
             <span className="text-blue-200 text-sm hidden sm:inline">
-              — Admin tools still available
+              - Admin tools still available
             </span>
             <button
               onClick={() => setViewingAsCustomerId(null)}

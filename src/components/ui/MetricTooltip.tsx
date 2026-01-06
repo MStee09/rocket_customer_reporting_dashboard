@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Info, ExternalLink, Calculator, CheckCircle2, XCircle } from 'lucide-react';
+import { Info, ExternalLink, Calculator, CheckCircle2, XCircle, Database, Calendar } from 'lucide-react';
 
 export interface MetricDefinition {
   name: string;
@@ -12,13 +12,87 @@ export interface MetricDefinition {
   drillDownLabel?: string;
 }
 
-interface MetricTooltipProps {
+export type MetricId = 'total_shipments' | 'total_spend' | 'on_time_percentage' | 'active_carriers' | 'avg_cost_per_shipment' | 'avg_transit_days';
+
+const METRIC_REGISTRY: Record<MetricId, MetricDefinition> = {
+  total_shipments: {
+    name: 'Total Shipments',
+    description: 'The count of all shipments created during the selected time period.',
+    formula: 'COUNT(shipments)',
+    includes: ['All shipment statuses', 'All modes (LTL, FTL, Parcel)'],
+    excludes: ['Cancelled shipments', 'Test shipments'],
+    drillDownPath: '/shipments',
+    drillDownLabel: 'View all shipments',
+  },
+  total_spend: {
+    name: 'Total Spend',
+    description: 'The sum of all shipping costs (retail rates) during the selected time period.',
+    formula: 'SUM(retail)',
+    includes: ['Base rates', 'Accessorial charges', 'Fuel surcharges'],
+    excludes: ['Disputed charges', 'Credits/refunds'],
+    drillDownPath: '/analytics',
+    drillDownLabel: 'View cost breakdown',
+  },
+  on_time_percentage: {
+    name: 'On-Time Delivery %',
+    description: 'The percentage of shipments delivered on or before the scheduled delivery date.',
+    formula: '(On-Time Deliveries / Total Deliveries) x 100',
+    includes: ['Delivered shipments only'],
+    excludes: ['In-transit shipments', 'Shipments without delivery date'],
+    drillDownPath: '/analytics',
+    drillDownLabel: 'View delivery performance',
+  },
+  active_carriers: {
+    name: 'Active Carriers',
+    description: 'The number of unique carriers that handled shipments during the selected time period.',
+    formula: 'COUNT(DISTINCT carrier_id)',
+    includes: ['All carriers with at least 1 shipment'],
+    drillDownPath: '/analytics',
+    drillDownLabel: 'View carrier analytics',
+  },
+  avg_cost_per_shipment: {
+    name: 'Avg Cost per Shipment',
+    description: 'The average shipping cost across all shipments in the period.',
+    formula: 'Total Spend / Total Shipments',
+    includes: ['All shipped orders'],
+    excludes: ['Cancelled shipments'],
+  },
+  avg_transit_days: {
+    name: 'Avg Transit Days',
+    description: 'The average number of days between ship date and delivery date.',
+    formula: 'AVG(delivered_date - shipped_date)',
+    includes: ['Delivered shipments only'],
+    excludes: ['Shipments without delivery date'],
+  },
+};
+
+interface MetricTooltipPropsWithMetric {
   metric: MetricDefinition;
+  metricId?: never;
+  period?: never;
+  recordCount?: never;
   children: ReactNode;
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-export function MetricTooltip({ metric, children, position = 'bottom' }: MetricTooltipProps) {
+interface MetricTooltipPropsWithId {
+  metric?: never;
+  metricId: MetricId;
+  period?: string;
+  recordCount?: number;
+  children: ReactNode;
+  position?: 'top' | 'bottom' | 'left' | 'right';
+}
+
+type MetricTooltipProps = MetricTooltipPropsWithMetric | MetricTooltipPropsWithId;
+
+export function MetricTooltip(props: MetricTooltipProps) {
+  const { children, position = 'bottom' } = props;
+
+  const metric = props.metricId ? METRIC_REGISTRY[props.metricId] : props.metric;
+  const period = 'period' in props ? props.period : undefined;
+  const recordCount = 'recordCount' in props ? props.recordCount : undefined;
+
   const [isOpen, setIsOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -105,6 +179,8 @@ export function MetricTooltip({ metric, children, position = 'bottom' }: MetricT
     setIsOpen(false);
   };
 
+  if (!metric) return <>{children}</>;
+
   return (
     <>
       <div
@@ -127,6 +203,12 @@ export function MetricTooltip({ metric, children, position = 'bottom' }: MetricT
         >
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
             <h4 className="font-semibold text-slate-900">{metric.name}</h4>
+            {period && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                <Calendar className="w-3 h-3" />
+                <span>{period}</span>
+              </div>
+            )}
           </div>
 
           <div className="px-4 py-3 space-y-3">
@@ -138,6 +220,16 @@ export function MetricTooltip({ metric, children, position = 'bottom' }: MetricT
                 <div>
                   <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Formula</span>
                   <p className="text-sm text-slate-700 font-mono mt-0.5">{metric.formula}</p>
+                </div>
+              </div>
+            )}
+
+            {recordCount !== undefined && recordCount > 0 && (
+              <div className="flex items-center gap-2 p-2.5 bg-blue-50 rounded-lg">
+                <Database className="w-4 h-4 text-blue-500 shrink-0" />
+                <div className="text-sm">
+                  <span className="text-blue-700 font-medium">{recordCount.toLocaleString()}</span>
+                  <span className="text-blue-600 ml-1">records included</span>
                 </div>
               </div>
             )}
@@ -187,55 +279,12 @@ export function MetricTooltip({ metric, children, position = 'bottom' }: MetricT
 }
 
 export const METRIC_DEFINITIONS: Record<string, MetricDefinition> = {
-  totalShipments: {
-    name: 'Total Shipments',
-    description: 'The count of all shipments created during the selected time period.',
-    formula: 'COUNT(shipments)',
-    includes: ['All shipment statuses', 'All modes (LTL, FTL, Parcel)'],
-    excludes: ['Cancelled shipments', 'Test shipments'],
-    drillDownPath: '/shipments',
-    drillDownLabel: 'View all shipments',
-  },
-  totalSpend: {
-    name: 'Total Spend',
-    description: 'The sum of all shipping costs (retail rates) during the selected time period.',
-    formula: 'SUM(retail)',
-    includes: ['Base rates', 'Accessorial charges', 'Fuel surcharges'],
-    excludes: ['Disputed charges', 'Credits/refunds'],
-    drillDownPath: '/analytics',
-    drillDownLabel: 'View cost breakdown',
-  },
-  onTimePercentage: {
-    name: 'On-Time Delivery %',
-    description: 'The percentage of shipments delivered on or before the scheduled delivery date.',
-    formula: '(On-Time Deliveries / Total Deliveries) x 100',
-    includes: ['Delivered shipments only'],
-    excludes: ['In-transit shipments', 'Shipments without delivery date'],
-    drillDownPath: '/analytics',
-    drillDownLabel: 'View delivery performance',
-  },
-  activeCarriers: {
-    name: 'Active Carriers',
-    description: 'The number of unique carriers that handled shipments during the selected time period.',
-    formula: 'COUNT(DISTINCT carrier_id)',
-    includes: ['All carriers with at least 1 shipment'],
-    drillDownPath: '/analytics',
-    drillDownLabel: 'View carrier analytics',
-  },
-  avgCostPerShipment: {
-    name: 'Avg Cost per Shipment',
-    description: 'The average shipping cost across all shipments in the period.',
-    formula: 'Total Spend / Total Shipments',
-    includes: ['All shipped orders'],
-    excludes: ['Cancelled shipments'],
-  },
-  avgTransitDays: {
-    name: 'Avg Transit Days',
-    description: 'The average number of days between ship date and delivery date.',
-    formula: 'AVG(delivered_date - shipped_date)',
-    includes: ['Delivered shipments only'],
-    excludes: ['Shipments without delivery date'],
-  },
+  totalShipments: METRIC_REGISTRY.total_shipments,
+  totalSpend: METRIC_REGISTRY.total_spend,
+  onTimePercentage: METRIC_REGISTRY.on_time_percentage,
+  activeCarriers: METRIC_REGISTRY.active_carriers,
+  avgCostPerShipment: METRIC_REGISTRY.avg_cost_per_shipment,
+  avgTransitDays: METRIC_REGISTRY.avg_transit_days,
 };
 
 export function getMetricDefinition(key: string): MetricDefinition | undefined {

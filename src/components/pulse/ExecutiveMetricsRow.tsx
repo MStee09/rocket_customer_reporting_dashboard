@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Package, DollarSign, Clock, Truck, ArrowUpRight, ArrowDownRight, Minus, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { MetricTooltip } from '../ui/MetricTooltip';
+import type { MetricId } from '../ui/MetricTooltip';
 
 interface ExecutiveMetricsRowProps {
   customerId: string;
@@ -52,10 +54,24 @@ function StatusIndicator({ value, threshold, label }: { value: number; threshold
   );
 }
 
+function formatPeriod(startDate: string, endDate: string): string {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 7) return 'Last 7 days';
+  if (diffDays <= 30) return 'Last 30 days';
+  if (diffDays <= 90) return 'Last 90 days';
+
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
 export function ExecutiveMetricsRow({ customerId, startDate, endDate }: ExecutiveMetricsRowProps) {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const period = formatPeriod(startDate, endDate);
 
   useEffect(() => {
     async function loadMetrics() {
@@ -108,11 +124,11 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
   }
 
   if (error || !metrics) {
-    const emptyKpis = [
-      { icon: Package, label: 'Total Shipments', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-      { icon: DollarSign, label: 'Total Spend', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-      { icon: Clock, label: 'On-Time %', iconBg: 'bg-teal-100', iconColor: 'text-teal-600' },
-      { icon: Truck, label: 'Active Carriers', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-600' },
+    const emptyKpis: { icon: typeof Package; label: string; iconBg: string; iconColor: string; metricId: MetricId }[] = [
+      { icon: Package, label: 'Total Shipments', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', metricId: 'total_shipments' },
+      { icon: DollarSign, label: 'Total Spend', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', metricId: 'total_spend' },
+      { icon: Clock, label: 'On-Time %', iconBg: 'bg-teal-100', iconColor: 'text-teal-600', metricId: 'on_time_percentage' },
+      { icon: Truck, label: 'Active Carriers', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-600', metricId: 'active_carriers' },
     ];
 
     return (
@@ -125,7 +141,9 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
                 <div className={`w-10 h-10 rounded-xl ${kpi.iconBg} flex items-center justify-center`}>
                   <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                 </div>
-                <span className="text-sm font-medium text-slate-600">{kpi.label}</span>
+                <MetricTooltip metricId={kpi.metricId} period={period}>
+                  <span className="text-sm font-medium text-slate-600">{kpi.label}</span>
+                </MetricTooltip>
               </div>
               <div className="text-3xl font-bold text-slate-300 mb-3">--</div>
               <div className="text-xs text-slate-400">No data for this period</div>
@@ -142,7 +160,19 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
     return `$${Math.round(value).toLocaleString()}`;
   };
 
-  const kpis = [
+  const kpis: {
+    label: string;
+    value: string;
+    icon: typeof Package;
+    iconBg: string;
+    iconColor: string;
+    trend: number;
+    inverse: boolean;
+    metricId: MetricId;
+    recordCount?: number;
+    statusThreshold?: number;
+    showStable?: boolean;
+  }[] = [
     {
       label: 'Total Shipments',
       value: metrics.totalShipments.toLocaleString(),
@@ -151,6 +181,8 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
       iconColor: 'text-blue-600',
       trend: metrics.shipmentsChange,
       inverse: false,
+      metricId: 'total_shipments',
+      recordCount: metrics.totalShipments,
     },
     {
       label: 'Total Spend',
@@ -160,6 +192,8 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
       iconColor: 'text-emerald-600',
       trend: metrics.spendChange,
       inverse: true,
+      metricId: 'total_spend',
+      recordCount: metrics.totalShipments,
     },
     {
       label: 'On-Time %',
@@ -170,6 +204,8 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
       trend: metrics.onTimeChange,
       inverse: false,
       statusThreshold: 90,
+      metricId: 'on_time_percentage',
+      recordCount: metrics.totalShipments,
     },
     {
       label: 'Active Carriers',
@@ -180,6 +216,7 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
       trend: 0,
       inverse: false,
       showStable: true,
+      metricId: 'active_carriers',
     },
   ];
 
@@ -196,7 +233,13 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
               <div className={`w-10 h-10 rounded-xl ${kpi.iconBg} flex items-center justify-center`}>
                 <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
               </div>
-              <span className="text-sm font-medium text-slate-600">{kpi.label}</span>
+              <MetricTooltip
+                metricId={kpi.metricId}
+                period={period}
+                recordCount={kpi.recordCount}
+              >
+                <span className="text-sm font-medium text-slate-600">{kpi.label}</span>
+              </MetricTooltip>
             </div>
             <div className="text-3xl font-bold text-slate-900 mb-3">{kpi.value}</div>
             {kpi.showStable ? (

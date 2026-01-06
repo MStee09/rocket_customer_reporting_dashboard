@@ -88,9 +88,6 @@ export function PulseDashboardPage() {
           />
 
           <div className="space-y-6 mt-6">
-            {customerId && (
-              <QuickActions customerId={customerId.toString()} />
-            )}
             {effectiveCustomerId && (
               <UnifiedInsightsCard
                 customerId={effectiveCustomerId}
@@ -100,6 +97,10 @@ export function PulseDashboardPage() {
                   end: new Date(endDate),
                 }}
               />
+            )}
+
+            {customerId && (
+              <QuickActions customerId={customerId.toString()} />
             )}
 
             {effectiveCustomerId && (

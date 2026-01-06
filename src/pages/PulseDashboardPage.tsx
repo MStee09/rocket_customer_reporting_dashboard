@@ -5,16 +5,30 @@ import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import {
   PulseHeader,
-  ExploreAnalyticsCTA,
   ExecutiveMetricsRow,
   SpendTrendChart,
   TopCarriersCompact,
+  RecentActivityFeed,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
 import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import type { Anomaly } from '../hooks/useAnomalies';
+
+interface ActivityItem {
+  id: string;
+  type: 'shipment' | 'delivery' | 'pickup' | 'alert';
+  title: string;
+  description: string;
+  timestamp: Date;
+  icon: 'package' | 'truck' | 'check' | 'alert';
+  metadata?: {
+    loadId?: string;
+    carrierName?: string;
+    status?: string;
+  };
+}
 
 export function PulseDashboardPage() {
   const navigate = useNavigate();
@@ -49,8 +63,12 @@ export function PulseDashboardPage() {
     navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
   }, [navigate]);
 
-  const handleExploreAnalytics = useCallback(() => {
-    navigate('/analytics');
+  const handleActivityClick = useCallback((item: ActivityItem) => {
+    if (item.metadata?.loadId) {
+      navigate(`/shipments/${item.metadata.loadId}`);
+    } else if (item.type === 'alert') {
+      navigate('/ai-studio?query=' + encodeURIComponent(`Investigate alert: ${item.title}`));
+    }
   }, [navigate]);
 
   if (showAdminDashboard) {
@@ -110,7 +128,13 @@ export function PulseDashboardPage() {
               </div>
             )}
 
-            <ExploreAnalyticsCTA onClick={handleExploreAnalytics} />
+            {customerId && (
+              <RecentActivityFeed
+                customerId={customerId.toString()}
+                maxItems={5}
+                onViewDetails={handleActivityClick}
+              />
+            )}
           </div>
         </div>
       </div>

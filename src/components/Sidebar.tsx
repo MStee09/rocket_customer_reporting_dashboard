@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Truck, Users, Building2, FileText, X, UserCog, Settings, BookOpen, Search, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Eye, Activity, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, FileText, X, UserCog, Settings, BookOpen, Sparkles, LucideIcon, Bookmark, ChevronDown, Pin, HelpCircle, Eye, Activity, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -48,12 +48,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Pulse' },
-    { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { to: '/analytics', icon: BarChart3, label: 'Analytics Hub' },
     {
-      to: '/analyze',
-      icon: Search,
-      label: 'Analyze',
-      matchPaths: ['/analyze', '/ai-studio', '/custom-reports', '/create']
+      to: '/ai-studio',
+      icon: Sparkles,
+      label: 'AI Studio',
+      matchPaths: ['/ai-studio', '/analyze', '/custom-reports', '/create']
     },
     {
       to: '/reports',
@@ -61,7 +61,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       label: 'Reports',
       matchPaths: ['/reports', '/scheduled-reports', '/ai-reports']
     },
-    { to: '/carriers', icon: Building2, label: 'Carriers' },
   ];
 
   const detailNavItems: NavItem[] = [

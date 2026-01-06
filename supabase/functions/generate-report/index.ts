@@ -8,6 +8,7 @@ import { RateLimitService, createRateLimitResponse } from "./services/rateLimit.
 import { ContextService } from "./services/contextService.ts";
 import { ToolExecutor, LearningExtraction as ToolLearning } from "./services/toolExecutor.ts";
 import { maybeSummarizeConversation } from "./services/summarizationService.ts";
+import { processAIResponse } from "./services/outputValidation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1147,19 +1148,31 @@ Deno.serve(async (req: Request) => {
         });
       } catch (e) { console.error("Audit error:", e); }
 
+      const messageToValidate = needsClarification ? clarificationQuestion : finalMessage;
+      const messageValidation = processAIResponse(
+        messageToValidate,
+        isAdmin,
+        { logViolations: true }
+      );
+
       const inputCost = totalInputTokens * 0.000003;
       const outputCost = totalOutputTokens * 0.000015;
       const totalCost = inputCost + outputCost;
 
       return new Response(JSON.stringify({
         report: finalReport,
-        message: needsClarification ? clarificationQuestion : finalMessage,
+        message: messageValidation.message,
         toolExecutions,
         learnings: learnings.length > 0 ? learnings : undefined,
         needsClarification,
         clarificationOptions,
         summarized: summarizationResult.summarized,
         tokensSaved: summarizationResult.tokensSaved,
+        outputValidation: messageValidation.wasModified ? {
+          wasModified: true,
+          severity: messageValidation.validation.severity,
+          warnings: messageValidation.validation.warnings
+        } : undefined,
         usage: {
           inputTokens: totalInputTokens,
           outputTokens: totalOutputTokens,
@@ -1254,17 +1267,29 @@ Deno.serve(async (req: Request) => {
       .replace(/<learning_flag>[\s\S]*?<\/learning_flag>/g, "")
       .trim();
 
+    const messageToValidate = cleanMessage || (parsedReport ? "Report generated" : responseText);
+    const messageValidation = processAIResponse(
+      messageToValidate,
+      isAdmin,
+      { logViolations: true }
+    );
+
     const inputCost = response.usage.input_tokens * 0.000003;
     const outputCost = response.usage.output_tokens * 0.000015;
     const totalCost = inputCost + outputCost;
 
     return new Response(JSON.stringify({
       report: parsedReport,
-      message: cleanMessage || (parsedReport ? "Report generated" : responseText),
+      message: messageValidation.message,
       learnings: learnings.length > 0 ? learnings : undefined,
       toolExecutions: [],
       summarized: summarizationResult.summarized,
       tokensSaved: summarizationResult.tokensSaved,
+      outputValidation: messageValidation.wasModified ? {
+        wasModified: true,
+        severity: messageValidation.validation.severity,
+        warnings: messageValidation.validation.warnings
+      } : undefined,
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

@@ -37,7 +37,7 @@ export function AppLayout() {
         {isImpersonating && impersonatingCustomer && (
           <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white px-4 py-3 shadow-2xl z-[100]">
             <div
-              className="absolute inset-0 opacity-10"
+              className="absolute inset-0 opacity-10 pointer-events-none"
               style={{
                 backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 20px)'
               }}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useSavedViews } from '../hooks/useSavedViews';
@@ -8,6 +8,7 @@ import { SaveViewModal } from '../components/shipments/SaveViewModal';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { ShipmentsToolbar } from '../components/shipments/ShipmentsToolbar';
 import { ShipmentRow } from '../components/shipments/ShipmentRow';
+import { ShipmentsFilterPanel, FilterState, defaultFilters } from '../components/shipments/ShipmentsFilterPanel';
 import { ColumnConfig } from '../services/exportService';
 
 interface Shipment {
@@ -78,8 +79,16 @@ export function ShipmentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
 
-  const hasActiveFilters = searchQuery.trim() !== '';
+  const hasActiveFilters = searchQuery.trim() !== '' ||
+    filters.statuses.length > 0 ||
+    filters.carriers.length > 0 ||
+    filters.modes.length > 0 ||
+    filters.originStates.length > 0 ||
+    filters.destStates.length > 0 ||
+    filters.dateRange !== null;
 
   useEffect(() => {
     const savedView = location.state?.savedView;
@@ -272,27 +281,63 @@ export function ShipmentsPage() {
   }, [isAdmin, isViewingAsCustomer]);
 
   const filteredShipments = useMemo(() => {
-    if (!searchQuery) return shipments;
+    let result = shipments;
 
-    return shipments.filter((s) => {
+    if (filters.statuses.length > 0) {
+      result = result.filter(s => {
+        const status = s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status;
+        return filters.statuses.includes(status);
+      });
+    }
+
+    if (filters.carriers.length > 0) {
+      result = result.filter(s => filters.carriers.includes(s.carrier_name));
+    }
+
+    if (filters.modes.length > 0) {
+      result = result.filter(s => filters.modes.includes(s.mode_name));
+    }
+
+    if (filters.originStates.length > 0) {
+      result = result.filter(s => filters.originStates.includes(s.origin_state));
+    }
+
+    if (filters.destStates.length > 0) {
+      result = result.filter(s => filters.destStates.includes(s.destination_state));
+    }
+
+    if (filters.dateRange) {
+      result = result.filter(s => {
+        if (!s.pickup_date) return false;
+        const pickupDate = s.pickup_date.substring(0, 10);
+        return (!filters.dateRange!.start || pickupDate >= filters.dateRange!.start) &&
+               (!filters.dateRange!.end || pickupDate <= filters.dateRange!.end);
+      });
+    }
+
+    if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
       const searchTerms = query.split(/\s+/).filter(Boolean);
 
-      const statusKey = s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status;
+      result = result.filter((s) => {
+        const statusKey = s.is_cancelled ? 'Cancelled' : s.is_completed ? 'Completed' : s.status;
 
-      const searchableFields = [
-        s.load_id.toString(), s.pro_number, s.po_reference, s.bol_number, s.reference_number,
-        s.origin_city, s.origin_state, s.origin_company,
-        s.destination_city, s.destination_state, s.destination_company,
-        s.carrier_name, s.mode_name, statusKey,
-        s.origin_city && s.origin_state ? `${s.origin_city}, ${s.origin_state}` : null,
-        s.destination_city && s.destination_state ? `${s.destination_city}, ${s.destination_state}` : null,
-      ].filter(Boolean).map(f => f!.toLowerCase());
+        const searchableFields = [
+          s.load_id.toString(), s.pro_number, s.po_reference, s.bol_number, s.reference_number,
+          s.origin_city, s.origin_state, s.origin_company,
+          s.destination_city, s.destination_state, s.destination_company,
+          s.carrier_name, s.mode_name, statusKey,
+          s.origin_city && s.origin_state ? `${s.origin_city}, ${s.origin_state}` : null,
+          s.destination_city && s.destination_state ? `${s.destination_city}, ${s.destination_state}` : null,
+        ].filter(Boolean).map(f => f!.toLowerCase());
 
-      const combinedText = searchableFields.join(' ');
-      return searchTerms.every(term => combinedText.includes(term));
-    });
-  }, [shipments, searchQuery]);
+        const combinedText = searchableFields.join(' ');
+        return searchTerms.every(term => combinedText.includes(term));
+      });
+    }
+
+    return result;
+  }, [shipments, searchQuery, filters]);
 
   const shipmentExportData = useMemo(() => {
     return filteredShipments.map(s => ({
@@ -349,16 +394,34 @@ export function ShipmentsPage() {
         <p className="text-gray-500 mt-1">Track and manage your shipments</p>
       </div>
 
-      <ShipmentsToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        hasActiveFilters={hasActiveFilters}
-        onSaveView={() => setShowSaveViewModal(true)}
-        onEmailReport={() => setShowEmailModal(true)}
-        exportData={shipmentExportData}
-        exportColumns={shipmentExportColumns}
-        filteredCount={filteredShipments.length}
-      />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1">
+          <ShipmentsToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            hasActiveFilters={hasActiveFilters}
+            onSaveView={() => setShowSaveViewModal(true)}
+            onEmailReport={() => setShowEmailModal(true)}
+            exportData={shipmentExportData}
+            exportColumns={shipmentExportColumns}
+            filteredCount={filteredShipments.length}
+          />
+        </div>
+        <button
+          onClick={() => setShowFilterPanel(true)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-colors ${
+            hasActiveFilters
+              ? 'bg-rocket-50 border-rocket-200 text-rocket-700'
+              : 'bg-white border-slate-200 text-gray-700 hover:bg-slate-50'
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span className="font-medium">Filters</span>
+          {hasActiveFilters && (
+            <span className="w-2 h-2 bg-rocket-500 rounded-full" />
+          )}
+        </button>
+      </div>
 
       <div className="text-sm text-gray-500 mb-4">
         Showing {filteredShipments.length} of {shipments.length} shipments
@@ -420,6 +483,13 @@ export function ShipmentsPage() {
         reportName="Shipments Export"
         reportData={shipmentExportData}
         reportType="shipments"
+      />
+
+      <ShipmentsFilterPanel
+        isOpen={showFilterPanel}
+        onClose={() => setShowFilterPanel(false)}
+        filters={filters}
+        onApply={setFilters}
       />
     </div>
   );

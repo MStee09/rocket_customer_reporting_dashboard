@@ -11,6 +11,7 @@ import {
   RecentActivityFeed,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
+import { QuickActions } from '../components/dashboard/QuickActions';
 import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
@@ -87,6 +88,9 @@ export function PulseDashboardPage() {
           />
 
           <div className="space-y-6 mt-6">
+            {customerId && (
+              <QuickActions customerId={customerId.toString()} />
+            )}
             {effectiveCustomerId && (
               <UnifiedInsightsCard
                 customerId={effectiveCustomerId}

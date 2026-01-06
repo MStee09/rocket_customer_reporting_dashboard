@@ -52,7 +52,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     {
       to: '/ai-studio',
       icon: Sparkles,
-      label: 'AI Studio',
+      label: 'Ask AI',
       matchPaths: ['/ai-studio', '/analyze', '/custom-reports', '/create']
     },
     {

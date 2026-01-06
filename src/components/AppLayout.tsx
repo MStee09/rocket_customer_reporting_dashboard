@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
+import { FloatingAIButton } from './ai/FloatingAIButton';
+import { WelcomeModal, useWelcomeModal } from './onboarding';
 import { useAuth } from '../contexts/AuthContext';
 import { UserCog, Eye, X } from 'lucide-react';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { showWelcome, dismissWelcome } = useWelcomeModal();
   const {
     isViewingAsCustomer,
     viewingCustomer,
@@ -69,6 +72,9 @@ export function AppLayout() {
           </div>
         </main>
       </div>
+
+      <FloatingAIButton />
+      <WelcomeModal isOpen={showWelcome} onClose={dismissWelcome} />
     </div>
   );
 }

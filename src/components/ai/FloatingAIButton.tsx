@@ -1,0 +1,114 @@
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Sparkles, X, Send } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
+export function FloatingAIButton() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { effectiveCustomerId } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [quickQuery, setQuickQuery] = useState('');
+
+  const isOnAIStudio = location.pathname.startsWith('/ai-studio');
+
+  if (isOnAIStudio) return null;
+
+  const handleQuickSubmit = () => {
+    if (!quickQuery.trim()) return;
+    const customerIdStr = effectiveCustomerId ? String(effectiveCustomerId) : '';
+    navigate(`/ai-studio?query=${encodeURIComponent(quickQuery)}${customerIdStr ? `&customerId=${customerIdStr}` : ''}`);
+    setQuickQuery('');
+    setIsExpanded(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleQuickSubmit();
+    }
+    if (e.key === 'Escape') {
+      setIsExpanded(false);
+    }
+  };
+
+  const handleOpenStudio = () => {
+    navigate('/ai-studio');
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      {isExpanded && (
+        <div className="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
+          <div className="bg-gradient-to-r from-charcoal-800 to-charcoal-700 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-rocket-400" />
+              <span className="font-medium text-white text-sm">Ask AI</span>
+            </div>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-white/70" />
+            </button>
+          </div>
+
+          <div className="p-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={quickQuery}
+                onChange={(e) => setQuickQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about your shipping data..."
+                className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rocket-500 focus:border-transparent"
+                autoFocus
+              />
+              <button
+                onClick={handleQuickSubmit}
+                disabled={!quickQuery.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-rocket-600 hover:bg-rocket-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['Top carriers', 'Spend trend', 'Late deliveries'].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setQuickQuery(suggestion)}
+                  className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handleOpenStudio}
+              className="mt-4 w-full py-2 text-sm text-rocket-600 hover:text-rocket-700 font-medium"
+            >
+              Open Full AI Studio
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ${
+          isExpanded
+            ? 'bg-slate-600 hover:bg-slate-700'
+            : 'bg-gradient-to-r from-rocket-600 to-rocket-500 hover:from-rocket-700 hover:to-rocket-600'
+        }`}
+      >
+        {isExpanded ? (
+          <X className="w-6 h-6 text-white" />
+        ) : (
+          <Sparkles className="w-6 h-6 text-white" />
+        )}
+      </button>
+    </div>
+  );
+}

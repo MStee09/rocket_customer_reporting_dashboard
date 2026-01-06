@@ -427,8 +427,8 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
-              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-sky-600" />
               </div>
             </div>
             <div className="text-2xl font-bold text-slate-900">

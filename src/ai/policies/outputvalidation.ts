@@ -11,7 +11,7 @@
  * suggestions, not guarantees. This service is the last line of defense.
  */
 
-import { RESTRICTED_FIELDS, findRestrictedFieldsInString } from './restrictedFields.ts';
+import { RESTRICTED_FIELDS, findRestrictedFieldsInString } from '../../security/restrictedFields';
 
 /**
  * Patterns that indicate restricted financial data in natural language.
@@ -73,7 +73,7 @@ const ALWAYS_FLAG_PATTERNS: RegExp[] = [
   /carrier\s*invoice/gi,
 ];
 
-export interface ValidationResult {
+export interface MessageValidationResult {
   isValid: boolean;
   restrictedFieldsFound: string[];
   financialPatternsFound: string[];
@@ -128,9 +128,9 @@ function findAllMatches(text: string, pattern: RegExp): Array<{match: string, in
  * 
  * @param message - The AI-generated message to validate
  * @param isAdmin - Whether the user is an admin (admins can see all data)
- * @returns ValidationResult with details about any issues found
+ * @returns MessageValidationResult with details about any issues found
  */
-export function validateAIOutput(message: string, isAdmin: boolean): ValidationResult {
+export function validateAIOutput(message: string, isAdmin: boolean): MessageValidationResult {
   const startTime = Date.now();
   let checksPerformed = 0;
   
@@ -298,14 +298,14 @@ function sanitizeMessage(
 export function processAIResponse(
   message: string,
   isAdmin: boolean,
-  options: { 
+  options: {
     throwOnCritical?: boolean;
     logViolations?: boolean;
-    auditMode?: boolean;  // If true, always return original message but log issues
+    auditMode?: boolean;
   } = {}
-): { 
-  message: string; 
-  validation: ValidationResult;
+): {
+  message: string;
+  validation: MessageValidationResult;
   wasModified: boolean;
 } {
   const validation = validateAIOutput(message, isAdmin);

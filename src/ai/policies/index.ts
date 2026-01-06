@@ -1,5 +1,3 @@
-// src/ai/policies/index.ts
-
 export {
   getPromptAccessInstructions,
   enforceAccessControl,
@@ -11,3 +9,11 @@ export {
   validateReportOutput,
   attemptAutoFix,
 } from './outputValidation';
+
+export {
+  validateAIOutput,
+  processAIResponse,
+  quickCheckForRestrictedData,
+  generateSafeReplacement,
+  type MessageValidationResult,
+} from './outputvalidation';

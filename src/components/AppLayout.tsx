@@ -34,7 +34,7 @@ export function AppLayout() {
           isImpersonating ? 'ring-4 ring-inset ring-red-500' : ''
         }`}
       >
-        {isImpersonating && impersonatingCustomer && (
+        {isImpersonating && (
           <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-red-700 via-red-600 to-red-700 text-white px-4 py-3 shadow-2xl z-[100]">
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
@@ -47,15 +47,17 @@ export function AppLayout() {
                 <AlertTriangle className="w-5 h-5 animate-pulse" />
                 <span className="font-black text-sm uppercase tracking-wide">Impersonation Mode</span>
               </div>
-              <span className="font-bold text-lg">
-                {impersonatingCustomer.company_name}
-              </span>
+              {impersonatingCustomer && (
+                <span className="font-bold text-lg">
+                  {impersonatingCustomer.company_name}
+                </span>
+              )}
               <span className="text-red-200 text-sm hidden sm:inline mx-2">
                 - Actions affect customer data
               </span>
               <button
-                onClick={() => setShowExitConfirm(true)}
-                className="flex items-center gap-1.5 bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold ml-4 shadow-lg animate-pulse"
+                onClick={handleExitImpersonation}
+                className="flex items-center gap-1.5 bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors text-sm font-bold ml-4 shadow-lg"
               >
                 <X className="w-4 h-4" />
                 Exit Now

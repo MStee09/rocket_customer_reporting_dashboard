@@ -5,7 +5,7 @@ import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, Che
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
-import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal } from '../components/dashboard';
+import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal, CarrierAnalyticsSection } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
@@ -392,23 +392,25 @@ export function AnalyticsHubPage() {
                         <h2 className="font-semibold text-slate-900">{section.title}</h2>
                         <p className="text-sm text-slate-500">{section.description}</p>
                       </div>
-                      {hasWidgets && (
+                      {hasWidgets && section.id !== 'carrier-analytics' && (
                         <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
                           {sectionWidgets.length} widget{sectionWidgets.length !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAskAI(section.id);
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Ask AI
-                      </button>
+                      {section.id !== 'carrier-analytics' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAskAI(section.id);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          Ask AI
+                        </button>
+                      )}
                       {isCollapsed ? (
                         <ChevronRight className="w-5 h-5 text-slate-400" />
                       ) : (
@@ -419,7 +421,14 @@ export function AnalyticsHubPage() {
 
                   {!isCollapsed && (
                     <div className="p-5">
-                      {hasWidgets ? (
+                      {section.id === 'carrier-analytics' ? (
+                        <CarrierAnalyticsSection
+                          customerId={customerId}
+                          startDate={startDate}
+                          endDate={endDate}
+                          onAskAI={(context) => navigate(`/ai-studio?query=${encodeURIComponent(context)}`)}
+                        />
+                      ) : hasWidgets ? (
                         <WidgetGrid
                           widgets={sectionWidgets}
                           customWidgets={customWidgets}

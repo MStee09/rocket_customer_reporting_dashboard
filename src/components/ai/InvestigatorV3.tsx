@@ -21,7 +21,7 @@ interface InvestigatorV3Props {
 }
 
 export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props) {
-  const { effectiveCustomerId } = useAuth();
+  const { effectiveCustomerId, user } = useAuth();
 
   const {
     isInvestigating,
@@ -32,7 +32,8 @@ export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props)
     clearConversation,
     lastInvestigation,
   } = useInvestigatorV3({
-    customerId: effectiveCustomerId || undefined,
+    customerId: effectiveCustomerId ? String(effectiveCustomerId) : undefined,
+    userId: user?.id,
     showReasoning: true,
   });
 
@@ -55,7 +56,6 @@ export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props)
 
   return (
     <div className={`flex flex-col h-full bg-slate-950 rounded-xl overflow-hidden ${className}`}>
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/50">
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-lg border border-orange-500/20">
@@ -91,7 +91,6 @@ export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props)
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {conversation.length === 0 ? (
@@ -114,7 +113,6 @@ export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props)
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
           <form onSubmit={handleSubmit} className="p-4 border-t border-slate-800 bg-slate-900/30">
             {error && (
               <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-sm text-red-400">
@@ -141,7 +139,6 @@ export function InvestigatorV3({ className = '', onClose }: InvestigatorV3Props)
           </form>
         </div>
 
-        {/* Reasoning Panel */}
         {showReasoning && (
           <div className="w-80 border-l border-slate-800 bg-slate-900/50 flex flex-col">
             <div className="px-4 py-3 border-b border-slate-800">

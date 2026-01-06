@@ -35,6 +35,7 @@ export interface ConversationMessageV3 {
 
 export interface UseInvestigatorV3Options {
   customerId?: string;
+  userId?: string;
   showReasoning?: boolean;
   onReasoningStep?: (step: ReasoningStepV3) => void;
   onError?: (error: Error) => void;
@@ -61,10 +62,15 @@ export function useInvestigatorV3(options: UseInvestigatorV3Options = {}): UseIn
   const conversationHistoryRef = useRef<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 
   const investigate = useCallback(async (question: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session?.access_token) {
+    if (!user) {
       setError('Not authenticated');
+      return;
+    }
+
+    if (!options.customerId) {
+      setError('No customer selected');
       return;
     }
 
@@ -83,17 +89,20 @@ export function useInvestigatorV3(options: UseInvestigatorV3Options = {}): UseIn
 
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const functionUrl = `${supabaseUrl}/functions/v1/Investigate`;
+      const functionUrl = `${supabaseUrl}/functions/v1/investigate`;
+
+      const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${session?.access_token || ''}`,
         },
         body: JSON.stringify({
           question,
           customerId: options.customerId,
+          userId: user.id,
           conversationHistory: conversationHistoryRef.current.slice(-10),
           preferences: {
             showReasoning: options.showReasoning ?? true,
@@ -155,7 +164,7 @@ export function useInvestigatorV3(options: UseInvestigatorV3Options = {}): UseIn
     const question = lastInvestigation?.followUpQuestions.find(q => q.id === questionId);
     if (!question) return;
 
-    const contextualQuestion = `Regarding "${question.question}" — ${answer}. Please update your analysis with this context.`;
+    const contextualQuestion = `Regarding "${question.question}" - ${answer}. Please update your analysis with this context.`;
     await investigate(contextualQuestion);
   }, [lastInvestigation, investigate]);
 

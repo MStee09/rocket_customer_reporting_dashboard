@@ -21,3 +21,6 @@ export { TrendIndicator } from './TrendIndicator';
 export { ExportMenu } from './ExportMenu';
 export { AskAIButton } from './AskAIButton';
 export { ToastProvider, useToast } from './Toast';
+export { ImpersonationGuardProvider, useImpersonationGuard, useGuardedAction } from './ImpersonationGuard';
+export { MetricTooltip, METRIC_DEFINITIONS, getMetricDefinition } from './MetricTooltip';
+export type { MetricDefinition } from './MetricTooltip';

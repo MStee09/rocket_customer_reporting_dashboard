@@ -31,6 +31,7 @@ import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
 import { ToastProvider } from './components/ui/Toast';
+import { ImpersonationGuardProvider } from './components/ui/ImpersonationGuard';
 import { Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -71,8 +72,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-          <Routes>
+          <ImpersonationGuardProvider>
+            <ToastProvider>
+              <Routes>
             <Route path="/login" element={<LoginRedirect />} />
             <Route path="/shared/reports/:token" element={<SharedReportPage />} />
             <Route
@@ -177,8 +179,9 @@ function App() {
               <Route path="debug" element={<DebugPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          </ToastProvider>
+              </Routes>
+            </ToastProvider>
+          </ImpersonationGuardProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

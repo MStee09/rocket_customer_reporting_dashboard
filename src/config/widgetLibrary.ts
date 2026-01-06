@@ -27,6 +27,8 @@ export interface WidgetDefinition {
   icon: string;
   iconColor: string;
   gradient?: string;
+  tooltip?: string;
+  dataDefinition?: string;
   calculate: (params: WidgetCalculateParams) => Promise<any>;
   adminOnly?: boolean;
 }
@@ -42,7 +44,9 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     type: 'map',
     size: 'hero',
     icon: 'Globe',
-    iconColor: 'bg-indigo-500',
+    iconColor: 'bg-blue-500',
+    tooltip: 'Interactive map showing origin to destination shipping lanes',
+    dataDefinition: 'Each line connects pickup and delivery locations. Line thickness indicates volume.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       console.log('[flow_map] Starting calculation', {
         effectiveCustomerIds,
@@ -125,7 +129,9 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     type: 'map',
     size: 'large',
     icon: 'Map',
-    iconColor: 'bg-indigo-500',
+    iconColor: 'bg-blue-500',
+    tooltip: 'Average cost per shipment by destination state. Darker = higher cost.',
+    dataDefinition: 'SUM(retail) / COUNT(*) grouped by destination state.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       console.log('[cost_by_state] Starting calculation', {
         effectiveCustomerIds,
@@ -231,6 +237,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'small',
     icon: 'Package',
     iconColor: 'bg-blue-500',
+    tooltip: 'COUNT(*) of all shipments with pickup_date in range',
+    dataDefinition: 'Includes all statuses. Excludes cancelled shipments.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -260,6 +268,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'small',
     icon: 'Truck',
     iconColor: 'bg-amber-500',
+    tooltip: 'COUNT(*) of shipments with pickup_date but no delivery_date',
+    dataDefinition: 'Shipments picked up but not yet delivered.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -289,6 +299,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'small',
     icon: 'CheckCircle',
     iconColor: 'bg-green-500',
+    tooltip: 'COUNT(*) of shipments delivered in current calendar month',
+    dataDefinition: 'Only shipments with delivery_date set.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -323,6 +335,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'wide',
     icon: 'BarChart3',
     iconColor: 'bg-blue-500',
+    tooltip: 'COUNT(*) grouped by pickup_date over time',
+    dataDefinition: 'Daily shipment volume. Each bar = one day.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -365,6 +379,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'medium',
     icon: 'DollarSign',
     iconColor: 'bg-rocket-600',
+    tooltip: 'SUM(retail) for all shipments in date range',
+    dataDefinition: 'Includes base freight, fuel, and accessorials.',
     gradient: 'from-rocket-600 to-rocket-700',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -396,6 +412,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'medium',
     icon: 'TrendingUp',
     iconColor: 'bg-emerald-600',
+    tooltip: 'SUM(retail) / COUNT(*) for shipments',
+    dataDefinition: 'Average cost across all shipments.',
     gradient: 'from-emerald-600 to-emerald-700',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
@@ -428,6 +446,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'wide',
     icon: 'LineChart',
     iconColor: 'bg-blue-500',
+    tooltip: 'SUM(retail) grouped by month',
+    dataDefinition: 'Monthly spend trend. Each point = one month.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -469,6 +489,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'wide',
     icon: 'Receipt',
     iconColor: 'bg-orange-500',
+    tooltip: 'SUM(charge) grouped by accessorial type',
+    dataDefinition: 'Liftgate, residential, limited access, etc.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -520,6 +542,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'small',
     icon: 'Navigation',
     iconColor: 'bg-teal-500',
+    tooltip: 'SUM(retail) / SUM(miles)',
+    dataDefinition: 'Only shipments with valid mileage.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -555,7 +579,9 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     type: 'pie_chart',
     size: 'tall',
     icon: 'PieChart',
-    iconColor: 'bg-purple-500',
+    iconColor: 'bg-cyan-500',
+    tooltip: 'COUNT(*) grouped by shipping mode',
+    dataDefinition: 'Distribution: LTL, FTL, Parcel, etc.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
       const lookups = await loadLookupTables();
@@ -597,6 +623,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'tall',
     icon: 'Truck',
     iconColor: 'bg-cyan-500',
+    tooltip: 'COUNT(*) grouped by carrier',
+    dataDefinition: 'Shipment volume by carrier.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -654,6 +682,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'wide',
     icon: 'BarChart',
     iconColor: 'bg-cyan-500',
+    tooltip: 'SUM(retail) grouped by carrier',
+    dataDefinition: 'Total spend per carrier, sorted high to low.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -710,6 +740,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'large',
     icon: 'Route',
     iconColor: 'bg-slate-500',
+    tooltip: 'COUNT(*) and AVG(cost) by origin to destination',
+    dataDefinition: 'Busiest shipping lanes.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -771,7 +803,9 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     type: 'kpi',
     size: 'small',
     icon: 'Clock',
-    iconColor: 'bg-purple-500',
+    iconColor: 'bg-teal-500',
+    tooltip: '(On-time deliveries / Total deliveries) x 100',
+    dataDefinition: 'Delivered on or before expected date.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -810,6 +844,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'small',
     icon: 'Calendar',
     iconColor: 'bg-rose-500',
+    tooltip: 'AVG(delivery_date - pickup_date) in days',
+    dataDefinition: 'Calendar days in transit for delivered shipments.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 
@@ -850,6 +886,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     size: 'large',
     icon: 'Award',
     iconColor: 'bg-amber-500',
+    tooltip: 'On-time %, avg transit, and volume by carrier',
+    dataDefinition: 'Carrier service quality comparison.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
 

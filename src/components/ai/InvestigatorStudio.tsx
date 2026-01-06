@@ -60,7 +60,6 @@ export function InvestigatorStudio({
 }: InvestigatorStudioProps) {
   const [inputValue, setInputValue] = useState('');
   const [showToolDetails, setShowToolDetails] = useState(false);
-  const [mode, setMode] = useState<'investigate' | 'build' | 'analyze'>('investigate');
   const [wasSummarized, setWasSummarized] = useState(false);
   const [tokensSaved, setTokensSaved] = useState<number | undefined>();
   const [showReportPanel, setShowReportPanel] = useState(false);
@@ -111,11 +110,11 @@ export function InvestigatorStudio({
       initialQueryProcessedRef.current = true;
       setInputValue(initialQuery);
       const timer = setTimeout(() => {
-        sendMessage(initialQuery, mode);
+        sendMessage(initialQuery);
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [initialQuery, messages.length, isLoading, sendMessage, mode]);
+  }, [initialQuery, messages.length, isLoading, sendMessage]);
 
   const handleSend = useCallback(async () => {
     if (!inputValue.trim() || isLoading) return;
@@ -126,7 +125,7 @@ export function InvestigatorStudio({
     if (needsClarification) {
       await respondToClarification(message);
     } else {
-      const response = await sendMessage(message, mode);
+      const response = await sendMessage(message);
       if (response?.summarized) {
         setWasSummarized(true);
         setTokensSaved(response.tokensSaved);
@@ -136,7 +135,7 @@ export function InvestigatorStudio({
         }, 5000);
       }
     }
-  }, [inputValue, isLoading, needsClarification, respondToClarification, sendMessage, mode]);
+  }, [inputValue, isLoading, needsClarification, respondToClarification, sendMessage]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -171,26 +170,15 @@ export function InvestigatorStudio({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              {[
-                { key: 'investigate', icon: Search, label: 'Investigate' },
-                { key: 'build', icon: FileText, label: 'Build Report' },
-                { key: 'analyze', icon: BarChart3, label: 'Deep Analysis' },
-              ].map(m => (
-                <button
-                  key={m.key}
-                  onClick={() => setMode(m.key as 'investigate' | 'build' | 'analyze')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    mode === m.key
-                      ? 'bg-white text-orange-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <m.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{m.label}</span>
-                </button>
-              ))}
-            </div>
+            {reportItems.length > 0 && (
+              <button
+                onClick={() => setShowReportPanel(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Report ({reportItems.length})</span>
+              </button>
+            )}
 
             {currentReport && (
               <button
@@ -407,11 +395,7 @@ export function InvestigatorStudio({
               placeholder={
                 needsClarification
                   ? 'Type your response...'
-                  : mode === 'build'
-                  ? 'Describe the report you want to create...'
-                  : mode === 'analyze'
-                  ? 'What would you like me to analyze?'
-                  : 'Ask me anything about your shipping data...'
+                  : 'Ask anything about your shipping data...'
               }
               rows={1}
               className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"

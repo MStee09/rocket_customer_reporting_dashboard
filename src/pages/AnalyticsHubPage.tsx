@@ -14,7 +14,7 @@ import { clampWidgetSize, WidgetSizeConstraint, getDefaultSize } from '../config
 import { loadCustomWidget } from '../config/widgets/customWidgetStorage';
 import { supabase } from '../lib/supabase';
 
-type WidgetSizeValue = 1 | 2 | 3;
+type WidgetSizeValue = 1 | 2 | 3 | 4;
 
 const ICON_MAP: Record<string, React.ElementType> = {
   globe: Globe,

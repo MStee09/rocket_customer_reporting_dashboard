@@ -24,7 +24,7 @@ import { widgetLibrary } from '../../config/widgetLibrary';
 import { getSizeColSpan, clampWidgetSize, WidgetSizeConstraint, isInteractiveWidget, isValidWidgetSize, getSizeLabel, getWidgetConstraints } from '../../config/widgetConstraints';
 import { useDashboardAlerts } from '../../contexts/DashboardAlertContext';
 
-type WidgetSizeValue = 1 | 2 | 3;
+type WidgetSizeValue = 1 | 2 | 3 | 4;
 
 interface WidgetItem {
   id: string;
@@ -186,7 +186,7 @@ function SortableWidgetWrapper({
                 <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
                   <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Widget Size</span>
                 </div>
-                {([1, 2, 3] as WidgetSizeValue[]).map((size) => {
+                {([1, 2, 3, 4] as WidgetSizeValue[]).map((size) => {
                   const isValid = isValidWidgetSize(size, id, widgetType);
                   const isActive = currentSize === size;
                   const isOptimal = size === constraints.optimalSize;
@@ -207,7 +207,7 @@ function SortableWidgetWrapper({
                     >
                       <span className="flex items-center gap-2">
                         <span className="flex gap-0.5">
-                          {[1, 2, 3].map((col) => (
+                          {[1, 2, 3, 4].map((col) => (
                             <span
                               key={col}
                               className={`w-2 h-3 rounded-sm ${
@@ -356,7 +356,7 @@ export function WidgetGrid({
   };
 
   const gridContent = (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
       {widgets.map((item) => {
         const widget = widgetLibrary[item.id] || customWidgets[item.id] as { type: string } | undefined;
         const widgetType = widget?.type || 'kpi';
@@ -415,7 +415,7 @@ export function WidgetGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
       {widgets.map((item) => (
         <div key={item.id} className={getColSpan(item.id)}>
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">

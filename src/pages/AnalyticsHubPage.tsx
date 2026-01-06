@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, ChevronRight, Calendar, Sparkles, ArrowLeft, Globe, BarChart3, Clock } from 'lucide-react';
+import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, ChevronRight, Calendar, Sparkles, ArrowLeft, Globe, BarChart3, Clock, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
@@ -25,23 +25,26 @@ const ICON_MAP: Record<string, React.ElementType> = {
   star: Star,
   chart: BarChart3,
   clock: Clock,
+  building: Building2,
 };
 
 const WIDGET_SECTIONS: Record<string, string[]> = {
   'geographic': ['flow_map', 'cost_by_state'],
   'volume': ['total_shipments', 'in_transit', 'delivered_month'],
   'financial': ['total_cost', 'avg_cost_shipment', 'monthly_spend'],
-  'performance': ['on_time_pct', 'avg_transit_days', 'carrier_performance'],
-  'breakdown': ['mode_breakdown', 'carrier_mix', 'top_lanes'],
+  'carrier-analytics': ['carrier_performance', 'carrier_mix', 'spend_by_carrier'],
+  'performance': ['on_time_pct', 'avg_transit_days'],
+  'breakdown': ['mode_breakdown', 'top_lanes'],
 };
 
 const DEFAULT_SECTIONS = [
   { id: 'geographic', title: 'Geographic Analysis', description: 'Flow maps and regional cost analysis', icon: 'globe', order: 1 },
   { id: 'volume', title: 'Volume Metrics', description: 'Shipment counts and delivery tracking', icon: 'truck', order: 2 },
   { id: 'financial', title: 'Financial Analytics', description: 'Spend tracking and cost analysis', icon: 'dollar', order: 3 },
-  { id: 'performance', title: 'Performance Metrics', description: 'On-time delivery and transit times', icon: 'clock', order: 4 },
-  { id: 'breakdown', title: 'Breakdowns', description: 'Mode, carrier, and lane analysis', icon: 'chart', order: 5 },
-  { id: 'custom', title: 'My Analytics', description: 'Your pinned reports and custom widgets', icon: 'star', order: 6 },
+  { id: 'carrier-analytics', title: 'Carrier Analytics', description: 'Carrier performance, spend distribution, and comparisons', icon: 'building', order: 4 },
+  { id: 'performance', title: 'Performance Metrics', description: 'On-time delivery and transit times', icon: 'clock', order: 5 },
+  { id: 'breakdown', title: 'Breakdowns', description: 'Mode and lane analysis', icon: 'chart', order: 6 },
+  { id: 'custom', title: 'My Analytics', description: 'Your pinned reports and custom widgets', icon: 'star', order: 7 },
 ];
 
 const DATE_RANGE_OPTIONS = [
@@ -61,10 +64,12 @@ const DEFAULT_WIDGET_LAYOUT = [
   'total_cost',
   'avg_cost_shipment',
   'monthly_spend',
+  'carrier_performance',
+  'carrier_mix',
+  'spend_by_carrier',
   'on_time_pct',
   'avg_transit_days',
   'mode_breakdown',
-  'carrier_mix',
   'top_lanes',
 ];
 

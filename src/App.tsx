@@ -27,6 +27,7 @@ import { HowToPage } from './pages/HowToPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
 import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
+import { WidgetRawDataPage } from './pages/WidgetRawDataPage';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
@@ -122,6 +123,7 @@ function App() {
               <Route path="ai-reports/:reportId" element={<AIReportViewerPage />} />
               <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
               <Route path="widget-library" element={<WidgetLibraryPage />} />
+              <Route path="widgets/:widgetId/data" element={<WidgetRawDataPage />} />
               <Route
                 path="users"
                 element={

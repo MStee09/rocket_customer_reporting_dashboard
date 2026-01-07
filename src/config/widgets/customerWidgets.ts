@@ -75,10 +75,26 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       updateBehavior: 'live',
     },
     calculate: async ({ supabase, customerId }) => {
+      const { data: statusData } = await supabase
+        .from('shipment_status')
+        .select('id')
+        .eq('name', 'In Transit')
+        .maybeSingle();
+
+      if (!statusData) {
+        return {
+          type: 'kpi',
+          value: 0,
+          label: 'In Transit',
+          format: 'number',
+          metadata: { recordCount: 0 },
+        };
+      }
+
       const query = supabase
         .from('shipment')
         .select('shipment_id', { count: 'exact', head: true })
-        .eq('status', 'in_transit');
+        .eq('status_id', statusData.id);
 
       if (customerId) {
         query.eq('customer_id', customerId);
@@ -126,10 +142,26 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
+      const { data: statusData } = await supabase
+        .from('shipment_status')
+        .select('id')
+        .eq('name', 'Delivered')
+        .maybeSingle();
+
+      if (!statusData) {
+        return {
+          type: 'kpi',
+          value: 0,
+          label: 'Delivered',
+          format: 'number',
+          metadata: { recordCount: 0 },
+        };
+      }
+
       const query = supabase
         .from('shipment')
         .select('shipment_id', { count: 'exact', head: true })
-        .eq('status', 'delivered')
+        .eq('status_id', statusData.id)
         .gte('delivery_date', startOfMonth.toISOString());
 
       if (customerId) {
@@ -280,10 +312,29 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       updateBehavior: 'live',
     },
     calculate: async ({ supabase, customerId, dateRange }) => {
+      const { data: statusData } = await supabase
+        .from('shipment_status')
+        .select('id')
+        .eq('name', 'Delivered')
+        .maybeSingle();
+
+      if (!statusData) {
+        return {
+          type: 'kpi',
+          value: 0,
+          label: 'On Time',
+          format: 'percent',
+          metadata: {
+            recordCount: 0,
+            dateRange: { start: dateRange.start, end: dateRange.end },
+          },
+        };
+      }
+
       const query = supabase
         .from('shipment')
         .select('delivery_date, expected_delivery_date')
-        .eq('status', 'delivered')
+        .eq('status_id', statusData.id)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 

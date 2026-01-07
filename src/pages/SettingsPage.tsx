@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Save, Loader2, HelpCircle, BookOpen, ArrowRight, Database } from 'lucide-react';
+import { User, Lock, Save, Loader2, HelpCircle, BookOpen, ArrowRight, Database, Brain, RefreshCw, Check, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/ui/Card';
 
-type Tab = 'profile' | 'how-to';
+type Tab = 'profile' | 'how-to' | 'ai-settings';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -16,6 +16,70 @@ export function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+  const [isSavingPrompt, setIsSavingPrompt] = useState(false);
+  const [promptSaveSuccess, setPromptSaveSuccess] = useState(false);
+  const [promptError, setPromptError] = useState('');
+
+  useEffect(() => {
+    if (activeTab === 'ai-settings' && isAdmin()) {
+      loadSystemPrompt();
+    }
+  }, [activeTab]);
+
+  const loadSystemPrompt = async () => {
+    setIsLoadingPrompt(true);
+    setPromptError('');
+    try {
+      const { data, error } = await supabase
+        .from('ai_settings')
+        .select('setting_value')
+        .eq('setting_key', 'investigator_system_prompt')
+        .maybeSingle();
+
+      if (error) throw error;
+      setSystemPrompt(data?.setting_value || '');
+      setOriginalPrompt(data?.setting_value || '');
+    } catch (err) {
+      console.error('Error loading system prompt:', err);
+      setPromptError('Failed to load system prompt. The ai_settings table may not exist yet.');
+    } finally {
+      setIsLoadingPrompt(false);
+    }
+  };
+
+  const saveSystemPrompt = async () => {
+    setIsSavingPrompt(true);
+    setPromptError('');
+    setPromptSaveSuccess(false);
+
+    try {
+      const { error } = await supabase
+        .from('ai_settings')
+        .update({
+          setting_value: systemPrompt,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.id
+        })
+        .eq('setting_key', 'investigator_system_prompt');
+
+      if (error) throw error;
+
+      setOriginalPrompt(systemPrompt);
+      setPromptSaveSuccess(true);
+      setTimeout(() => setPromptSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving system prompt:', err);
+      setPromptError('Failed to save system prompt');
+    } finally {
+      setIsSavingPrompt(false);
+    }
+  };
+
+  const hasPromptChanges = systemPrompt !== originalPrompt;
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +117,7 @@ export function SettingsPage() {
   const tabs = [
     { id: 'profile' as Tab, label: 'Profile', icon: User },
     { id: 'how-to' as Tab, label: 'How To', icon: HelpCircle },
+    ...(isAdmin() ? [{ id: 'ai-settings' as Tab, label: 'AI Settings', icon: Brain }] : []),
   ];
 
   return (
@@ -289,6 +354,121 @@ export function SettingsPage() {
             </button>
           </div>
         </Card>
+      )}
+
+      {activeTab === 'ai-settings' && isAdmin() && (
+        <div className="space-y-6">
+          <Card variant="elevated" padding="lg">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-orange-600" />
+                <h2 className="text-xl font-bold text-slate-800">Investigator System Prompt</h2>
+              </div>
+              <button
+                onClick={loadSystemPrompt}
+                disabled={isLoadingPrompt}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingPrompt ? 'animate-spin' : ''}`} />
+                Reload
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-4">
+              This prompt controls how the AI Investigator behaves. It defines available data fields,
+              response format, and investigation approach. Changes take effect immediately for new conversations.
+            </p>
+
+            {promptError && (
+              <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-800">{promptError}</p>
+              </div>
+            )}
+
+            {promptSaveSuccess && (
+              <div className="flex items-center gap-2 p-3 mb-4 bg-green-50 border border-green-200 rounded-lg">
+                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                <p className="text-sm text-green-800">System prompt saved successfully!</p>
+              </div>
+            )}
+
+            {isLoadingPrompt ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  rows={20}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-y"
+                  placeholder="Enter the system prompt..."
+                />
+
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-slate-500">
+                    {systemPrompt.length.toLocaleString()} characters
+                    {hasPromptChanges && (
+                      <span className="ml-2 text-amber-600">Unsaved changes</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {hasPromptChanges && (
+                      <button
+                        onClick={() => setSystemPrompt(originalPrompt)}
+                        className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        Discard Changes
+                      </button>
+                    )}
+                    <button
+                      onClick={saveSystemPrompt}
+                      disabled={isSavingPrompt || !hasPromptChanges}
+                      className="flex items-center gap-2 px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSavingPrompt ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Save Prompt
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </Card>
+
+          <Card variant="elevated" padding="lg">
+            <h3 className="font-semibold text-slate-800 mb-3">Tips for Writing Effective Prompts</h3>
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 mt-0.5">-</span>
+                <span><strong>List all available fields</strong> - The AI needs to know exactly what data fields exist to query them correctly</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 mt-0.5">-</span>
+                <span><strong>Be specific about field names</strong> - Use exact column names like <code className="bg-slate-100 px-1 rounded">item_descriptions</code> not generic names</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 mt-0.5">-</span>
+                <span><strong>Define the response format</strong> - Tell the AI how to structure its answers</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 mt-0.5">-</span>
+                <span><strong>Explain tool usage</strong> - Describe when and how to use each available tool</span>
+              </li>
+            </ul>
+          </Card>
+        </div>
       )}
     </div>
   );

@@ -72,27 +72,6 @@ export function DashboardWidgetCard({
   const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
   const { lookups } = useLookupTables();
 
-  const handleWidgetClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const currentTarget = e.currentTarget as HTMLElement;
-
-    const clickedButton = target.closest('button');
-    const clickedLink = target.closest('a');
-    const clickedRoleButton = target.closest('[role="button"]');
-
-    if (clickedButton && clickedButton !== currentTarget) return;
-    if (clickedLink && clickedLink !== currentTarget) return;
-    if (clickedRoleButton && clickedRoleButton !== currentTarget) return;
-
-    if (isCustomWidget || widget.type === 'ai_report' || widget.type === 'map') {
-      return;
-    }
-
-    navigate(`/widgets/${widget.id}/data`);
-  };
-
-  const isClickable = !isCustomWidget && widget.type !== 'ai_report' && widget.type !== 'map';
-
   const sourceReport = widget.sourceReport;
   const hasSourceReport = isCustomWidget && !!sourceReport?.id;
 
@@ -577,16 +556,7 @@ export function DashboardWidgetCard({
 
   return (
     <div
-      className={`bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col relative ${getWidgetMinHeight()} ${isClickable ? 'cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all' : ''}`}
-      onClick={isClickable ? handleWidgetClick : undefined}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      onKeyDown={isClickable ? (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleWidgetClick(e as unknown as React.MouseEvent);
-        }
-      } : undefined}
+      className={`bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col relative ${getWidgetMinHeight()}`}
     >
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 flex-shrink-0">
         <div className={`${isHeroWidget ? 'w-10 h-10' : 'w-8 h-8'} rounded-xl ${widget.iconColor} flex items-center justify-center flex-shrink-0`}>

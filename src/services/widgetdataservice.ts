@@ -39,12 +39,16 @@ export async function executeWidget(
   }
 
   const dateRange = params.dateRange || getDefaultDateRange();
+  const customerIdNum = customerId ? Number(customerId) : undefined;
 
   try {
     const widgetData = await widgetDef.calculate({
       supabase,
       dateRange,
-      customerId: customerId ? Number(customerId) : undefined,
+      customerId: customerIdNum,
+      effectiveCustomerIds: customerIdNum ? [customerIdNum] : [],
+      isAdmin: false,
+      isViewingAsCustomer: true,
     });
 
     const tableData = transformToTableFormat({

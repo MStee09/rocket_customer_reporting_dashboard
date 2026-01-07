@@ -74,8 +74,7 @@ export function RecentActivityFeed({ customerId, maxItems = 5, onViewDetails }: 
             created_date,
             retail,
             rate_carrier_id,
-            carrier:carrier!shipment_rate_carrier_id_fkey(carrier_name),
-            status:shipment_status!shipment_status_id_fkey(status_description, is_completed)
+            status_id
           `)
           .eq('customer_id', parseInt(customerId))
           .or(`created_date.gte.${twentyFourHoursAgo.toISOString()},delivery_date.gte.${twentyFourHoursAgo.toISOString()},pickup_date.gte.${twentyFourHoursAgo.toISOString()}`)
@@ -93,12 +92,39 @@ export function RecentActivityFeed({ customerId, maxItems = 5, onViewDetails }: 
           return;
         }
 
+        const carrierIds = [...new Set(shipments.map(s => s.rate_carrier_id).filter(Boolean))];
+        let carrierMap: Record<number, string> = {};
+        if (carrierIds.length > 0) {
+          const { data: carriers } = await supabase
+            .from('carrier')
+            .select('carrier_id, carrier_name')
+            .in('carrier_id', carrierIds);
+          if (carriers) {
+            carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
+          }
+        }
+
+        const statusIds = [...new Set(shipments.map(s => s.status_id).filter(Boolean))];
+        let statusMap: Record<number, { description: string; isCompleted: boolean }> = {};
+        if (statusIds.length > 0) {
+          const { data: statuses } = await supabase
+            .from('shipment_status')
+            .select('status_id, status_description, is_completed')
+            .in('status_id', statusIds);
+          if (statuses) {
+            statusMap = Object.fromEntries(
+              statuses.map(s => [s.status_id, { description: s.status_description || '', isCompleted: s.is_completed || false }])
+            );
+          }
+        }
+
         const activityItems: ActivityItem[] = [];
 
         for (const shipment of shipments) {
-          const carrierName = (shipment.carrier as any)?.carrier_name || 'Unknown';
-          const statusDesc = (shipment.status as any)?.status_description || 'Unknown';
-          const isCompleted = (shipment.status as any)?.is_completed || false;
+          const carrierName = carrierMap[shipment.rate_carrier_id] || 'Unknown';
+          const statusInfo = statusMap[shipment.status_id] || { description: 'Unknown', isCompleted: false };
+          const statusDesc = statusInfo.description;
+          const isCompleted = statusInfo.isCompleted;
 
           if (shipment.delivery_date && new Date(shipment.delivery_date) >= twentyFourHoursAgo) {
             activityItems.push({

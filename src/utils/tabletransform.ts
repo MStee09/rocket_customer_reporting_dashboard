@@ -1,6 +1,4 @@
-// src/utils/tableTransform.ts
-
-import type { WidgetData } from '@/types/widget';
+import type { WidgetData } from '../types/widget';
 
 export interface TableColumn {
   key: string;

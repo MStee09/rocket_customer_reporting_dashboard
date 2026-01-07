@@ -137,18 +137,33 @@ function SortableWidgetWrapper({
     const target = e.target as HTMLElement;
     const currentTarget = e.currentTarget as HTMLElement;
 
+    console.log(`[WidgetGrid] handleClick called: isClickable=${isClickableForNavigation}, isEditMode=${isEditMode}, isCustomWidget=${isCustomWidget}`);
+
     const clickedButton = target.closest('button');
     const clickedLink = target.closest('a');
     const clickedGrab = target.closest('.cursor-grab');
 
-    if (clickedButton && clickedButton !== currentTarget) return;
-    if (clickedLink && clickedLink !== currentTarget) return;
-    if (clickedGrab) return;
+    if (clickedButton && clickedButton !== currentTarget) {
+      console.log('[WidgetGrid] Click ignored - clicked button');
+      return;
+    }
+    if (clickedLink && clickedLink !== currentTarget) {
+      console.log('[WidgetGrid] Click ignored - clicked link');
+      return;
+    }
+    if (clickedGrab) {
+      console.log('[WidgetGrid] Click ignored - clicked grab handle');
+      return;
+    }
 
     if (isEditMode) {
+      console.log('[WidgetGrid] Edit mode - selecting');
       onSelect();
     } else if (isClickableForNavigation) {
+      console.log('[WidgetGrid] Navigating!');
       onWidgetClick();
+    } else {
+      console.log('[WidgetGrid] Not clickable for navigation');
     }
   };
 
@@ -352,6 +367,7 @@ export function WidgetGrid({
   };
 
   const handleWidgetClick = (widgetId: string) => {
+    console.log(`[WidgetGrid] handleWidgetClick called for ${widgetId}`);
     navigate(`/widgets/${widgetId}/data`);
   };
 
@@ -402,6 +418,8 @@ export function WidgetGrid({
         const currentSize = (widgetSizes[item.id] || 1) as WidgetSizeValue;
         const effectiveSize = clampWidgetSize(currentSize, item.id, widgetType);
         const isCustom = !widgetLibrary[item.id];
+
+        console.log(`[WidgetGrid] Widget ${item.id}: inLibrary=${!!widgetLibrary[item.id]}, isCustom=${isCustom}, type=${widgetType}, isEditMode=${isEditMode}`);
 
         return (
           <SortableWidgetWrapper

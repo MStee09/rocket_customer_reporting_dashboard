@@ -456,7 +456,7 @@ export function WidgetGrid({
         const widget = widgetLibrary[item.id] || customWidgets[item.id] as { type: string } | undefined;
         const widgetType = widget?.type || 'kpi';
         const isCustom = !widgetLibrary[item.id];
-        const isClickable = !isCustom && widgetType !== 'ai_report' && widgetType !== 'map';
+        const isClickable = !isCustom && widgetType !== 'ai_report';
 
         return (
           <div

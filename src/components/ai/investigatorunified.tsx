@@ -20,13 +20,11 @@ import {
   Clock,
   Zap,
   MessageSquare,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   Gauge,
   Search,
   Square,
-  DollarSign,
   AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -455,9 +453,9 @@ function ModeIndicator({ mode, isActive }: { mode?: 'quick' | 'deep' | null; isA
   
   return (
     <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg ${
-      isQuick 
-        ? 'bg-green-100 text-green-700' 
-        : 'bg-purple-100 text-purple-700'
+      isQuick
+        ? 'bg-green-100 text-green-700'
+        : 'bg-blue-100 text-blue-700'
     }`}>
       {isQuick ? <Gauge className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
       <span>{isQuick ? 'Quick' : 'Deep'}</span>
@@ -493,7 +491,7 @@ function EmptyState({ onSuggestion }: { onSuggestion: (q: string) => void }) {
             <span className="text-lg">{s.emoji}</span>
             <span className="flex-1">{s.text}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-              s.hint === 'quick' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'
+              s.hint === 'quick' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
             }`}>
               {s.hint}
             </span>

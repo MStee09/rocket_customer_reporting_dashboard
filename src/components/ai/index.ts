@@ -4,4 +4,5 @@ export { AnomalyBadge } from './AnomalyBadge';
 export { AddToReportButton } from './AddToReportButton';
 export { InvestigatorStudio } from './InvestigatorStudio';
 export { InvestigatorV3 } from './InvestigatorV3';
+export { InvestigatorUnified } from './investigatorunified';
 export { ReportPreviewPanel } from './ReportPreviewPanel';

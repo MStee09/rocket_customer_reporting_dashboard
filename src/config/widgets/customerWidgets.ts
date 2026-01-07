@@ -475,7 +475,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         .from('shipment')
         .select(`
           load_id,
-          mode:shipment_mode!mode_id(mode_description)
+          mode:shipment_mode!mode_id(mode_name)
         `)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
@@ -489,7 +489,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const byMode = new Map<string, number>();
       data?.forEach(s => {
-        const mode = (s.mode as { mode_description?: string })?.mode_description || 'Unknown';
+        const mode = (s.mode as { mode_name?: string })?.mode_name || 'Unknown';
         byMode.set(mode, (byMode.get(mode) || 0) + 1);
       });
 

@@ -53,13 +53,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       to: '/ai-studio',
       icon: Sparkles,
       label: 'Ask AI',
-      matchPaths: ['/ai-studio', '/analyze', '/custom-reports', '/create']
+      matchPaths: ['/ai-studio', '/analyze', '/create']
     },
     {
       to: '/reports',
       icon: FileText,
       label: 'Reports',
-      matchPaths: ['/reports', '/scheduled-reports', '/ai-reports']
+      matchPaths: ['/reports', '/custom-reports', '/scheduled-reports', '/ai-reports']
     },
   ];
 

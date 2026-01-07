@@ -9,9 +9,8 @@ import { ShipmentsPage } from './pages/ShipmentsPage';
 import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { AIReportStudioPage } from './pages/AIReportStudioPage';
-import { ReportsHubPage } from './pages/ReportsHubPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
-import { CustomReportsPage } from './pages/CustomReportsPage';
 import { CustomReportViewPage } from './pages/CustomReportViewPage';
 import { WidgetLibraryPage } from './pages/WidgetLibraryPage';
 import { AIReportViewerPage } from './pages/AIReportViewerPage';
@@ -110,7 +109,7 @@ function App() {
               <Route path="analyze" element={<Navigate to="/ai-studio" replace />} />
               <Route path="create" element={<Navigate to="/ai-studio" replace />} />
 
-              <Route path="reports" element={<ReportsHubPage />} />
+              <Route path="reports" element={<ReportsPage />} />
               <Route
                 path="reports/avg-cost-per-unit"
                 element={
@@ -119,7 +118,8 @@ function App() {
                   </MetricProtectedRoute>
                 }
               />
-              <Route path="custom-reports" element={<CustomReportsPage />} />
+              {/* Redirect old custom-reports to new unified reports page */}
+              <Route path="custom-reports" element={<Navigate to="/reports" replace />} />
               <Route path="custom-reports/:reportId" element={<CustomReportViewPage />} />
               <Route path="ai-reports/:reportId" element={<AIReportViewerPage />} />
               <Route path="saved-reports/:reportId" element={<ReportViewPage />} />

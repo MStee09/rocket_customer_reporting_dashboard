@@ -301,6 +301,8 @@ async function fetchWidgetRowData(
     },
 
     flow_map: async () => {
+      console.log('[widgetdataservice] flow_map fetcher called', { customerFilter, dateRange });
+
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipment')
         .select('load_id, reference_number, pickup_date, delivery_date, retail')
@@ -309,8 +311,10 @@ async function fetchWidgetRowData(
         .lte('pickup_date', dateRange.end)
         .limit(500);
 
+      console.log('[widgetdataservice] flow_map query result:', { count: shipments?.length, error: shipmentsError });
+
       if (shipmentsError || !shipments || shipments.length === 0) {
-        console.error('[widgetdataservice] Flow map shipments error:', shipmentsError);
+        console.error('[widgetdataservice] Flow map - no shipments found:', shipmentsError);
         return { rows: [], columns: [] };
       }
 
@@ -360,6 +364,8 @@ async function fetchWidgetRowData(
     },
 
     cost_by_state: async () => {
+      console.log('[widgetdataservice] cost_by_state fetcher called', { customerFilter, dateRange });
+
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipment')
         .select('load_id, reference_number, pickup_date, delivery_date, retail')
@@ -370,8 +376,10 @@ async function fetchWidgetRowData(
         .order('retail', { ascending: false })
         .limit(500);
 
+      console.log('[widgetdataservice] cost_by_state query result:', { count: shipments?.length, error: shipmentsError });
+
       if (shipmentsError || !shipments || shipments.length === 0) {
-        console.error('[widgetdataservice] Cost by state shipments error:', shipmentsError);
+        console.error('[widgetdataservice] Cost by state - no shipments found:', shipmentsError);
         return { rows: [], columns: [] };
       }
 
@@ -738,17 +746,23 @@ export async function executeWidget(
   params: ReportExecutionParams,
   customerId: string
 ): Promise<WidgetExecutionResult> {
+  console.log('[widgetdataservice] executeWidget called', { widgetId, customerId, params });
+
   const widgetDef = getWidgetById(widgetId);
 
   if (!widgetDef) {
+    console.error('[widgetdataservice] Widget not found:', widgetId);
     throw new WidgetNotFoundError(widgetId);
   }
 
   const dateRange = params.dateRange || getDefaultDateRange();
   const customerIdNum = customerId ? Number(customerId) : undefined;
 
+  console.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum });
+
   try {
     const { rows, columns } = await fetchWidgetRowData(widgetId, dateRange, customerIdNum);
+    console.log('[widgetdataservice] fetchWidgetRowData returned', { rowCount: rows.length });
 
     const tableData: TableData = {
       columns: columns.map(col => ({

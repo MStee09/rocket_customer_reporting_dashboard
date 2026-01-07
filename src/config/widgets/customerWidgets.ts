@@ -28,7 +28,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId, dateRange }) => {
       const query = supabase
         .from('shipment')
-        .select('shipment_id', { count: 'exact', head: true })
+        .select('load_id', { count: 'exact', head: true })
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
@@ -77,8 +77,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId }) => {
       const { data: statusData } = await supabase
         .from('shipment_status')
-        .select('id')
-        .eq('name', 'In Transit')
+        .select('status_id')
+        .eq('status_name', 'In Transit')
         .maybeSingle();
 
       if (!statusData) {
@@ -93,8 +93,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const query = supabase
         .from('shipment')
-        .select('shipment_id', { count: 'exact', head: true })
-        .eq('status_id', statusData.id);
+        .select('load_id', { count: 'exact', head: true })
+        .eq('status_id', statusData.status_id);
 
       if (customerId) {
         query.eq('customer_id', customerId);
@@ -144,8 +144,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data: statusData } = await supabase
         .from('shipment_status')
-        .select('id')
-        .eq('name', 'Delivered')
+        .select('status_id')
+        .eq('status_name', 'Delivered')
         .maybeSingle();
 
       if (!statusData) {
@@ -160,8 +160,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const query = supabase
         .from('shipment')
-        .select('shipment_id', { count: 'exact', head: true })
-        .eq('status_id', statusData.id)
+        .select('load_id', { count: 'exact', head: true })
+        .eq('status_id', statusData.status_id)
         .gte('delivery_date', startOfMonth.toISOString());
 
       if (customerId) {
@@ -250,7 +250,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     whatItShows: {
       summary: 'Shows the average cost you pay per shipment, calculated by dividing total spend by shipment count.',
       columns: [
-        { name: 'Average Cost', description: 'Total cost ÷ number of shipments' },
+        { name: 'Average Cost', description: 'Total cost / number of shipments' },
       ],
       filters: [
         'Your shipments only',
@@ -314,8 +314,8 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId, dateRange }) => {
       const { data: statusData } = await supabase
         .from('shipment_status')
-        .select('id')
-        .eq('name', 'Delivered')
+        .select('status_id')
+        .eq('status_name', 'Delivered')
         .maybeSingle();
 
       if (!statusData) {
@@ -334,7 +334,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       const query = supabase
         .from('shipment')
         .select('delivery_date, expected_delivery_date')
-        .eq('status_id', statusData.id)
+        .eq('status_id', statusData.status_id)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
@@ -473,7 +473,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId, dateRange }) => {
       const query = supabase
         .from('shipment')
-        .select('mode')
+        .select(`
+          load_id,
+          mode:shipment_mode!mode_id(mode_description)
+        `)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
@@ -486,7 +489,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const byMode = new Map<string, number>();
       data?.forEach(s => {
-        const mode = s.mode || 'Unknown';
+        const mode = (s.mode as { mode_description?: string })?.mode_description || 'Unknown';
         byMode.set(mode, (byMode.get(mode) || 0) + 1);
       });
 
@@ -532,19 +535,19 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId, dateRange }) => {
       const shipmentsQuery = supabase
         .from('shipment')
-        .select('shipment_id')
+        .select('load_id, rate_carrier_id')
         .gte('pickup_date', dateRange.start)
-        .lte('pickup_date', dateRange.end);
+        .lte('pickup_date', dateRange.end)
+        .not('rate_carrier_id', 'is', null);
 
       if (customerId) {
         shipmentsQuery.eq('customer_id', customerId);
       }
 
       const { data: shipments } = await shipmentsQuery;
-      const shipmentIds = shipments?.map(s => s.shipment_id) || [];
-      const recordCount = shipmentIds.length;
+      const recordCount = shipments?.length || 0;
 
-      if (shipmentIds.length === 0) {
+      if (!shipments || shipments.length === 0) {
         return {
           type: 'chart',
           data: [],
@@ -555,20 +558,18 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         };
       }
 
-      const { data: shipmentCarriers } = await supabase
-        .from('shipment_carrier')
-        .select('carrier_id')
-        .in('shipment_id', shipmentIds);
+      const carrierIds = [...new Set(shipments.map(s => s.rate_carrier_id).filter(Boolean))];
 
       const { data: carriers } = await supabase
         .from('carrier')
-        .select('carrier_id, company_name');
+        .select('carrier_id, carrier_name')
+        .in('carrier_id', carrierIds);
 
-      const carrierMap = new Map(carriers?.map(c => [c.carrier_id, c.company_name]));
+      const carrierMap = new Map(carriers?.map(c => [c.carrier_id, c.carrier_name]));
 
       const byCarrier = new Map<string, number>();
-      shipmentCarriers?.forEach(sc => {
-        const name = carrierMap.get(sc.carrier_id) || 'Unknown';
+      shipments.forEach(s => {
+        const name = carrierMap.get(s.rate_carrier_id) || 'Unknown';
         byCarrier.set(name, (byCarrier.get(name) || 0) + 1);
       });
 
@@ -602,7 +603,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     whatItShows: {
       summary: 'Shows your most frequently used shipping lanes, ranked by number of shipments. Helps identify your busiest routes.',
       columns: [
-        { name: 'Lane', description: 'Origin state → Destination state' },
+        { name: 'Lane', description: 'Origin state -> Destination state' },
         { name: 'Shipments', description: 'Number of shipments on this lane' },
         { name: 'Avg Cost', description: 'Average cost per shipment on this lane' },
       ],
@@ -617,7 +618,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, customerId, dateRange }) => {
       const shipmentsQuery = supabase
         .from('shipment')
-        .select('shipment_id, retail')
+        .select('load_id, retail')
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
@@ -626,10 +627,10 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       }
 
       const { data: shipments } = await shipmentsQuery;
-      const shipmentIds = shipments?.map(s => s.shipment_id) || [];
-      const recordCount = shipmentIds.length;
+      const loadIds = shipments?.map(s => s.load_id) || [];
+      const recordCount = loadIds.length;
 
-      if (shipmentIds.length === 0) {
+      if (loadIds.length === 0) {
         return {
           type: 'table',
           data: [],
@@ -643,18 +644,19 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       const { data: addresses } = await supabase
         .from('shipment_address')
-        .select('shipment_id, address_type, state')
-        .in('shipment_id', shipmentIds);
+        .select('load_id, address_type, state')
+        .in('load_id', loadIds)
+        .in('address_type', [1, 2]);
 
       const lanes = new Map<string, { count: number; totalCost: number }>();
 
       shipments?.forEach(s => {
-        const shipmentAddresses = addresses?.filter(a => a.shipment_id === s.shipment_id);
-        const origin = shipmentAddresses?.find(a => a.address_type === 'origin')?.state;
-        const dest = shipmentAddresses?.find(a => a.address_type === 'destination')?.state;
+        const shipmentAddresses = addresses?.filter(a => a.load_id === s.load_id);
+        const origin = shipmentAddresses?.find(a => a.address_type === 1)?.state;
+        const dest = shipmentAddresses?.find(a => a.address_type === 2)?.state;
 
         if (origin && dest) {
-          const lane = `${origin} → ${dest}`;
+          const lane = `${origin} -> ${dest}`;
           const current = lanes.get(lane) || { count: 0, totalCost: 0 };
           lanes.set(lane, {
             count: current.count + 1,

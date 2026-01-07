@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, Calendar, Clock, MoreHorizontal, Trash2,
-  Play, ExternalLink, FileText
+  Play, ExternalLink, FileText, LayoutGrid
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ReportsHubFilters } from './ReportsHubFilters';
@@ -11,12 +11,13 @@ interface Report {
   id: string;
   name: string;
   description?: string;
-  type: 'ai' | 'custom' | 'scheduled';
+  type: 'ai' | 'custom' | 'scheduled' | 'widget' | 'saved';
   isScheduled: boolean;
   scheduleFrequency?: string;
   nextRun?: string;
   createdAt: string;
   updatedAt?: string;
+  sourceWidgetId?: string;
 }
 
 interface UnifiedReportsListProps {
@@ -52,6 +53,7 @@ export function UnifiedReportsList({ reports, onDelete, onRunNow }: UnifiedRepor
 
   const getReportIcon = (report: Report) => {
     if (report.type === 'ai') return Sparkles;
+    if (report.type === 'widget') return LayoutGrid;
     if (report.isScheduled) return Calendar;
     return FileText;
   };
@@ -61,10 +63,19 @@ export function UnifiedReportsList({ reports, onDelete, onRunNow }: UnifiedRepor
     if (report.type === 'ai') {
       badges.push({ label: 'AI', className: 'bg-blue-100 text-blue-700' });
     }
+    if (report.type === 'widget') {
+      badges.push({ label: 'Widget', className: 'bg-amber-100 text-amber-700' });
+    }
     if (report.isScheduled) {
       badges.push({ label: report.scheduleFrequency || 'Scheduled', className: 'bg-teal-100 text-teal-700' });
     }
     return badges;
+  };
+
+  const getReportUrl = (report: Report) => {
+    if (report.type === 'ai') return `/ai-studio?report=${report.id}`;
+    if (report.type === 'widget' || report.type === 'saved') return `/saved-reports/${report.id}`;
+    return `/custom-reports/${report.id}`;
   };
 
   return (
@@ -95,14 +106,14 @@ export function UnifiedReportsList({ reports, onDelete, onRunNow }: UnifiedRepor
               <div
                 key={report.id}
                 className="p-4 hover:bg-slate-50 transition-colors cursor-pointer group"
-                onClick={() => navigate(report.type === 'ai' ? `/ai-studio?report=${report.id}` : `/custom-reports/${report.id}`)}
+                onClick={() => navigate(getReportUrl(report))}
               >
                 <div className="flex items-start gap-4">
                   <div className={`
                     w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
-                    ${report.type === 'ai' ? 'bg-blue-100' : report.isScheduled ? 'bg-teal-100' : 'bg-slate-100'}
+                    ${report.type === 'ai' ? 'bg-blue-100' : report.type === 'widget' ? 'bg-amber-100' : report.isScheduled ? 'bg-teal-100' : 'bg-slate-100'}
                   `}>
-                    <Icon className={`w-5 h-5 ${report.type === 'ai' ? 'text-blue-600' : report.isScheduled ? 'text-teal-600' : 'text-slate-600'}`} />
+                    <Icon className={`w-5 h-5 ${report.type === 'ai' ? 'text-blue-600' : report.type === 'widget' ? 'text-amber-600' : report.isScheduled ? 'text-teal-600' : 'text-slate-600'}`} />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -156,7 +167,7 @@ export function UnifiedReportsList({ reports, onDelete, onRunNow }: UnifiedRepor
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(report.type === 'ai' ? `/ai-studio?report=${report.id}` : `/custom-reports/${report.id}`);
+                            navigate(getReportUrl(report));
                           }}
                           className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                         >

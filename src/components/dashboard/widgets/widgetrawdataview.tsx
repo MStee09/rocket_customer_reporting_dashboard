@@ -94,9 +94,16 @@ export default function WidgetRawDataView() {
   const [showAI, setShowAI] = useState(false);
 
   const dateRange = dateRangeKeyToRange(dateRangeKey);
+
+  const carrierFilter = searchParams.get('carrier');
+  const filters: Record<string, string | number> = {};
+  if (carrierFilter) {
+    filters.carrier = carrierFilter;
+  }
+
   const executionParams: ReportExecutionParams = {
     dateRange,
-    filters: {},
+    filters,
   };
 
   const widgetMeta = widgetId ? getWidgetMetadata(widgetId) : null;
@@ -198,6 +205,11 @@ export default function WidgetRawDataView() {
     type: col.type === 'currency' ? 'currency' : col.type === 'number' ? 'number' : 'string',
   }));
 
+  const carrierName = searchParams.get('carrier_name');
+  const displayTitle = carrierName
+    ? `${result.widgetName}: ${decodeURIComponent(carrierName)}`
+    : result.widgetName;
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -209,7 +221,7 @@ export default function WidgetRawDataView() {
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <h1 className="text-2xl font-bold text-charcoal-900">{result.widgetName}</h1>
+          <h1 className="text-2xl font-bold text-charcoal-900">{displayTitle}</h1>
           <p className="text-charcoal-500 text-sm mt-1">
             {result.tableData.metadata.rowCount.toLocaleString()} rows
             {result.tableData.metadata.generatedAt && (

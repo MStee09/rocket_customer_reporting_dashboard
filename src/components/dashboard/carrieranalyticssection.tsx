@@ -551,7 +551,7 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                 {sortedCarriers.map((carrier) => (
                   <tr
                     key={carrier.carrier_id || carrier.carrier_name}
-                    onClick={() => navigate(`/shipments?carrier=${carrier.carrier_id}`)}
+                    onClick={() => navigate(`/widgets/carrier_performance/data?carrier=${carrier.carrier_id}&carrier_name=${encodeURIComponent(carrier.carrier_name)}`)}
                     className="hover:bg-slate-50 cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-4 text-sm font-medium text-slate-900">

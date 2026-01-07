@@ -30,9 +30,11 @@ export class WidgetExecutionError extends Error {
 async function fetchWidgetRowData(
   widgetId: string,
   dateRange: DateRange,
-  customerId?: number
+  customerId?: number,
+  filters?: Record<string, string | number>
 ): Promise<{ rows: Record<string, unknown>[]; columns: { key: string; label: string; type: string }[] }> {
   const customerFilter = customerId ? [customerId] : [];
+  const carrierFilter = filters?.carrier ? Number(filters.carrier) : null;
 
   const defaultShipmentQuery = async () => {
     const { data, error } = await supabase
@@ -680,6 +682,72 @@ async function fetchWidgetRowData(
       };
     },
 
+    carrier_performance: async () => {
+      let query = supabase
+        .from('shipment')
+        .select(`
+          load_id,
+          reference_number,
+          pickup_date,
+          delivery_date,
+          retail,
+          miles,
+          rate_carrier_id
+        `)
+        .in('customer_id', customerFilter)
+        .gte('pickup_date', dateRange.start)
+        .lte('pickup_date', dateRange.end)
+        .order('pickup_date', { ascending: false })
+        .limit(500);
+
+      if (carrierFilter) {
+        query = query.eq('rate_carrier_id', carrierFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[widgetdataservice] Carrier performance query error:', error);
+        return { rows: [], columns: [] };
+      }
+
+      const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
+      let carrierMap: Record<number, string> = {};
+      if (carrierIds.length > 0) {
+        const { data: carriers } = await supabase
+          .from('carrier')
+          .select('carrier_id, carrier_name')
+          .in('carrier_id', carrierIds);
+
+        if (carriers) {
+          carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
+        }
+      }
+
+      return {
+        rows: (data || []).map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          pickup_date: row.pickup_date,
+          delivery_date: row.delivery_date,
+          carrier: carrierMap[row.rate_carrier_id] || 'Unassigned',
+          retail: row.retail,
+          miles: row.miles,
+          cpm: row.miles > 0 ? (row.retail / row.miles) : null,
+        })),
+        columns: [
+          { key: 'load_id', label: 'Load ID', type: 'string' },
+          { key: 'reference_number', label: 'Reference', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+          { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
+          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'retail', label: 'Cost', type: 'currency' },
+          { key: 'miles', label: 'Miles', type: 'number' },
+          { key: 'cpm', label: 'Cost/Mile', type: 'currency' },
+        ]
+      };
+    },
+
     on_time_pct: async () => {
       const { data, error } = await supabase
         .from('shipment')
@@ -758,10 +826,10 @@ export async function executeWidget(
   const dateRange = params.dateRange || getDefaultDateRange();
   const customerIdNum = customerId ? Number(customerId) : undefined;
 
-  console.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum });
+  console.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum, filters: params.filters });
 
   try {
-    const { rows, columns } = await fetchWidgetRowData(widgetId, dateRange, customerIdNum);
+    const { rows, columns } = await fetchWidgetRowData(widgetId, dateRange, customerIdNum, params.filters);
     console.log('[widgetdataservice] fetchWidgetRowData returned', { rowCount: rows.length });
 
     const tableData: TableData = {

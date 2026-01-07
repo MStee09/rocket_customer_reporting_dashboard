@@ -34,17 +34,36 @@ async function fetchWidgetRowData(
 ): Promise<{ rows: Record<string, unknown>[]; columns: { key: string; label: string; type: string }[] }> {
   const customerFilter = customerId ? [customerId] : [];
 
+  const getCarrierMap = async (carrierIds: number[]): Promise<Record<number, string>> => {
+    if (carrierIds.length === 0) return {};
+    const { data: carriers } = await supabase
+      .from('carrier')
+      .select('carrier_id, carrier_name')
+      .in('carrier_id', carrierIds);
+    return carriers ? Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name])) : {};
+  };
+
+  const getAddressMap = async (loadIds: number[]): Promise<Record<number, { origin: { city?: string; state?: string } | null; dest: { city?: string; state?: string } | null }>> => {
+    if (loadIds.length === 0) return {};
+    const { data: addresses } = await supabase
+      .from('shipment_address')
+      .select('load_id, city, state, address_type')
+      .in('load_id', loadIds)
+      .in('address_type', [1, 2]);
+
+    const map: Record<number, { origin: { city?: string; state?: string } | null; dest: { city?: string; state?: string } | null }> = {};
+    for (const addr of addresses || []) {
+      if (!map[addr.load_id]) map[addr.load_id] = { origin: null, dest: null };
+      if (addr.address_type === 1) map[addr.load_id].origin = addr;
+      if (addr.address_type === 2) map[addr.load_id].dest = addr;
+    }
+    return map;
+  };
+
   const defaultShipmentQuery = async () => {
     const { data, error } = await supabase
       .from('shipment')
-      .select(`
-        load_id,
-        reference_number,
-        pickup_date,
-        delivery_date,
-        retail,
-        status_id
-      `)
+      .select('load_id, reference_number, pickup_date, delivery_date, retail')
       .in('customer_id', customerFilter)
       .gte('pickup_date', dateRange.start)
       .lte('pickup_date', dateRange.end)
@@ -82,37 +101,22 @@ async function fetchWidgetRowData(
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 
-      const { data: statusData, error: statusError } = await supabase
+      const { data: statusData } = await supabase
         .from('shipment_status')
         .select('status_id')
         .eq('status_name', 'Delivered')
         .maybeSingle();
 
-      if (statusError || !statusData) {
-        console.error('[widgetdataservice] Status lookup error:', statusError);
-        return { rows: [], columns: [] };
-      }
+      if (!statusData) return { rows: [], columns: [] };
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          delivery_date,
-          retail,
-          rate_carrier_id
-        `)
+        .select('load_id, reference_number, pickup_date, delivery_date, retail')
         .in('customer_id', customerFilter)
         .eq('status_id', statusData.status_id)
         .gte('delivery_date', startOfMonth)
         .order('delivery_date', { ascending: false })
         .limit(500);
-
-      if (error) {
-        console.error('[widgetdataservice] Delivered query error:', error);
-        return { rows: [], columns: [] };
-      }
 
       return {
         rows: (data || []).map(row => ({
@@ -133,35 +137,21 @@ async function fetchWidgetRowData(
     },
 
     in_transit: async () => {
-      const { data: statusData, error: statusError } = await supabase
+      const { data: statusData } = await supabase
         .from('shipment_status')
         .select('status_id')
         .eq('status_name', 'In Transit')
         .maybeSingle();
 
-      if (statusError || !statusData) {
-        console.error('[widgetdataservice] In Transit status lookup error:', statusError);
-        return { rows: [], columns: [] };
-      }
+      if (!statusData) return { rows: [], columns: [] };
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          expected_delivery_date,
-          retail
-        `)
+        .select('load_id, reference_number, pickup_date, expected_delivery_date, retail')
         .in('customer_id', customerFilter)
         .eq('status_id', statusData.status_id)
         .order('pickup_date', { ascending: false })
         .limit(500);
-
-      if (error) {
-        console.error('[widgetdataservice] In Transit query error:', error);
-        return { rows: [], columns: [] };
-      }
 
       return {
         rows: (data || []).map(row => ({
@@ -182,26 +172,14 @@ async function fetchWidgetRowData(
     },
 
     total_cost: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          delivery_date,
-          retail,
-          cost
-        `)
+        .select('load_id, reference_number, pickup_date, delivery_date, retail, cost')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
         .order('retail', { ascending: false })
         .limit(500);
-
-      if (error) {
-        console.error('[widgetdataservice] Total cost query error:', error);
-        return { rows: [], columns: [] };
-      }
 
       return {
         rows: (data || []).map(row => ({
@@ -224,26 +202,15 @@ async function fetchWidgetRowData(
     },
 
     avg_cost_shipment: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail,
-          cost
-        `)
+        .select('load_id, reference_number, pickup_date, retail, cost')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
         .not('retail', 'is', null)
         .order('retail', { ascending: false })
         .limit(500);
-
-      if (error) {
-        console.error('[widgetdataservice] Avg cost query error:', error);
-        return { rows: [], columns: [] };
-      }
 
       return {
         rows: (data || []).map(row => ({
@@ -264,25 +231,15 @@ async function fetchWidgetRowData(
     },
 
     monthly_spend: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail
-        `)
+        .select('load_id, reference_number, pickup_date, retail')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
         .not('retail', 'is', null)
         .order('pickup_date', { ascending: false })
         .limit(500);
-
-      if (error) {
-        console.error('[widgetdataservice] Monthly spend query error:', error);
-        return { rows: [], columns: [] };
-      }
 
       return {
         rows: (data || []).map(row => ({
@@ -301,44 +258,30 @@ async function fetchWidgetRowData(
     },
 
     flow_map: async () => {
-      const { data: shipments, error: shipmentsError } = await supabase
+      const { data: shipments } = await supabase
         .from('shipment')
         .select('load_id, reference_number, pickup_date, delivery_date, retail')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
+        .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (shipmentsError || !shipments || shipments.length === 0) {
-        console.error('[widgetdataservice] Flow map shipments error:', shipmentsError);
-        return { rows: [], columns: [] };
-      }
+      if (!shipments || shipments.length === 0) return { rows: [], columns: [] };
 
-      const loadIds = shipments.map(s => s.load_id);
-
-      const { data: addresses, error: addressesError } = await supabase
-        .from('shipment_address')
-        .select('load_id, city, state, address_type')
-        .in('load_id', loadIds)
-        .in('address_type', [1, 2]);
-
-      if (addressesError) {
-        console.error('[widgetdataservice] Flow map addresses error:', addressesError);
-      }
+      const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const origin = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 1);
-        const dest = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 2);
-
+        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
         return {
           load_id: shipment.load_id,
           reference_number: shipment.reference_number,
+          origin_city: addr.origin?.city || '',
+          origin_state: addr.origin?.state || '',
+          dest_city: addr.dest?.city || '',
+          dest_state: addr.dest?.state || '',
           pickup_date: shipment.pickup_date,
           delivery_date: shipment.delivery_date,
-          origin_city: origin?.city || '',
-          origin_state: origin?.state || '',
-          dest_city: dest?.city || '',
-          dest_state: dest?.state || '',
           retail: shipment.retail,
         };
       });
@@ -360,7 +303,7 @@ async function fetchWidgetRowData(
     },
 
     cost_by_state: async () => {
-      const { data: shipments, error: shipmentsError } = await supabase
+      const { data: shipments } = await supabase
         .from('shipment')
         .select('load_id, reference_number, pickup_date, delivery_date, retail')
         .in('customer_id', customerFilter)
@@ -370,32 +313,17 @@ async function fetchWidgetRowData(
         .order('retail', { ascending: false })
         .limit(500);
 
-      if (shipmentsError || !shipments || shipments.length === 0) {
-        console.error('[widgetdataservice] Cost by state shipments error:', shipmentsError);
-        return { rows: [], columns: [] };
-      }
+      if (!shipments || shipments.length === 0) return { rows: [], columns: [] };
 
-      const loadIds = shipments.map(s => s.load_id);
-
-      const { data: addresses, error: addressesError } = await supabase
-        .from('shipment_address')
-        .select('load_id, city, state, address_type')
-        .in('load_id', loadIds)
-        .in('address_type', [1, 2]);
-
-      if (addressesError) {
-        console.error('[widgetdataservice] Cost by state addresses error:', addressesError);
-      }
+      const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const origin = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 1);
-        const dest = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 2);
-
+        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
         return {
           load_id: shipment.load_id,
           reference_number: shipment.reference_number,
-          origin_state: origin?.state || '',
-          dest_state: dest?.state || '',
+          origin_state: addr.origin?.state || '',
+          dest_state: addr.dest?.state || '',
           pickup_date: shipment.pickup_date,
           delivery_date: shipment.delivery_date,
           retail: shipment.retail,
@@ -417,32 +345,35 @@ async function fetchWidgetRowData(
     },
 
     mode_breakdown: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail,
-          mode:shipment_mode!mode_id(mode_description)
-        `)
+        .select('load_id, reference_number, pickup_date, retail, mode_id')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
         .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (error) {
-        console.error('[widgetdataservice] Mode breakdown query error:', error);
-        return { rows: [], columns: [] };
+      if (!data || data.length === 0) return { rows: [], columns: [] };
+
+      const modeIds = [...new Set(data.map(s => s.mode_id).filter(Boolean))];
+      let modeMap: Record<number, string> = {};
+      if (modeIds.length > 0) {
+        const { data: modes } = await supabase
+          .from('shipment_mode')
+          .select('mode_id, mode_description')
+          .in('mode_id', modeIds);
+        if (modes) {
+          modeMap = Object.fromEntries(modes.map(m => [m.mode_id, m.mode_description]));
+        }
       }
 
       return {
-        rows: (data || []).map(row => ({
+        rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
+          mode: modeMap[row.mode_id] || 'Unknown',
           pickup_date: row.pickup_date,
-          mode: (row.mode as { mode_description?: string })?.mode_description || 'Unknown',
           retail: row.retail,
         })),
         columns: [
@@ -456,37 +387,23 @@ async function fetchWidgetRowData(
     },
 
     top_lanes: async () => {
-      const { data: shipments, error: shipmentsError } = await supabase
+      const { data: shipments } = await supabase
         .from('shipment')
         .select('load_id, reference_number, pickup_date, retail')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
+        .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (shipmentsError || !shipments || shipments.length === 0) {
-        console.error('[widgetdataservice] Top lanes shipments error:', shipmentsError);
-        return { rows: [], columns: [] };
-      }
+      if (!shipments || shipments.length === 0) return { rows: [], columns: [] };
 
-      const loadIds = shipments.map(s => s.load_id);
-
-      const { data: addresses, error: addressesError } = await supabase
-        .from('shipment_address')
-        .select('load_id, city, state, address_type')
-        .in('load_id', loadIds)
-        .in('address_type', [1, 2]);
-
-      if (addressesError) {
-        console.error('[widgetdataservice] Top lanes addresses error:', addressesError);
-      }
+      const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const origin = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 1);
-        const dest = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 2);
-
-        const lane = origin && dest
-          ? `${origin.city}, ${origin.state} -> ${dest.city}, ${dest.state}`
+        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
+        const lane = addr.origin && addr.dest
+          ? `${addr.origin.city}, ${addr.origin.state} -> ${addr.dest.city}, ${addr.dest.state}`
           : 'Unknown';
 
         return {
@@ -510,16 +427,10 @@ async function fetchWidgetRowData(
       };
     },
 
-    carrier_count: async () => {
-      const { data, error } = await supabase
+    carrier_mix: async () => {
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail,
-          rate_carrier_id
-        `)
+        .select('load_id, reference_number, pickup_date, retail, rate_carrier_id')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
@@ -527,53 +438,33 @@ async function fetchWidgetRowData(
         .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (error) {
-        console.error('[widgetdataservice] Carrier count query error:', error);
-        return { rows: [], columns: [] };
-      }
+      if (!data || data.length === 0) return { rows: [], columns: [] };
 
-      const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
-
-      let carrierMap: Record<number, string> = {};
-      if (carrierIds.length > 0) {
-        const { data: carriers } = await supabase
-          .from('carrier')
-          .select('carrier_id, carrier_name')
-          .in('carrier_id', carrierIds);
-
-        if (carriers) {
-          carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
-        }
-      }
+      const carrierIds = [...new Set(data.map(s => s.rate_carrier_id).filter(Boolean))];
+      const carrierMap = await getCarrierMap(carrierIds);
 
       return {
-        rows: (data || []).map(row => ({
+        rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
-          pickup_date: row.pickup_date,
           carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          pickup_date: row.pickup_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
     },
 
-    top_carriers: async () => {
-      const { data, error } = await supabase
+    spend_by_carrier: async () => {
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail,
-          rate_carrier_id
-        `)
+        .select('load_id, reference_number, pickup_date, retail, rate_carrier_id')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
@@ -581,108 +472,83 @@ async function fetchWidgetRowData(
         .order('retail', { ascending: false })
         .limit(500);
 
-      if (error) {
-        console.error('[widgetdataservice] Top carriers query error:', error);
-        return { rows: [], columns: [] };
-      }
+      if (!data || data.length === 0) return { rows: [], columns: [] };
 
-      const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
-
-      let carrierMap: Record<number, string> = {};
-      if (carrierIds.length > 0) {
-        const { data: carriers } = await supabase
-          .from('carrier')
-          .select('carrier_id, carrier_name')
-          .in('carrier_id', carrierIds);
-
-        if (carriers) {
-          carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
-        }
-      }
+      const carrierIds = [...new Set(data.map(s => s.rate_carrier_id).filter(Boolean))];
+      const carrierMap = await getCarrierMap(carrierIds);
 
       return {
-        rows: (data || []).map(row => ({
+        rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
-          pickup_date: row.pickup_date,
           carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          pickup_date: row.pickup_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
     },
 
-    carrier_mix: async () => {
-      const { data, error } = await supabase
+    carrier_performance: async () => {
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          retail,
-          rate_carrier_id
-        `)
+        .select('load_id, reference_number, pickup_date, delivery_date, expected_delivery_date, retail, rate_carrier_id')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
         .not('rate_carrier_id', 'is', null)
+        .not('delivery_date', 'is', null)
         .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (error) {
-        console.error('[widgetdataservice] Carrier mix query error:', error);
-        return { rows: [], columns: [] };
-      }
+      if (!data || data.length === 0) return { rows: [], columns: [] };
 
-      const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
-
-      let carrierMap: Record<number, string> = {};
-      if (carrierIds.length > 0) {
-        const { data: carriers } = await supabase
-          .from('carrier')
-          .select('carrier_id, carrier_name')
-          .in('carrier_id', carrierIds);
-
-        if (carriers) {
-          carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
-        }
-      }
+      const carrierIds = [...new Set(data.map(s => s.rate_carrier_id).filter(Boolean))];
+      const carrierMap = await getCarrierMap(carrierIds);
 
       return {
-        rows: (data || []).map(row => ({
-          load_id: row.load_id,
-          reference_number: row.reference_number,
-          pickup_date: row.pickup_date,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
-          retail: row.retail,
-        })),
+        rows: data.map(row => {
+          const isOnTime = row.expected_delivery_date
+            ? new Date(row.delivery_date) <= new Date(row.expected_delivery_date)
+            : true;
+          const transitDays = row.pickup_date && row.delivery_date
+            ? Math.round((new Date(row.delivery_date).getTime() - new Date(row.pickup_date).getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+
+          return {
+            load_id: row.load_id,
+            reference_number: row.reference_number,
+            carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+            pickup_date: row.pickup_date,
+            delivery_date: row.delivery_date,
+            on_time: isOnTime ? 'Yes' : 'No',
+            transit_days: transitDays,
+            retail: row.retail,
+          };
+        }),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'carrier', label: 'Carrier', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+          { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
+          { key: 'on_time', label: 'On Time', type: 'string' },
+          { key: 'transit_days', label: 'Transit Days', type: 'number' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
     },
 
     on_time_pct: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('shipment')
-        .select(`
-          load_id,
-          reference_number,
-          pickup_date,
-          delivery_date,
-          expected_delivery_date,
-          retail
-        `)
+        .select('load_id, reference_number, pickup_date, delivery_date, expected_delivery_date, retail')
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end)
@@ -690,13 +556,10 @@ async function fetchWidgetRowData(
         .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (error) {
-        console.error('[widgetdataservice] On-time pct query error:', error);
-        return { rows: [], columns: [] };
-      }
+      if (!data || data.length === 0) return { rows: [], columns: [] };
 
       return {
-        rows: (data || []).map(row => {
+        rows: data.map(row => {
           const isOnTime = row.expected_delivery_date
             ? new Date(row.delivery_date) <= new Date(row.expected_delivery_date)
             : true;
@@ -718,6 +581,113 @@ async function fetchWidgetRowData(
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
           { key: 'expected_delivery', label: 'Expected Delivery', type: 'date' },
           { key: 'on_time', label: 'On Time', type: 'string' },
+          { key: 'retail', label: 'Cost', type: 'currency' },
+        ]
+      };
+    },
+
+    avg_transit_days: async () => {
+      const { data } = await supabase
+        .from('shipment')
+        .select('load_id, reference_number, pickup_date, delivery_date, retail')
+        .in('customer_id', customerFilter)
+        .gte('pickup_date', dateRange.start)
+        .lte('pickup_date', dateRange.end)
+        .not('delivery_date', 'is', null)
+        .order('pickup_date', { ascending: false })
+        .limit(500);
+
+      if (!data || data.length === 0) return { rows: [], columns: [] };
+
+      return {
+        rows: data.map(row => {
+          const transitDays = row.pickup_date && row.delivery_date
+            ? Math.round((new Date(row.delivery_date).getTime() - new Date(row.pickup_date).getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+
+          return {
+            load_id: row.load_id,
+            reference_number: row.reference_number,
+            pickup_date: row.pickup_date,
+            delivery_date: row.delivery_date,
+            transit_days: transitDays,
+            retail: row.retail,
+          };
+        }),
+        columns: [
+          { key: 'load_id', label: 'Load ID', type: 'string' },
+          { key: 'reference_number', label: 'Reference', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+          { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
+          { key: 'transit_days', label: 'Transit Days', type: 'number' },
+          { key: 'retail', label: 'Cost', type: 'currency' },
+        ]
+      };
+    },
+
+    carrier_count: async () => {
+      const { data } = await supabase
+        .from('shipment')
+        .select('load_id, reference_number, pickup_date, retail, rate_carrier_id')
+        .in('customer_id', customerFilter)
+        .gte('pickup_date', dateRange.start)
+        .lte('pickup_date', dateRange.end)
+        .not('rate_carrier_id', 'is', null)
+        .order('pickup_date', { ascending: false })
+        .limit(500);
+
+      if (!data || data.length === 0) return { rows: [], columns: [] };
+
+      const carrierIds = [...new Set(data.map(s => s.rate_carrier_id).filter(Boolean))];
+      const carrierMap = await getCarrierMap(carrierIds);
+
+      return {
+        rows: data.map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          pickup_date: row.pickup_date,
+          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          retail: row.retail,
+        })),
+        columns: [
+          { key: 'load_id', label: 'Load ID', type: 'string' },
+          { key: 'reference_number', label: 'Reference', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'retail', label: 'Cost', type: 'currency' },
+        ]
+      };
+    },
+
+    top_carriers: async () => {
+      const { data } = await supabase
+        .from('shipment')
+        .select('load_id, reference_number, pickup_date, retail, rate_carrier_id')
+        .in('customer_id', customerFilter)
+        .gte('pickup_date', dateRange.start)
+        .lte('pickup_date', dateRange.end)
+        .not('rate_carrier_id', 'is', null)
+        .order('retail', { ascending: false })
+        .limit(500);
+
+      if (!data || data.length === 0) return { rows: [], columns: [] };
+
+      const carrierIds = [...new Set(data.map(s => s.rate_carrier_id).filter(Boolean))];
+      const carrierMap = await getCarrierMap(carrierIds);
+
+      return {
+        rows: data.map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          pickup_date: row.pickup_date,
+          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          retail: row.retail,
+        })),
+        columns: [
+          { key: 'load_id', label: 'Load ID', type: 'string' },
+          { key: 'reference_number', label: 'Reference', type: 'string' },
+          { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+          { key: 'carrier', label: 'Carrier', type: 'string' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };

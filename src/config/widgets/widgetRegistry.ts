@@ -99,3 +99,7 @@ export function getWidgetsByCategory(category: string, access?: WidgetAccess): W
     w => w.category === category && (!access || w.access === access)
   );
 }
+
+export function getWidgetById(id: string): WidgetDefinition | undefined {
+  return systemWidgets[id];
+}

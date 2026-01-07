@@ -1,14 +1,8 @@
-// src/services/widgetDataService.ts
-
-import { supabase } from '@/lib/supabase';
-import { getWidgetById } from '@/config/widgets/widgetRegistry';
-import { transformToTableFormat, type TableData } from '@/utils/tableTransform';
-import type { ReportExecutionParams, DateRange } from '@/types/report';
-import type { WidgetData } from '@/types/widget';
-
-// ============================================
-// TYPES
-// ============================================
+import { supabase } from '../lib/supabase';
+import { getWidgetById } from '../config/widgets/widgetRegistry';
+import { transformToTableFormat, type TableData } from '../utils/tabletransform';
+import type { ReportExecutionParams, DateRange } from '../types/report';
+import type { WidgetData } from '../config/widgets/widgetTypes';
 
 export interface WidgetExecutionResult {
   widgetId: string;
@@ -17,10 +11,6 @@ export interface WidgetExecutionResult {
   tableData: TableData;
   executedAt: string;
 }
-
-// ============================================
-// ERRORS
-// ============================================
 
 export class WidgetNotFoundError extends Error {
   constructor(widgetId: string) {
@@ -37,40 +27,35 @@ export class WidgetExecutionError extends Error {
   }
 }
 
-// ============================================
-// MAIN FUNCTIONS
-// ============================================
-
-/**
- * Executes a widget and returns both raw data and table-formatted data.
- * This is the core function for the raw data view.
- */
 export async function executeWidget(
   widgetId: string,
   params: ReportExecutionParams,
   customerId: string
 ): Promise<WidgetExecutionResult> {
-  // Get widget definition from registry
   const widgetDef = getWidgetById(widgetId);
 
   if (!widgetDef) {
     throw new WidgetNotFoundError(widgetId);
   }
 
-  // Ensure we have a valid date range
   const dateRange = params.dateRange || getDefaultDateRange();
 
   try {
-    // Execute the widget's calculate function
     const widgetData = await widgetDef.calculate({
       supabase,
       dateRange,
-      filters: params.filters,
-      customerId,
+      customerId: customerId ? Number(customerId) : undefined,
     });
 
-    // Transform to table format
-    const tableData = transformToTableFormat(widgetData);
+    const tableData = transformToTableFormat({
+      rows: widgetData.data || [],
+      value: widgetData.value,
+      meta: {
+        metric: widgetData.label,
+        unit: widgetData.format === 'currency' ? 'currency' :
+              widgetData.format === 'percent' ? 'percentage' : 'number',
+      },
+    });
 
     return {
       widgetId,
@@ -87,10 +72,6 @@ export async function executeWidget(
   }
 }
 
-/**
- * Executes a widget for a saved report (uses frozen params).
- * Called when viewing a widget-backed saved report.
- */
 export async function executeWidgetReport(
   widgetId: string,
   executionParams: ReportExecutionParams,
@@ -99,10 +80,6 @@ export async function executeWidgetReport(
   return executeWidget(widgetId, executionParams, customerId);
 }
 
-/**
- * Gets widget definition metadata without executing.
- * Useful for displaying widget info before data loads.
- */
 export function getWidgetMetadata(widgetId: string): {
   id: string;
   name: string;
@@ -117,13 +94,9 @@ export function getWidgetMetadata(widgetId: string): {
     id: widgetDef.id,
     name: widgetDef.name,
     description: widgetDef.description,
-    visualizationType: widgetDef.visualization.type,
+    visualizationType: widgetDef.type,
   };
 }
-
-// ============================================
-// UTILITIES
-// ============================================
 
 function getDefaultDateRange(): DateRange {
   const end = new Date();

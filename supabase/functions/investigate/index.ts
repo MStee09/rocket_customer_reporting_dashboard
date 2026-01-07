@@ -243,18 +243,43 @@ function classifyQuestion(question: string): { mode: 'quick' | 'deep' | 'visual'
   return { mode: 'deep', confidence: 0.6, reason: 'Default to thorough analysis' };
 }
 
+function formatMetricName(metric: string): string {
+  return metric
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function determineFormat(metric: string): string {
+  const lowerMetric = metric.toLowerCase();
+  if (lowerMetric.includes('cost') || lowerMetric.includes('retail') || lowerMetric.includes('price') || lowerMetric.includes('spend')) {
+    return 'currency';
+  }
+  if (lowerMetric.includes('percent') || lowerMetric.includes('rate') || lowerMetric.includes('ratio')) {
+    return 'percent';
+  }
+  return 'number';
+}
+
 function generateVisualization(toolName: string, toolInput: Record<string, unknown>, result: unknown): Visualization | null {
   const id = crypto.randomUUID();
 
   if (toolName === 'preview_aggregation' && result && typeof result === 'object') {
     const data = result as { groups?: Array<{ group: string; value: number; count: number }> };
     if (data.groups && data.groups.length > 0) {
+      const metric = toolInput.metric as string;
+      const groupBy = toolInput.group_by as string;
       return {
         id,
         type: 'bar',
-        title: `${toolInput.metric} by ${toolInput.group_by}`,
-        data: data.groups.map(g => ({ name: g.group, value: g.value, count: g.count })),
-        config: { metric: toolInput.metric, groupBy: toolInput.group_by }
+        title: `${formatMetricName(metric)} by ${formatMetricName(groupBy)}`,
+        data: {
+          data: data.groups.slice(0, 10).map(g => ({
+            label: g.group || 'Unknown',
+            value: Math.round(g.value * 100) / 100
+          })),
+          format: determineFormat(metric)
+        },
+        config: { metric, groupBy }
       };
     }
   }
@@ -262,46 +287,84 @@ function generateVisualization(toolName: string, toolInput: Record<string, unkno
   if (toolName === 'get_trend' && result && typeof result === 'object') {
     const data = result as { trend?: Array<{ period: string; value: number; count: number }> };
     if (data.trend && data.trend.length > 0) {
+      const metric = toolInput.metric as string;
       return {
         id,
         type: 'line',
-        title: `${toolInput.metric} over time`,
-        data: data.trend.map(t => ({ date: t.period, value: t.value })),
-        config: { metric: toolInput.metric, period: toolInput.period }
+        title: `${formatMetricName(metric)} Over Time`,
+        data: {
+          data: data.trend.map(t => ({
+            label: t.period,
+            value: Math.round(t.value * 100) / 100
+          })),
+          format: determineFormat(metric)
+        },
+        config: { metric, period: toolInput.period }
       };
     }
   }
 
   if (toolName === 'compare_periods' && result && typeof result === 'object') {
     const data = result as {
-      period1: { label: string; value: number };
-      period2: { label: string; value: number };
-      change: { percent: number };
+      period1: { label: string; value: number; count: number };
+      period2: { label: string; value: number; count: number };
+      change: { absolute: number; percent: number };
     };
+    const metric = toolInput.metric as string;
+    const changePercent = Math.round(data.change.percent * 10) / 10;
     return {
       id,
       type: 'stat',
-      title: `${toolInput.metric} comparison`,
+      title: formatMetricName(metric),
       data: {
-        current: data.period1.value,
-        previous: data.period2.value,
-        changePercent: data.change.percent,
-        period1Label: data.period1.label,
-        period2Label: data.period2.label
+        value: Math.round(data.period1.value * 100) / 100,
+        format: determineFormat(metric),
+        comparison: {
+          value: changePercent,
+          label: `vs ${data.period2.label}`,
+          direction: changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'neutral'
+        }
       },
-      config: { metric: toolInput.metric }
+      config: { metric }
     };
   }
 
   if (toolName === 'explore_field' && result && typeof result === 'object') {
     const data = result as { values?: Array<{ value: string; count: number }> };
     if (data.values && data.values.length > 0 && data.values.length <= 10) {
+      const fieldName = toolInput.field_name as string;
       return {
         id,
         type: 'pie',
-        title: `${toolInput.field_name} distribution`,
-        data: data.values.map(v => ({ name: v.value, value: v.count })),
-        config: { field: toolInput.field_name }
+        title: `${formatMetricName(fieldName)} Distribution`,
+        data: {
+          data: data.values.map(v => ({
+            label: v.value || 'Unknown',
+            value: v.count
+          })),
+          format: 'number'
+        },
+        config: { field: fieldName }
+      };
+    }
+  }
+
+  if (toolName === 'get_summary_stats' && result && typeof result === 'object') {
+    const data = result as {
+      total_shipments?: number;
+      total_cost?: number;
+      avg_cost?: number;
+    };
+    if (data.total_cost !== undefined) {
+      return {
+        id,
+        type: 'stat',
+        title: 'Total Spend',
+        data: {
+          value: Math.round(data.total_cost * 100) / 100,
+          format: 'currency'
+        },
+        config: {}
       };
     }
   }

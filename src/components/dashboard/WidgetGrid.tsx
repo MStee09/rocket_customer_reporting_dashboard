@@ -1,4 +1,5 @@
 import { useState, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   closestCenter,
@@ -62,9 +63,11 @@ interface SortableWidgetWrapperProps {
   isSelected: boolean;
   widgetType: string;
   currentSize: WidgetSizeValue;
+  isCustomWidget: boolean;
   onSelect: () => void;
   onRemove: () => void;
   onSizeChange: (size: WidgetSizeValue) => void;
+  onWidgetClick: () => void;
   children: ReactNode;
 }
 
@@ -76,9 +79,11 @@ function SortableWidgetWrapper({
   isSelected,
   widgetType,
   currentSize,
+  isCustomWidget,
   onSelect,
   onRemove,
   onSizeChange,
+  onWidgetClick,
   children,
 }: SortableWidgetWrapperProps) {
   const {
@@ -93,7 +98,7 @@ function SortableWidgetWrapper({
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const { getStateForWidget, getMaxSeverityForWidget, getAlertsForWidget } = useDashboardAlerts();
+  const { getStateForWidget, getMaxSeverityForWidget } = useDashboardAlerts();
   const alertState = getStateForWidget(id);
   const maxSeverity = getMaxSeverityForWidget(id);
   const hasAlerts = alertState === 'active';
@@ -124,6 +129,26 @@ function SortableWidgetWrapper({
       return 'border-red-500 border-2 shadow-lg shadow-red-500/20 ring-2 ring-red-500/10';
     }
     return 'border-orange-500 border-2 shadow-lg shadow-orange-500/20 ring-2 ring-orange-500/10';
+  };
+
+  const isClickableForNavigation = !isEditMode && !isCustomWidget && widgetType !== 'ai_report' && widgetType !== 'map';
+
+  const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('[role="button"]') ||
+      target.closest('.cursor-grab')
+    ) {
+      return;
+    }
+
+    if (isEditMode) {
+      onSelect();
+    } else if (isClickableForNavigation) {
+      onWidgetClick();
+    }
   };
 
   return (
@@ -249,11 +274,19 @@ function SortableWidgetWrapper({
               ? 'ring-2 ring-orange-500 border-orange-500'
               : 'border-slate-200 hover:border-orange-300'
             : getAlertStyles()
-        } ${isDragging ? 'opacity-50 scale-[0.98] shadow-2xl' : ''}`}
+        } ${isDragging ? 'opacity-50 scale-[0.98] shadow-2xl' : ''} ${isClickableForNavigation ? 'cursor-pointer' : ''}`}
         style={{
           animation: isEditMode && !isDragging ? 'wiggle 0.3s ease-in-out infinite' : undefined,
         }}
-        onClick={() => isEditMode && onSelect()}
+        onClick={handleClick}
+        role={isClickableForNavigation ? 'button' : undefined}
+        tabIndex={isClickableForNavigation ? 0 : undefined}
+        onKeyDown={isClickableForNavigation ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onWidgetClick();
+          }
+        } : undefined}
         data-widget-id={id}
         data-alert-state={alertState}
       >
@@ -279,6 +312,7 @@ export function WidgetGrid({
   onReorder,
   allowHoverDrag = true,
 }: WidgetGridProps) {
+  const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const isDragEnabled = isEditMode || allowHoverDrag;
@@ -314,6 +348,10 @@ export function WidgetGrid({
     const currentSize = (widgetSizes[widgetId] || 1) as WidgetSizeConstraint;
     const effectiveSize = clampWidgetSize(currentSize, widgetId, widget.type);
     return getSizeColSpan(effectiveSize);
+  };
+
+  const handleWidgetClick = (widgetId: string) => {
+    navigate(`/widgets/${widgetId}/data`);
   };
 
   const renderWidgetContent = (item: WidgetItem) => {
@@ -362,6 +400,7 @@ export function WidgetGrid({
         const widgetType = widget?.type || 'kpi';
         const currentSize = (widgetSizes[item.id] || 1) as WidgetSizeValue;
         const effectiveSize = clampWidgetSize(currentSize, item.id, widgetType);
+        const isCustom = !widgetLibrary[item.id];
 
         return (
           <SortableWidgetWrapper
@@ -373,9 +412,11 @@ export function WidgetGrid({
             isSelected={selectedWidgetId === item.id}
             widgetType={widgetType}
             currentSize={effectiveSize}
+            isCustomWidget={isCustom}
             onSelect={() => onWidgetSelect?.(item.id)}
             onRemove={() => onWidgetRemove?.(item.id)}
             onSizeChange={(size) => onWidgetSizeChange?.(item.id, size)}
+            onWidgetClick={() => handleWidgetClick(item.id)}
           >
             {renderWidgetContent(item)}
           </SortableWidgetWrapper>
@@ -416,13 +457,32 @@ export function WidgetGrid({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
-      {widgets.map((item) => (
-        <div key={item.id} className={getColSpan(item.id)}>
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow">
-            {renderWidgetContent(item)}
+      {widgets.map((item) => {
+        const widget = widgetLibrary[item.id] || customWidgets[item.id] as { type: string } | undefined;
+        const widgetType = widget?.type || 'kpi';
+        const isCustom = !widgetLibrary[item.id];
+        const isClickable = !isCustom && widgetType !== 'ai_report' && widgetType !== 'map';
+
+        return (
+          <div
+            key={item.id}
+            className={getColSpan(item.id)}
+            onClick={isClickable ? () => handleWidgetClick(item.id) : undefined}
+            role={isClickable ? 'button' : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            onKeyDown={isClickable ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleWidgetClick(item.id);
+              }
+            } : undefined}
+          >
+            <div className={`bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow ${isClickable ? 'cursor-pointer' : ''}`}>
+              {renderWidgetContent(item)}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

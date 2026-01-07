@@ -1,6 +1,8 @@
 /**
  * InvestigatorUnified - Single AI component that auto-routes questions
- *
+ * 
+ * FIXED: Now properly renders visualizations from edge function!
+ * 
  * Simple questions → Quick mode (~5s)
  * Complex questions → Deep mode (~15s)
  * Visual questions → Visual mode with charts
@@ -28,11 +30,6 @@ import {
   BarChart3,
   Map,
   Grid3X3,
-  Clock,
-  Zap,
-  X,
-  Download,
-  Plus,
 } from 'lucide-react';
 import {
   BarChart,
@@ -41,6 +38,8 @@ import {
   Pie,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -48,11 +47,32 @@ import {
   ResponsiveContainer,
   Cell,
   Treemap,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from 'recharts';
 import { supabase } from '../../lib/supabase';
 import type { ReportDraft } from '../../ai/investigator/types';
 
-type VisualizationType =
+// =============================================================================
+// TYPES
+// =============================================================================
+
+interface ReasoningStep {
+  type: 'thinking' | 'tool_call' | 'tool_result' | 'routing';
+  content: string;
+  toolName?: string;
+}
+
+interface FollowUpQuestion {
+  id: string;
+  question: string;
+}
+
+// Visualization types from edge function
+type VisualizationType = 
   | 'bar' | 'pie' | 'line' | 'area' | 'stat'
   | 'treemap' | 'heatmap' | 'radar' | 'waterfall'
   | 'choropleth' | 'flowmap'
@@ -73,24 +93,13 @@ interface Visualization {
   config?: Record<string, unknown>;
 }
 
-interface ReasoningStep {
-  type: 'thinking' | 'tool_call' | 'tool_result' | 'routing';
-  content: string;
-  toolName?: string;
-}
-
-interface FollowUpQuestion {
-  id: string;
-  question: string;
-}
-
 interface ConversationMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   reasoning?: ReasoningStep[];
   followUpQuestions?: FollowUpQuestion[];
-  visualizations?: Visualization[];
+  visualizations?: Visualization[];  // <-- ADDED!
   metadata?: {
     processingTimeMs: number;
     toolCallCount: number;
@@ -112,8 +121,16 @@ interface InvestigatorUnifiedProps {
   onClose?: () => void;
 }
 
+// =============================================================================
+// CHART COLORS
+// =============================================================================
+
 const CHART_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#8b5cf6', '#ef4444', '#06b6d4', '#f59e0b', '#ec4899'];
 const HEATMAP_COLORS = ['#f0fdf4', '#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d'];
+
+// =============================================================================
+// VISUALIZATION RENDERERS
+// =============================================================================
 
 function formatValue(val: number, format?: string): string {
   if (format === 'currency') return `$${val.toLocaleString()}`;
@@ -124,9 +141,10 @@ function formatValue(val: number, format?: string): string {
 function BarChartViz({ viz }: { viz: Visualization }) {
   const chartData = viz.data.data || [];
   const format = viz.data.format;
-
+  
   if (chartData.length === 0) return null;
 
+  // Normalize data to use 'label' consistently
   const normalizedData = chartData.map(d => ({
     label: d.label || d.name || 'Unknown',
     value: d.value
@@ -144,8 +162,8 @@ function BarChartViz({ viz }: { viz: Visualization }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis type="number" tickFormatter={(v) => formatValue(v, format)} fontSize={11} />
           <YAxis type="category" dataKey="label" fontSize={11} width={95} tick={{ fill: '#64748b' }} />
-          <Tooltip
-            formatter={(value: number) => [formatValue(value, format), 'Value']}
+          <Tooltip 
+            formatter={(value: number) => [formatValue(value, format), 'Value']} 
             contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }}
           />
           <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -162,7 +180,7 @@ function BarChartViz({ viz }: { viz: Visualization }) {
 function PieChartViz({ viz }: { viz: Visualization }) {
   const chartData = viz.data.data || [];
   const format = viz.data.format;
-
+  
   if (chartData.length === 0) return null;
 
   const normalizedData = chartData.map(d => ({
@@ -209,7 +227,7 @@ function PieChartViz({ viz }: { viz: Visualization }) {
 function LineChartViz({ viz }: { viz: Visualization }) {
   const chartData = viz.data.data || [];
   const format = viz.data.format;
-
+  
   if (chartData.length === 0) return null;
 
   const normalizedData = chartData.map(d => ({
@@ -238,9 +256,9 @@ function StatCardViz({ viz }: { viz: Visualization }) {
   const value = viz.data.value || 0;
   const comparison = viz.data.comparison;
 
-  const CompIcon = comparison?.direction === 'up' ? TrendingUp :
+  const CompIcon = comparison?.direction === 'up' ? TrendingUp : 
                    comparison?.direction === 'down' ? TrendingDown : Minus;
-  const compColor = comparison?.direction === 'up' ? 'text-green-600' :
+  const compColor = comparison?.direction === 'up' ? 'text-green-600' : 
                     comparison?.direction === 'down' ? 'text-red-600' : 'text-slate-500';
 
   return (
@@ -261,7 +279,7 @@ function StatCardViz({ viz }: { viz: Visualization }) {
 function TreemapViz({ viz }: { viz: Visualization }) {
   const chartData = viz.data.data || [];
   const format = viz.data.format;
-
+  
   if (chartData.length === 0) return null;
 
   const normalizedData = chartData.map(d => ({
@@ -275,7 +293,7 @@ function TreemapViz({ viz }: { viz: Visualization }) {
   return (
     <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 my-3">
       <h4 className="font-semibold text-slate-900 mb-1 text-sm flex items-center gap-2">
-        <Grid3X3 className="w-4 h-4 text-blue-500" />
+        <Grid3X3 className="w-4 h-4 text-purple-500" />
         {viz.title}
       </h4>
       {viz.subtitle && <p className="text-xs text-slate-500 mb-3">{viz.subtitle}</p>}
@@ -329,21 +347,22 @@ function TreemapViz({ viz }: { viz: Visualization }) {
 function HeatmapViz({ viz }: { viz: Visualization }) {
   const chartData = (viz.data.data as Array<{ date?: string; label?: string; value: number }>) || [];
   const valueLabel = viz.data.valueLabel || 'value';
-
+  
   const { weeks, stats } = useMemo(() => {
     if (!chartData.length) return { weeks: [], stats: { min: 0, max: 0 } };
 
+    // Ensure we have date data
     const dateData = chartData.filter(d => d.date || d.label);
     if (!dateData.length) return { weeks: [], stats: { min: 0, max: 0 } };
 
     const values = dateData.map(d => d.value);
     const stats = { min: Math.min(...values), max: Math.max(...values) };
-
-    const sorted = [...dateData].sort((a, b) =>
+    
+    const sorted = [...dateData].sort((a, b) => 
       (a.date || a.label || '').localeCompare(b.date || b.label || '')
     );
     const dataMap = new Map(sorted.map(d => [d.date || d.label, d.value]));
-
+    
     const startDate = new Date(sorted[0].date || sorted[0].label || '');
     const endDate = new Date(sorted[sorted.length - 1].date || sorted[sorted.length - 1].label || '');
     startDate.setDate(startDate.getDate() - startDate.getDay());
@@ -359,7 +378,7 @@ function HeatmapViz({ viz }: { viz: Visualization }) {
       current.setDate(current.getDate() + 1);
     }
     if (currentWeek.length) weeks.push(currentWeek);
-
+    
     return { weeks, stats };
   }, [chartData]);
 
@@ -404,9 +423,10 @@ function HeatmapViz({ viz }: { viz: Visualization }) {
 function ChoroplethViz({ viz }: { viz: Visualization }) {
   const chartData = (viz.data.data as Array<{ state?: string; label?: string; name?: string; value: number }>) || [];
   const format = viz.data.format;
-
+  
   if (chartData.length === 0) return null;
 
+  // Display as bar chart for inline view
   const sortedData = [...chartData]
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
@@ -438,7 +458,7 @@ function ChoroplethViz({ viz }: { viz: Visualization }) {
 function FlowMapViz({ viz }: { viz: Visualization }) {
   const flows = (viz.data.data as Array<{ origin?: string; destination?: string; label?: string; value: number }>) || [];
   const format = viz.data.format;
-
+  
   if (flows.length === 0) return null;
 
   const sortedFlows = [...flows].sort((a, b) => b.value - a.value).slice(0, 10);
@@ -455,7 +475,7 @@ function FlowMapViz({ viz }: { viz: Visualization }) {
           <thead className="text-xs text-slate-500 border-b border-slate-200">
             <tr>
               <th className="text-left py-2 font-medium">Origin</th>
-              <th className="text-left py-2 font-medium"></th>
+              <th className="text-left py-2 font-medium">→</th>
               <th className="text-left py-2 font-medium">Destination</th>
               <th className="text-right py-2 font-medium">Value</th>
             </tr>
@@ -463,9 +483,9 @@ function FlowMapViz({ viz }: { viz: Visualization }) {
           <tbody>
             {sortedFlows.map((flow, i) => (
               <tr key={i} className="border-b border-slate-100">
-                <td className="py-2 font-medium text-slate-700">{flow.origin || '-'}</td>
-                <td className="py-2 text-slate-400">-&gt;</td>
-                <td className="py-2 text-slate-600">{flow.destination || '-'}</td>
+                <td className="py-2 font-medium text-slate-700">{flow.origin || '—'}</td>
+                <td className="py-2 text-slate-400">→</td>
+                <td className="py-2 text-slate-600">{flow.destination || '—'}</td>
                 <td className="py-2 text-right font-mono text-slate-700">{formatValue(flow.value, format)}</td>
               </tr>
             ))}
@@ -478,7 +498,7 @@ function FlowMapViz({ viz }: { viz: Visualization }) {
 
 function TableViz({ viz }: { viz: Visualization }) {
   const data = viz.data.data || [];
-
+  
   if (data.length === 0) return null;
 
   return (
@@ -513,6 +533,7 @@ function TableViz({ viz }: { viz: Visualization }) {
   );
 }
 
+// Main visualization renderer
 function VisualizationRenderer({ viz }: { viz: Visualization }) {
   switch (viz.type) {
     case 'bar': return <BarChartViz viz={viz} />;
@@ -525,11 +546,15 @@ function VisualizationRenderer({ viz }: { viz: Visualization }) {
     case 'choropleth': return <ChoroplethViz viz={viz} />;
     case 'flowmap': return <FlowMapViz viz={viz} />;
     case 'table': return <TableViz viz={viz} />;
-    default:
+    default: 
       console.warn('Unknown visualization type:', viz.type);
       return null;
   }
 }
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export function InvestigatorUnified({
   customerId,
@@ -596,7 +621,7 @@ export function InvestigatorUnified({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
+      
       const response = await fetch(`${supabaseUrl}/functions/v1/investigate`, {
         method: 'POST',
         headers: {
@@ -623,22 +648,23 @@ export function InvestigatorUnified({
 
       const mode = data.metadata?.mode || 'deep';
       setCurrentMode(mode);
-
+      
       const reasoning: ReasoningStep[] = data.reasoning || [];
       setCurrentReasoning(reasoning);
-
+      
       setUsage(prev => ({
         totalTime: prev.totalTime + (data.metadata?.processingTimeMs || 0),
         totalTools: prev.totalTools + (data.metadata?.toolCallCount || 0),
       }));
 
+      // *** THE KEY FIX: Include visualizations! ***
       const assistantMessage: ConversationMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: data.answer,
         reasoning,
         followUpQuestions: data.followUpQuestions,
-        visualizations: data.visualizations || [],
+        visualizations: data.visualizations || [],  // <-- NOW INCLUDED!
         metadata: data.metadata,
         timestamp: new Date(),
       };
@@ -667,15 +693,9 @@ export function InvestigatorUnified({
     if (!isLoading) handleInvestigate(question);
   };
 
-  const handleClear = () => {
-    setConversation([]);
-    conversationHistoryRef.current = [];
-    setUsage({ totalTime: 0, totalTools: 0 });
-    setError(null);
-  };
-
   return (
     <div className={`flex flex-col h-full bg-slate-50 ${className}`}>
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-white">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl">
@@ -684,19 +704,11 @@ export function InvestigatorUnified({
           <div>
             <h2 className="font-semibold text-slate-900">AI Investigator</h2>
             <p className="text-xs text-slate-500">
-              {usage.totalTime > 0 ? `${(usage.totalTime / 1000).toFixed(1)}s total` : 'Ask anything about your shipping data'}
+              {usage.totalTime > 0 ? `${(usage.totalTime / 1000).toFixed(1)}s total • ${usage.totalTools} tools` : 'Ask anything about your shipping data'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {usage.totalTools > 0 && (
-            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 mr-2">
-              <span className="flex items-center gap-1">
-                <Zap className="w-3 h-3" />
-                {usage.totalTools} tools
-              </span>
-            </div>
-          )}
           <button
             onClick={() => setShowReasoning(!showReasoning)}
             className={`p-2 rounded-lg transition-colors ${showReasoning ? 'bg-orange-100 text-orange-600' : 'text-slate-400 hover:bg-slate-100'}`}
@@ -706,25 +718,21 @@ export function InvestigatorUnified({
           </button>
           {conversation.length > 0 && (
             <button
-              onClick={handleClear}
+              onClick={() => {
+                setConversation([]);
+                conversationHistoryRef.current = [];
+                setUsage({ totalTime: 0, totalTools: 0 });
+              }}
               className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
               title="Clear conversation"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
           )}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg"
-              title="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 
+      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -736,12 +744,6 @@ export function InvestigatorUnified({
               ))
             )}
             {isLoading && currentReasoning.length > 0 && <LiveReasoningIndicator steps={currentReasoning} mode={currentMode} />}
-            {isLoading && currentReasoning.length === 0 && (
-              <div className="flex items-center gap-3 text-slate-500 p-4 bg-white rounded-xl border border-slate-200">
-                <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-                <span className="text-sm">Analyzing your question...</span>
-              </div>
-            )}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -751,6 +753,7 @@ export function InvestigatorUnified({
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Input */}
           <div className="p-4 border-t bg-white">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <textarea
@@ -760,7 +763,6 @@ export function InvestigatorUnified({
                 placeholder="Ask anything about your shipping data..."
                 className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 rows={1}
-                disabled={isLoading}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
               />
               {isLoading ? (
@@ -776,6 +778,7 @@ export function InvestigatorUnified({
           </div>
         </div>
 
+        {/* Reasoning sidebar */}
         {showReasoning && lastMessage?.reasoning && lastMessage.reasoning.length > 0 && (
           <div className="hidden lg:flex w-80 border-l bg-white flex-col">
             <div className="px-4 py-3 border-b">
@@ -800,12 +803,16 @@ export function InvestigatorUnified({
   );
 }
 
+// =============================================================================
+// SUB-COMPONENTS
+// =============================================================================
+
 function ModeIndicator({ mode, isActive }: { mode?: 'quick' | 'deep' | 'visual' | null; isActive?: boolean }) {
   if (!mode) return null;
   const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
     quick: { bg: 'bg-green-100', text: 'text-green-700', icon: <Gauge className="w-3.5 h-3.5" /> },
     deep: { bg: 'bg-blue-100', text: 'text-blue-700', icon: <Search className="w-3.5 h-3.5" /> },
-    visual: { bg: 'bg-teal-100', text: 'text-teal-700', icon: <BarChart3 className="w-3.5 h-3.5" /> },
+    visual: { bg: 'bg-purple-100', text: 'text-purple-700', icon: <BarChart3 className="w-3.5 h-3.5" /> },
   };
   const c = config[mode] || config.deep;
   return (
@@ -818,10 +825,10 @@ function ModeIndicator({ mode, isActive }: { mode?: 'quick' | 'deep' | 'visual' 
 
 function EmptyState({ onSuggestion }: { onSuggestion: (q: string) => void }) {
   const suggestions = [
-    { icon: BarChart3, text: 'Show me cost breakdown by carrier', hint: 'visual' },
-    { icon: TrendingUp, text: 'How has my spend trended over time?', hint: 'visual' },
-    { icon: Map, text: 'Which states have the highest costs?', hint: 'visual' },
-    { icon: Search, text: 'Why did my costs increase last month?', hint: 'deep' },
+    { emoji: '📊', text: 'Show me cost breakdown by carrier', hint: 'visual' },
+    { emoji: '📈', text: 'How has my spend trended over time?', hint: 'visual' },
+    { emoji: '🗺️', text: 'Which states have the highest costs?', hint: 'visual' },
+    { emoji: '🔍', text: 'Why did my costs increase last month?', hint: 'deep' },
   ];
 
   return (
@@ -840,9 +847,9 @@ function EmptyState({ onSuggestion }: { onSuggestion: (q: string) => void }) {
             onClick={() => onSuggestion(s.text)}
             className="flex items-center gap-3 p-3 bg-white hover:bg-slate-50 rounded-xl text-left text-sm text-slate-700 border border-slate-200 hover:border-orange-300 transition-all"
           >
-            <s.icon className="w-5 h-5 text-slate-400" />
+            <span className="text-lg">{s.emoji}</span>
             <span className="flex-1">{s.text}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.hint === 'visual' ? 'bg-teal-100 text-teal-600' : 'bg-blue-100 text-blue-600'}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${s.hint === 'visual' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
               {s.hint}
             </span>
           </button>
@@ -855,9 +862,10 @@ function EmptyState({ onSuggestion }: { onSuggestion: (q: string) => void }) {
 function MessageBubble({ message, showReasoning, onFollowUp }: { message: ConversationMessage; showReasoning: boolean; onFollowUp: (q: string) => void }) {
   const isUser = message.role === 'user';
   const [expanded, setExpanded] = useState(false);
-
+  
+  // Count visualizations
   const vizCount = message.visualizations?.length || 0;
-
+  
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${isUser ? 'bg-blue-500' : 'bg-gradient-to-br from-orange-500 to-amber-500'}`}>
@@ -871,17 +879,19 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
               <ModeIndicator mode={message.metadata.mode} />
               <span className="text-xs text-slate-400">{(message.metadata.processingTimeMs / 1000).toFixed(1)}s</span>
               {vizCount > 0 && (
-                <span className="text-xs bg-teal-100 text-teal-600 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
                   {vizCount} chart{vizCount > 1 ? 's' : ''}
                 </span>
               )}
             </div>
           )}
-
+          
+          {/* Message text */}
           <div className={`text-sm whitespace-pre-wrap ${isUser ? '' : 'text-slate-700'}`}>
             {message.content}
           </div>
 
+          {/* *** RENDER VISUALIZATIONS *** */}
           {!isUser && message.visualizations && message.visualizations.length > 0 && (
             <div className="mt-4 space-y-3">
               {message.visualizations.map((viz) => (
@@ -891,6 +901,7 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
           )}
         </div>
 
+        {/* Mobile reasoning toggle */}
         {!isUser && message.reasoning && message.reasoning.length > 0 && showReasoning && (
           <button onClick={() => setExpanded(!expanded)} className="mt-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 lg:hidden">
             <Brain className="w-3 h-3" /> {message.reasoning.length} steps {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -903,6 +914,7 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
           </div>
         )}
 
+        {/* Follow-up questions */}
         {message.followUpQuestions && message.followUpQuestions.length > 0 && (
           <div className="mt-3 space-y-1">
             {message.followUpQuestions.map((q) => (

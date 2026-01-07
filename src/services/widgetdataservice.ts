@@ -43,7 +43,7 @@ async function fetchWidgetRowData(
     return carriers ? Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name])) : {};
   };
 
-  const getAddressMap = async (loadIds: number[]): Promise<Record<number, { origin: { city?: string; state?: string } | null; dest: { city?: string; state?: string } | null }>> => {
+  const getAddressMap = async (loadIds: number[]): Promise<Record<number, { origin_city: string; origin_state: string; dest_city: string; dest_state: string }>> => {
     if (loadIds.length === 0) return {};
     const { data: addresses } = await supabase
       .from('shipment_address')
@@ -51,11 +51,19 @@ async function fetchWidgetRowData(
       .in('load_id', loadIds)
       .in('address_type', [1, 2]);
 
-    const map: Record<number, { origin: { city?: string; state?: string } | null; dest: { city?: string; state?: string } | null }> = {};
+    const map: Record<number, { origin_city: string; origin_state: string; dest_city: string; dest_state: string }> = {};
     for (const addr of addresses || []) {
-      if (!map[addr.load_id]) map[addr.load_id] = { origin: null, dest: null };
-      if (addr.address_type === 1) map[addr.load_id].origin = addr;
-      if (addr.address_type === 2) map[addr.load_id].dest = addr;
+      if (!map[addr.load_id]) {
+        map[addr.load_id] = { origin_city: '', origin_state: '', dest_city: '', dest_state: '' };
+      }
+      if (addr.address_type === 1) {
+        map[addr.load_id].origin_city = addr.city || '';
+        map[addr.load_id].origin_state = addr.state || '';
+      }
+      if (addr.address_type === 2) {
+        map[addr.load_id].dest_city = addr.city || '';
+        map[addr.load_id].dest_state = addr.state || '';
+      }
     }
     return map;
   };
@@ -158,14 +166,14 @@ async function fetchWidgetRowData(
           load_id: row.load_id,
           reference_number: row.reference_number,
           pickup_date: row.pickup_date,
-          expected_delivery: row.expected_delivery_date,
+          expected_delivery_date: row.expected_delivery_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
-          { key: 'expected_delivery', label: 'Expected Delivery', type: 'date' },
+          { key: 'expected_delivery_date', label: 'Expected Delivery', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
@@ -272,14 +280,14 @@ async function fetchWidgetRowData(
       const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
+        const addr = addressMap[shipment.load_id] || { origin_city: '', origin_state: '', dest_city: '', dest_state: '' };
         return {
           load_id: shipment.load_id,
           reference_number: shipment.reference_number,
-          origin_city: addr.origin?.city || '',
-          origin_state: addr.origin?.state || '',
-          dest_city: addr.dest?.city || '',
-          dest_state: addr.dest?.state || '',
+          origin_city: addr.origin_city,
+          origin_state: addr.origin_state,
+          dest_city: addr.dest_city,
+          dest_state: addr.dest_state,
           pickup_date: shipment.pickup_date,
           delivery_date: shipment.delivery_date,
           retail: shipment.retail,
@@ -318,12 +326,14 @@ async function fetchWidgetRowData(
       const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
+        const addr = addressMap[shipment.load_id] || { origin_city: '', origin_state: '', dest_city: '', dest_state: '' };
         return {
           load_id: shipment.load_id,
           reference_number: shipment.reference_number,
-          origin_state: addr.origin?.state || '',
-          dest_state: addr.dest?.state || '',
+          origin_city: addr.origin_city,
+          origin_state: addr.origin_state,
+          dest_city: addr.dest_city,
+          dest_state: addr.dest_state,
           pickup_date: shipment.pickup_date,
           delivery_date: shipment.delivery_date,
           retail: shipment.retail,
@@ -335,7 +345,9 @@ async function fetchWidgetRowData(
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
+          { key: 'origin_city', label: 'Origin City', type: 'string' },
           { key: 'origin_state', label: 'Origin State', type: 'string' },
+          { key: 'dest_city', label: 'Dest City', type: 'string' },
           { key: 'dest_state', label: 'Dest State', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
@@ -361,10 +373,10 @@ async function fetchWidgetRowData(
       if (modeIds.length > 0) {
         const { data: modes } = await supabase
           .from('shipment_mode')
-          .select('mode_id, mode_description')
+          .select('mode_id, mode_name')
           .in('mode_id', modeIds);
         if (modes) {
-          modeMap = Object.fromEntries(modes.map(m => [m.mode_id, m.mode_description]));
+          modeMap = Object.fromEntries(modes.map(m => [m.mode_id, m.mode_name]));
         }
       }
 
@@ -372,14 +384,16 @@ async function fetchWidgetRowData(
         rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
-          mode: modeMap[row.mode_id] || 'Unknown',
+          mode_id: row.mode_id,
+          mode_name: modeMap[row.mode_id] || 'Unknown',
           pickup_date: row.pickup_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'mode', label: 'Mode', type: 'string' },
+          { key: 'mode_id', label: 'Mode ID', type: 'number' },
+          { key: 'mode_name', label: 'Mode', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
@@ -401,15 +415,14 @@ async function fetchWidgetRowData(
       const addressMap = await getAddressMap(shipments.map(s => s.load_id));
 
       const rows = shipments.map(shipment => {
-        const addr = addressMap[shipment.load_id] || { origin: null, dest: null };
-        const lane = addr.origin && addr.dest
-          ? `${addr.origin.city}, ${addr.origin.state} -> ${addr.dest.city}, ${addr.dest.state}`
-          : 'Unknown';
-
+        const addr = addressMap[shipment.load_id] || { origin_city: '', origin_state: '', dest_city: '', dest_state: '' };
         return {
           load_id: shipment.load_id,
           reference_number: shipment.reference_number,
-          lane,
+          origin_city: addr.origin_city,
+          origin_state: addr.origin_state,
+          dest_city: addr.dest_city,
+          dest_state: addr.dest_state,
           pickup_date: shipment.pickup_date,
           retail: shipment.retail,
         };
@@ -420,7 +433,10 @@ async function fetchWidgetRowData(
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'lane', label: 'Lane', type: 'string' },
+          { key: 'origin_city', label: 'Origin City', type: 'string' },
+          { key: 'origin_state', label: 'Origin State', type: 'string' },
+          { key: 'dest_city', label: 'Dest City', type: 'string' },
+          { key: 'dest_state', label: 'Dest State', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
@@ -447,14 +463,16 @@ async function fetchWidgetRowData(
         rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          rate_carrier_id: row.rate_carrier_id,
+          carrier_name: carrierMap[row.rate_carrier_id] || 'Unknown',
           pickup_date: row.pickup_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'rate_carrier_id', label: 'Carrier ID', type: 'number' },
+          { key: 'carrier_name', label: 'Carrier', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
@@ -481,14 +499,16 @@ async function fetchWidgetRowData(
         rows: data.map(row => ({
           load_id: row.load_id,
           reference_number: row.reference_number,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          rate_carrier_id: row.rate_carrier_id,
+          carrier_name: carrierMap[row.rate_carrier_id] || 'Unknown',
           pickup_date: row.pickup_date,
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'rate_carrier_id', label: 'Carrier ID', type: 'number' },
+          { key: 'carrier_name', label: 'Carrier', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
@@ -513,33 +533,24 @@ async function fetchWidgetRowData(
       const carrierMap = await getCarrierMap(carrierIds);
 
       return {
-        rows: data.map(row => {
-          const isOnTime = row.expected_delivery_date
-            ? new Date(row.delivery_date) <= new Date(row.expected_delivery_date)
-            : true;
-          const transitDays = row.pickup_date && row.delivery_date
-            ? Math.round((new Date(row.delivery_date).getTime() - new Date(row.pickup_date).getTime()) / (1000 * 60 * 60 * 24))
-            : null;
-
-          return {
-            load_id: row.load_id,
-            reference_number: row.reference_number,
-            carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
-            pickup_date: row.pickup_date,
-            delivery_date: row.delivery_date,
-            on_time: isOnTime ? 'Yes' : 'No',
-            transit_days: transitDays,
-            retail: row.retail,
-          };
-        }),
+        rows: data.map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          rate_carrier_id: row.rate_carrier_id,
+          carrier_name: carrierMap[row.rate_carrier_id] || 'Unknown',
+          pickup_date: row.pickup_date,
+          delivery_date: row.delivery_date,
+          expected_delivery_date: row.expected_delivery_date,
+          retail: row.retail,
+        })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
-          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'rate_carrier_id', label: 'Carrier ID', type: 'number' },
+          { key: 'carrier_name', label: 'Carrier', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
-          { key: 'on_time', label: 'On Time', type: 'string' },
-          { key: 'transit_days', label: 'Transit Days', type: 'number' },
+          { key: 'expected_delivery_date', label: 'Expected Delivery', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
@@ -559,28 +570,20 @@ async function fetchWidgetRowData(
       if (!data || data.length === 0) return { rows: [], columns: [] };
 
       return {
-        rows: data.map(row => {
-          const isOnTime = row.expected_delivery_date
-            ? new Date(row.delivery_date) <= new Date(row.expected_delivery_date)
-            : true;
-
-          return {
-            load_id: row.load_id,
-            reference_number: row.reference_number,
-            pickup_date: row.pickup_date,
-            delivery_date: row.delivery_date,
-            expected_delivery: row.expected_delivery_date,
-            on_time: isOnTime ? 'Yes' : 'No',
-            retail: row.retail,
-          };
-        }),
+        rows: data.map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          pickup_date: row.pickup_date,
+          delivery_date: row.delivery_date,
+          expected_delivery_date: row.expected_delivery_date,
+          retail: row.retail,
+        })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
-          { key: 'expected_delivery', label: 'Expected Delivery', type: 'date' },
-          { key: 'on_time', label: 'On Time', type: 'string' },
+          { key: 'expected_delivery_date', label: 'Expected Delivery', type: 'date' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
@@ -600,26 +603,18 @@ async function fetchWidgetRowData(
       if (!data || data.length === 0) return { rows: [], columns: [] };
 
       return {
-        rows: data.map(row => {
-          const transitDays = row.pickup_date && row.delivery_date
-            ? Math.round((new Date(row.delivery_date).getTime() - new Date(row.pickup_date).getTime()) / (1000 * 60 * 60 * 24))
-            : null;
-
-          return {
-            load_id: row.load_id,
-            reference_number: row.reference_number,
-            pickup_date: row.pickup_date,
-            delivery_date: row.delivery_date,
-            transit_days: transitDays,
-            retail: row.retail,
-          };
-        }),
+        rows: data.map(row => ({
+          load_id: row.load_id,
+          reference_number: row.reference_number,
+          pickup_date: row.pickup_date,
+          delivery_date: row.delivery_date,
+          retail: row.retail,
+        })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
-          { key: 'transit_days', label: 'Transit Days', type: 'number' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
@@ -646,14 +641,16 @@ async function fetchWidgetRowData(
           load_id: row.load_id,
           reference_number: row.reference_number,
           pickup_date: row.pickup_date,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          rate_carrier_id: row.rate_carrier_id,
+          carrier_name: carrierMap[row.rate_carrier_id] || 'Unknown',
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
-          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'rate_carrier_id', label: 'Carrier ID', type: 'number' },
+          { key: 'carrier_name', label: 'Carrier', type: 'string' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };
@@ -680,14 +677,16 @@ async function fetchWidgetRowData(
           load_id: row.load_id,
           reference_number: row.reference_number,
           pickup_date: row.pickup_date,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+          rate_carrier_id: row.rate_carrier_id,
+          carrier_name: carrierMap[row.rate_carrier_id] || 'Unknown',
           retail: row.retail,
         })),
         columns: [
           { key: 'load_id', label: 'Load ID', type: 'string' },
           { key: 'reference_number', label: 'Reference', type: 'string' },
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
-          { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'rate_carrier_id', label: 'Carrier ID', type: 'number' },
+          { key: 'carrier_name', label: 'Carrier', type: 'string' },
           { key: 'retail', label: 'Cost', type: 'currency' },
         ]
       };

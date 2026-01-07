@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { UnifiedReportsList } from '../components/reports/UnifiedReportsList';
 import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
+import { getReports, deleteReport as deleteDbReport } from '../services/report';
+import type { Report } from '../types/report';
 
 interface ScheduledReport {
   id: string;
@@ -23,6 +25,7 @@ export function ReportsPage() {
 
   const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
   const [aiReports, setAIReports] = useState<SavedAIReport[]>([]);
+  const [dbReports, setDbReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -36,13 +39,14 @@ export function ReportsPage() {
     }
 
     try {
-      const [schedulesData, aiReportsData] = await Promise.all([
+      const [schedulesData, aiReportsData, reportsFromDb] = await Promise.all([
         supabase
           .from('scheduled_reports')
           .select('*')
           .eq('customer_id', effectiveCustomerId)
           .order('created_at', { ascending: false }),
         loadAIReports(effectiveCustomerId.toString()),
+        getReports(effectiveCustomerId.toString()).catch(() => [] as Report[]),
       ]);
 
       if (schedulesData.data) {
@@ -50,6 +54,7 @@ export function ReportsPage() {
       }
 
       setAIReports(aiReportsData);
+      setDbReports(reportsFromDb);
     } catch (error) {
       console.error('Failed to load reports:', error);
     } finally {
@@ -83,10 +88,22 @@ export function ReportsPage() {
         createdAt: report.createdAt,
         updatedAt: report.updatedAt || report.createdAt,
       })),
+      ...dbReports.map((report) => ({
+        id: report.id,
+        name: report.name,
+        description: report.description || undefined,
+        type: (report.source_type === 'widget' ? 'widget' : 'saved') as 'widget' | 'saved',
+        isScheduled: scheduledReportIds.has(report.id),
+        scheduleFrequency: scheduledReports.find(s => s.report_id === report.id)?.frequency,
+        nextRun: scheduledReports.find(s => s.report_id === report.id)?.next_run_at || undefined,
+        createdAt: report.created_at,
+        updatedAt: report.updated_at,
+        sourceWidgetId: report.source_widget_id || undefined,
+      })),
     ];
 
     return reports.sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
-  }, [aiReports, customReportsFromStorage, scheduledReports]);
+  }, [aiReports, customReportsFromStorage, dbReports, scheduledReports]);
 
   async function handleDeleteReport(reportId: string) {
     if (!effectiveCustomerId) return;
@@ -100,6 +117,9 @@ export function ReportsPage() {
       if (report.type === 'ai') {
         await deleteAIReport(effectiveCustomerId.toString(), reportId);
         setAIReports(aiReports.filter((r) => r.id !== reportId));
+      } else if (report.type === 'widget' || report.type === 'saved') {
+        await deleteDbReport(reportId);
+        setDbReports(dbReports.filter((r) => r.id !== reportId));
       } else {
         await deleteCustomReport(reportId);
       }

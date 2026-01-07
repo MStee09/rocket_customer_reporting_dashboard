@@ -15,11 +15,12 @@ interface RequestBody {
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
   preferences?: {
     showReasoning?: boolean;
+    forceMode?: 'quick' | 'deep' | 'visual';
   };
 }
 
 interface ReasoningStep {
-  type: 'thinking' | 'tool_call' | 'tool_result';
+  type: 'routing' | 'thinking' | 'tool_call' | 'tool_result';
   content: string;
   toolName?: string;
 }
@@ -29,15 +30,24 @@ interface FollowUpQuestion {
   question: string;
 }
 
+interface Visualization {
+  id: string;
+  type: 'bar' | 'pie' | 'line' | 'stat' | 'table';
+  title: string;
+  data: unknown;
+  config?: Record<string, unknown>;
+}
+
 const INVESTIGATION_TOOLS: Anthropic.Tool[] = [
   {
     name: "explore_field",
     description: `Explore a data field to understand its values, distribution, and quality.
-Returns: unique values, coverage %, top values with counts, data quality assessment.`,
+Returns: unique values, coverage %, top values with counts, data quality assessment.
+Use this to understand what data exists before aggregating.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        field_name: { type: "string", description: "Field to explore (e.g., 'carrier_name', 'destination_state')" },
+        field_name: { type: "string", description: "Field to explore (e.g., 'carrier_name', 'destination_state', 'mode_name')" },
         sample_size: { type: "number", description: "Number of top values to return (default: 15)" }
       },
       required: ["field_name"]
@@ -45,60 +55,65 @@ Returns: unique values, coverage %, top values with counts, data quality assessm
   },
   {
     name: "preview_aggregation",
-    description: `Preview what an aggregation looks like with REAL DATA.
-Returns: actual aggregated values, group counts.`,
+    description: `Get aggregated metrics grouped by a dimension with REAL DATA.
+Returns: actual aggregated values with counts per group.
+Use this for "show me X by Y" type questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        group_by: { type: "string", description: "Field to group by" },
-        metric: { type: "string", description: "Field to aggregate" },
+        group_by: { type: "string", description: "Field to group by (e.g., 'carrier_name', 'origin_state')" },
+        metric: { type: "string", description: "Field to aggregate (e.g., 'cost', 'retail', 'miles')" },
         aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct", "min", "max"], description: "Aggregation type" },
-        secondary_group_by: { type: "string", description: "Optional second grouping field" },
+        secondary_group_by: { type: "string", description: "Optional second grouping field for breakdown" },
         limit: { type: "number", description: "Max groups to return (default: 15)" },
-        sort: { type: "string", enum: ["desc", "asc"], description: "Sort direction" }
+        sort: { type: "string", enum: ["desc", "asc"], description: "Sort direction (default: desc)" }
       },
       required: ["group_by", "metric", "aggregation"]
     }
   },
   {
     name: "compare_periods",
-    description: `Compare a metric across two time periods.
-Returns: values for both periods, change %, significance.`,
+    description: `Compare a metric across two time periods to show change.
+Returns: values for both periods, absolute change, percent change.
+Use for "how has X changed" or "compare this month to last month" questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        metric: { type: "string", description: "Metric to compare" },
+        metric: { type: "string", description: "Metric to compare (e.g., 'cost', 'retail')" },
         aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct"], description: "How to aggregate" },
-        period1: { type: "string", description: "First period (e.g., 'last30', 'last90')" },
-        period2: { type: "string", description: "Second period to compare against" },
-        group_by: { type: "string", description: "Optional grouping for breakdown" }
+        period1: { type: "string", description: "Current period (e.g., 'last30', 'last7', 'last90')" },
+        period2: { type: "string", description: "Previous period to compare against (e.g., 'last60', 'last180')" },
+        group_by: { type: "string", description: "Optional grouping for breakdown by dimension" }
       },
       required: ["metric", "aggregation", "period1", "period2"]
     }
   },
   {
     name: "detect_anomalies",
-    description: `Detect anomalies in the data - spikes, drops, outliers, unusual patterns.`,
+    description: `Find anomalies - spikes, drops, outliers, unusual patterns in data.
+Returns: list of anomalies with deviation scores and type (high/low).
+Use for "what's unusual" or "find problems" type questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
         metric: { type: "string", description: "Metric to analyze for anomalies" },
-        group_by: { type: "string", description: "Optional grouping (e.g., find anomalies per carrier)" },
-        sensitivity: { type: "string", enum: ["high", "medium", "low"], description: "Detection sensitivity" }
+        group_by: { type: "string", description: "Grouping dimension (e.g., find anomalies per carrier)" },
+        sensitivity: { type: "string", enum: ["high", "medium", "low"], description: "Detection sensitivity (high catches more)" }
       },
       required: ["metric"]
     }
   },
   {
     name: "investigate_root_cause",
-    description: `Perform root cause analysis for an observed issue.
-Drills down into data across multiple dimensions.`,
+    description: `Deep dive root cause analysis across multiple dimensions.
+Returns: breakdown by carrier, origin, destination, mode to find where issues come from.
+Use for "why is X happening" or diagnostic questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
         question: { type: "string", description: "The question to investigate" },
-        metric: { type: "string", description: "Primary metric involved" },
-        filters: { type: "object", description: "Optional filters to apply" },
+        metric: { type: "string", description: "Primary metric to analyze" },
+        filters: { type: "object", description: "Optional filters to narrow scope" },
         max_depth: { type: "number", description: "How many dimensions to analyze (default: 3)" }
       },
       required: ["question", "metric"]
@@ -106,59 +121,193 @@ Drills down into data across multiple dimensions.`,
   },
   {
     name: "get_trend",
-    description: `Get trend data for a metric over time.`,
+    description: `Get time-series trend data for a metric.
+Returns: data points over time (daily, weekly, or monthly).
+Use for "show me trend" or "how has X changed over time" questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        metric: { type: "string", description: "Metric to trend" },
+        metric: { type: "string", description: "Metric to trend (e.g., 'cost', 'retail', 'miles')" },
         aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation" },
         period: { type: "string", enum: ["daily", "weekly", "monthly"], description: "Time granularity" },
-        range: { type: "string", description: "Time range (e.g., 'last90')" }
+        range: { type: "string", description: "Time range (e.g., 'last30', 'last90', 'last180')" }
       },
       required: ["metric", "aggregation", "period"]
+    }
+  },
+  {
+    name: "get_summary_stats",
+    description: `Get summary statistics for the customer's data.
+Returns: total shipments, total spend, avg cost, top carriers, date range.
+Use as a starting point for overview questions.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        time_range: { type: "string", description: "Time range (e.g., 'last30', 'last90', 'all')" }
+      },
+      required: []
     }
   }
 ];
 
-const SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You are in DEEP INVESTIGATION mode.
-
-## YOUR ROLE
-You investigate questions about shipping data thoroughly. You form hypotheses, test them with data, and explain your findings clearly.
+const DEFAULT_SYSTEM_PROMPT = `You are an expert logistics data analyst. Your job is to investigate shipping data and provide actionable insights.
 
 ## APPROACH
-1. First, understand what the user is asking
+1. Understand what the user is asking
 2. Form hypotheses about what might be happening
-3. Use tools to test your hypotheses with REAL DATA
-4. Synthesize findings into a clear explanation
+3. Use tools to test hypotheses with REAL DATA
+4. Synthesize findings into clear explanations
 5. Suggest follow-up questions
-
-## THINKING PROCESS
-Show your reasoning as you work:
-- What are you trying to find out?
-- What hypothesis are you testing?
-- What did the data reveal?
-- What does this mean?
 
 ## AVAILABLE TOOLS
 - explore_field: See what values exist in a field
-- preview_aggregation: Get aggregated metrics
+- preview_aggregation: Get aggregated metrics by dimension
 - compare_periods: Compare time periods
 - detect_anomalies: Find unusual patterns
 - investigate_root_cause: Deep dive into causes
-- get_trend: See how metrics change over time
+- get_trend: See metrics over time
+- get_summary_stats: Get overview statistics
 
 ## RESPONSE FORMAT
-After investigating, provide:
-1. A clear, direct answer to the question
-2. Key supporting data points
-3. Any caveats or limitations
-4. 2-3 follow-up questions the user might want to explore
+After investigating:
+1. Lead with a direct answer
+2. Include key supporting data points
+3. Note any caveats
+4. Suggest 2-3 follow-up questions
 
-## IMPORTANT
-- ALWAYS use tools to get real data - never guess
-- Be conversational but precise
-- Lead with the answer, then explain
-- Use specific numbers from your analysis`;
+ALWAYS use tools to get real data - never guess at numbers.`;
+
+async function loadSystemPrompt(supabase: SupabaseClient): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('ai_settings')
+      .select('setting_value')
+      .eq('setting_key', 'investigator_system_prompt')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Investigate] Failed to load custom system prompt:', error.message);
+      return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    return data?.setting_value || DEFAULT_SYSTEM_PROMPT;
+  } catch (err) {
+    console.warn('[Investigate] Error loading system prompt:', err);
+    return DEFAULT_SYSTEM_PROMPT;
+  }
+}
+
+function classifyQuestion(question: string): { mode: 'quick' | 'deep' | 'visual'; confidence: number; reason: string } {
+  const q = question.toLowerCase();
+
+  const quickPatterns = [
+    /^(how many|what('?s| is) the (total|count|number)|count of)/i,
+    /^(what|who) (is|are) (the )?(top|best|worst|highest|lowest)/i,
+    /simple|quick|fast|just tell me/i
+  ];
+
+  const visualPatterns = [
+    /show me|visualize|chart|graph|plot|display|breakdown/i,
+    /over time|trend|by (month|week|day|year)/i,
+    /compare|vs|versus|distribution/i
+  ];
+
+  const deepPatterns = [
+    /why|how come|explain|analyze|investigate|dig into/i,
+    /root cause|problem|issue|anomal/i,
+    /understand|figure out|what('?s| is) (happening|going on|wrong)/i
+  ];
+
+  for (const pattern of quickPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'quick', confidence: 0.8, reason: 'Simple factual question' };
+    }
+  }
+
+  for (const pattern of visualPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'visual', confidence: 0.85, reason: 'Visualization requested' };
+    }
+  }
+
+  for (const pattern of deepPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'deep', confidence: 0.9, reason: 'Analytical investigation needed' };
+    }
+  }
+
+  if (q.length > 100) {
+    return { mode: 'deep', confidence: 0.7, reason: 'Complex question' };
+  }
+
+  return { mode: 'deep', confidence: 0.6, reason: 'Default to thorough analysis' };
+}
+
+function generateVisualization(toolName: string, toolInput: Record<string, unknown>, result: unknown): Visualization | null {
+  const id = crypto.randomUUID();
+
+  if (toolName === 'preview_aggregation' && result && typeof result === 'object') {
+    const data = result as { groups?: Array<{ group: string; value: number; count: number }> };
+    if (data.groups && data.groups.length > 0) {
+      return {
+        id,
+        type: 'bar',
+        title: `${toolInput.metric} by ${toolInput.group_by}`,
+        data: data.groups.map(g => ({ name: g.group, value: g.value, count: g.count })),
+        config: { metric: toolInput.metric, groupBy: toolInput.group_by }
+      };
+    }
+  }
+
+  if (toolName === 'get_trend' && result && typeof result === 'object') {
+    const data = result as { trend?: Array<{ period: string; value: number; count: number }> };
+    if (data.trend && data.trend.length > 0) {
+      return {
+        id,
+        type: 'line',
+        title: `${toolInput.metric} over time`,
+        data: data.trend.map(t => ({ date: t.period, value: t.value })),
+        config: { metric: toolInput.metric, period: toolInput.period }
+      };
+    }
+  }
+
+  if (toolName === 'compare_periods' && result && typeof result === 'object') {
+    const data = result as {
+      period1: { label: string; value: number };
+      period2: { label: string; value: number };
+      change: { percent: number };
+    };
+    return {
+      id,
+      type: 'stat',
+      title: `${toolInput.metric} comparison`,
+      data: {
+        current: data.period1.value,
+        previous: data.period2.value,
+        changePercent: data.change.percent,
+        period1Label: data.period1.label,
+        period2Label: data.period2.label
+      },
+      config: { metric: toolInput.metric }
+    };
+  }
+
+  if (toolName === 'explore_field' && result && typeof result === 'object') {
+    const data = result as { values?: Array<{ value: string; count: number }> };
+    if (data.values && data.values.length > 0 && data.values.length <= 10) {
+      return {
+        id,
+        type: 'pie',
+        title: `${toolInput.field_name} distribution`,
+        data: data.values.map(v => ({ name: v.value, value: v.count })),
+        config: { field: toolInput.field_name }
+      };
+    }
+  }
+
+  return null;
+}
 
 async function executeToolCall(
   supabase: SupabaseClient,
@@ -282,7 +431,7 @@ async function executeToolCall(
     }
 
     case 'investigate_root_cause': {
-      const dimensions = ['carrier_name', 'origin_state', 'destination_state', 'mode'];
+      const dimensions = ['carrier_name', 'origin_state', 'destination_state', 'mode_name'];
       const results: Record<string, any> = {};
 
       for (const dim of dimensions.slice(0, (toolInput.max_depth as number) || 3)) {
@@ -356,6 +505,48 @@ async function executeToolCall(
       return { trend };
     }
 
+    case 'get_summary_stats': {
+      const timeRange = (toolInput.time_range as string) || 'last90';
+      const rangeDays: Record<string, number> = {
+        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365, 'all': 9999
+      };
+      const days = rangeDays[timeRange.toLowerCase()] || 90;
+
+      const dateFilter = days < 9999
+        ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : '1900-01-01';
+
+      const { data: shipments } = await supabase
+        .from('shipment_report_view')
+        .select('cost, retail, miles, carrier_name, created_date')
+        .eq('customer_id', parseInt(customerId, 10))
+        .gte('created_date', dateFilter);
+
+      if (!shipments || shipments.length === 0) {
+        return { message: 'No shipments found', stats: {} };
+      }
+
+      const totalCost = shipments.reduce((sum, s) => sum + (parseFloat(s.cost) || 0), 0);
+      const totalRetail = shipments.reduce((sum, s) => sum + (parseFloat(s.retail) || 0), 0);
+      const totalMiles = shipments.reduce((sum, s) => sum + (parseFloat(s.miles) || 0), 0);
+      const carriers = new Set(shipments.map(s => s.carrier_name).filter(Boolean));
+      const dates = shipments.map(s => s.created_date).filter(Boolean).sort();
+
+      return {
+        total_shipments: shipments.length,
+        total_cost: totalCost,
+        total_retail: totalRetail,
+        total_miles: totalMiles,
+        avg_cost: totalCost / shipments.length,
+        avg_miles: totalMiles / shipments.length,
+        unique_carriers: carriers.size,
+        date_range: {
+          earliest: dates[0],
+          latest: dates[dates.length - 1]
+        }
+      };
+    }
+
     default:
       return { error: `Unknown tool: ${toolName}` };
   }
@@ -391,27 +582,38 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const systemPrompt = await loadSystemPrompt(supabase);
+
+    const classification = classifyQuestion(question);
+    const mode = preferences.forceMode || classification.mode;
+
+    console.log(`[Investigate] Mode: ${mode}, Confidence: ${classification.confidence}, Reason: ${classification.reason}`);
+
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
-    const reasoningSteps: ReasoningStep[] = [];
+    const reasoningSteps: ReasoningStep[] = [{
+      type: 'routing',
+      content: `Mode: ${mode} (${classification.reason})`
+    }];
     let toolCallCount = 0;
+    const visualizations: Visualization[] = [];
 
     const messages: Anthropic.MessageParam[] = [
       ...conversationHistory.map(msg => ({ role: msg.role as 'user' | 'assistant', content: msg.content })),
       { role: "user", content: question }
     ];
 
-    const MAX_TURNS = 8;
+    const maxTurns = mode === 'quick' ? 3 : mode === 'visual' ? 5 : 8;
     let currentMessages = [...messages];
     let finalAnswer = "";
 
-    for (let turn = 0; turn < MAX_TURNS; turn++) {
-      console.log(`[Investigate] Turn ${turn + 1}/${MAX_TURNS}`);
+    for (let turn = 0; turn < maxTurns; turn++) {
+      console.log(`[Investigate] Turn ${turn + 1}/${maxTurns}`);
 
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: SYSTEM_PROMPT,
+        max_tokens: mode === 'quick' ? 2048 : 4096,
+        system: systemPrompt,
         messages: currentMessages,
         tools: INVESTIGATION_TOOLS,
         tool_choice: { type: "auto" }
@@ -466,7 +668,12 @@ Deno.serve(async (req: Request) => {
           toolUse.input as Record<string, unknown>
         );
 
-        const resultSummary = JSON.stringify(result).slice(0, 300);
+        const viz = generateVisualization(toolUse.name, toolUse.input as Record<string, unknown>, result);
+        if (viz) {
+          visualizations.push(viz);
+        }
+
+        const resultSummary = JSON.stringify(result).slice(0, 400);
         reasoningSteps.push({
           type: 'tool_result',
           content: resultSummary,
@@ -488,7 +695,7 @@ Deno.serve(async (req: Request) => {
     if (followUpMatch) {
       const lines = followUpMatch[1].split('\n').filter(l => l.trim());
       for (const line of lines.slice(0, 3)) {
-        const cleaned = line.replace(/^[-\d.\)\*]+\s*/, '').trim();
+        const cleaned = line.replace(/^[-\d.)\*]+\s*/, '').trim();
         if (cleaned.length > 10) {
           followUpQuestions.push({
             id: crypto.randomUUID(),
@@ -498,17 +705,35 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (followUpQuestions.length === 0) {
+      const contextualFollowUps = [
+        "How does this compare to previous periods?",
+        "What's driving these numbers?",
+        "Are there any outliers I should know about?"
+      ];
+      for (const q of contextualFollowUps) {
+        followUpQuestions.push({ id: crypto.randomUUID(), question: q });
+      }
+    }
+
     const processingTimeMs = Date.now() - startTime;
 
     return new Response(
       JSON.stringify({
         success: true,
         answer: finalAnswer,
-        reasoning: preferences.showReasoning ? reasoningSteps : [],
+        reasoning: preferences.showReasoning !== false ? reasoningSteps : [],
         followUpQuestions,
+        visualizations,
         metadata: {
           processingTimeMs,
           toolCallCount,
+          mode,
+          classification: {
+            detected: classification.mode,
+            confidence: classification.confidence,
+            reason: classification.reason
+          },
           iterations: currentMessages.length - messages.length
         }
       }),
@@ -525,9 +750,11 @@ Deno.serve(async (req: Request) => {
         answer: "I encountered an error during the investigation. Please try again.",
         reasoning: [],
         followUpQuestions: [],
+        visualizations: [],
         metadata: {
           processingTimeMs: Date.now() - startTime,
           toolCallCount: 0,
+          mode: 'deep',
           iterations: 0
         }
       }),

@@ -683,8 +683,10 @@ async function fetchWidgetRowData(
     },
 
     carrier_performance: async () => {
+      console.log('[widgetdataservice] carrier_performance called with carrierFilter:', carrierFilter);
+
       let query = supabase
-        .from('shipment')
+        .from('shipment_report_view')
         .select(`
           load_id,
           reference_number,
@@ -692,7 +694,12 @@ async function fetchWidgetRowData(
           delivery_date,
           retail,
           miles,
-          rate_carrier_id
+          carrier_id,
+          carrier_name,
+          origin_city,
+          origin_state,
+          destination_city,
+          destination_state
         `)
         .in('customer_id', customerFilter)
         .gte('pickup_date', dateRange.start)
@@ -701,7 +708,7 @@ async function fetchWidgetRowData(
         .limit(500);
 
       if (carrierFilter) {
-        query = query.eq('rate_carrier_id', carrierFilter);
+        query = query.eq('carrier_id', carrierFilter);
       }
 
       const { data, error } = await query;
@@ -711,18 +718,7 @@ async function fetchWidgetRowData(
         return { rows: [], columns: [] };
       }
 
-      const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
-      let carrierMap: Record<number, string> = {};
-      if (carrierIds.length > 0) {
-        const { data: carriers } = await supabase
-          .from('carrier')
-          .select('carrier_id, carrier_name')
-          .in('carrier_id', carrierIds);
-
-        if (carriers) {
-          carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
-        }
-      }
+      console.log('[widgetdataservice] carrier_performance found', data?.length || 0, 'shipments');
 
       return {
         rows: (data || []).map(row => ({
@@ -730,7 +726,9 @@ async function fetchWidgetRowData(
           reference_number: row.reference_number,
           pickup_date: row.pickup_date,
           delivery_date: row.delivery_date,
-          carrier: carrierMap[row.rate_carrier_id] || 'Unassigned',
+          carrier: row.carrier_name || 'Unassigned',
+          origin: row.origin_city && row.origin_state ? `${row.origin_city}, ${row.origin_state}` : '',
+          destination: row.destination_city && row.destination_state ? `${row.destination_city}, ${row.destination_state}` : '',
           retail: row.retail,
           miles: row.miles,
           cpm: row.miles > 0 ? (row.retail / row.miles) : null,
@@ -741,6 +739,8 @@ async function fetchWidgetRowData(
           { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
           { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
           { key: 'carrier', label: 'Carrier', type: 'string' },
+          { key: 'origin', label: 'Origin', type: 'string' },
+          { key: 'destination', label: 'Destination', type: 'string' },
           { key: 'retail', label: 'Cost', type: 'currency' },
           { key: 'miles', label: 'Miles', type: 'number' },
           { key: 'cpm', label: 'Cost/Mile', type: 'currency' },

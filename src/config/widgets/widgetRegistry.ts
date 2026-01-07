@@ -4,6 +4,7 @@ import { customerWidgets } from './customerWidgets';
 import { adminWidgets } from './adminWidgets';
 import { CustomWidgetDefinition, isCustomWidget } from './customWidgetTypes';
 import { loadAllCustomWidgets } from './customWidgetStorage';
+import { widgetLibrary } from '../widgetLibrary';
 
 export type AnyWidgetDefinition = WidgetDefinition | CustomWidgetDefinition;
 
@@ -101,5 +102,25 @@ export function getWidgetsByCategory(category: string, access?: WidgetAccess): W
 }
 
 export function getWidgetById(id: string): WidgetDefinition | undefined {
-  return systemWidgets[id];
+  if (systemWidgets[id]) {
+    return systemWidgets[id];
+  }
+
+  const libraryWidget = widgetLibrary[id];
+  if (libraryWidget) {
+    return {
+      id: libraryWidget.id,
+      name: libraryWidget.name,
+      description: libraryWidget.description || '',
+      type: libraryWidget.type,
+      category: libraryWidget.category,
+      access: libraryWidget.scope === 'admin' ? 'admin' : 'customer',
+      defaultSize: libraryWidget.size === 'large' ? 'large' : libraryWidget.size === 'medium' ? 'medium' : 'small',
+      icon: libraryWidget.icon,
+      iconColor: 'bg-blue-500',
+      calculate: libraryWidget.calculate,
+    } as WidgetDefinition;
+  }
+
+  return undefined;
 }

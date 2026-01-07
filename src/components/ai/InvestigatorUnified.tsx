@@ -129,6 +129,136 @@ const CHART_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#8b5cf6', '#ef4444', '#0
 const HEATMAP_COLORS = ['#f0fdf4', '#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d'];
 
 // =============================================================================
+// SIMPLE MARKDOWN RENDERER
+// =============================================================================
+
+function SimpleMarkdown({ content }: { content: string }) {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let currentParagraph: string[] = [];
+  let inList = false;
+  let listItems: string[] = [];
+
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      const text = currentParagraph.join(' ');
+      if (text.trim()) {
+        elements.push(
+          <p key={elements.length} className="mb-3 leading-relaxed">
+            {renderInlineMarkdown(text)}
+          </p>
+        );
+      }
+      currentParagraph = [];
+    }
+  };
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={elements.length} className="mb-3 ml-4 space-y-1">
+          {listItems.map((item, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-orange-500 mt-1.5">•</span>
+              <span>{renderInlineMarkdown(item)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+      inList = false;
+    }
+  };
+
+  const renderInlineMarkdown = (text: string): React.ReactNode => {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let key = 0;
+
+    while (remaining.length > 0) {
+      const boldMatch = remaining.match(/^(.*?)(\*\*|__)(.+?)(\*\*|__)/);
+      if (boldMatch) {
+        if (boldMatch[1]) {
+          parts.push(<span key={key++}>{boldMatch[1]}</span>);
+        }
+        parts.push(<strong key={key++} className="font-semibold text-slate-900">{boldMatch[3]}</strong>);
+        remaining = remaining.slice(boldMatch[0].length);
+      } else {
+        parts.push(<span key={key++}>{remaining}</span>);
+        break;
+      }
+    }
+
+    return parts;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith('### ')) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <h4 key={elements.length} className="font-semibold text-slate-900 mt-4 mb-2 text-sm">
+          {renderInlineMarkdown(trimmedLine.slice(4))}
+        </h4>
+      );
+      continue;
+    }
+
+    if (trimmedLine.startsWith('## ')) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <h3 key={elements.length} className="font-bold text-slate-900 mt-4 mb-2">
+          {renderInlineMarkdown(trimmedLine.slice(3))}
+        </h3>
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s/.test(trimmedLine)) {
+      flushParagraph();
+      if (!inList) {
+        flushList();
+        inList = true;
+      }
+      listItems.push(trimmedLine.replace(/^\d+\.\s/, ''));
+      continue;
+    }
+
+    if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+      flushParagraph();
+      if (!inList) {
+        flushList();
+        inList = true;
+      }
+      listItems.push(trimmedLine.slice(2));
+      continue;
+    }
+
+    if (!trimmedLine) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    if (inList) {
+      flushList();
+    }
+    currentParagraph.push(trimmedLine);
+  }
+
+  flushParagraph();
+  flushList();
+
+  return <div className="text-slate-700 text-[15px]">{elements}</div>;
+}
+
+// =============================================================================
 // VISUALIZATION RENDERERS
 // =============================================================================
 
@@ -902,9 +1032,11 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
           )}
           
           {/* Message text */}
-          <div className={`text-sm whitespace-pre-wrap ${isUser ? '' : 'text-slate-700'}`}>
-            {message.content}
-          </div>
+          {isUser ? (
+            <div className="text-sm">{message.content}</div>
+          ) : (
+            <SimpleMarkdown content={message.content} />
+          )}
 
           {/* *** RENDER VISUALIZATIONS *** */}
           {!isUser && message.visualizations && message.visualizations.length > 0 && (

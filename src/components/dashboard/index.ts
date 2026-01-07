@@ -31,3 +31,4 @@ export { DateRangeSelector } from './DateRangeSelector';
 export { UnifiedInsightsCard } from './UnifiedInsightsCard';
 export { WidgetContextFooter } from './WidgetContextFooter';
 export { CarrierAnalyticsSection } from './carrieranalyticssection';
+export { ClickableWidgetWrapper } from './ClickableWidgetWrapper';

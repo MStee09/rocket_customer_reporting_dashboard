@@ -1,26 +1,23 @@
-// src/components/WidgetCard.tsx
-
+import { ReactNode, KeyboardEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-interface WidgetCardProps {
+interface ClickableWidgetWrapperProps {
   widgetId: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
 
-/**
- * Wrapper component that makes widgets clickable.
- * Clicking navigates to the raw data view for that widget.
- * Preserves current date range from the dashboard/analytics hub.
- */
-export function WidgetCard({ widgetId, children, className = '' }: WidgetCardProps) {
+export function ClickableWidgetWrapper({
+  widgetId,
+  children,
+  className = ''
+}: ClickableWidgetWrapperProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const handleClick = () => {
-    // Preserve current date range when navigating to raw data
     const params = new URLSearchParams();
-    
+
     const start = searchParams.get('start');
     const end = searchParams.get('end');
 
@@ -31,7 +28,7 @@ export function WidgetCard({ widgetId, children, className = '' }: WidgetCardPro
     navigate(`/widgets/${widgetId}/data${queryString ? `?${queryString}` : ''}`);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleClick();

@@ -125,7 +125,7 @@ function SortableWidgetWrapper({
     return 'border-orange-500 border-2 shadow-lg shadow-orange-500/20 ring-2 ring-orange-500/10';
   };
 
-  const isClickableForNavigation = !isEditMode && !isCustomWidget && widgetType !== 'ai_report' && widgetType !== 'map';
+  const isClickableForNavigation = !isEditMode && !isCustomWidget && widgetType !== 'ai_report';
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;

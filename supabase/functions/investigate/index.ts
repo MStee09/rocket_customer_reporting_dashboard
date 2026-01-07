@@ -370,17 +370,25 @@ function generateVisualization(toolName: string, toolInput: Record<string, unkno
   const id = crypto.randomUUID();
 
   if (toolName === 'preview_aggregation' && result && typeof result === 'object') {
-    const data = result as { groups?: Array<{ group: string; value: number; count: number }> };
-    if (data.groups && data.groups.length > 0) {
-      const metric = toolInput.metric as string;
-      const groupBy = toolInput.group_by as string;
+    const data = result as { 
+      results?: Array<{ name: string; value: number; count: number }>;
+      groups?: Array<{ group: string; value: number; count: number }>;
+      group_by?: string;
+      metric?: string;
+    };
+    
+    const groups = data.results || data.groups;
+    
+    if (groups && groups.length > 0) {
+      const metric = (data.metric || toolInput.metric) as string;
+      const groupBy = (data.group_by || toolInput.group_by) as string;
       return {
         id,
         type: 'bar',
         title: `${formatMetricName(metric)} by ${formatMetricName(groupBy)}`,
         data: {
-          data: data.groups.slice(0, 10).map(g => ({
-            label: g.group || 'Unknown',
+          data: groups.slice(0, 10).map(g => ({
+            label: (g as any).name || (g as any).group || 'Unknown',
             value: Math.round(g.value * 100) / 100
           })),
           format: determineFormat(metric)
@@ -838,13 +846,13 @@ async function executeToolCall(
         p_limit: limit
       });
 
-      if (!data || !data.groups) {
+      if (!data || !data.results) {
         return { items: [], message: 'No data found' };
       }
 
       return {
-        items: data.groups.map((g: { group: string; value: number }) => ({
-          name: g.group || 'Unknown',
+        items: data.results.map((g: { name: string; value: number }) => ({
+          name: g.name || 'Unknown',
           value: g.value
         }))
       };
@@ -907,15 +915,15 @@ async function executeToolCall(
         p_limit: 60
       });
 
-      if (!data || !data.groups) {
+      if (!data || !data.results) {
         return { states: [], message: 'No geographic data found' };
       }
 
       return {
-        states: data.groups
-          .filter((g: { group: string }) => g.group && g.group.length === 2)
-          .map((g: { group: string; value: number }) => ({
-            state: g.group.toUpperCase(),
+        states: data.results
+          .filter((g: { name: string }) => g.name && g.name.length === 2)
+          .map((g: { name: string; value: number }) => ({
+            state: g.name.toUpperCase(),
             value: g.value
           }))
       };
@@ -981,13 +989,13 @@ async function executeToolCall(
           p_limit: limit
         });
 
-        if (data?.groups) {
-          const maxValue = Math.max(...data.groups.map((g: { value: number }) => g.value));
+        if (data?.results) {
+          const maxValue = Math.max(...data.results.map((g: { value: number }) => g.value));
           metricMaxes[metric] = maxValue;
 
-          for (const g of data.groups) {
-            if (!results[g.group]) results[g.group] = {};
-            results[g.group][metric] = g.value;
+          for (const g of data.results) {
+            if (!results[g.name]) results[g.name] = {};
+            results[g.name][metric] = g.value;
           }
         }
       }

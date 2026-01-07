@@ -1,5 +1,6 @@
 export { WidgetAlertBadge } from './WidgetAlertBadge';
 export { AlertInspectorPanel } from './AlertInspectorPanel';
+export { default as WidgetRawDataView } from './widgetrawdataview';
 
 export type {
   WidgetState,

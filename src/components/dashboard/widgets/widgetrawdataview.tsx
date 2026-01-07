@@ -1,26 +1,22 @@
-// src/pages/WidgetRawDataView.tsx
-
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { ArrowLeft, RefreshCw, AlertCircle, FileQuestion, Sparkles } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   executeWidget,
   getWidgetMetadata,
   WidgetNotFoundError,
   type WidgetExecutionResult,
-} from '@/services/widgetDataService';
-import { DataTable } from '@/components/DataTable';
-import { DateRangePicker } from '@/components/DateRangePicker';
-import { ExportCSV } from '@/components/ExportCSV';
-import { PrintPDF } from '@/components/PrintPDF';
-import { SaveAsReportButton } from '@/components/SaveAsReportButton';
-import { AIInvestigator } from '@/components/AIInvestigator';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import type { ReportExecutionParams } from '@/types/report';
-
-// ============================================
-// TYPES
-// ============================================
+} from '../../../services/widgetdataservice';
+import { DataTable } from '../../datatable';
+import { DateRangeSelector } from '../DateRangeSelector';
+import { ExportMenu } from '../../ui/ExportMenu';
+import { SaveAsReportButton } from '../../reports/saveasreportbutton';
+import { LoadingSpinner } from '../../ui/loadingspinner';
+import { InvestigatorUnified } from '../../ai/InvestigatorUnified';
+import { Button } from '../../ui/Button';
+import type { ReportExecutionParams, DateRange } from '../../../types/report';
+import type { ColumnConfig } from '../../../services/exportService';
 
 type ViewState =
   | { status: 'loading' }
@@ -28,46 +24,102 @@ type ViewState =
   | { status: 'error'; message: string }
   | { status: 'not-found'; widgetId: string };
 
-// ============================================
-// COMPONENT
-// ============================================
+function getDefaultDateRange(): DateRange {
+  const end = new Date();
+  const start = new Date();
+  start.setMonth(start.getMonth() - 1);
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+}
+
+function dateRangeKeyToRange(key: string): DateRange {
+  const today = new Date();
+  const end = today.toISOString().split('T')[0];
+  let start = new Date();
+
+  switch (key) {
+    case 'last7':
+      start.setDate(today.getDate() - 7);
+      break;
+    case 'last30':
+      start.setDate(today.getDate() - 30);
+      break;
+    case 'last90':
+      start.setDate(today.getDate() - 90);
+      break;
+    case 'last6months':
+      start.setMonth(today.getMonth() - 6);
+      break;
+    case 'thisMonth':
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      break;
+    case 'thisQuarter': {
+      const quarter = Math.floor(today.getMonth() / 3);
+      start = new Date(today.getFullYear(), quarter * 3, 1);
+      break;
+    }
+    case 'thisYear':
+      start = new Date(today.getFullYear(), 0, 1);
+      break;
+    case 'lastyear':
+      start = new Date(today.getFullYear() - 1, 0, 1);
+      return {
+        start: start.toISOString().split('T')[0],
+        end: new Date(today.getFullYear() - 1, 11, 31).toISOString().split('T')[0],
+      };
+    default:
+      start.setDate(today.getDate() - 30);
+  }
+
+  return {
+    start: start.toISOString().split('T')[0],
+    end,
+  };
+}
 
 export default function WidgetRawDataView() {
   const { widgetId } = useParams<{ widgetId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, customerId } = useAuth();
+  const { effectiveCustomerId, user, isAdmin, customers } = useAuth();
+
+  const currentCustomer = customers.find(c => c.customer_id === effectiveCustomerId);
 
   const [viewState, setViewState] = useState<ViewState>({ status: 'loading' });
+  const [dateRangeKey, setDateRangeKey] = useState(
+    searchParams.get('range') || 'last30'
+  );
+  const [showAI, setShowAI] = useState(false);
 
-  // Parse execution params from URL
+  const dateRange = dateRangeKeyToRange(dateRangeKey);
   const executionParams: ReportExecutionParams = {
-    dateRange: {
-      start: searchParams.get('start') || getDefaultStartDate(),
-      end: searchParams.get('end') || getDefaultEndDate(),
-    },
-    filters: parseFilters(searchParams.get('filters')),
+    dateRange,
+    filters: {},
   };
 
-  // Get widget metadata (without executing)
   const widgetMeta = widgetId ? getWidgetMetadata(widgetId) : null;
 
-  // Load widget data
   const loadData = useCallback(async () => {
     if (!widgetId) {
       setViewState({ status: 'not-found', widgetId: 'unknown' });
       return;
     }
 
-    if (!customerId) {
-      setViewState({ status: 'error', message: 'No customer context' });
+    if (!effectiveCustomerId) {
+      setViewState({ status: 'error', message: 'No customer context available' });
       return;
     }
 
     setViewState({ status: 'loading' });
 
     try {
-      const result = await executeWidget(widgetId, executionParams, customerId);
+      const result = await executeWidget(
+        widgetId,
+        executionParams,
+        String(effectiveCustomerId)
+      );
       setViewState({ status: 'success', result });
     } catch (error) {
       if (error instanceof WidgetNotFoundError) {
@@ -80,131 +132,126 @@ export default function WidgetRawDataView() {
         });
       }
     }
-  }, [widgetId, customerId, executionParams.dateRange?.start, executionParams.dateRange?.end]);
+  }, [widgetId, effectiveCustomerId, dateRangeKey]);
 
-  // Load on mount and when params change
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Handle date range change
-  const handleDateRangeChange = (start: string, end: string) => {
+  const handleDateRangeChange = (newRangeKey: string) => {
+    setDateRangeKey(newRangeKey);
     const newParams = new URLSearchParams(searchParams);
-    newParams.set('start', start);
-    newParams.set('end', end);
-    setSearchParams(newParams);
+    newParams.set('range', newRangeKey);
+    setSearchParams(newParams, { replace: true });
   };
 
-  // ============================================
-  // RENDER: Loading State
-  // ============================================
   if (viewState.status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="mt-3 text-gray-600">Loading data...</p>
+          <p className="mt-4 text-charcoal-600">Loading widget data...</p>
         </div>
       </div>
     );
   }
 
-  // ============================================
-  // RENDER: Not Found State
-  // ============================================
   if (viewState.status === 'not-found') {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-gray-900">Widget Not Found</h2>
-        <p className="text-gray-600 mt-2">
-          The widget "{viewState.widgetId}" does not exist.
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <FileQuestion className="w-16 h-16 text-charcoal-300 mb-4" />
+        <h2 className="text-xl font-semibold text-charcoal-900 mb-2">Widget Not Found</h2>
+        <p className="text-charcoal-600 mb-6">
+          The widget "{viewState.widgetId}" does not exist or has been removed.
         </p>
-        <button
-          onClick={() => navigate(-1)}
-          className="mt-4 text-blue-600 hover:underline"
-        >
+        <Button variant="outline" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Go Back
-        </button>
+        </Button>
       </div>
     );
   }
 
-  // ============================================
-  // RENDER: Error State
-  // ============================================
   if (viewState.status === 'error') {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-red-600">Error Loading Data</h2>
-        <p className="text-gray-600 mt-2">{viewState.message}</p>
-        <div className="mt-4 flex justify-center gap-4">
-          <button onClick={loadData} className="text-blue-600 hover:underline">
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <AlertCircle className="w-16 h-16 text-red-400 mb-4" />
+        <h2 className="text-xl font-semibold text-charcoal-900 mb-2">Error Loading Data</h2>
+        <p className="text-charcoal-600 mb-6">{viewState.message}</p>
+        <div className="flex items-center gap-3">
+          <Button variant="primary" onClick={loadData}>
+            <RefreshCw className="w-4 h-4 mr-2" />
             Try Again
-          </button>
-          <button
-            onClick={() => navigate(-1)}
-            className="text-gray-600 hover:underline"
-          >
+          </Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>
             Go Back
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
-  // ============================================
-  // RENDER: Success State
-  // ============================================
   const { result } = viewState;
+  const columns: ColumnConfig[] = result.tableData.columns.map((col) => ({
+    key: col.key,
+    label: col.label,
+    type: col.type === 'currency' ? 'currency' : col.type === 'number' ? 'number' : 'string',
+  }));
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <button
             onClick={() => navigate(-1)}
-            className="text-gray-500 hover:text-gray-700 text-sm mb-1 flex items-center gap-1"
+            className="text-charcoal-500 hover:text-charcoal-700 text-sm mb-2 flex items-center gap-1 transition-colors"
           >
-            <span>←</span> Back
+            <ArrowLeft className="w-4 h-4" />
+            Back
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{result.widgetName}</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-charcoal-900">{result.widgetName}</h1>
+          <p className="text-charcoal-500 text-sm mt-1">
             {result.tableData.metadata.rowCount.toLocaleString()} rows
+            {result.tableData.metadata.generatedAt && (
+              <span className="mx-2">|</span>
+            )}
+            {result.tableData.metadata.generatedAt && (
+              <span>
+                Generated {new Date(result.tableData.metadata.generatedAt).toLocaleString()}
+              </span>
+            )}
           </p>
         </div>
 
-        {/* Date Range Control */}
-        <DateRangePicker
-          startDate={executionParams.dateRange?.start || ''}
-          endDate={executionParams.dateRange?.end || ''}
-          onChange={handleDateRangeChange}
-        />
+        <DateRangeSelector value={dateRangeKey} onChange={handleDateRangeChange} />
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-charcoal-200 overflow-hidden">
         <DataTable
           columns={result.tableData.columns}
           rows={result.tableData.rows}
+          maxHeight="600px"
+          emptyMessage="No data found for the selected date range"
         />
       </div>
 
-      {/* Actions Bar */}
-      <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-        <ExportCSV
-          data={result.tableData.rows}
-          columns={result.tableData.columns}
-          filename={`${result.widgetName.replace(/\s+/g, '-').toLowerCase()}-${
-            executionParams.dateRange?.start || 'export'
-          }`}
-        />
-        <PrintPDF
-          data={result.tableData.rows}
-          columns={result.tableData.columns}
-          title={result.widgetName}
-        />
-        <div className="flex-1" />
+      <div className="flex items-center justify-between pt-4 border-t border-charcoal-200">
+        <div className="flex items-center gap-3">
+          <ExportMenu
+            data={result.tableData.rows}
+            columns={columns}
+            filename={`${result.widgetName.replace(/\s+/g, '-').toLowerCase()}`}
+            title={result.widgetName}
+          />
+          <Button
+            variant="outline"
+            onClick={() => setShowAI(!showAI)}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {showAI ? 'Hide AI Analysis' : 'Analyze with AI'}
+          </Button>
+        </div>
+
         <SaveAsReportButton
           widgetId={result.widgetId}
           widgetName={result.widgetName}
@@ -212,43 +259,19 @@ export default function WidgetRawDataView() {
         />
       </div>
 
-      {/* AI Investigator - passes widget context */}
-      <div className="mt-8">
-        <AIInvestigator
-          context={{
-            type: 'widget',
-            widgetId: result.widgetId,
-            widgetName: result.widgetName,
-            data: result.tableData.rows,
-            rowCount: result.tableData.metadata.rowCount,
-            dateRange: executionParams.dateRange,
-            aggregateValue: result.widgetData.value,
-          }}
-        />
-      </div>
+      {showAI && effectiveCustomerId && (
+        <div className="mt-6 p-6 bg-charcoal-50 rounded-xl border border-charcoal-200">
+          <InvestigatorUnified
+            customerId={String(effectiveCustomerId)}
+            isAdmin={isAdmin()}
+            customerName={currentCustomer?.customer_name}
+            userId={user?.id}
+            userEmail={user?.email}
+            initialQuery={`Tell me about the ${result.widgetName} data`}
+            embedded
+          />
+        </div>
+      )}
     </div>
   );
-}
-
-// ============================================
-// UTILITIES
-// ============================================
-
-function getDefaultStartDate(): string {
-  const date = new Date();
-  date.setMonth(date.getMonth() - 1);
-  return date.toISOString().split('T')[0];
-}
-
-function getDefaultEndDate(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function parseFilters(filtersParam: string | null): Record<string, unknown> {
-  if (!filtersParam) return {};
-  try {
-    return JSON.parse(filtersParam);
-  } catch {
-    return {};
-  }
 }

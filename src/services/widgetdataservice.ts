@@ -683,7 +683,8 @@ async function fetchWidgetRowData(
     },
 
     carrier_performance: async () => {
-      console.log('[widgetdataservice] carrier_performance called with carrierFilter:', carrierFilter);
+      const carrierNameFilter = filters?.carrier_name ? decodeURIComponent(String(filters.carrier_name)) : null;
+      console.log('[widgetdataservice] carrier_performance called', { carrierFilter, carrierNameFilter });
 
       let query = supabase
         .from('shipment_report_view')
@@ -707,8 +708,10 @@ async function fetchWidgetRowData(
         .order('pickup_date', { ascending: false })
         .limit(500);
 
-      if (carrierFilter) {
+      if (carrierFilter && carrierFilter > 0) {
         query = query.eq('carrier_id', carrierFilter);
+      } else if (carrierNameFilter) {
+        query = query.eq('carrier_name', carrierNameFilter);
       }
 
       const { data, error } = await query;

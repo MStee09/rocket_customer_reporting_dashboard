@@ -96,9 +96,13 @@ export default function WidgetRawDataView() {
   const dateRange = dateRangeKeyToRange(dateRangeKey);
 
   const carrierFilter = searchParams.get('carrier');
+  const carrierNameFilter = searchParams.get('carrier_name');
   const filters: Record<string, string | number> = {};
   if (carrierFilter) {
     filters.carrier = carrierFilter;
+  }
+  if (carrierNameFilter) {
+    filters.carrier_name = carrierNameFilter;
   }
 
   const executionParams: ReportExecutionParams = {

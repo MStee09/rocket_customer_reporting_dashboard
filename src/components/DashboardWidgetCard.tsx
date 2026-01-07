@@ -74,13 +74,15 @@ export function DashboardWidgetCard({
 
   const handleWidgetClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (
-      target.closest('button') ||
-      target.closest('a') ||
-      target.closest('[role="button"]')
-    ) {
-      return;
-    }
+    const currentTarget = e.currentTarget as HTMLElement;
+
+    const clickedButton = target.closest('button');
+    const clickedLink = target.closest('a');
+    const clickedRoleButton = target.closest('[role="button"]');
+
+    if (clickedButton && clickedButton !== currentTarget) return;
+    if (clickedLink && clickedLink !== currentTarget) return;
+    if (clickedRoleButton && clickedRoleButton !== currentTarget) return;
 
     if (isCustomWidget || widget.type === 'ai_report' || widget.type === 'map') {
       return;

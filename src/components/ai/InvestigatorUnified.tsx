@@ -670,7 +670,9 @@ export function InvestigatorUnified({
       };
 
       setConversation(prev => [...prev, assistantMessage]);
-      conversationHistoryRef.current.push({ role: 'assistant', content: data.answer });
+      if (data.answer && data.answer.trim()) {
+        conversationHistoryRef.current.push({ role: 'assistant', content: data.answer });
+      }
 
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -742,6 +744,19 @@ export function InvestigatorUnified({
               conversation.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} showReasoning={showReasoning} onFollowUp={handleFollowUp} />
               ))
+            )}
+            {isLoading && currentReasoning.length === 0 && (
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2 text-orange-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Analyzing your data...</span>
+                  </div>
+                </div>
+              </div>
             )}
             {isLoading && currentReasoning.length > 0 && <LiveReasoningIndicator steps={currentReasoning} mode={currentMode} />}
             {error && (

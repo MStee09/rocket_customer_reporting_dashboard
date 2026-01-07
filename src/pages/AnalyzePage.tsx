@@ -1,12 +1,19 @@
+/**
+ * AnalyzePage - Updated to use InvestigatorUnified
+ *
+ * Changes from original:
+ * - Removed Fast/Deep toggle (AI auto-routes now)
+ * - Uses InvestigatorUnified instead of switching between InvestigatorStudio and InvestigatorV3
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles, Zap } from 'lucide-react';
+import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { loadAIReports, SavedAIReport } from '../services/aiReportService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { formatDistanceToNow } from 'date-fns';
-import { InvestigatorStudio } from '../components/ai/InvestigatorStudio';
-import { InvestigatorV3 } from '../components/ai/InvestigatorV3';
+import { InvestigatorUnified } from '../components/ai/InvestigatorUnified';
 
 export function AnalyzePage() {
   const navigate = useNavigate();
@@ -18,7 +25,6 @@ export function AnalyzePage() {
   const [allReports, setAllReports] = useState<SavedAIReport[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
   const [showInvestigator, setShowInvestigator] = useState(false);
-  const [investigatorMode, setInvestigatorMode] = useState<'fast' | 'deep'>('fast');
 
   const effectiveCustomerName = isViewingAsCustomer
     ? viewingCustomer?.company_name
@@ -100,7 +106,7 @@ export function AnalyzePage() {
             className="group p-6 bg-white rounded-2xl border-2 border-slate-200 hover:border-orange-400 hover:shadow-lg transition-all text-left relative overflow-hidden"
           >
             <div className="absolute top-2 right-2 px-2 py-0.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-medium rounded-full">
-              New
+              Smart
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <Brain className="w-6 h-6 text-white" />
@@ -109,7 +115,7 @@ export function AnalyzePage() {
               The Investigator
             </h2>
             <p className="text-slate-600 text-sm mb-4">
-              AI-powered deep analysis. Finds anomalies, root causes, and insights.
+              AI-powered analysis. Auto-detects simple vs complex questions.
             </p>
             <div className="flex items-center text-orange-600 font-medium text-sm">
               Launch
@@ -183,19 +189,19 @@ export function AnalyzePage() {
         )}
 
         <div className="mt-12 p-6 bg-slate-100 rounded-xl max-w-3xl mx-auto">
-          <h4 className="font-medium text-slate-900 mb-3">Quick tips</h4>
+          <h4 className="font-medium text-slate-900 mb-3">How it works</h4>
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start gap-2">
-              <span className="text-orange-500 mt-0.5">-</span>
-              <span><strong>The Investigator</strong> uses AI to analyze your data, find anomalies, investigate root causes, and provide actionable insights</span>
+              <span className="text-green-500 mt-0.5">*</span>
+              <span><strong>Simple questions</strong> like "What's my average cost?" get quick answers (~5 seconds)</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-slate-500 mt-0.5">-</span>
-              <span><strong>Build Report</strong> is better when you know exactly which columns and filters you need</span>
+              <span className="text-blue-500 mt-0.5">*</span>
+              <span><strong>Complex questions</strong> like "Why did costs spike?" trigger deep investigation (~15 seconds)</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-slate-500 mt-0.5">-</span>
-              <span>Any report can be saved, scheduled, or added to your dashboard</span>
+              <span className="text-slate-500 mt-0.5">*</span>
+              <span>The AI automatically chooses the right approach based on your question</span>
             </li>
           </ul>
         </div>
@@ -211,53 +217,24 @@ export function AnalyzePage() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900">The Investigator</h2>
-                  <p className="text-xs text-gray-500">AI-powered analysis</p>
+                  <p className="text-xs text-gray-500">Smart AI analysis</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="flex bg-slate-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setInvestigatorMode('fast')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      investigatorMode === 'fast'
-                        ? 'bg-white text-orange-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                    title="Quick answers in ~2 seconds"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    Fast
-                  </button>
-                  <button
-                    onClick={() => setInvestigatorMode('deep')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      investigatorMode === 'deep'
-                        ? 'bg-white text-orange-600 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                    title="Deep investigation with visible reasoning (10-30s)"
-                  >
-                    <Brain className="w-3.5 h-3.5" />
-                    Deep
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setShowInvestigator(false);
-                    setSearchParams({});
-                  }}
-                  className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowInvestigator(false);
+                  setSearchParams({});
+                }}
+                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
 
             <div className="flex-1 overflow-hidden">
-              {effectiveCustomerId && investigatorMode === 'fast' && (
-                <InvestigatorStudio
+              {effectiveCustomerId && (
+                <InvestigatorUnified
                   customerId={String(effectiveCustomerId)}
                   customerName={effectiveCustomerName}
                   isAdmin={isAdmin()}
@@ -265,9 +242,6 @@ export function AnalyzePage() {
                   userEmail={user?.email}
                   embedded
                 />
-              )}
-              {effectiveCustomerId && investigatorMode === 'deep' && (
-                <InvestigatorV3 />
               )}
             </div>
           </div>

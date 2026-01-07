@@ -135,14 +135,15 @@ function SortableWidgetWrapper({
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (
-      target.closest('button') ||
-      target.closest('a') ||
-      target.closest('[role="button"]') ||
-      target.closest('.cursor-grab')
-    ) {
-      return;
-    }
+    const currentTarget = e.currentTarget as HTMLElement;
+
+    const clickedButton = target.closest('button');
+    const clickedLink = target.closest('a');
+    const clickedGrab = target.closest('.cursor-grab');
+
+    if (clickedButton && clickedButton !== currentTarget) return;
+    if (clickedLink && clickedLink !== currentTarget) return;
+    if (clickedGrab) return;
 
     if (isEditMode) {
       onSelect();

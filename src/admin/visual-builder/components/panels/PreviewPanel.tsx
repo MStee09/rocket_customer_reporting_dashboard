@@ -1,12 +1,13 @@
 /**
- * Preview Panel
+ * Preview Panel - FIXED VERSION
  *
  * LOCATION: /src/admin/visual-builder/components/panels/PreviewPanel.tsx
  *
- * Shows a live preview of the widget being built.
+ * FIX: Removed date range filtering from preview - just shows sample data.
+ * When published, widgets will use the Analytics Hub's date range picker.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   RefreshCw,
   Maximize2,
@@ -22,7 +23,7 @@ import {
   Database,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
-import { compileLogicBlocks } from '../../logic/compileLogic';
+import { compileLogicBlocksToArray } from '../../logic/compileLogic';
 import { supabase } from '../../../../lib/supabase';
 import {
   BarChart,
@@ -52,10 +53,6 @@ export function PreviewPanel() {
   const [data, setData] = useState<any[]>([]);
   const [rowCount, setRowCount] = useState<number | null>(null);
 
-  const executionParams = useMemo(() => {
-    return compileLogicBlocks(state.logicBlocks, state.executionParams);
-  }, [state.logicBlocks, state.executionParams]);
-
   const fetchPreviewData = async () => {
     setLoading(true);
     setError(null);
@@ -64,51 +61,49 @@ export function PreviewPanel() {
       let query = supabase
         .from('shipment_report_view')
         .select('*', { count: 'exact' })
-        .gte('created_date', executionParams.dateRange.start)
-        .lte('created_date', executionParams.dateRange.end)
-        .limit(executionParams.limit || 1000);
+        .limit(1000);
 
-      if (executionParams.filterConditions) {
-        for (const filter of executionParams.filterConditions) {
-          switch (filter.operator) {
-            case 'eq':
-              query = query.eq(filter.field, filter.value);
-              break;
-            case 'neq':
-              query = query.neq(filter.field, filter.value);
-              break;
-            case 'gt':
-              query = query.gt(filter.field, filter.value);
-              break;
-            case 'gte':
-              query = query.gte(filter.field, filter.value);
-              break;
-            case 'lt':
-              query = query.lt(filter.field, filter.value);
-              break;
-            case 'lte':
-              query = query.lte(filter.field, filter.value);
-              break;
-            case 'contains':
-              query = query.ilike(filter.field, `%${filter.value}%`);
-              break;
-            case 'in':
-              if (Array.isArray(filter.value)) {
-                query = query.in(filter.field, filter.value);
-              }
-              break;
-            case 'is_null':
-              query = query.is(filter.field, null);
-              break;
-            case 'is_not_null':
-              query = query.not(filter.field, 'is', null);
-              break;
-            case 'between':
-              if (Array.isArray(filter.value) && filter.value.length === 2) {
-                query = query.gte(filter.field, filter.value[0]).lte(filter.field, filter.value[1]);
-              }
-              break;
-          }
+      const filterConditions = compileLogicBlocksToArray(state.logicBlocks);
+
+      for (const filter of filterConditions) {
+        switch (filter.operator) {
+          case 'eq':
+            query = query.eq(filter.field, filter.value);
+            break;
+          case 'neq':
+            query = query.neq(filter.field, filter.value);
+            break;
+          case 'gt':
+            query = query.gt(filter.field, filter.value);
+            break;
+          case 'gte':
+            query = query.gte(filter.field, filter.value);
+            break;
+          case 'lt':
+            query = query.lt(filter.field, filter.value);
+            break;
+          case 'lte':
+            query = query.lte(filter.field, filter.value);
+            break;
+          case 'contains':
+            query = query.ilike(filter.field, `%${filter.value}%`);
+            break;
+          case 'in':
+            if (Array.isArray(filter.value)) {
+              query = query.in(filter.field, filter.value);
+            }
+            break;
+          case 'is_null':
+            query = query.is(filter.field, null);
+            break;
+          case 'is_not_null':
+            query = query.not(filter.field, 'is', null);
+            break;
+          case 'between':
+            if (Array.isArray(filter.value) && filter.value.length === 2) {
+              query = query.gte(filter.field, filter.value[0]).lte(filter.field, filter.value[1]);
+            }
+            break;
         }
       }
 
@@ -143,7 +138,6 @@ export function PreviewPanel() {
     state.visualization.geo,
     state.visualization.flow,
     state.logicBlocks,
-    state.executionParams.dateRange,
   ]);
 
   const containerClass = isFullscreen
@@ -158,7 +152,7 @@ export function PreviewPanel() {
           {rowCount !== null && (
             <p className="text-xs text-slate-500 flex items-center gap-1">
               <Database className="w-3 h-3" />
-              {rowCount.toLocaleString()} rows
+              {rowCount.toLocaleString()} rows (sample)
             </p>
           )}
         </div>
@@ -235,6 +229,10 @@ export function PreviewPanel() {
           <span>Agg: {state.visualization.aggregation}</span>
         )}
       </div>
+
+      <p className="mt-2 text-xs text-slate-400 italic">
+        Preview shows sample data. Published widget will use Analytics Hub date range.
+      </p>
     </div>
   );
 }
@@ -393,7 +391,7 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
       return <ChoroplethPreview data={data} config={config} />;
 
     case 'flow':
-      return <FlowMapPreview data={data} config={config} />;
+      return <FlowMapPreview data={data} />;
 
     case 'histogram':
       return <HistogramPreview data={data} config={config} colors={colors} />;
@@ -419,11 +417,6 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
 function KPIPreview({ data, config }: { data: any[]; config: any }) {
   const value = data[0]?.value || 0;
   const formatted = formatKPIValue(value, config.kpi);
-  const trend = data[0]?.trend || 0;
-  const isPositive = trend > 0;
-  const trendColor = config.kpi?.trendDirection === 'down_is_good'
-    ? (isPositive ? 'text-red-500' : 'text-green-500')
-    : (isPositive ? 'text-green-500' : 'text-red-500');
 
   return (
     <div className="h-full flex items-center justify-center">
@@ -431,11 +424,6 @@ function KPIPreview({ data, config }: { data: any[]; config: any }) {
         <div className="text-4xl font-bold text-slate-900">
           {config.kpi?.prefix}{formatted}{config.kpi?.suffix}
         </div>
-        {trend !== 0 && (
-          <div className={`text-sm mt-2 ${trendColor}`}>
-            {isPositive ? '+' : ''}{Math.abs(trend).toFixed(1)}% vs previous period
-          </div>
-        )}
       </div>
     </div>
   );
@@ -498,9 +486,9 @@ function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
         <Map className="w-16 h-16 text-slate-300 mx-auto mb-3" />
         <p className="text-sm text-slate-600">Choropleth Map Preview</p>
         <p className="text-xs text-slate-400 mt-1">
-          {config.geo?.mapKey || 'us_states'} - {data.length} regions
+          {config.geo?.mapKey || 'us_states'} • {data.length} regions
         </p>
-        <div className="mt-3 flex justify-center gap-1 flex-wrap">
+        <div className="mt-3 flex flex-wrap justify-center gap-1">
           {data.slice(0, 5).map((d, i) => (
             <div key={i} className="text-xs text-slate-500 px-2 py-1 bg-slate-100 rounded">
               {d.name}: {d.value?.toLocaleString()}
@@ -512,7 +500,7 @@ function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
   );
 }
 
-function FlowMapPreview({ data, config }: { data: any[]; config: any }) {
+function FlowMapPreview({ data }: { data: any[] }) {
   return (
     <div className="h-full flex items-center justify-center p-4">
       <div className="text-center">
@@ -520,7 +508,7 @@ function FlowMapPreview({ data, config }: { data: any[]; config: any }) {
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
             <Map className="w-6 h-6 text-blue-500" />
           </div>
-          <div className="text-2xl text-slate-300">-&gt;</div>
+          <div className="text-2xl text-slate-300">→</div>
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
             <Map className="w-6 h-6 text-orange-500" />
           </div>
@@ -529,13 +517,6 @@ function FlowMapPreview({ data, config }: { data: any[]; config: any }) {
         <p className="text-xs text-slate-400 mt-1">
           {data.length} origin-destination pairs
         </p>
-        <div className="mt-3 space-y-1">
-          {data.slice(0, 3).map((d, i) => (
-            <div key={i} className="text-xs text-slate-500">
-              {d.origin} -&gt; {d.destination}: {d.value?.toLocaleString()}
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -578,12 +559,12 @@ function TreemapPreview({ data, colors }: { data: any[]; colors: string[] }) {
 }
 
 function FunnelPreview({ data, colors }: { data: any[]; colors: string[] }) {
-  const maxValue = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(...data.map(d => d.value || 0), 1);
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-4 gap-1">
       {data.slice(0, 5).map((d, i) => {
-        const width = 60 + (40 * (d.value / maxValue));
+        const width = 60 + (40 * ((d.value || 0) / maxValue));
         return (
           <div
             key={i}
@@ -593,7 +574,7 @@ function FunnelPreview({ data, colors }: { data: any[]; colors: string[] }) {
               backgroundColor: colors[i % colors.length],
             }}
           >
-            {d.name}: {d.value.toLocaleString()}
+            {d.name}: {(d.value || 0).toLocaleString()}
           </div>
         );
       })}
@@ -608,7 +589,7 @@ function processDataForVisualization(rawData: any[], config: any): any[] {
 
   if (type === 'kpi') {
     const value = aggregateValues(rawData, yField, aggregation);
-    return [{ value, trend: 0 }];
+    return [{ value }];
   }
 
   if (type === 'table') {
@@ -721,6 +702,8 @@ function createHistogramBins(values: number[], binCount: number): { bin: string;
 
   const min = Math.min(...values);
   const max = Math.max(...values);
+  if (min === max) return [{ bin: String(min), count: values.length }];
+
   const binWidth = (max - min) / binCount;
 
   const bins = Array(binCount).fill(0).map((_, i) => ({

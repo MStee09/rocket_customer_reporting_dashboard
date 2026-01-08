@@ -247,6 +247,9 @@ export const FILTER_OPERATORS = [
   { value: 'is_null', label: 'is empty', types: ['string', 'number', 'date', 'currency'] },
   { value: 'is_not_null', label: 'is not empty', types: ['string', 'number', 'date', 'currency'] },
   { value: 'between', label: 'is between', types: ['number', 'date', 'currency'] },
+  { value: 'contains_any', label: 'contains any of', types: ['string'], description: 'Matches if field contains ANY of the specified values' },
+  { value: 'contains_all', label: 'contains all of', types: ['string'], description: 'Matches if field contains ALL of the specified values' },
+  { value: 'matches_any', label: 'matches any of', types: ['string', 'number'], description: 'Same as "is one of"' },
 ] as const;
 
 export function getOperatorsForFieldType(fieldType: BuilderFieldDefinition['type']): typeof FILTER_OPERATORS[number][] {

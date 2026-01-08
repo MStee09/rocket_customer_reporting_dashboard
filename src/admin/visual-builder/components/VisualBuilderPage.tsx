@@ -25,6 +25,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { BuilderProvider, useBuilder, loadDraftFromStorage, clearDraftFromStorage } from './BuilderContext';
+import { AISuggestionAssistant } from './AISuggestionAssistant';
 import { VisualizationPanel } from './panels/VisualizationPanel';
 import { FieldMappingPanel } from './panels/FieldMappingPanel';
 import { LogicPanel } from './panels/LogicPanel';
@@ -145,6 +146,9 @@ function BuilderLayout() {
     <div className="grid grid-cols-12 gap-4 min-h-[calc(100vh-120px)]">
       {/* Left Panel - Configuration */}
       <div className="col-span-12 lg:col-span-5 xl:col-span-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        {/* AI Suggestion Assistant */}
+        <AISuggestionAssistant />
+
         {/* Tabs */}
         <div className="flex border-b border-slate-200 bg-slate-50">
           {tabs.slice(0, 3).map(tab => (

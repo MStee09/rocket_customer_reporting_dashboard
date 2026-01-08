@@ -137,6 +137,44 @@ export function parseSimpleLogic(prompt: string): CompiledRule | null {
     filters.push({ field: 'miles', operator: 'gt', value });
   }
 
+  // ========================================================================
+  // PRODUCT FILTERING - "contains any of" pattern (OR logic)
+  // ========================================================================
+
+  // Parse quoted values from prompt: "drawer system", "cargoglide", "toolbox"
+  const quotedValues = prompt.match(/["']([^"']+)["']/g);
+  if (quotedValues && quotedValues.length > 0) {
+    const productValues = quotedValues.map(qv => qv.replace(/["']/g, '').trim());
+
+    // Detect if this is about descriptions/products
+    if (lowerPrompt.includes('description') ||
+        lowerPrompt.includes('product') ||
+        lowerPrompt.includes('contains') ||
+        lowerPrompt.includes('includes')) {
+      filters.push({
+        field: 'shipment_description',
+        operator: 'contains_any' as any,
+        value: productValues
+      });
+    }
+  }
+
+  // Also detect known product keywords even without quotes
+  const knownProducts = ['drawer system', 'cargoglide', 'cargo glide', 'toolbox', 'tool box'];
+  const foundProducts: string[] = [];
+  for (const product of knownProducts) {
+    if (lowerPrompt.includes(product)) {
+      foundProducts.push(product);
+    }
+  }
+  if (foundProducts.length > 0 && !filters.some(f => (f.operator as string) === 'contains_any')) {
+    filters.push({
+      field: 'shipment_description',
+      operator: 'contains_any' as any,
+      value: foundProducts,
+    });
+  }
+
   // Origin state - "from CA", "origin TX"
   const statePattern = /(?:from|origin)\s+([A-Z]{2})\b/i;
   const stateMatch = prompt.match(statePattern);

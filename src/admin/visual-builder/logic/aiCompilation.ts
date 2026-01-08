@@ -1,16 +1,20 @@
+/**
+ * AI Logic Compilation Service
+ * 
+ * LOCATION: /src/admin/visual-builder/logic/aiCompilation.ts
+ * 
+ * This file compiles natural language prompts into deterministic filter rules.
+ * AI only runs at authoring time - execution is always deterministic.
+ */
+
 import type { CompiledRule, AILogicBlock } from '../types/BuilderSchema';
 import { supabase } from '../../../lib/supabase';
+import { getAvailableFieldsForAI, type FieldInfo } from '../services/fieldService';
 
 interface AICompilationRequest {
   prompt: string;
-  availableFields: FieldInfo[];
+  availableFields?: FieldInfo[];
   sampleData?: Record<string, unknown>[];
-}
-
-interface FieldInfo {
-  name: string;
-  type: 'string' | 'number' | 'date' | 'boolean';
-  sampleValues?: string[];
 }
 
 interface AICompilationResponse {
@@ -20,21 +24,8 @@ interface AICompilationResponse {
   error?: string;
 }
 
-export const AVAILABLE_FIELDS: FieldInfo[] = [
-  { name: 'carrier_name', type: 'string', sampleValues: ['FedEx Freight', 'XPO Logistics', 'Old Dominion'] },
-  { name: 'origin_state', type: 'string', sampleValues: ['CA', 'TX', 'NY', 'FL'] },
-  { name: 'destination_state', type: 'string', sampleValues: ['CA', 'TX', 'NY', 'FL'] },
-  { name: 'origin_city', type: 'string' },
-  { name: 'destination_city', type: 'string' },
-  { name: 'mode_name', type: 'string', sampleValues: ['LTL', 'TL', 'Partial'] },
-  { name: 'equipment_name', type: 'string', sampleValues: ['Van', 'Flatbed', 'Reefer'] },
-  { name: 'status_name', type: 'string', sampleValues: ['Delivered', 'In Transit', 'Picked Up'] },
-  { name: 'retail', type: 'number' },
-  { name: 'miles', type: 'number' },
-  { name: 'total_weight', type: 'number' },
-  { name: 'pickup_date', type: 'date' },
-  { name: 'delivery_date', type: 'date' },
-];
+// Re-export for backward compatibility with existing code
+export const AVAILABLE_FIELDS: FieldInfo[] = getAvailableFieldsForAI();
 
 export async function compileAILogic(
   request: AICompilationRequest
@@ -46,6 +37,9 @@ export async function compileAILogic(
     }
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    
+    // Use provided fields or get from service
+    const fields = request.availableFields || getAvailableFieldsForAI();
 
     const response = await fetch(`${supabaseUrl}/functions/v1/compile-ai-logic`, {
       method: 'POST',
@@ -55,7 +49,7 @@ export async function compileAILogic(
       },
       body: JSON.stringify({
         prompt: request.prompt,
-        availableFields: request.availableFields,
+        availableFields: fields,
         sampleData: request.sampleData,
       }),
     });
@@ -99,46 +93,92 @@ export function updateAIBlockWithCompilation(
   }
 }
 
+/**
+ * Local fallback parser for simple filter patterns
+ * Used when the AI service is unavailable
+ */
 export function parseSimpleLogic(prompt: string): CompiledRule | null {
   const filters: CompiledRule['filters'] = [];
   const lowerPrompt = prompt.toLowerCase();
 
-  const overMatch = lowerPrompt.match(/(?:over|greater than|more than)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  // Cost/retail filters - "over $X", "greater than $X", "more than $X"
+  const overMatch = lowerPrompt.match(/(?:over|greater than|more than|above)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
   if (overMatch) {
     const value = parseFloat(overMatch[1].replace(/,/g, ''));
     filters.push({ field: 'retail', operator: 'gt', value });
   }
 
+  // "under $X", "less than $X", "below $X"
   const underMatch = lowerPrompt.match(/(?:under|less than|below)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
   if (underMatch) {
     const value = parseFloat(underMatch[1].replace(/,/g, ''));
     filters.push({ field: 'retail', operator: 'lt', value });
   }
 
+  // Between pattern for ranges - "between $X and $Y"
+  const betweenMatch = lowerPrompt.match(/between\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)\s*and\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  if (betweenMatch) {
+    const min = parseFloat(betweenMatch[1].replace(/,/g, ''));
+    const max = parseFloat(betweenMatch[2].replace(/,/g, ''));
+    filters.push({ field: 'retail', operator: 'between', value: [min, max] });
+  }
+
+  // Weight filters - "weight over X"
+  const weightMatch = lowerPrompt.match(/weight\s+(?:over|greater than|more than|above)\s*(\d+(?:,\d{3})*)/);
+  if (weightMatch) {
+    const value = parseFloat(weightMatch[1].replace(/,/g, ''));
+    filters.push({ field: 'total_weight', operator: 'gt', value });
+  }
+
+  // Miles filters - "miles over X", "distance over X"
+  const milesMatch = lowerPrompt.match(/(?:miles?|distance)\s+(?:over|greater than|more than|above)\s*(\d+(?:,\d{3})*)/);
+  if (milesMatch) {
+    const value = parseFloat(milesMatch[1].replace(/,/g, ''));
+    filters.push({ field: 'miles', operator: 'gt', value });
+  }
+
+  // Origin state - "from CA", "origin TX"
   const statePattern = /(?:from|origin)\s+([A-Z]{2})\b/i;
   const stateMatch = prompt.match(statePattern);
   if (stateMatch) {
     filters.push({ field: 'origin_state', operator: 'eq', value: stateMatch[1].toUpperCase() });
   }
 
+  // Destination state - "to CA", "destination TX"
   const destPattern = /(?:to|destination)\s+([A-Z]{2})\b/i;
   const destMatch = prompt.match(destPattern);
   if (destMatch) {
     filters.push({ field: 'destination_state', operator: 'eq', value: destMatch[1].toUpperCase() });
   }
 
-  const carrierPattern = /(?:carrier|from)\s+["']?([^"'\n,]+)["']?/i;
+  // Carrier pattern - "carrier FedEx"
+  const carrierPattern = /(?:carrier)\s+["']?([^"'\n,]+)["']?/i;
   const carrierMatch = prompt.match(carrierPattern);
-  if (carrierMatch && !stateMatch) {
+  if (carrierMatch && !stateMatch) { // Avoid matching "from" in carrier names
     filters.push({ field: 'carrier_name', operator: 'contains', value: carrierMatch[1].trim() });
   }
 
+  // Status patterns
   if (lowerPrompt.includes('delivered')) {
     filters.push({ field: 'status_name', operator: 'eq', value: 'Delivered' });
   } else if (lowerPrompt.includes('in transit')) {
     filters.push({ field: 'status_name', operator: 'eq', value: 'In Transit' });
+  } else if (lowerPrompt.includes('picked up')) {
+    filters.push({ field: 'status_name', operator: 'eq', value: 'Picked Up' });
+  } else if (lowerPrompt.includes('pending')) {
+    filters.push({ field: 'status_name', operator: 'eq', value: 'Pending' });
   }
 
+  // Mode patterns
+  if (lowerPrompt.includes('ltl')) {
+    filters.push({ field: 'mode_name', operator: 'eq', value: 'LTL' });
+  } else if (lowerPrompt.includes('truckload') || lowerPrompt.match(/\btl\b/)) {
+    filters.push({ field: 'mode_name', operator: 'eq', value: 'TL' });
+  } else if (lowerPrompt.includes('partial')) {
+    filters.push({ field: 'mode_name', operator: 'eq', value: 'Partial' });
+  }
+
+  // No valid filters found
   if (filters.length === 0) return null;
 
   return { filters };

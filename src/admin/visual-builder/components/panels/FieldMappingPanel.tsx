@@ -1,45 +1,41 @@
-import React from 'react';
-import { Database, ArrowRight } from 'lucide-react';
+/**
+ * Field Mapping Panel
+ *
+ * LOCATION: /src/admin/visual-builder/components/panels/FieldMappingPanel.tsx
+ *
+ * Allows admins to configure data mappings for widget visualizations.
+ * Uses dynamic field discovery from the centralized schema.
+ */
+
+import React, { useMemo } from 'react';
+import { Database, ArrowRight, Search, Info } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
-
-interface FieldDefinition {
-  name: string;
-  label: string;
-  type: 'string' | 'number' | 'date';
-  category: 'dimension' | 'measure' | 'date';
-}
-
-const AVAILABLE_FIELDS: FieldDefinition[] = [
-  { name: 'carrier_name', label: 'Carrier', type: 'string', category: 'dimension' },
-  { name: 'origin_state', label: 'Origin State', type: 'string', category: 'dimension' },
-  { name: 'destination_state', label: 'Destination State', type: 'string', category: 'dimension' },
-  { name: 'origin_city', label: 'Origin City', type: 'string', category: 'dimension' },
-  { name: 'destination_city', label: 'Destination City', type: 'string', category: 'dimension' },
-  { name: 'mode_name', label: 'Mode', type: 'string', category: 'dimension' },
-  { name: 'equipment_name', label: 'Equipment', type: 'string', category: 'dimension' },
-  { name: 'status_name', label: 'Status', type: 'string', category: 'dimension' },
-  { name: 'retail', label: 'Cost ($)', type: 'number', category: 'measure' },
-  { name: 'miles', label: 'Miles', type: 'number', category: 'measure' },
-  { name: 'total_weight', label: 'Weight (lbs)', type: 'number', category: 'measure' },
-  { name: 'shipment_count', label: 'Shipment Count', type: 'number', category: 'measure' },
-  { name: 'pickup_date', label: 'Pickup Date', type: 'date', category: 'date' },
-  { name: 'delivery_date', label: 'Delivery Date', type: 'date', category: 'date' },
-  { name: 'created_date', label: 'Created Date', type: 'date', category: 'date' },
-];
+import {
+  getAllBuilderFields,
+  getDimensionFields,
+  getMeasureFields,
+  getDateFields,
+  getGeoFields,
+  AGGREGATION_OPTIONS,
+  FIELD_SUBCATEGORIES,
+} from '../../services/fieldService';
+import type { BuilderFieldDefinition } from '../../types/BuilderSchema';
 
 export function FieldMappingPanel() {
   const { state, setVisualization, setTitle, setDescription } = useBuilder();
   const vizType = state.visualization.type;
 
-  const needsXField = ['bar', 'line', 'area', 'scatter', 'heatmap'].includes(vizType);
-  const needsYField = ['bar', 'line', 'area', 'scatter', 'heatmap', 'kpi'].includes(vizType);
+  const allFields = useMemo(() => getAllBuilderFields(true), []);
+  const dimensions = useMemo(() => getDimensionFields(true), []);
+  const measures = useMemo(() => getMeasureFields(true), []);
+  const dateFields = useMemo(() => getDateFields(true), []);
+  const geoFields = useMemo(() => getGeoFields(true), []);
+
+  const needsXField = ['bar', 'line', 'area', 'scatter', 'heatmap', 'histogram'].includes(vizType);
+  const needsYField = ['bar', 'line', 'area', 'scatter', 'heatmap', 'kpi', 'funnel'].includes(vizType);
   const needsGroupBy = ['bar', 'line', 'area'].includes(vizType);
   const needsGeoFields = ['choropleth', 'flow'].includes(vizType);
-  const needsAggregation = ['bar', 'line', 'area', 'pie', 'kpi'].includes(vizType);
-
-  const dimensions = AVAILABLE_FIELDS.filter(f => f.category === 'dimension');
-  const measures = AVAILABLE_FIELDS.filter(f => f.category === 'measure');
-  const dates = AVAILABLE_FIELDS.filter(f => f.category === 'date');
+  const needsAggregation = ['bar', 'line', 'area', 'pie', 'kpi', 'histogram', 'funnel', 'treemap'].includes(vizType);
 
   return (
     <div className="p-4 space-y-6">
@@ -78,10 +74,10 @@ export function FieldMappingPanel() {
 
         {needsXField && (
           <FieldSelector
-            label={vizType === 'bar' ? 'Category (X-Axis)' : 'X-Axis'}
+            label={vizType === 'bar' ? 'Category (X-Axis)' : vizType === 'histogram' ? 'Value Field' : 'X-Axis'}
             value={state.visualization.xField}
             onChange={(value) => setVisualization({ xField: value })}
-            fields={[...dimensions, ...dates]}
+            fields={[...dimensions, ...dateFields]}
             placeholder="Select field..."
           />
         )}
@@ -106,11 +102,11 @@ export function FieldMappingPanel() {
               onChange={(e) => setVisualization({ aggregation: e.target.value as any })}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
-              <option value="sum">Sum</option>
-              <option value="avg">Average</option>
-              <option value="count">Count</option>
-              <option value="min">Minimum</option>
-              <option value="max">Maximum</option>
+              {AGGREGATION_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label} - {opt.description}
+                </option>
+              ))}
             </select>
           </div>
         )}
@@ -127,11 +123,13 @@ export function FieldMappingPanel() {
         )}
 
         {needsGeoFields && (
-          <GeoFieldMapping />
+          <GeoFieldMapping geoFields={geoFields} measures={measures} />
         )}
       </div>
 
       <MappingSummary />
+
+      <AvailableFieldsReference fields={allFields} />
     </div>
   );
 }
@@ -140,12 +138,24 @@ interface FieldSelectorProps {
   label: string;
   value?: string;
   onChange: (value: string) => void;
-  fields: FieldDefinition[];
+  fields: BuilderFieldDefinition[];
   placeholder?: string;
   allowEmpty?: boolean;
 }
 
 function FieldSelector({ label, value, onChange, fields, placeholder, allowEmpty }: FieldSelectorProps) {
+  const groupedFields = useMemo(() => {
+    const groups: Record<string, BuilderFieldDefinition[]> = {};
+    for (const field of fields) {
+      const cat = field.fieldCategory;
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(field);
+    }
+    return groups;
+  }, [fields]);
+
+  const selectedField = fields.find(f => f.name === value);
+
   return (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -159,24 +169,35 @@ function FieldSelector({ label, value, onChange, fields, placeholder, allowEmpty
         {(allowEmpty || !value) && (
           <option value="">{placeholder || 'Select...'}</option>
         )}
-        {fields.map(field => (
-          <option key={field.name} value={field.name}>
-            {field.label}
-          </option>
-        ))}
+        {Object.entries(groupedFields).map(([category, categoryFields]) => {
+          const categoryInfo = FIELD_SUBCATEGORIES.find(c => c.id === category);
+          return (
+            <optgroup key={category} label={categoryInfo?.label || category}>
+              {categoryFields.map(field => (
+                <option key={field.name} value={field.name}>
+                  {field.label}
+                </option>
+              ))}
+            </optgroup>
+          );
+        })}
       </select>
+      {selectedField?.description && (
+        <p className="mt-1 text-xs text-slate-500">{selectedField.description}</p>
+      )}
     </div>
   );
 }
 
-function GeoFieldMapping() {
+function GeoFieldMapping({
+  geoFields,
+  measures
+}: {
+  geoFields: BuilderFieldDefinition[];
+  measures: BuilderFieldDefinition[];
+}) {
   const { state, setVisualization } = useBuilder();
   const isFlow = state.visualization.type === 'flow';
-
-  const geoFields = AVAILABLE_FIELDS.filter(f =>
-    f.name.includes('state') || f.name.includes('city')
-  );
-  const measures = AVAILABLE_FIELDS.filter(f => f.category === 'measure');
 
   if (isFlow) {
     return (
@@ -218,6 +239,20 @@ function GeoFieldMapping() {
           fields={measures}
           placeholder="Select value..."
         />
+
+        <div className="flex items-center gap-4 pt-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={state.visualization.flow?.showArrows !== false}
+              onChange={(e) => setVisualization({
+                flow: { ...state.visualization.flow, showArrows: e.target.checked } as any
+              })}
+              className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+            />
+            Show arrows
+          </label>
+        </div>
       </div>
     );
   }
@@ -240,7 +275,8 @@ function GeoFieldMapping() {
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           <option value="us_states">US States</option>
-          <option value="us_counties">US Counties</option>
+          <option value="ca_provinces">Canadian Provinces</option>
+          <option value="us_ca_combined">US + Canada</option>
           <option value="world_countries">World Countries</option>
         </select>
       </div>
@@ -264,6 +300,22 @@ function GeoFieldMapping() {
         fields={measures}
         placeholder="Select value..."
       />
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Color Scale
+        </label>
+        <select
+          value={state.visualization.geo?.colorScale || 'sequential'}
+          onChange={(e) => setVisualization({
+            geo: { ...state.visualization.geo, colorScale: e.target.value as any } as any
+          })}
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="sequential">Sequential (low to high)</option>
+          <option value="diverging">Diverging (negative to positive)</option>
+        </select>
+      </div>
     </div>
   );
 }
@@ -299,6 +351,67 @@ function MappingSummary() {
       <div className="text-sm text-slate-700 font-mono">
         {getMappingText()}
       </div>
+    </div>
+  );
+}
+
+function AvailableFieldsReference({ fields }: { fields: BuilderFieldDefinition[] }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+
+  const filteredFields = useMemo(() => {
+    if (!search.trim()) return fields.slice(0, expanded ? undefined : 0);
+    const lower = search.toLowerCase();
+    return fields.filter(f =>
+      f.name.toLowerCase().includes(lower) ||
+      f.label.toLowerCase().includes(lower) ||
+      f.description?.toLowerCase().includes(lower)
+    );
+  }, [fields, search, expanded]);
+
+  return (
+    <div className="pt-4 border-t border-slate-200">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-800"
+      >
+        <Info className="w-4 h-4" />
+        {expanded ? 'Hide' : 'Show'} available fields ({fields.length})
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search fields..."
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            />
+          </div>
+
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {filteredFields.map(field => (
+              <div key={field.name} className="px-2 py-1.5 text-xs bg-slate-50 rounded flex items-center justify-between">
+                <div>
+                  <span className="font-medium text-slate-700">{field.label}</span>
+                  <span className="text-slate-400 ml-2">({field.name})</span>
+                </div>
+                <span className={`
+                  px-1.5 py-0.5 rounded text-xs
+                  ${field.category === 'measure' ? 'bg-blue-100 text-blue-700' : ''}
+                  ${field.category === 'dimension' ? 'bg-green-100 text-green-700' : ''}
+                  ${field.category === 'date' ? 'bg-amber-100 text-amber-700' : ''}
+                `}>
+                  {field.category}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

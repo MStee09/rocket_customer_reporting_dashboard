@@ -59,7 +59,7 @@ export default function SimpleReportBuilder({ onClose, onSave, initialState, isI
   });
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['shipment', 'financial'])
+    new Set()
   );
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 

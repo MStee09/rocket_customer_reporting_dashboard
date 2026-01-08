@@ -62,15 +62,12 @@ export interface BuilderFieldDefinition {
 export interface VisualizationConfig {
   type: VisualizationType;
 
-  // For standard charts
   xField?: string;
   yField?: string;
   groupBy?: string;
 
-  // Aggregation
   aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max';
 
-  // For geo visualizations
   geo?: {
     mapKey: GeoMapKey;
     regionField: string;
@@ -80,7 +77,6 @@ export interface VisualizationConfig {
     maxColor?: string;
   };
 
-  // For flow maps
   flow?: {
     originField: string;
     destinationField: string;
@@ -89,7 +85,6 @@ export interface VisualizationConfig {
     showArrows?: boolean;
   };
 
-  // For KPIs
   kpi?: {
     format: 'number' | 'currency' | 'percent';
     comparisonField?: string;
@@ -99,19 +94,16 @@ export interface VisualizationConfig {
     suffix?: string;
   };
 
-  // For histograms
   histogram?: {
     binCount?: number;
     binWidth?: number;
   };
 
-  // Chart styling
   colors?: string[];
   showLegend?: boolean;
   showLabels?: boolean;
   showGrid?: boolean;
 
-  // Drill-down configuration
   drillDown?: {
     enabled: boolean;
     targetField?: string;
@@ -130,7 +122,12 @@ export type FilterOperator =
   | 'contains' | 'not_contains' | 'starts_with' | 'ends_with'
   | 'in' | 'not_in'
   | 'is_null' | 'is_not_null'
-  | 'between';
+  | 'between'
+  | 'contains_any'
+  | 'contains_all'
+  | 'matches_any';
+
+export type ConditionLogic = 'AND' | 'OR';
 
 export interface FilterCondition {
   field: string;
@@ -141,8 +138,8 @@ export interface FilterCondition {
 export interface FilterBlock {
   id: string;
   type: 'filter';
-  /** Multiple conditions combined with AND */
   conditions: FilterCondition[];
+  conditionLogic?: ConditionLogic;
   enabled: boolean;
   label?: string;
 }
@@ -151,25 +148,15 @@ export interface AILogicBlock {
   id: string;
   type: 'ai';
   prompt: string;
-
-  /**
-   * Compiled output from AI - becomes deterministic at runtime.
-   * AI runs at authoring time only, not at widget execution time.
-   */
   compiledRule?: CompiledRule;
-
-  /** Status of AI compilation */
   status: 'pending' | 'compiling' | 'compiled' | 'error';
   error?: string;
   enabled: boolean;
-
-  /** Explanation from AI about what the rule does */
   explanation?: string;
 }
 
 export interface CompiledRule {
   filters: FilterCondition[];
-  /** Natural language explanation of what this rule does */
   explanation?: string;
 }
 
@@ -186,8 +173,6 @@ export interface PublishConfig {
   sectionId?: string;
   displayOrder?: number;
   size: 1 | 2 | 3;
-
-  // Versioning support
   isUpdate?: boolean;
   existingWidgetId?: string;
   versionNotes?: string;
@@ -198,38 +183,22 @@ export interface PublishConfig {
 // =============================================================================
 
 export interface VisualBuilderSchema {
-  /** Unique ID for this builder session (becomes instance ID on publish) */
   id: string;
-
-  /** Widget definition ID this is based on (optional - can be custom) */
   widgetId?: string;
-
-  /** If editing existing widget, the original widget ID */
   sourceWidgetId?: string;
-
-  /** Display metadata */
   title: string;
   description: string;
 
-  /** Data source configuration */
   dataSource: {
     table: string;
     columns: string[];
   };
 
-  /** Visualization configuration */
   visualization: VisualizationConfig;
-
-  /** Base execution parameters */
   executionParams: ExecutionParams;
-
-  /** Logic blocks (filters + AI rules) */
   logicBlocks: LogicBlock[];
-
-  /** Publishing configuration */
   publish: PublishConfig;
 
-  /** Builder UI state (not persisted) */
   ui: {
     activePanel: 'visualization' | 'fields' | 'logic' | 'preview' | 'publish';
     previewLoading: boolean;
@@ -284,9 +253,6 @@ export function createDefaultBuilderSchema(): VisualBuilderSchema {
   };
 }
 
-/**
- * Create a builder schema from an existing widget (for cloning/editing)
- */
 export function createFromExistingWidget(widget: {
   widget_id: string;
   config: any;
@@ -326,17 +292,14 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Title required
   if (!schema.title.trim()) {
     errors.push('Title is required');
   }
 
-  // Visualization type required
   if (!schema.visualization.type) {
     errors.push('Visualization type is required');
   }
 
-  // Field mappings for chart types
   if (['bar', 'line', 'area', 'scatter', 'histogram'].includes(schema.visualization.type)) {
     if (!schema.visualization.xField) {
       errors.push('X-axis field is required for this chart type');
@@ -346,7 +309,6 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
     }
   }
 
-  // Geo config for geo types
   if (schema.visualization.type === 'choropleth') {
     if (!schema.visualization.geo?.regionField) {
       errors.push('Region field is required for choropleth maps');
@@ -368,12 +330,10 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
     }
   }
 
-  // KPI config
   if (schema.visualization.type === 'kpi' && !schema.visualization.yField) {
     errors.push('Value field is required for KPI widgets');
   }
 
-  // Check for uncompiled AI blocks
   const uncompiled = schema.logicBlocks.filter(
     b => b.type === 'ai' && b.enabled && b.status !== 'compiled'
   );
@@ -381,7 +341,6 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
     warnings.push(`${uncompiled.length} AI logic block(s) need to be compiled before publishing`);
   }
 
-  // Check for empty filter blocks
   const emptyFilters = schema.logicBlocks.filter(
     b => b.type === 'filter' && b.enabled && b.conditions.length === 0
   );
@@ -389,7 +348,6 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
     warnings.push(`${emptyFilters.length} filter block(s) have no conditions`);
   }
 
-  // Customer scope requires customer ID
   if (schema.publish.scope === 'customer' && !schema.publish.customerId) {
     errors.push('Customer ID is required for customer-scoped widgets');
   }
@@ -405,9 +363,6 @@ export function validateBuilderSchema(schema: VisualBuilderSchema): ValidationRe
 // HELPER FUNCTIONS
 // =============================================================================
 
-/**
- * Get a human-readable summary of the logic blocks
- */
 export function getLogicSummary(blocks: LogicBlock[]): string {
   const enabled = blocks.filter(b => b.enabled);
   if (enabled.length === 0) return 'No filters applied';
@@ -429,9 +384,6 @@ export function getLogicSummary(blocks: LogicBlock[]): string {
   return parts.length > 0 ? parts.join(' AND ') : 'No active filters';
 }
 
-/**
- * Count total active filter conditions
- */
 export function countActiveFilters(blocks: LogicBlock[]): number {
   let count = 0;
 

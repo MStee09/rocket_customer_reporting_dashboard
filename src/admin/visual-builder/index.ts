@@ -1,10 +1,3 @@
-/**
- * Visual Builder - Main Entry Point
- * 
- * Admin tool for creating widgets visually without code.
- */
-
-// Types
 export type {
   VisualizationType,
   GeoMapKey,
@@ -24,7 +17,6 @@ export {
   validateBuilderSchema,
 } from './types/BuilderSchema';
 
-// Logic
 export {
   compileLogicBlocks,
   applyFiltersToQuery,
@@ -40,7 +32,6 @@ export {
   AVAILABLE_FIELDS,
 } from './logic/aiCompilation';
 
-// Context
 export {
   BuilderProvider,
   useBuilder,
@@ -48,7 +39,6 @@ export {
   clearDraftFromStorage,
 } from './components/BuilderContext';
 
-// Components
 export { VisualBuilderPage } from './components/VisualBuilderPage';
 export { VisualizationPanel } from './components/panels/VisualizationPanel';
 export { FieldMappingPanel } from './components/panels/FieldMappingPanel';

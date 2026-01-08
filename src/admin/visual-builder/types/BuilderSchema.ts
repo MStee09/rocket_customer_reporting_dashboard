@@ -5,7 +5,7 @@
  * It gets compiled into a WidgetInstance when published.
  */
 
-import type { ExecutionParams } from '../../widgets/types/ExecutionParams';
+import type { ExecutionParams } from '../../../widgets/types/ExecutionParams';
 
 // =============================================================================
 // VISUALIZATION TYPES

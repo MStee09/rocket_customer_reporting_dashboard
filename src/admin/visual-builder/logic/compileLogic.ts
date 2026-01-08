@@ -18,7 +18,7 @@ import type {
   CompiledRule,
   FilterOperator 
 } from '../types/BuilderSchema';
-import type { ExecutionParams } from '../../widgets/types/ExecutionParams';
+import type { ExecutionParams } from '../../../widgets/types/ExecutionParams';
 
 // =============================================================================
 // FILTER COMPILATION

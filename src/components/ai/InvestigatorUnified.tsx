@@ -30,6 +30,9 @@ import {
   BarChart3,
   Map,
   Grid3X3,
+  ThumbsUp,
+  ThumbsDown,
+  X,
 } from 'lucide-react';
 import {
   BarChart,
@@ -99,13 +102,14 @@ interface ConversationMessage {
   content: string;
   reasoning?: ReasoningStep[];
   followUpQuestions?: FollowUpQuestion[];
-  visualizations?: Visualization[];  // <-- ADDED!
+  visualizations?: Visualization[];
   metadata?: {
     processingTimeMs: number;
     toolCallCount: number;
     mode: 'quick' | 'deep' | 'visual';
   };
   timestamp: Date;
+  feedbackRating?: 'good' | 'bad' | null;
 }
 
 interface InvestigatorUnifiedProps {
@@ -825,6 +829,46 @@ export function InvestigatorUnified({
     if (!isLoading) handleInvestigate(question);
   };
 
+  const handleFeedback = useCallback(async (messageId: string, rating: 'good' | 'bad', userFeedback?: string) => {
+    const messageIndex = conversation.findIndex(m => m.id === messageId);
+    const message = conversation[messageIndex];
+    if (!message || message.role !== 'assistant') return;
+
+    let relatedQuestion = '';
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (conversation[i].role === 'user') {
+        relatedQuestion = conversation[i].content;
+        break;
+      }
+    }
+
+    setConversation(prev => prev.map(m =>
+      m.id === messageId ? { ...m, feedbackRating: rating } : m
+    ));
+
+    try {
+      const { error } = await supabase.from('ai_feedback').insert({
+        customer_id: parseInt(customerId, 10),
+        user_id: userId,
+        conversation_id: conversation[0]?.id,
+        question: relatedQuestion,
+        answer: message.content,
+        visualizations: message.visualizations || [],
+        rating,
+        user_feedback: userFeedback || null,
+        mode: message.metadata?.mode || null,
+        tool_calls: message.reasoning?.filter(r => r.type === 'tool_call').map(r => r.toolName).filter(Boolean) || [],
+        processing_time_ms: message.metadata?.processingTimeMs || null,
+      });
+
+      if (error) {
+        console.error('Failed to save feedback:', error);
+      }
+    } catch (err) {
+      console.error('Error saving feedback:', err);
+    }
+  }, [conversation, customerId, userId]);
+
   return (
     <div className={`flex flex-col h-full bg-slate-50 ${className}`}>
       {/* Header */}
@@ -872,7 +916,7 @@ export function InvestigatorUnified({
               <EmptyState onSuggestion={handleFollowUp} />
             ) : (
               conversation.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} showReasoning={showReasoning} onFollowUp={handleFollowUp} />
+                <MessageBubble key={msg.id} message={msg} showReasoning={showReasoning} onFollowUp={handleFollowUp} onFeedback={handleFeedback} />
               ))
             )}
             {isLoading && currentReasoning.length === 0 && (
@@ -1004,13 +1048,41 @@ function EmptyState({ onSuggestion }: { onSuggestion: (q: string) => void }) {
   );
 }
 
-function MessageBubble({ message, showReasoning, onFollowUp }: { message: ConversationMessage; showReasoning: boolean; onFollowUp: (q: string) => void }) {
+function MessageBubble({
+  message,
+  showReasoning,
+  onFollowUp,
+  onFeedback
+}: {
+  message: ConversationMessage;
+  showReasoning: boolean;
+  onFollowUp: (q: string) => void;
+  onFeedback?: (messageId: string, rating: 'good' | 'bad', feedback?: string) => void;
+}) {
   const isUser = message.role === 'user';
   const [expanded, setExpanded] = useState(false);
-  
-  // Count visualizations
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [localRating, setLocalRating] = useState<'good' | 'bad' | null>(message.feedbackRating || null);
+
   const vizCount = message.visualizations?.length || 0;
-  
+
+  const handleThumbsUp = () => {
+    setLocalRating('good');
+    onFeedback?.(message.id, 'good');
+  };
+
+  const handleThumbsDown = () => {
+    setLocalRating('bad');
+    setShowFeedbackModal(true);
+  };
+
+  const submitFeedback = () => {
+    onFeedback?.(message.id, 'bad', feedbackText || undefined);
+    setShowFeedbackModal(false);
+    setFeedbackText('');
+  };
+
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${isUser ? 'bg-blue-500' : 'bg-gradient-to-br from-orange-500 to-amber-500'}`}>
@@ -1018,7 +1090,7 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
       </div>
 
       <div className={`flex-1 max-w-[85%] ${isUser ? 'text-right' : ''}`}>
-        <div className={`inline-block p-4 rounded-xl ${isUser ? 'bg-blue-500 text-white' : 'bg-white border border-slate-200 shadow-sm'}`}>
+        <div className={`${isUser ? 'inline-block' : 'block'} p-4 rounded-xl ${isUser ? 'bg-blue-500 text-white' : 'bg-white border border-slate-200 shadow-sm'}`}>
           {!isUser && message.metadata?.mode && (
             <div className="flex items-center gap-2 mb-2">
               <ModeIndicator mode={message.metadata.mode} />
@@ -1030,25 +1102,103 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
               )}
             </div>
           )}
-          
-          {/* Message text */}
+
           {isUser ? (
             <div className="text-sm">{message.content}</div>
           ) : (
             <SimpleMarkdown content={message.content} />
           )}
 
-          {/* *** RENDER VISUALIZATIONS *** */}
           {!isUser && message.visualizations && message.visualizations.length > 0 && (
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3 w-full min-w-0">
               {message.visualizations.map((viz) => (
                 <VisualizationRenderer key={viz.id} viz={viz} />
               ))}
             </div>
           )}
+
+          {!isUser && onFeedback && (
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+              <span className="text-xs text-slate-400 mr-2">Was this helpful?</span>
+              <button
+                onClick={handleThumbsUp}
+                disabled={localRating !== null}
+                className={`p-1.5 rounded-lg transition-all ${
+                  localRating === 'good'
+                    ? 'bg-green-100 text-green-600'
+                    : localRating === null
+                    ? 'hover:bg-slate-100 text-slate-400 hover:text-green-600'
+                    : 'text-slate-300 cursor-not-allowed'
+                }`}
+                title="Good answer"
+              >
+                <ThumbsUp className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleThumbsDown}
+                disabled={localRating !== null}
+                className={`p-1.5 rounded-lg transition-all ${
+                  localRating === 'bad'
+                    ? 'bg-red-100 text-red-600'
+                    : localRating === null
+                    ? 'hover:bg-slate-100 text-slate-400 hover:text-red-600'
+                    : 'text-slate-300 cursor-not-allowed'
+                }`}
+                title="Bad answer"
+              >
+                <ThumbsDown className="w-4 h-4" />
+              </button>
+              {localRating === 'good' && (
+                <span className="text-xs text-green-600 ml-2">Thanks for the feedback!</span>
+              )}
+              {localRating === 'bad' && !showFeedbackModal && (
+                <span className="text-xs text-slate-500 ml-2">Feedback recorded</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Mobile reasoning toggle */}
+        {showFeedbackModal && (
+          <div className="mt-2 bg-white border border-slate-200 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-slate-900 text-sm">What did you expect?</h4>
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  submitFeedback();
+                }}
+                className="p-1 hover:bg-slate-100 rounded"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="Help us improve by describing what you were looking for..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500"
+              rows={3}
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setLocalRating(null);
+                }}
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitFeedback}
+                className="px-3 py-1.5 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+              >
+                Submit Feedback
+              </button>
+            </div>
+          </div>
+        )}
+
         {!isUser && message.reasoning && message.reasoning.length > 0 && showReasoning && (
           <button onClick={() => setExpanded(!expanded)} className="mt-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 lg:hidden">
             <Brain className="w-3 h-3" /> {message.reasoning.length} steps {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -1061,7 +1211,6 @@ function MessageBubble({ message, showReasoning, onFollowUp }: { message: Conver
           </div>
         )}
 
-        {/* Follow-up questions */}
         {message.followUpQuestions && message.followUpQuestions.length > 0 && (
           <div className="mt-3 space-y-1">
             {message.followUpQuestions.map((q) => (

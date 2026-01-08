@@ -269,6 +269,66 @@ export const AI_TOOLS: ToolDefinition[] = [
       },
       required: []
     }
+  },
+  {
+    name: 'build_widget_config',
+    description: 'Build a widget configuration for the Visual Builder. Call this when you have determined the best visualization configuration based on the user request and available data.',
+    parameters: {
+      type: 'object',
+      properties: {
+        visualizationType: {
+          type: 'string',
+          description: 'Chart type',
+          enum: ['bar', 'line', 'pie', 'area', 'kpi', 'table', 'choropleth', 'flow', 'histogram', 'scatter', 'treemap', 'funnel']
+        },
+        xField: {
+          type: 'string',
+          description: 'X-axis / grouping field - must be a valid field from get_schema_info'
+        },
+        yField: {
+          type: 'string',
+          description: 'Y-axis / value field for aggregation (omit for count)'
+        },
+        aggregation: {
+          type: 'string',
+          description: 'How to aggregate values',
+          enum: ['sum', 'avg', 'count', 'min', 'max']
+        },
+        groupBy: {
+          type: 'string',
+          description: 'Optional secondary grouping for series'
+        },
+        filters: {
+          type: 'array',
+          items: { type: 'object' },
+          description: 'Array of filter conditions'
+        },
+        title: {
+          type: 'string',
+          description: 'Suggested title for the widget'
+        },
+        reasoning: {
+          type: 'string',
+          description: 'Brief explanation of why this configuration was chosen'
+        },
+        warnings: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Any warnings or limitations'
+        },
+        alternatives: {
+          type: 'array',
+          items: { type: 'object' },
+          description: 'Alternative configuration suggestions'
+        },
+        previewData: {
+          type: 'array',
+          items: { type: 'object' },
+          description: 'Sample data preview if available from preview_grouping'
+        }
+      },
+      required: ['visualizationType', 'xField', 'aggregation', 'reasoning']
+    }
   }
 ];
 

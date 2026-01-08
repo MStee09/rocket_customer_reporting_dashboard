@@ -13,7 +13,8 @@ export type ToolName =
   | 'validate_report'
   | 'execute_preview'
   | 'suggest_visualization'
-  | 'get_field_relationships';
+  | 'get_field_relationships'
+  | 'build_widget_config';
 
 export interface ToolDefinition {
   name: ToolName;

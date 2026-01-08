@@ -5,6 +5,7 @@ import { executeGetSchemaInfo, executeGetFieldRelationships } from './schemaExec
 import { executeGetCustomerContext } from './customerContextExecutor';
 import { executeSearchKnowledge } from './knowledgeExecutor';
 import { executeSuggestVisualization } from './visualizationExecutor';
+import { executeBuildWidgetConfig } from './widgetConfigExecutor';
 import {
   executeAddReportSection,
   executeModifyReportSection,
@@ -60,6 +61,9 @@ export async function executeToolCall(
 
       case 'execute_preview':
         return await executePreview(id, args, context);
+
+      case 'build_widget_config':
+        return await executeBuildWidgetConfig(id, args, context);
 
       default:
         return {

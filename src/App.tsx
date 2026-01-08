@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { initializeWidgets } from './widgets/init';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PulseDashboardPage } from './pages/PulseDashboardPage';
@@ -34,6 +35,8 @@ import { MetricProtectedRoute } from './components/MetricProtectedRoute';
 import { ToastProvider } from './components/ui/Toast';
 import { ImpersonationGuardProvider } from './components/ui/ImpersonationGuard';
 import { Loader2 } from 'lucide-react';
+
+initializeWidgets();
 
 const queryClient = new QueryClient({
   defaultOptions: {

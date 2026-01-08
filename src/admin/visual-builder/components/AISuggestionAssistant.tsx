@@ -1,10 +1,12 @@
 /**
- * AI Suggestion Assistant
- *
- * A conversational input that helps admins describe what they want to see,
- * then provides step-by-step guidance on how to build it.
+ * AI Suggestion Assistant - Integrated Version
  *
  * LOCATION: /src/admin/visual-builder/components/AISuggestionAssistant.tsx
+ *
+ * Improvements:
+ * - Fixed duplicate product values using Set<string>
+ * - Correct field name references
+ * - Clear warning about missing database fields
  */
 
 import React, { useState } from 'react';
@@ -22,6 +24,7 @@ import {
   ArrowRight,
   Copy,
   Wand2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
 import type { VisualizationType, FilterCondition } from '../types/BuilderSchema';
@@ -45,6 +48,7 @@ interface AISuggestion {
   filters?: FilterCondition[];
   steps: SuggestionStep[];
   aiPrompt?: string;
+  warning?: string;
 }
 
 export function AISuggestionAssistant() {
@@ -118,7 +122,7 @@ export function AISuggestionAssistant() {
         type: 'filter',
         conditions: suggestion.filters,
         enabled: true,
-        label: 'Product Filter',
+        label: 'AI Suggested Filter',
       });
     }
 
@@ -161,7 +165,7 @@ export function AISuggestionAssistant() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Example: Show me a bar chart of average shipping cost for products containing 'drawer system', 'cargoglide', or 'toolbox' in the description"
+              placeholder="Example: Show me average shipping cost by carrier, or shipment count by state"
               rows={3}
               className="w-full px-3 py-2 pr-12 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none bg-white"
             />
@@ -185,7 +189,7 @@ export function AISuggestionAssistant() {
                 'Average cost by carrier',
                 'Shipment volume by state',
                 'Cost trend over time',
-                'Top 10 lanes by spend',
+                'Top lanes by spend',
               ].map((example) => (
                 <button
                   key={example}
@@ -216,6 +220,13 @@ export function AISuggestionAssistant() {
                 </div>
                 <p className="text-sm text-slate-600 mt-1">{suggestion.summary}</p>
               </div>
+
+              {suggestion.warning && (
+                <div className="p-3 bg-amber-50 border-b border-amber-100 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">{suggestion.warning}</p>
+                </div>
+              )}
 
               <div className="divide-y divide-slate-100">
                 {suggestion.steps.map((step, i) => (
@@ -271,13 +282,18 @@ function StepIcon({ panel }: { panel: string }) {
   const icons: Record<string, React.ReactNode> = {
     visualization: <BarChart3 className="w-3 h-3 text-blue-500" />,
     fields: <Database className="w-3 h-3 text-green-500" />,
-    logic: <Filter className="w-3 h-3 text-orange-500" />,
-    preview: <CheckCircle2 className="w-3 h-3 text-teal-500" />,
+    logic: <Filter className="w-3 h-3 text-purple-500" />,
+    preview: <CheckCircle2 className="w-3 h-3 text-orange-500" />,
     publish: <Sparkles className="w-3 h-3 text-amber-500" />,
   };
   return icons[panel] || null;
 }
 
+/**
+ * Parse user intent and generate suggestions
+ *
+ * IMPORTANT: This uses local parsing. In production, you'd call your AI service.
+ */
 function parseUserIntent(prompt: string): AISuggestion {
   const lower = prompt.toLowerCase();
 
@@ -286,7 +302,7 @@ function parseUserIntent(prompt: string): AISuggestion {
     visualizationType = 'line';
   } else if (lower.includes('pie') || lower.includes('distribution') || lower.includes('breakdown')) {
     visualizationType = 'pie';
-  } else if (lower.includes('map') || lower.includes('state') || lower.includes('geographic')) {
+  } else if (lower.includes('map') || lower.includes('geographic')) {
     visualizationType = 'choropleth';
   } else if (lower.includes('table') || lower.includes('list')) {
     visualizationType = 'table';
@@ -297,7 +313,7 @@ function parseUserIntent(prompt: string): AISuggestion {
   let aggregation = 'sum';
   if (lower.includes('average') || lower.includes('avg') || lower.includes('mean')) {
     aggregation = 'avg';
-  } else if (lower.includes('count') || lower.includes('number of') || lower.includes('how many')) {
+  } else if (lower.includes('count') || lower.includes('number of') || lower.includes('how many') || lower.includes('volume')) {
     aggregation = 'count';
   } else if (lower.includes('maximum') || lower.includes('max') || lower.includes('highest')) {
     aggregation = 'max';
@@ -307,53 +323,75 @@ function parseUserIntent(prompt: string): AISuggestion {
 
   let xField = '';
   let yField = '';
+  let warning = '';
 
-  if (lower.includes('carrier')) xField = 'carrier_name';
-  else if (lower.includes('state')) xField = 'origin_state';
-  else if (lower.includes('product') || lower.includes('description')) xField = 'shipment_description';
-  else if (lower.includes('customer')) xField = 'customer_name';
-  else if (lower.includes('mode')) xField = 'mode_name';
-  else if (lower.includes('month') || lower.includes('date') || lower.includes('time')) xField = 'created_date';
+  if (lower.includes('carrier')) {
+    xField = 'carrier_name';
+  } else if (lower.includes('state') && !lower.includes('destination')) {
+    xField = 'origin_state';
+  } else if (lower.includes('destination state')) {
+    xField = 'destination_state';
+  } else if (lower.includes('customer')) {
+    xField = 'customer_name';
+  } else if (lower.includes('mode')) {
+    xField = 'mode_name';
+  } else if (lower.includes('status')) {
+    xField = 'status_name';
+  } else if (lower.includes('month') || lower.includes('date') || lower.includes('time') || lower.includes('trend')) {
+    xField = 'created_date';
+  } else if (lower.includes('lane')) {
+    xField = 'origin_state';
+  } else if (lower.includes('product') || lower.includes('description') || lower.includes('item')) {
+    xField = 'reference_number';
+    warning = 'Product descriptions are not available in the current data view. Using reference_number instead. To enable product filtering, ask your admin to add item_descriptions to the shipment_report_view.';
+  }
 
-  if (lower.includes('cost') || lower.includes('spend') || lower.includes('price')) {
+  if (lower.includes('cost') || lower.includes('spend') || lower.includes('price') || lower.includes('retail')) {
     yField = 'retail';
   } else if (lower.includes('weight')) {
     yField = 'total_weight';
-  } else if (lower.includes('volume') || lower.includes('shipment')) {
+  } else if (lower.includes('miles') || lower.includes('distance')) {
+    yField = 'miles';
+  } else if (lower.includes('volume') || lower.includes('shipment') || lower.includes('count')) {
     yField = '';
     aggregation = 'count';
   }
 
-  const productMatches: string[] = [];
-  const containsPatterns = [
-    /containing ['"]([^'"]+)['"]/gi,
-    /contains ['"]([^'"]+)['"]/gi,
-    /includes? ['"]([^'"]+)['"]/gi,
-    /['"]([^'"]+)['"],?\s*['"]([^'"]+)['"],?\s*(?:or|and)?\s*['"]([^'"]+)['"]/gi,
-    /drawer system|cargoglide|toolbox/gi,
-  ];
+  const productMatches = new Set<string>();
 
-  for (const pattern of containsPatterns) {
-    let match;
-    while ((match = pattern.exec(lower)) !== null) {
-      if (match[1]) productMatches.push(match[1]);
-      if (match[2]) productMatches.push(match[2]);
-      if (match[3]) productMatches.push(match[3]);
-      if (match[0] && !match[1]) productMatches.push(match[0]);
+  const quotedPattern = /["']([^"']+)["']/g;
+  let match;
+  while ((match = quotedPattern.exec(prompt)) !== null) {
+    productMatches.add(match[1].toLowerCase().trim());
+  }
+
+  const knownProducts = ['drawer system', 'cargoglide', 'cargo glide', 'toolbox', 'tool box'];
+  for (const product of knownProducts) {
+    if (lower.includes(product)) {
+      const normalized = product
+        .replace('cargo glide', 'cargoglide')
+        .replace('tool box', 'toolbox');
+      productMatches.add(normalized);
     }
   }
+
+  const uniqueProducts = Array.from(productMatches);
 
   const filters: FilterCondition[] = [];
   let aiPrompt = '';
 
-  if (productMatches.length > 0) {
-    aiPrompt = `Filter shipments where description contains any of: ${productMatches.map(p => `"${p}"`).join(', ')}`;
+  if (uniqueProducts.length > 0) {
+    aiPrompt = `Filter shipments where description contains any of: ${uniqueProducts.map(p => `"${p}"`).join(', ')}`;
 
     filters.push({
-      field: 'shipment_description',
-      operator: 'contains_any',
-      value: productMatches,
+      field: 'item_descriptions',
+      operator: 'contains_any' as any,
+      value: uniqueProducts,
     });
+
+    if (!warning) {
+      warning = 'Product filtering requires the item_descriptions field. If this field is not available, the filter will not work. Ask your admin to run the database migration.';
+    }
   }
 
   const steps: SuggestionStep[] = [
@@ -379,11 +417,11 @@ function parseUserIntent(prompt: string): AISuggestion {
     },
   ];
 
-  if (productMatches.length > 0) {
+  if (uniqueProducts.length > 0) {
     steps.push({
       panel: 'logic',
       title: 'Add Product Filter',
-      description: `Filter to only include: ${productMatches.join(', ')}`,
+      description: `Filter to include: ${uniqueProducts.join(', ')}`,
       action: {
         type: 'add_ai_block',
         payload: { prompt: aiPrompt },
@@ -398,7 +436,7 @@ function parseUserIntent(prompt: string): AISuggestion {
   });
 
   return {
-    summary: `I'll help you create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${productMatches.length > 0 ? ` for products matching: ${productMatches.join(', ')}` : ''}.`,
+    summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${uniqueProducts.length > 0 ? ` for products: ${uniqueProducts.join(', ')}` : ''}.`,
     visualizationType,
     xField: xField || undefined,
     yField: yField || undefined,
@@ -406,6 +444,7 @@ function parseUserIntent(prompt: string): AISuggestion {
     filters: filters.length > 0 ? filters : undefined,
     steps,
     aiPrompt: aiPrompt || undefined,
+    warning: warning || undefined,
   };
 }
 

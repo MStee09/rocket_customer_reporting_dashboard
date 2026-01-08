@@ -177,7 +177,7 @@ export function AIUsageDashboardPage() {
     );
   }
 
-  const chartData = [...(dailyUsage || [])].reverse().map(d => ({
+  const chartData = [...(dailyUsage || [])].map(d => ({
     date: format(parseISO(d.date), 'MMM d'),
     cost: d.costUsd,
     requests: d.requests,

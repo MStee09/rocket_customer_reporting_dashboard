@@ -16,11 +16,11 @@ import {
   Database,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
-import { supabase } from '../../../lib/supabase';
-import { withLimit } from '../../../widgets/utils/withLimit';
-import { WidgetRenderer } from '../../../components/widgets/WidgetRenderer';
+import { supabase } from '../../../../lib/supabase';
+import { withLimit } from '../../../../widgets/utils/withLimit';
+import { WidgetRenderer } from '../../../../components/widgets/WidgetRenderer';
 import type { VisualizationConfig } from '../../types/BuilderSchema';
-import type { ExecutionParams } from '../../../widgets/types/ExecutionParams';
+import type { ExecutionParams } from '../../../../widgets/types/ExecutionParams';
 
 // =============================================================================
 // DATA FETCHERS

@@ -21,7 +21,7 @@ import {
 import { useBuilder } from '../BuilderContext';
 import { clearDraftFromStorage } from '../BuilderContext';
 import { compileLogicBlocks, serializeLogicBlocks } from '../../logic/compileLogic';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 
 // =============================================================================
 // TYPES

@@ -18,6 +18,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface UnifiedInsightsCardProps {
   customerId: number;
@@ -286,6 +287,7 @@ function getTrendColor(value: number, inverse = false) {
 
 export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className = '' }: UnifiedInsightsCardProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [insightsData, setInsightsData] = useState<InsightsResponse | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -308,11 +310,20 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
     setError(null);
 
     try {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', customerId)
+        .single();
+
       const [insightsResult, alertsResult] = await Promise.all([
         supabase.functions.invoke('generate-insights', {
           body: {
             customerId,
             dateRange: { start: startDateStr, end: endDateStr },
+            userId: user?.id,
+            userEmail: user?.email,
+            customerName: customerData?.name,
           },
         }),
         detectAlerts(customerId, startDateStr, endDateStr),
@@ -328,7 +339,7 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
     } finally {
       setIsLoading(false);
     }
-  }, [customerId, startDateStr, endDateStr, fetchKey, lastFetchKey, insightsData]);
+  }, [customerId, startDateStr, endDateStr, fetchKey, lastFetchKey, insightsData, user]);
 
   useEffect(() => {
     fetchData();

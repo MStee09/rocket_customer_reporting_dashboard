@@ -2,217 +2,265 @@ import React from 'react';
 import {
   BarChart3,
   LineChart,
+  AreaChart,
   PieChart,
-  ScatterChart,
   Table2,
-  Activity,
   Map,
-  ArrowRightLeft,
+  Gauge,
+  ScatterChart,
   Grid3X3,
-  TrendingUp,
+  GitBranch,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
 import type { VisualizationType } from '../../types/BuilderSchema';
 
-const CHART_OPTIONS: { type: VisualizationType; label: string; icon: React.ReactNode; description: string }[] = [
-  { type: 'bar', label: 'Bar Chart', icon: <BarChart3 className="w-5 h-5" />, description: 'Compare values across categories' },
-  { type: 'line', label: 'Line Chart', icon: <LineChart className="w-5 h-5" />, description: 'Show trends over time' },
-  { type: 'area', label: 'Area Chart', icon: <Activity className="w-5 h-5" />, description: 'Cumulative trends over time' },
-  { type: 'pie', label: 'Pie Chart', icon: <PieChart className="w-5 h-5" />, description: 'Show proportions of a whole' },
-  { type: 'scatter', label: 'Scatter Plot', icon: <ScatterChart className="w-5 h-5" />, description: 'Correlation between variables' },
-  { type: 'heatmap', label: 'Heatmap', icon: <Grid3X3 className="w-5 h-5" />, description: 'Intensity across two dimensions' },
-  { type: 'kpi', label: 'KPI Card', icon: <TrendingUp className="w-5 h-5" />, description: 'Single metric with trend' },
-  { type: 'table', label: 'Data Table', icon: <Table2 className="w-5 h-5" />, description: 'Tabular data display' },
-  { type: 'choropleth', label: 'Geo Map', icon: <Map className="w-5 h-5" />, description: 'Color-coded regions' },
-  { type: 'flow', label: 'Flow Map', icon: <ArrowRightLeft className="w-5 h-5" />, description: 'Origin-destination flows' },
+interface ChartOption {
+  type: VisualizationType;
+  label: string;
+  icon: React.ReactNode;
+  description: string;
+  category: 'standard' | 'geo' | 'other';
+}
+
+const CHART_OPTIONS: ChartOption[] = [
+  {
+    type: 'bar',
+    label: 'Bar Chart',
+    icon: <BarChart3 className="w-5 h-5" />,
+    description: 'Compare values across categories',
+    category: 'standard',
+  },
+  {
+    type: 'line',
+    label: 'Line Chart',
+    icon: <LineChart className="w-5 h-5" />,
+    description: 'Show trends over time',
+    category: 'standard',
+  },
+  {
+    type: 'area',
+    label: 'Area Chart',
+    icon: <AreaChart className="w-5 h-5" />,
+    description: 'Visualize cumulative values',
+    category: 'standard',
+  },
+  {
+    type: 'pie',
+    label: 'Pie Chart',
+    icon: <PieChart className="w-5 h-5" />,
+    description: 'Show proportions of a whole',
+    category: 'standard',
+  },
+  {
+    type: 'scatter',
+    label: 'Scatter Plot',
+    icon: <ScatterChart className="w-5 h-5" />,
+    description: 'Show correlation between values',
+    category: 'standard',
+  },
+  {
+    type: 'table',
+    label: 'Data Table',
+    icon: <Table2 className="w-5 h-5" />,
+    description: 'Display raw data in rows',
+    category: 'standard',
+  },
+  {
+    type: 'kpi',
+    label: 'KPI Card',
+    icon: <Gauge className="w-5 h-5" />,
+    description: 'Highlight a single metric',
+    category: 'other',
+  },
+  {
+    type: 'heatmap',
+    label: 'Heatmap',
+    icon: <Grid3X3 className="w-5 h-5" />,
+    description: 'Show intensity across two dimensions',
+    category: 'other',
+  },
+  {
+    type: 'choropleth',
+    label: 'Choropleth Map',
+    icon: <Map className="w-5 h-5" />,
+    description: 'Color regions by value',
+    category: 'geo',
+  },
+  {
+    type: 'flow',
+    label: 'Flow Map',
+    icon: <GitBranch className="w-5 h-5" />,
+    description: 'Show movement between locations',
+    category: 'geo',
+  },
 ];
 
 export function VisualizationPanel() {
-  const { state, setVisualizationType, setTitle, setDescription } = useBuilder();
+  const { state, setVisualization } = useBuilder();
   const selectedType = state.visualization.type;
+
+  const standardCharts = CHART_OPTIONS.filter(c => c.category === 'standard');
+  const geoCharts = CHART_OPTIONS.filter(c => c.category === 'geo');
+  const otherCharts = CHART_OPTIONS.filter(c => c.category === 'other');
 
   return (
     <div className="p-4 space-y-6">
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Widget Title</label>
-        <input
-          type="text"
-          value={state.title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter widget title..."
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-        />
+        <h3 className="text-sm font-semibold text-slate-900 mb-1">Visualization Type</h3>
+        <p className="text-xs text-slate-500 mb-4">Choose how to display your data</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-        <textarea
-          value={state.description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Optional description..."
-          rows={2}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-3">Visualization Type</label>
+        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+          Standard Charts
+        </h4>
         <div className="grid grid-cols-2 gap-2">
-          {CHART_OPTIONS.map((option) => (
-            <button
+          {standardCharts.map(option => (
+            <ChartTypeButton
               key={option.type}
-              onClick={() => setVisualizationType(option.type)}
-              className={`
-                flex items-start gap-3 p-3 rounded-lg border text-left transition-all
-                ${selectedType === option.type
-                  ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500'
-                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                }
-              `}
-            >
-              <div className={`p-1.5 rounded ${selectedType === option.type ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
-                {option.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className={`text-sm font-medium ${selectedType === option.type ? 'text-orange-700' : 'text-slate-700'}`}>
-                  {option.label}
-                </div>
-                <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">
-                  {option.description}
-                </div>
-              </div>
-            </button>
+              option={option}
+              selected={selectedType === option.type}
+              onSelect={() => setVisualization({ type: option.type })}
+            />
           ))}
         </div>
       </div>
 
-      {selectedType && (
-        <ChartOptions type={selectedType} />
-      )}
+      <div>
+        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+          Geographic
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          {geoCharts.map(option => (
+            <ChartTypeButton
+              key={option.type}
+              option={option}
+              selected={selectedType === option.type}
+              onSelect={() => setVisualization({ type: option.type })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+          Other
+        </h4>
+        <div className="grid grid-cols-2 gap-2">
+          {otherCharts.map(option => (
+            <ChartTypeButton
+              key={option.type}
+              option={option}
+              selected={selectedType === option.type}
+              onSelect={() => setVisualization({ type: option.type })}
+            />
+          ))}
+        </div>
+      </div>
+
+      <ChartSettings type={selectedType} />
     </div>
   );
 }
 
-function ChartOptions({ type }: { type: VisualizationType }) {
-  const { state, setVisualizationConfig } = useBuilder();
-  const config = state.visualization;
+interface ChartTypeButtonProps {
+  option: ChartOption;
+  selected: boolean;
+  onSelect: () => void;
+}
 
-  if (['bar', 'line', 'area', 'scatter'].includes(type)) {
-    return (
-      <div className="space-y-4 pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-medium text-slate-700">Chart Options</h4>
-
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Aggregation</label>
-          <select
-            value={config.aggregation || 'sum'}
-            onChange={(e) => setVisualizationConfig({ aggregation: e.target.value as any })}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="sum">Sum</option>
-            <option value="avg">Average</option>
-            <option value="count">Count</option>
-            <option value="min">Minimum</option>
-            <option value="max">Maximum</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={config.showLegend ?? true}
-              onChange={(e) => setVisualizationConfig({ showLegend: e.target.checked })}
-              className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
-            />
-            Show Legend
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={config.showLabels ?? false}
-              onChange={(e) => setVisualizationConfig({ showLabels: e.target.checked })}
-              className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
-            />
-            Show Labels
-          </label>
-        </div>
+function ChartTypeButton({ option, selected, onSelect }: ChartTypeButtonProps) {
+  return (
+    <button
+      onClick={onSelect}
+      className={`
+        flex items-center gap-3 p-3 rounded-lg border text-left transition-all
+        ${selected
+          ? 'border-orange-500 bg-orange-50 text-orange-700'
+          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700'
+        }
+      `}
+    >
+      <div className={`${selected ? 'text-orange-500' : 'text-slate-400'}`}>
+        {option.icon}
       </div>
-    );
-  }
+      <div className="min-w-0">
+        <div className="font-medium text-sm truncate">{option.label}</div>
+        <div className="text-xs text-slate-500 truncate">{option.description}</div>
+      </div>
+    </button>
+  );
+}
+
+function ChartSettings({ type }: { type: VisualizationType }) {
+  const { state, setVisualization } = useBuilder();
 
   if (type === 'kpi') {
     return (
-      <div className="space-y-4 pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-medium text-slate-700">KPI Options</h4>
-
+      <div className="pt-4 border-t border-slate-200 space-y-4">
+        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          KPI Settings
+        </h4>
         <div>
-          <label className="block text-xs text-slate-500 mb-1">Format</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Format
+          </label>
           <select
-            value={config.kpi?.format || 'number'}
-            onChange={(e) => setVisualizationConfig({ kpi: { ...config.kpi, format: e.target.value as any } })}
+            value={state.visualization.kpi?.format || 'number'}
+            onChange={(e) => setVisualization({
+              kpi: { ...state.visualization.kpi, format: e.target.value as 'number' | 'currency' | 'percent' }
+            })}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
             <option value="number">Number</option>
-            <option value="currency">Currency</option>
-            <option value="percent">Percentage</option>
+            <option value="currency">Currency ($)</option>
+            <option value="percent">Percentage (%)</option>
           </select>
         </div>
-
         <div>
-          <label className="block text-xs text-slate-500 mb-1">Trend Direction</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Trend Direction
+          </label>
           <select
-            value={config.kpi?.trendDirection || 'up_is_good'}
-            onChange={(e) => setVisualizationConfig({ kpi: { ...config.kpi, format: config.kpi?.format || 'number', trendDirection: e.target.value as any } })}
+            value={state.visualization.kpi?.trendDirection || 'up_is_good'}
+            onChange={(e) => setVisualization({
+              kpi: { ...state.visualization.kpi, trendDirection: e.target.value as 'up_is_good' | 'down_is_good' }
+            })}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
-            <option value="up_is_good">Up is Good</option>
-            <option value="down_is_good">Down is Good</option>
+            <option value="up_is_good">Up is good (green)</option>
+            <option value="down_is_good">Down is good (green)</option>
           </select>
         </div>
       </div>
     );
   }
 
-  if (type === 'choropleth') {
+  if (['bar', 'line', 'area', 'pie'].includes(type)) {
     return (
-      <div className="space-y-4 pt-4 border-t border-slate-200">
-        <h4 className="text-sm font-medium text-slate-700">Map Options</h4>
-
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Map Type</label>
-          <select
-            value={config.geo?.mapKey || 'us_states'}
-            onChange={(e) => setVisualizationConfig({
-              geo: {
-                mapKey: e.target.value as any,
-                regionField: config.geo?.regionField || '',
-                valueField: config.geo?.valueField || '',
-              }
-            })}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="us_states">US States</option>
-            <option value="us_counties">US Counties</option>
-            <option value="world_countries">World Countries</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs text-slate-500 mb-1">Color Scale</label>
-          <select
-            value={config.geo?.colorScale || 'sequential'}
-            onChange={(e) => setVisualizationConfig({
-              geo: {
-                ...config.geo!,
-                colorScale: e.target.value as any,
-              }
-            })}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
-            <option value="sequential">Sequential</option>
-            <option value="diverging">Diverging</option>
-          </select>
+      <div className="pt-4 border-t border-slate-200 space-y-4">
+        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          Chart Options
+        </h4>
+        <div className="space-y-3">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={state.visualization.showLegend !== false}
+              onChange={(e) => setVisualization({ showLegend: e.target.checked })}
+              className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="text-sm text-slate-700">Show legend</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={state.visualization.showLabels === true}
+              onChange={(e) => setVisualization({ showLabels: e.target.checked })}
+              className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="text-sm text-slate-700">Show data labels</span>
+          </label>
         </div>
       </div>
     );

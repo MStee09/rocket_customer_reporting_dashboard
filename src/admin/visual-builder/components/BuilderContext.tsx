@@ -1,35 +1,37 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-import {
+import type {
   VisualBuilderSchema,
-  createDefaultBuilderSchema,
-  VisualizationType,
-  VisualizationConfig,
   LogicBlock,
-  PublishConfig,
+  VisualizationConfig,
+  PublishConfig
 } from '../types/BuilderSchema';
+import { createDefaultBuilderSchema, validateBuilderSchema } from '../types/BuilderSchema';
+import { compileLogicBlocks } from '../logic/compileLogic';
 import type { ExecutionParams } from '../../../widgets/types/ExecutionParams';
-
-const STORAGE_KEY = 'visual-builder-draft';
 
 type BuilderAction =
   | { type: 'SET_TITLE'; payload: string }
   | { type: 'SET_DESCRIPTION'; payload: string }
-  | { type: 'SET_VISUALIZATION_TYPE'; payload: VisualizationType }
-  | { type: 'SET_VISUALIZATION_CONFIG'; payload: Partial<VisualizationConfig> }
-  | { type: 'SET_EXECUTION_PARAMS'; payload: Partial<ExecutionParams> }
   | { type: 'SET_DATA_SOURCE'; payload: { table: string; columns: string[] } }
+  | { type: 'SET_VISUALIZATION'; payload: Partial<VisualizationConfig> }
+  | { type: 'SET_EXECUTION_PARAMS'; payload: Partial<ExecutionParams> }
   | { type: 'ADD_LOGIC_BLOCK'; payload: LogicBlock }
   | { type: 'UPDATE_LOGIC_BLOCK'; payload: { id: string; updates: Partial<LogicBlock> } }
   | { type: 'REMOVE_LOGIC_BLOCK'; payload: string }
-  | { type: 'TOGGLE_LOGIC_BLOCK'; payload: string }
+  | { type: 'REORDER_LOGIC_BLOCKS'; payload: LogicBlock[] }
   | { type: 'SET_PUBLISH_CONFIG'; payload: Partial<PublishConfig> }
   | { type: 'SET_ACTIVE_PANEL'; payload: VisualBuilderSchema['ui']['activePanel'] }
   | { type: 'SET_PREVIEW_LOADING'; payload: boolean }
   | { type: 'SET_PREVIEW_ERROR'; payload: string | undefined }
+  | { type: 'MARK_DIRTY' }
+  | { type: 'MARK_CLEAN' }
   | { type: 'LOAD_SCHEMA'; payload: VisualBuilderSchema }
   | { type: 'RESET' };
 
-function builderReducer(state: VisualBuilderSchema, action: BuilderAction): VisualBuilderSchema {
+function builderReducer(
+  state: VisualBuilderSchema,
+  action: BuilderAction
+): VisualBuilderSchema {
   switch (action.type) {
     case 'SET_TITLE':
       return { ...state, title: action.payload, ui: { ...state.ui, isDirty: true } };
@@ -37,14 +39,10 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
     case 'SET_DESCRIPTION':
       return { ...state, description: action.payload, ui: { ...state.ui, isDirty: true } };
 
-    case 'SET_VISUALIZATION_TYPE':
-      return {
-        ...state,
-        visualization: { ...state.visualization, type: action.payload },
-        ui: { ...state.ui, isDirty: true },
-      };
+    case 'SET_DATA_SOURCE':
+      return { ...state, dataSource: action.payload, ui: { ...state.ui, isDirty: true } };
 
-    case 'SET_VISUALIZATION_CONFIG':
+    case 'SET_VISUALIZATION':
       return {
         ...state,
         visualization: { ...state.visualization, ...action.payload },
@@ -55,13 +53,6 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
       return {
         ...state,
         executionParams: { ...state.executionParams, ...action.payload },
-        ui: { ...state.ui, isDirty: true },
-      };
-
-    case 'SET_DATA_SOURCE':
-      return {
-        ...state,
-        dataSource: action.payload,
         ui: { ...state.ui, isDirty: true },
       };
 
@@ -76,7 +67,9 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
       return {
         ...state,
         logicBlocks: state.logicBlocks.map(block =>
-          block.id === action.payload.id ? { ...block, ...action.payload.updates } : block
+          block.id === action.payload.id
+            ? { ...block, ...action.payload.updates }
+            : block
         ),
         ui: { ...state.ui, isDirty: true },
       };
@@ -84,16 +77,14 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
     case 'REMOVE_LOGIC_BLOCK':
       return {
         ...state,
-        logicBlocks: state.logicBlocks.filter(block => block.id !== action.payload),
+        logicBlocks: state.logicBlocks.filter(b => b.id !== action.payload),
         ui: { ...state.ui, isDirty: true },
       };
 
-    case 'TOGGLE_LOGIC_BLOCK':
+    case 'REORDER_LOGIC_BLOCKS':
       return {
         ...state,
-        logicBlocks: state.logicBlocks.map(block =>
-          block.id === action.payload ? { ...block, enabled: !block.enabled } : block
-        ),
+        logicBlocks: action.payload,
         ui: { ...state.ui, isDirty: true },
       };
 
@@ -113,6 +104,12 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
     case 'SET_PREVIEW_ERROR':
       return { ...state, ui: { ...state.ui, previewError: action.payload } };
 
+    case 'MARK_DIRTY':
+      return { ...state, ui: { ...state.ui, isDirty: true } };
+
+    case 'MARK_CLEAN':
+      return { ...state, ui: { ...state.ui, isDirty: false } };
+
     case 'LOAD_SCHEMA':
       return { ...action.payload, ui: { ...action.payload.ui, isDirty: false } };
 
@@ -126,22 +123,20 @@ function builderReducer(state: VisualBuilderSchema, action: BuilderAction): Visu
 
 interface BuilderContextValue {
   state: VisualBuilderSchema;
+  dispatch: React.Dispatch<BuilderAction>;
+  compiledParams: ExecutionParams;
+  validation: ReturnType<typeof validateBuilderSchema>;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
-  setVisualizationType: (type: VisualizationType) => void;
-  setVisualizationConfig: (config: Partial<VisualizationConfig>) => void;
+  setVisualization: (config: Partial<VisualizationConfig>) => void;
   setExecutionParams: (params: Partial<ExecutionParams>) => void;
-  setDataSource: (table: string, columns: string[]) => void;
   addLogicBlock: (block: LogicBlock) => void;
   updateLogicBlock: (id: string, updates: Partial<LogicBlock>) => void;
   removeLogicBlock: (id: string) => void;
-  toggleLogicBlock: (id: string) => void;
   setPublishConfig: (config: Partial<PublishConfig>) => void;
   setActivePanel: (panel: VisualBuilderSchema['ui']['activePanel']) => void;
-  setPreviewLoading: (loading: boolean) => void;
-  setPreviewError: (error: string | undefined) => void;
-  loadSchema: (schema: VisualBuilderSchema) => void;
   reset: () => void;
+  loadSchema: (schema: VisualBuilderSchema) => void;
 }
 
 const BuilderContext = createContext<BuilderContextValue | null>(null);
@@ -157,11 +152,15 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     initialSchema || createDefaultBuilderSchema()
   );
 
-  useEffect(() => {
-    if (state.ui.isDirty) {
-      saveDraftToStorage(state);
-    }
-  }, [state]);
+  const compiledParams = React.useMemo(
+    () => compileLogicBlocks(state.logicBlocks, state.executionParams),
+    [state.logicBlocks, state.executionParams]
+  );
+
+  const validation = React.useMemo(
+    () => validateBuilderSchema(state),
+    [state]
+  );
 
   const setTitle = useCallback((title: string) => {
     dispatch({ type: 'SET_TITLE', payload: title });
@@ -171,20 +170,12 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     dispatch({ type: 'SET_DESCRIPTION', payload: description });
   }, []);
 
-  const setVisualizationType = useCallback((type: VisualizationType) => {
-    dispatch({ type: 'SET_VISUALIZATION_TYPE', payload: type });
-  }, []);
-
-  const setVisualizationConfig = useCallback((config: Partial<VisualizationConfig>) => {
-    dispatch({ type: 'SET_VISUALIZATION_CONFIG', payload: config });
+  const setVisualization = useCallback((config: Partial<VisualizationConfig>) => {
+    dispatch({ type: 'SET_VISUALIZATION', payload: config });
   }, []);
 
   const setExecutionParams = useCallback((params: Partial<ExecutionParams>) => {
     dispatch({ type: 'SET_EXECUTION_PARAMS', payload: params });
-  }, []);
-
-  const setDataSource = useCallback((table: string, columns: string[]) => {
-    dispatch({ type: 'SET_DATA_SOURCE', payload: { table, columns } });
   }, []);
 
   const addLogicBlock = useCallback((block: LogicBlock) => {
@@ -199,10 +190,6 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     dispatch({ type: 'REMOVE_LOGIC_BLOCK', payload: id });
   }, []);
 
-  const toggleLogicBlock = useCallback((id: string) => {
-    dispatch({ type: 'TOGGLE_LOGIC_BLOCK', payload: id });
-  }, []);
-
   const setPublishConfig = useCallback((config: Partial<PublishConfig>) => {
     dispatch({ type: 'SET_PUBLISH_CONFIG', payload: config });
   }, []);
@@ -211,44 +198,50 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     dispatch({ type: 'SET_ACTIVE_PANEL', payload: panel });
   }, []);
 
-  const setPreviewLoading = useCallback((loading: boolean) => {
-    dispatch({ type: 'SET_PREVIEW_LOADING', payload: loading });
-  }, []);
-
-  const setPreviewError = useCallback((error: string | undefined) => {
-    dispatch({ type: 'SET_PREVIEW_ERROR', payload: error });
+  const reset = useCallback(() => {
+    dispatch({ type: 'RESET' });
   }, []);
 
   const loadSchema = useCallback((schema: VisualBuilderSchema) => {
     dispatch({ type: 'LOAD_SCHEMA', payload: schema });
   }, []);
 
-  const reset = useCallback(() => {
-    clearDraftFromStorage();
-    dispatch({ type: 'RESET' });
-  }, []);
+  useEffect(() => {
+    if (state.ui.isDirty) {
+      const timer = setTimeout(() => {
+        try {
+          localStorage.setItem('visual_builder_draft', JSON.stringify(state));
+        } catch (e) {
+          console.warn('Failed to save draft:', e);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [state]);
 
   const value: BuilderContextValue = {
     state,
+    dispatch,
+    compiledParams,
+    validation,
     setTitle,
     setDescription,
-    setVisualizationType,
-    setVisualizationConfig,
+    setVisualization,
     setExecutionParams,
-    setDataSource,
     addLogicBlock,
     updateLogicBlock,
     removeLogicBlock,
-    toggleLogicBlock,
     setPublishConfig,
     setActivePanel,
-    setPreviewLoading,
-    setPreviewError,
-    loadSchema,
     reset,
+    loadSchema,
   };
 
-  return <BuilderContext.Provider value={value}>{children}</BuilderContext.Provider>;
+  return (
+    <BuilderContext.Provider value={value}>
+      {children}
+    </BuilderContext.Provider>
+  );
 }
 
 export function useBuilder(): BuilderContextValue {
@@ -259,30 +252,22 @@ export function useBuilder(): BuilderContextValue {
   return context;
 }
 
-function saveDraftToStorage(schema: VisualBuilderSchema): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(schema));
-  } catch {
-    console.warn('Failed to save draft to localStorage');
-  }
-}
-
 export function loadDraftFromStorage(): VisualBuilderSchema | null {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
+    const draft = localStorage.getItem('visual_builder_draft');
+    if (draft) {
+      return JSON.parse(draft);
     }
-  } catch {
-    console.warn('Failed to load draft from localStorage');
+  } catch (e) {
+    console.warn('Failed to load draft:', e);
   }
   return null;
 }
 
 export function clearDraftFromStorage(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    console.warn('Failed to clear draft from localStorage');
+    localStorage.removeItem('visual_builder_draft');
+  } catch (e) {
+    console.warn('Failed to clear draft:', e);
   }
 }

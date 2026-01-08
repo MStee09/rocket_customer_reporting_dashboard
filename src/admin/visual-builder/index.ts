@@ -29,6 +29,7 @@ export {
 export {
   compileAILogic,
   parseSimpleLogic,
+  updateAIBlockWithCompilation,
   AVAILABLE_FIELDS,
 } from './logic/aiCompilation';
 

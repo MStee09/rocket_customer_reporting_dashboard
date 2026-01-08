@@ -4,183 +4,260 @@ import {
   Filter,
   Sparkles,
   Trash2,
-  ToggleLeft,
-  ToggleRight,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Zap,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
 import { createFilterBlock, createAILogicBlock } from '../../logic/compileLogic';
-import { compileAILogic, AVAILABLE_FIELDS } from '../../logic/aiCompilation';
-import type { FilterBlock, AILogicBlock, FilterOperator } from '../../types/BuilderSchema';
+import { compileAILogic, parseSimpleLogic, AVAILABLE_FIELDS } from '../../logic/aiCompilation';
+import type { LogicBlock, FilterBlock, AILogicBlock, FilterOperator } from '../../types/BuilderSchema';
 
-const OPERATORS: { value: FilterOperator; label: string }[] = [
-  { value: 'eq', label: 'Equals' },
-  { value: 'neq', label: 'Not Equals' },
-  { value: 'gt', label: 'Greater Than' },
-  { value: 'gte', label: 'Greater or Equal' },
-  { value: 'lt', label: 'Less Than' },
-  { value: 'lte', label: 'Less or Equal' },
-  { value: 'contains', label: 'Contains' },
-  { value: 'in', label: 'In List' },
+const OPERATORS: { value: FilterOperator; label: string; types: string[] }[] = [
+  { value: 'eq', label: 'equals', types: ['string', 'number', 'boolean'] },
+  { value: 'neq', label: 'not equals', types: ['string', 'number', 'boolean'] },
+  { value: 'gt', label: 'greater than', types: ['number', 'date'] },
+  { value: 'gte', label: 'greater or equal', types: ['number', 'date'] },
+  { value: 'lt', label: 'less than', types: ['number', 'date'] },
+  { value: 'lte', label: 'less or equal', types: ['number', 'date'] },
+  { value: 'contains', label: 'contains', types: ['string'] },
+  { value: 'in', label: 'in list', types: ['string', 'number'] },
 ];
 
 export function LogicPanel() {
-  const { state, addLogicBlock } = useBuilder();
-  const blocks = state.logicBlocks;
+  const { state, addLogicBlock, updateLogicBlock, removeLogicBlock } = useBuilder();
+  const [showAddMenu, setShowAddMenu] = useState(false);
 
   const handleAddFilter = () => {
     addLogicBlock(createFilterBlock());
+    setShowAddMenu(false);
   };
 
   const handleAddAIBlock = () => {
     addLogicBlock(createAILogicBlock());
+    setShowAddMenu(false);
   };
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-slate-700">Logic Blocks</h3>
-          <p className="text-xs text-slate-500">Add filters and AI-powered rules</p>
+          <h3 className="text-sm font-semibold text-slate-900">Logic Blocks</h3>
+          <p className="text-xs text-slate-500">Define filters and rules for your data</p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="relative">
           <button
-            onClick={handleAddFilter}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            onClick={() => setShowAddMenu(!showAddMenu)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            <Filter className="w-3.5 h-3.5" />
-            Filter
+            <Plus className="w-4 h-4" />
+            Add Block
           </button>
-          <button
-            onClick={handleAddAIBlock}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-orange-600 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI Logic
-          </button>
+
+          {showAddMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowAddMenu(false)}
+              />
+              <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 z-20 overflow-hidden">
+                <button
+                  onClick={handleAddFilter}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <Filter className="w-4 h-4 text-blue-500" />
+                  Filter Block
+                </button>
+                <button
+                  onClick={handleAddAIBlock}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  AI Logic Block
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {blocks.length === 0 ? (
-        <div className="py-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-            <Filter className="w-6 h-6 text-slate-400" />
-          </div>
-          <p className="text-sm text-slate-600">No logic blocks yet</p>
-          <p className="text-xs text-slate-400 mt-1">Add filters or AI rules to customize your widget</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {blocks.map((block) => (
-            <div key={block.id}>
-              {block.type === 'filter' ? (
-                <FilterBlockCard block={block} />
-              ) : (
-                <AIBlockCard block={block} />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="space-y-3">
+        {state.logicBlocks.length === 0 ? (
+          <EmptyState onAddFilter={handleAddFilter} onAddAI={handleAddAIBlock} />
+        ) : (
+          state.logicBlocks.map((block, index) => (
+            <LogicBlockEditor
+              key={block.id}
+              block={block}
+              index={index}
+              onUpdate={(updates) => updateLogicBlock(block.id, updates)}
+              onRemove={() => removeLogicBlock(block.id)}
+            />
+          ))
+        )}
+      </div>
 
-      {blocks.length > 0 && (
-        <div className="pt-4 border-t border-slate-200">
-          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Active Filters</h4>
-          <div className="text-xs text-slate-600">
-            {blocks.filter(b => b.enabled).length} of {blocks.length} blocks enabled
-          </div>
-        </div>
+      {state.logicBlocks.length > 0 && (
+        <LogicSummary blocks={state.logicBlocks} />
       )}
     </div>
   );
 }
 
-function FilterBlockCard({ block }: { block: FilterBlock }) {
-  const { updateLogicBlock, removeLogicBlock, toggleLogicBlock } = useBuilder();
+function EmptyState({ onAddFilter, onAddAI }: { onAddFilter: () => void; onAddAI: () => void }) {
+  return (
+    <div className="text-center py-8 px-4 border-2 border-dashed border-slate-200 rounded-lg">
+      <div className="text-slate-400 mb-3">
+        <Filter className="w-8 h-8 mx-auto" />
+      </div>
+      <p className="text-sm text-slate-600 mb-4">
+        No filters applied. Add logic blocks to filter your data.
+      </p>
+      <div className="flex justify-center gap-2">
+        <button
+          onClick={onAddFilter}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded-lg transition-colors"
+        >
+          <Filter className="w-4 h-4" />
+          Add Filter
+        </button>
+        <button
+          onClick={onAddAI}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 text-sm rounded-lg transition-colors"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI Block
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface LogicBlockEditorProps {
+  block: LogicBlock;
+  index: number;
+  onUpdate: (updates: Partial<LogicBlock>) => void;
+  onRemove: () => void;
+}
+
+function LogicBlockEditor({ block, index, onUpdate, onRemove }: LogicBlockEditorProps) {
   const [expanded, setExpanded] = useState(true);
 
+  if (block.type === 'filter') {
+    return (
+      <FilterBlockEditor
+        block={block}
+        index={index}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+      />
+    );
+  }
+
+  if (block.type === 'ai') {
+    return (
+      <AIBlockEditor
+        block={block}
+        index={index}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+      />
+    );
+  }
+
+  return null;
+}
+
+interface FilterBlockEditorProps {
+  block: FilterBlock;
+  index: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onUpdate: (updates: Partial<FilterBlock>) => void;
+  onRemove: () => void;
+}
+
+function FilterBlockEditor({ block, index, expanded, onToggle, onUpdate, onRemove }: FilterBlockEditorProps) {
+  const fieldInfo = AVAILABLE_FIELDS.find(f => f.name === block.field);
+
   return (
-    <div className={`border rounded-lg ${block.enabled ? 'border-slate-200' : 'border-slate-100 bg-slate-50'}`}>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <Filter className={`w-4 h-4 ${block.enabled ? 'text-slate-600' : 'text-slate-400'}`} />
-          <span className={`text-sm font-medium ${block.enabled ? 'text-slate-700' : 'text-slate-400'}`}>
-            Filter
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => toggleLogicBlock(block.id)}
-            className="p-1 hover:bg-slate-100 rounded"
-          >
-            {block.enabled ? (
-              <ToggleRight className="w-5 h-5 text-orange-500" />
-            ) : (
-              <ToggleLeft className="w-5 h-5 text-slate-400" />
-            )}
-          </button>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-1 hover:bg-slate-100 rounded"
-          >
-            {expanded ? (
-              <ChevronUp className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            )}
-          </button>
-          <button
-            onClick={() => removeLogicBlock(block.id)}
-            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-500"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+    <div className={`border rounded-lg ${block.enabled ? 'border-slate-200' : 'border-slate-100 opacity-60'}`}>
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-t-lg">
+        <button onClick={onToggle} className="text-slate-400 hover:text-slate-600">
+          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+        <Filter className="w-4 h-4 text-blue-500" />
+        <span className="text-sm font-medium text-slate-700 flex-1">
+          Filter {index + 1}
+          {block.field && `: ${block.field}`}
+        </span>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={block.enabled}
+            onChange={(e) => onUpdate({ enabled: e.target.checked })}
+            className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+          />
+          <span className="text-xs text-slate-500">Active</span>
+        </label>
+        <button
+          onClick={onRemove}
+          className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {expanded && (
         <div className="p-3 space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            <select
-              value={block.field}
-              onChange={(e) => updateLogicBlock(block.id, { field: e.target.value })}
-              className="col-span-1 px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            >
-              <option value="">Field...</option>
-              {AVAILABLE_FIELDS.map((f) => (
-                <option key={f.name} value={f.name}>{f.label}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Field</label>
+              <select
+                value={block.field}
+                onChange={(e) => onUpdate({ field: e.target.value })}
+                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="">Select...</option>
+                {AVAILABLE_FIELDS.map(f => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
 
-            <select
-              value={block.operator}
-              onChange={(e) => updateLogicBlock(block.id, { operator: e.target.value as FilterOperator })}
-              className="col-span-1 px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            >
-              {OPERATORS.map((op) => (
-                <option key={op.value} value={op.value}>{op.label}</option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Operator</label>
+              <select
+                value={block.operator}
+                onChange={(e) => onUpdate({ operator: e.target.value as FilterOperator })}
+                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {OPERATORS.map(op => (
+                  <option key={op.value} value={op.value}>{op.label}</option>
+                ))}
+              </select>
+            </div>
 
-            <input
-              type="text"
-              value={typeof block.value === 'object' ? JSON.stringify(block.value) : String(block.value)}
-              onChange={(e) => {
-                let value: any = e.target.value;
-                if (block.operator === 'in') {
-                  value = e.target.value.split(',').map(v => v.trim());
-                } else if (!isNaN(Number(e.target.value)) && e.target.value !== '') {
-                  value = Number(e.target.value);
-                }
-                updateLogicBlock(block.id, { value });
-              }}
-              placeholder="Value..."
-              className="col-span-1 px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-            />
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Value</label>
+              <input
+                type={fieldInfo?.type === 'number' ? 'number' : 'text'}
+                value={String(block.value)}
+                onChange={(e) => onUpdate({
+                  value: fieldInfo?.type === 'number' ? Number(e.target.value) : e.target.value
+                })}
+                placeholder="Enter value..."
+                className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -188,128 +265,153 @@ function FilterBlockCard({ block }: { block: FilterBlock }) {
   );
 }
 
-function AIBlockCard({ block }: { block: AILogicBlock }) {
-  const { updateLogicBlock, removeLogicBlock, toggleLogicBlock } = useBuilder();
-  const [expanded, setExpanded] = useState(true);
-  const [compiling, setCompiling] = useState(false);
+interface AIBlockEditorProps {
+  block: AILogicBlock;
+  index: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onUpdate: (updates: Partial<AILogicBlock>) => void;
+  onRemove: () => void;
+}
+
+function AIBlockEditor({ block, index, expanded, onToggle, onUpdate, onRemove }: AIBlockEditorProps) {
+  const [isCompiling, setIsCompiling] = useState(false);
 
   const handleCompile = async () => {
-    setCompiling(true);
-    updateLogicBlock(block.id, { status: 'compiling' });
+    if (!block.prompt.trim()) return;
 
-    const result = await compileAILogic(block);
+    setIsCompiling(true);
+    onUpdate({ status: 'compiling' });
 
-    if (result.success && result.compiledRule) {
-      updateLogicBlock(block.id, {
-        compiledRule: result.compiledRule,
-        status: 'compiled',
-        error: undefined,
+    try {
+      const result = await compileAILogic({
+        prompt: block.prompt,
+        availableFields: AVAILABLE_FIELDS,
       });
-    } else {
-      updateLogicBlock(block.id, {
-        status: 'error',
-        error: result.error || 'Failed to compile',
-      });
+
+      if (result.success && result.compiledRule) {
+        onUpdate({
+          compiledRule: result.compiledRule,
+          status: 'compiled',
+          error: undefined,
+        });
+      } else {
+        const localRule = parseSimpleLogic(block.prompt);
+        if (localRule) {
+          onUpdate({
+            compiledRule: localRule,
+            status: 'compiled',
+            error: undefined,
+          });
+        } else {
+          onUpdate({
+            status: 'error',
+            error: result.error || 'Could not parse logic. Try being more specific.',
+          });
+        }
+      }
+    } catch {
+      const localRule = parseSimpleLogic(block.prompt);
+      if (localRule) {
+        onUpdate({
+          compiledRule: localRule,
+          status: 'compiled',
+          error: undefined,
+        });
+      } else {
+        onUpdate({
+          status: 'error',
+          error: 'Compilation failed. Try using simpler language.',
+        });
+      }
+    } finally {
+      setIsCompiling(false);
     }
-
-    setCompiling(false);
   };
 
-  const getStatusIcon = () => {
-    switch (block.status) {
-      case 'compiling':
-        return <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />;
-      case 'compiled':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Sparkles className="w-4 h-4 text-orange-500" />;
-    }
-  };
+  const statusIcon = {
+    pending: <AlertCircle className="w-4 h-4 text-slate-400" />,
+    compiling: <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />,
+    compiled: <CheckCircle2 className="w-4 h-4 text-green-500" />,
+    error: <AlertCircle className="w-4 h-4 text-red-500" />,
+  }[block.status];
 
   return (
-    <div className={`border rounded-lg ${block.enabled ? 'border-orange-200 bg-orange-50/50' : 'border-slate-100 bg-slate-50'}`}>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-orange-100">
-        <div className="flex items-center gap-2">
-          {getStatusIcon()}
-          <span className={`text-sm font-medium ${block.enabled ? 'text-slate-700' : 'text-slate-400'}`}>
-            AI Logic
-          </span>
-          {block.status === 'compiled' && (
-            <span className="text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded">Compiled</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => toggleLogicBlock(block.id)}
-            className="p-1 hover:bg-orange-100 rounded"
-          >
-            {block.enabled ? (
-              <ToggleRight className="w-5 h-5 text-orange-500" />
-            ) : (
-              <ToggleLeft className="w-5 h-5 text-slate-400" />
-            )}
-          </button>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-1 hover:bg-orange-100 rounded"
-          >
-            {expanded ? (
-              <ChevronUp className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            )}
-          </button>
-          <button
-            onClick={() => removeLogicBlock(block.id)}
-            className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-500"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+    <div className={`border rounded-lg ${block.enabled ? 'border-amber-200' : 'border-slate-100 opacity-60'}`}>
+      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-t-lg">
+        <button onClick={onToggle} className="text-slate-400 hover:text-slate-600">
+          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+        <Sparkles className="w-4 h-4 text-amber-500" />
+        <span className="text-sm font-medium text-slate-700 flex-1">
+          AI Logic {index + 1}
+        </span>
+        {statusIcon}
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={block.enabled}
+            onChange={(e) => onUpdate({ enabled: e.target.checked })}
+            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+          />
+          <span className="text-xs text-slate-500">Active</span>
+        </label>
+        <button
+          onClick={onRemove}
+          className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {expanded && (
         <div className="p-3 space-y-3">
-          <textarea
-            value={block.prompt}
-            onChange={(e) => updateLogicBlock(block.id, { prompt: e.target.value, status: 'pending' })}
-            placeholder="Describe your filter in plain English...&#10;e.g., 'Only include shipments over $1,000 from FedEx or UPS'"
-            rows={3}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none"
-          />
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Describe your filter in plain English
+            </label>
+            <textarea
+              value={block.prompt}
+              onChange={(e) => onUpdate({ prompt: e.target.value, status: 'pending' })}
+              placeholder="e.g., Only include shipments over $1000 from California"
+              rows={2}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+            />
+          </div>
 
-          <button
-            onClick={handleCompile}
-            disabled={compiling || !block.prompt.trim()}
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {compiling ? (
-              <>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleCompile}
+              disabled={!block.prompt.trim() || isCompiling}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {isCompiling ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Compiling...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Compile to Rules
-              </>
-            )}
-          </button>
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+              Compile Logic
+            </button>
 
-          {block.error && (
+            {block.status === 'compiled' && (
+              <span className="text-xs text-green-600">
+                Compiled to {block.compiledRule?.filters.length} filter(s)
+              </span>
+            )}
+          </div>
+
+          {block.status === 'error' && block.error && (
             <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
               {block.error}
             </div>
           )}
 
-          {block.compiledRule && (
+          {block.status === 'compiled' && block.compiledRule && (
             <div className="p-2 bg-green-50 border border-green-200 rounded">
               <div className="text-xs font-medium text-green-700 mb-1">Compiled Rules:</div>
-              <div className="space-y-1">
+              <div className="text-xs text-green-600 font-mono">
                 {block.compiledRule.filters.map((f, i) => (
-                  <div key={i} className="text-xs text-green-600">
+                  <div key={i}>
                     {f.field} {f.operator} {JSON.stringify(f.value)}
                   </div>
                 ))}
@@ -318,6 +420,29 @@ function AIBlockCard({ block }: { block: AILogicBlock }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function LogicSummary({ blocks }: { blocks: LogicBlock[] }) {
+  const enabledBlocks = blocks.filter(b => b.enabled);
+  const filterBlocks = enabledBlocks.filter(b => b.type === 'filter');
+  const aiBlocks = enabledBlocks.filter(b => b.type === 'ai') as AILogicBlock[];
+  const compiledAI = aiBlocks.filter(b => b.status === 'compiled');
+  const pendingAI = aiBlocks.filter(b => b.status !== 'compiled');
+
+  return (
+    <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
+      <div className="font-medium text-slate-700 mb-1">Summary</div>
+      <div className="space-y-0.5">
+        <div>{filterBlocks.length} filter block(s) active</div>
+        <div>{compiledAI.length} AI block(s) compiled</div>
+        {pendingAI.length > 0 && (
+          <div className="text-amber-600">
+            {pendingAI.length} AI block(s) need compilation
+          </div>
+        )}
+      </div>
     </div>
   );
 }

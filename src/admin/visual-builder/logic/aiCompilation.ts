@@ -1,147 +1,145 @@
-import type { AILogicBlock, CompiledRule, FilterOperator } from '../types/BuilderSchema';
+import type { CompiledRule, AILogicBlock } from '../types/BuilderSchema';
 import { supabase } from '../../../lib/supabase';
 
-export const AVAILABLE_FIELDS = [
-  { name: 'carrier_name', type: 'string', label: 'Carrier Name' },
-  { name: 'service_type', type: 'string', label: 'Service Type' },
-  { name: 'mode', type: 'string', label: 'Mode' },
-  { name: 'origin_state', type: 'string', label: 'Origin State' },
-  { name: 'destination_state', type: 'string', label: 'Destination State' },
-  { name: 'origin_city', type: 'string', label: 'Origin City' },
-  { name: 'destination_city', type: 'string', label: 'Destination City' },
-  { name: 'retail', type: 'number', label: 'Retail Cost' },
-  { name: 'carrier_cost', type: 'number', label: 'Carrier Cost' },
-  { name: 'total_weight', type: 'number', label: 'Total Weight' },
-  { name: 'status', type: 'string', label: 'Status' },
-  { name: 'ship_date', type: 'date', label: 'Ship Date' },
-  { name: 'delivery_date', type: 'date', label: 'Delivery Date' },
-] as const;
+interface AICompilationRequest {
+  prompt: string;
+  availableFields: FieldInfo[];
+  sampleData?: Record<string, unknown>[];
+}
 
-export interface CompilationResult {
+interface FieldInfo {
+  name: string;
+  type: 'string' | 'number' | 'date' | 'boolean';
+  sampleValues?: string[];
+}
+
+interface AICompilationResponse {
   success: boolean;
   compiledRule?: CompiledRule;
+  explanation?: string;
   error?: string;
 }
 
-export async function compileAILogic(block: AILogicBlock): Promise<CompilationResult> {
-  if (!block.prompt.trim()) {
-    return { success: false, error: 'Prompt is empty' };
-  }
+export const AVAILABLE_FIELDS: FieldInfo[] = [
+  { name: 'carrier_name', type: 'string', sampleValues: ['FedEx Freight', 'XPO Logistics', 'Old Dominion'] },
+  { name: 'origin_state', type: 'string', sampleValues: ['CA', 'TX', 'NY', 'FL'] },
+  { name: 'destination_state', type: 'string', sampleValues: ['CA', 'TX', 'NY', 'FL'] },
+  { name: 'origin_city', type: 'string' },
+  { name: 'destination_city', type: 'string' },
+  { name: 'mode_name', type: 'string', sampleValues: ['LTL', 'TL', 'Partial'] },
+  { name: 'equipment_name', type: 'string', sampleValues: ['Van', 'Flatbed', 'Reefer'] },
+  { name: 'status_name', type: 'string', sampleValues: ['Delivered', 'In Transit', 'Picked Up'] },
+  { name: 'retail', type: 'number' },
+  { name: 'miles', type: 'number' },
+  { name: 'total_weight', type: 'number' },
+  { name: 'pickup_date', type: 'date' },
+  { name: 'delivery_date', type: 'date' },
+];
 
+export async function compileAILogic(
+  request: AICompilationRequest
+): Promise<AICompilationResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke('generate-report', {
-      body: {
-        action: 'compile_logic',
-        prompt: block.prompt,
-        availableFields: AVAILABLE_FIELDS,
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/compile-ai-logic`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
+      body: JSON.stringify({
+        prompt: request.prompt,
+        availableFields: request.availableFields,
+        sampleData: request.sampleData,
+      }),
     });
 
-    if (error) {
-      const parsed = parseSimpleLogic(block.prompt);
-      if (parsed) {
-        return { success: true, compiledRule: parsed };
-      }
-      return { success: false, error: error.message };
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      return { success: false, error: error.message || 'Compilation failed' };
     }
 
-    if (data?.compiledRule) {
-      return { success: true, compiledRule: data.compiledRule };
-    }
+    const result = await response.json();
+    return {
+      success: true,
+      compiledRule: result.compiledRule,
+      explanation: result.explanation,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Compilation failed',
+    };
+  }
+}
 
-    const parsed = parseSimpleLogic(block.prompt);
-    if (parsed) {
-      return { success: true, compiledRule: parsed };
-    }
-
-    return { success: false, error: 'Failed to compile logic' };
-  } catch (err) {
-    const parsed = parseSimpleLogic(block.prompt);
-    if (parsed) {
-      return { success: true, compiledRule: parsed };
-    }
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+export function updateAIBlockWithCompilation(
+  block: AILogicBlock,
+  response: AICompilationResponse
+): AILogicBlock {
+  if (response.success && response.compiledRule) {
+    return {
+      ...block,
+      compiledRule: response.compiledRule,
+      status: 'compiled',
+      error: undefined,
+    };
+  } else {
+    return {
+      ...block,
+      status: 'error',
+      error: response.error || 'Unknown error',
+    };
   }
 }
 
 export function parseSimpleLogic(prompt: string): CompiledRule | null {
   const filters: CompiledRule['filters'] = [];
-  const lower = prompt.toLowerCase();
+  const lowerPrompt = prompt.toLowerCase();
 
-  const greaterThanMatch = lower.match(/(?:over|greater than|more than|above|>)\s*\$?([\d,]+)/);
-  if (greaterThanMatch) {
-    const value = parseFloat(greaterThanMatch[1].replace(/,/g, ''));
-    if (!isNaN(value)) {
-      if (lower.includes('retail') || lower.includes('cost') || lower.includes('spend')) {
-        filters.push({ field: 'retail', operator: 'gt', value });
-      }
-    }
+  const overMatch = lowerPrompt.match(/(?:over|greater than|more than)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  if (overMatch) {
+    const value = parseFloat(overMatch[1].replace(/,/g, ''));
+    filters.push({ field: 'retail', operator: 'gt', value });
   }
 
-  const lessThanMatch = lower.match(/(?:under|less than|below|<)\s*\$?([\d,]+)/);
-  if (lessThanMatch) {
-    const value = parseFloat(lessThanMatch[1].replace(/,/g, ''));
-    if (!isNaN(value)) {
-      if (lower.includes('retail') || lower.includes('cost') || lower.includes('spend')) {
-        filters.push({ field: 'retail', operator: 'lt', value });
-      }
-    }
+  const underMatch = lowerPrompt.match(/(?:under|less than|below)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  if (underMatch) {
+    const value = parseFloat(underMatch[1].replace(/,/g, ''));
+    filters.push({ field: 'retail', operator: 'lt', value });
   }
 
-  const carriers = ['fedex', 'ups', 'usps', 'dhl', 'amazon'];
-  const mentionedCarriers = carriers.filter(c => lower.includes(c));
-  if (mentionedCarriers.length > 0) {
-    const properNames = mentionedCarriers.map(c => {
-      switch (c) {
-        case 'fedex': return 'FedEx';
-        case 'ups': return 'UPS';
-        case 'usps': return 'USPS';
-        case 'dhl': return 'DHL';
-        case 'amazon': return 'Amazon';
-        default: return c;
-      }
-    });
-    filters.push({
-      field: 'carrier_name',
-      operator: mentionedCarriers.length === 1 ? 'eq' : 'in',
-      value: mentionedCarriers.length === 1 ? properNames[0] : properNames,
-    });
-  }
-
-  const modes = ['ltl', 'truckload', 'parcel', 'air', 'ocean'];
-  const mentionedModes = modes.filter(m => lower.includes(m));
-  if (mentionedModes.length > 0) {
-    const properNames = mentionedModes.map(m => m.toUpperCase());
-    filters.push({
-      field: 'mode',
-      operator: mentionedModes.length === 1 ? 'eq' : 'in',
-      value: mentionedModes.length === 1 ? properNames[0] : properNames,
-    });
-  }
-
-  const stateMatch = lower.match(/(?:from|in|to)\s+([a-z]{2})\b/i);
+  const statePattern = /(?:from|origin)\s+([A-Z]{2})\b/i;
+  const stateMatch = prompt.match(statePattern);
   if (stateMatch) {
-    const state = stateMatch[1].toUpperCase();
-    if (lower.includes('from') || lower.includes('origin')) {
-      filters.push({ field: 'origin_state', operator: 'eq', value: state });
-    } else if (lower.includes('to') || lower.includes('destination')) {
-      filters.push({ field: 'destination_state', operator: 'eq', value: state });
-    }
+    filters.push({ field: 'origin_state', operator: 'eq', value: stateMatch[1].toUpperCase() });
   }
 
-  const statuses = ['delivered', 'in transit', 'pending', 'cancelled'];
-  const mentionedStatuses = statuses.filter(s => lower.includes(s));
-  if (mentionedStatuses.length > 0) {
-    filters.push({
-      field: 'status',
-      operator: 'eq',
-      value: mentionedStatuses[0].charAt(0).toUpperCase() + mentionedStatuses[0].slice(1),
-    });
+  const destPattern = /(?:to|destination)\s+([A-Z]{2})\b/i;
+  const destMatch = prompt.match(destPattern);
+  if (destMatch) {
+    filters.push({ field: 'destination_state', operator: 'eq', value: destMatch[1].toUpperCase() });
   }
 
-  if (filters.length === 0) {
-    return null;
+  const carrierPattern = /(?:carrier|from)\s+["']?([^"'\n,]+)["']?/i;
+  const carrierMatch = prompt.match(carrierPattern);
+  if (carrierMatch && !stateMatch) {
+    filters.push({ field: 'carrier_name', operator: 'contains', value: carrierMatch[1].trim() });
   }
+
+  if (lowerPrompt.includes('delivered')) {
+    filters.push({ field: 'status_name', operator: 'eq', value: 'Delivered' });
+  } else if (lowerPrompt.includes('in transit')) {
+    filters.push({ field: 'status_name', operator: 'eq', value: 'In Transit' });
+  }
+
+  if (filters.length === 0) return null;
 
   return { filters };
 }

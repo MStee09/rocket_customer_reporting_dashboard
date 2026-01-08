@@ -3,8 +3,9 @@
  *
  * LOCATION: /src/admin/visual-builder/components/panels/PreviewPanel.tsx
  *
- * FIX: Removed date range filtering from preview - just shows sample data.
- * When published, widgets will use the Analytics Hub's date range picker.
+ * FIXES:
+ * 1. Renamed Map icon import to MapIcon to avoid shadowing native Map constructor
+ * 2. Removed date range filtering - preview shows sample data
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,12 +19,11 @@ import {
   LineChart,
   PieChart,
   Table2,
-  Map,
+  Map as MapIcon,
   TrendingUp,
   Database,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
-import { compileLogicBlocksToArray } from '../../logic/compileLogic';
 import { supabase } from '../../../../lib/supabase';
 import {
   BarChart,
@@ -63,47 +63,49 @@ export function PreviewPanel() {
         .select('*', { count: 'exact' })
         .limit(1000);
 
-      const filterConditions = compileLogicBlocksToArray(state.logicBlocks);
+      if (state.logicBlocks && state.logicBlocks.length > 0) {
+        for (const block of state.logicBlocks) {
+          if (block.type === 'filter' && block.conditions) {
+            for (const condition of block.conditions) {
+              const { field, operator, value } = condition;
+              if (!field || value === undefined || value === '') continue;
 
-      for (const filter of filterConditions) {
-        switch (filter.operator) {
-          case 'eq':
-            query = query.eq(filter.field, filter.value);
-            break;
-          case 'neq':
-            query = query.neq(filter.field, filter.value);
-            break;
-          case 'gt':
-            query = query.gt(filter.field, filter.value);
-            break;
-          case 'gte':
-            query = query.gte(filter.field, filter.value);
-            break;
-          case 'lt':
-            query = query.lt(filter.field, filter.value);
-            break;
-          case 'lte':
-            query = query.lte(filter.field, filter.value);
-            break;
-          case 'contains':
-            query = query.ilike(filter.field, `%${filter.value}%`);
-            break;
-          case 'in':
-            if (Array.isArray(filter.value)) {
-              query = query.in(filter.field, filter.value);
+              switch (operator) {
+                case 'eq':
+                  query = query.eq(field, value);
+                  break;
+                case 'neq':
+                  query = query.neq(field, value);
+                  break;
+                case 'gt':
+                  query = query.gt(field, value);
+                  break;
+                case 'gte':
+                  query = query.gte(field, value);
+                  break;
+                case 'lt':
+                  query = query.lt(field, value);
+                  break;
+                case 'lte':
+                  query = query.lte(field, value);
+                  break;
+                case 'contains':
+                  query = query.ilike(field, `%${value}%`);
+                  break;
+                case 'in':
+                  if (Array.isArray(value)) {
+                    query = query.in(field, value);
+                  }
+                  break;
+                case 'is_null':
+                  query = query.is(field, null);
+                  break;
+                case 'is_not_null':
+                  query = query.not(field, 'is', null);
+                  break;
+              }
             }
-            break;
-          case 'is_null':
-            query = query.is(filter.field, null);
-            break;
-          case 'is_not_null':
-            query = query.not(filter.field, 'is', null);
-            break;
-          case 'between':
-            if (Array.isArray(filter.value) && filter.value.length === 2) {
-              query = query.gte(filter.field, filter.value[0]).lte(filter.field, filter.value[1]);
-            }
-            break;
+          }
         }
       }
 
@@ -245,8 +247,8 @@ function VisualizationIcon({ type }: { type: string }) {
     area: LineChart,
     scatter: BarChart3,
     table: Table2,
-    choropleth: Map,
-    flow: Map,
+    choropleth: MapIcon,
+    flow: MapIcon,
     kpi: TrendingUp,
     histogram: BarChart3,
     treemap: BarChart3,
@@ -356,7 +358,7 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
               cx="50%"
               cy="50%"
               outerRadius={100}
-              label={config.showLabels ? ({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%` : false}
+              label={config.showLabels !== false}
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -483,7 +485,7 @@ function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
   return (
     <div className="h-full flex items-center justify-center p-4">
       <div className="text-center">
-        <Map className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+        <MapIcon className="w-16 h-16 text-slate-300 mx-auto mb-3" />
         <p className="text-sm text-slate-600">Choropleth Map Preview</p>
         <p className="text-xs text-slate-400 mt-1">
           {config.geo?.mapKey || 'us_states'} • {data.length} regions
@@ -506,11 +508,11 @@ function FlowMapPreview({ data }: { data: any[] }) {
       <div className="text-center">
         <div className="flex items-center justify-center gap-4 mb-4">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <Map className="w-6 h-6 text-blue-500" />
+            <MapIcon className="w-6 h-6 text-blue-500" />
           </div>
           <div className="text-2xl text-slate-300">→</div>
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-            <Map className="w-6 h-6 text-orange-500" />
+            <MapIcon className="w-6 h-6 text-orange-500" />
           </div>
         </div>
         <p className="text-sm text-slate-600">Flow Map Preview</p>
@@ -608,24 +610,23 @@ function processDataForVisualization(rawData: any[], config: any): any[] {
   }
 
   if (type === 'flow' && flow?.originField && flow?.destinationField) {
-    const grouped = new Map<string, { origin: string; destination: string; value: number }>();
+    const grouped: Record<string, { origin: string; destination: string; value: number }> = {};
 
     for (const row of rawData) {
       const key = `${row[flow.originField]}-${row[flow.destinationField]}`;
-      const existing = grouped.get(key);
 
-      if (existing) {
-        existing.value += Number(row[flow.valueField]) || 0;
+      if (grouped[key]) {
+        grouped[key].value += Number(row[flow.valueField]) || 0;
       } else {
-        grouped.set(key, {
+        grouped[key] = {
           origin: row[flow.originField],
           destination: row[flow.destinationField],
           value: Number(row[flow.valueField]) || 0,
-        });
+        };
       }
     }
 
-    return Array.from(grouped.values())
+    return Object.values(grouped)
       .sort((a, b) => b.value - a.value)
       .slice(0, 20);
   }
@@ -649,19 +650,19 @@ function groupAndAggregate(
   valueField: string | undefined,
   aggregation: string = 'sum'
 ): { name: string; value: number }[] {
-  const groups = new Map<string, number[]>();
+  const groups: Record<string, number[]> = {};
 
   for (const row of data) {
     const key = String(row[groupField] || 'Unknown');
     const value = valueField ? Number(row[valueField]) || 0 : 1;
 
-    if (!groups.has(key)) {
-      groups.set(key, []);
+    if (!groups[key]) {
+      groups[key] = [];
     }
-    groups.get(key)!.push(value);
+    groups[key].push(value);
   }
 
-  const results = Array.from(groups.entries()).map(([name, values]) => ({
+  const results = Object.entries(groups).map(([name, values]) => ({
     name,
     value: aggregateArray(values, aggregation),
   }));

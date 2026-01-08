@@ -8,6 +8,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// =============================================================================
+// TYPES
+// =============================================================================
+
 interface RequestBody {
   question: string;
   customerId: string;
@@ -45,39 +49,348 @@ interface Visualization {
   config?: Record<string, unknown>;
 }
 
+// =============================================================================
+// SEMANTIC LAYER: FIELD METADATA
+// =============================================================================
+
+interface FieldMetadata {
+  type: 'numeric' | 'categorical' | 'date' | 'boolean';
+  unit?: string;
+  canGroupBy: boolean;
+  canAggregate: boolean;
+  canBucket: boolean;
+  suggestedBuckets?: Array<{ label: string; min: number; max: number }>;
+  displayName: string;
+  description?: string;
+}
+
+const FIELD_METADATA: Record<string, FieldMetadata> = {
+  // === NUMERIC FIELDS (can be aggregated AND bucketed) ===
+  retail: {
+    type: 'numeric',
+    unit: 'USD',
+    canGroupBy: false,
+    canAggregate: true,
+    canBucket: true,
+    displayName: 'Cost',
+    description: 'Shipment cost/retail price',
+    suggestedBuckets: [
+      { label: '$0-$500', min: 0, max: 500 },
+      { label: '$500-$1,000', min: 500, max: 1000 },
+      { label: '$1,000-$2,500', min: 1000, max: 2500 },
+      { label: '$2,500-$5,000', min: 2500, max: 5000 },
+      { label: '$5,000+', min: 5000, max: 999999 },
+    ]
+  },
+  miles: {
+    type: 'numeric',
+    unit: 'miles',
+    canGroupBy: false,
+    canAggregate: true,
+    canBucket: true,
+    displayName: 'Miles',
+    description: 'Shipment distance',
+    suggestedBuckets: [
+      { label: '0-250 mi', min: 0, max: 250 },
+      { label: '250-500 mi', min: 250, max: 500 },
+      { label: '500-1,000 mi', min: 500, max: 1000 },
+      { label: '1,000-1,500 mi', min: 1000, max: 1500 },
+      { label: '1,500+ mi', min: 1500, max: 999999 },
+    ]
+  },
+  total_weight: {
+    type: 'numeric',
+    unit: 'lbs',
+    canGroupBy: false,
+    canAggregate: true,
+    canBucket: true,
+    displayName: 'Weight',
+    description: 'Total shipment weight',
+    suggestedBuckets: [
+      { label: '0-500 lbs', min: 0, max: 500 },
+      { label: '500-1,000 lbs', min: 500, max: 1000 },
+      { label: '1,000-2,500 lbs', min: 1000, max: 2500 },
+      { label: '2,500-5,000 lbs', min: 2500, max: 5000 },
+      { label: '5,000+ lbs', min: 5000, max: 999999 },
+    ]
+  },
+
+  // === CATEGORICAL FIELDS (group by only) ===
+  carrier_name: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Carrier',
+    description: 'Shipping carrier name'
+  },
+  origin_state: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Origin State',
+    description: 'Shipment origin state'
+  },
+  destination_state: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Destination State',
+    description: 'Shipment destination state'
+  },
+  mode_name: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Mode',
+    description: 'Shipping mode (LTL, FTL, etc.)'
+  },
+  equipment_name: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Equipment',
+    description: 'Equipment type'
+  },
+  status_name: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Status',
+    description: 'Shipment status'
+  },
+  origin_city: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Origin City'
+  },
+  destination_city: {
+    type: 'categorical',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Destination City'
+  },
+
+  // === DATE FIELDS ===
+  created_date: {
+    type: 'date',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Created Date'
+  },
+  pickup_date: {
+    type: 'date',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Pickup Date'
+  },
+  delivery_date: {
+    type: 'date',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Delivery Date'
+  },
+
+  // === BOOLEAN FIELDS ===
+  is_late: {
+    type: 'boolean',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Late Status'
+  },
+  is_completed: {
+    type: 'boolean',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Completed'
+  },
+  has_hazmat: {
+    type: 'boolean',
+    canGroupBy: true,
+    canAggregate: false,
+    canBucket: false,
+    displayName: 'Hazmat'
+  }
+};
+
+// =============================================================================
+// DERIVED METRICS REGISTRY
+// =============================================================================
+
+interface DerivedMetric {
+  formula: string;
+  requires: string[];
+  unit: string;
+  displayName: string;
+}
+
+const DERIVED_METRICS: Record<string, DerivedMetric> = {
+  cost_per_mile: {
+    formula: 'retail / miles',
+    requires: ['retail', 'miles'],
+    unit: '$/mile',
+    displayName: 'Cost per Mile'
+  },
+  cost_per_pound: {
+    formula: 'retail / total_weight',
+    requires: ['retail', 'total_weight'],
+    unit: '$/lb',
+    displayName: 'Cost per Pound'
+  },
+  avg_cost: {
+    formula: 'avg(retail)',
+    requires: ['retail'],
+    unit: 'USD',
+    displayName: 'Average Cost'
+  }
+};
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+function isNumericField(fieldName: string): boolean {
+  const metadata = FIELD_METADATA[fieldName];
+  return metadata?.type === 'numeric';
+}
+
+function canFieldBeBucketed(fieldName: string): boolean {
+  const metadata = FIELD_METADATA[fieldName];
+  return metadata?.canBucket === true;
+}
+
+function getDefaultBuckets(fieldName: string): Array<{ label: string; min: number; max: number }> {
+  const metadata = FIELD_METADATA[fieldName];
+  return metadata?.suggestedBuckets || [];
+}
+
+function formatMetricName(name: string): string {
+  const derived = DERIVED_METRICS[name];
+  if (derived) return derived.displayName;
+  
+  const field = FIELD_METADATA[name];
+  if (field) return field.displayName;
+  
+  return name
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function determineFormat(metric: string): string {
+  const lowerMetric = metric.toLowerCase();
+  if (lowerMetric.includes('cost') || lowerMetric.includes('retail') || lowerMetric.includes('price') || lowerMetric.includes('spend') || lowerMetric === 'cost_per_mile' || lowerMetric === 'cost_per_pound') {
+    return 'currency';
+  }
+  if (lowerMetric.includes('percent') || lowerMetric.includes('rate') || lowerMetric.includes('ratio')) {
+    return 'percent';
+  }
+  return 'number';
+}
+
+// =============================================================================
+// UNIFIED TOOL DEFINITIONS (6 Core Tools)
+// =============================================================================
+
 const INVESTIGATION_TOOLS: Anthropic.Tool[] = [
   {
-    name: "explore_field",
-    description: `Explore a data field to understand its values, distribution, and quality.
-Returns: unique values, coverage %, top values with counts, data quality assessment.
-Use this to understand what data exists before aggregating.`,
+    name: "get_field_info",
+    description: `Get information about available data fields and what analysis is possible.
+Returns: list of fields with their types, whether they can be grouped/aggregated/bucketed.
+Use this when you need to understand the data schema or validate a query approach.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        field_name: { type: "string", description: "Field to explore (e.g., 'carrier_name', 'destination_state', 'mode_name')" },
-        sample_size: { type: "number", description: "Number of top values to return (default: 15)" }
+        field_name: { 
+          type: "string", 
+          description: "Optional: specific field to get info about. If omitted, returns all fields." 
+        }
       },
-      required: ["field_name"]
+      required: []
     }
   },
+
   {
-    name: "preview_aggregation",
-    description: `Get aggregated metrics grouped by a dimension with REAL DATA.
-Returns: actual aggregated values with counts per group.
-Use this for "show me X by Y" type questions.`,
+    name: "analyze_metric",
+    description: `Universal analysis tool that handles ALL "X by Y" questions. AUTO-DETECTS whether to:
+- Group by categorical field (carrier, state, mode)
+- Bucket by numeric field (mileage bands, cost brackets, weight ranges)
+- Calculate derived metrics (cost per mile, cost per pound)
+
+This is your PRIMARY tool for most analysis questions. The system automatically:
+1. Detects if group_by is numeric → creates appropriate buckets
+2. Detects if group_by is categorical → standard grouping
+3. Calculates derived metrics if requested
+
+Examples:
+- "cost by carrier" → group_by: "carrier_name", metric: "retail"
+- "cost by mileage bands" → group_by: "miles", metric: "retail" (auto-buckets!)
+- "cost per mile by distance" → group_by: "miles", metric: "retail", derived_metric: "cost_per_mile"
+- "shipment count by state" → group_by: "origin_state", metric: "retail", aggregation: "count"`,
     input_schema: {
       type: "object" as const,
       properties: {
-        group_by: { type: "string", description: "Field to group by (e.g., 'carrier_name', 'origin_state')" },
-        metric: { type: "string", description: "Field to aggregate (e.g., 'cost', 'retail', 'miles')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct", "min", "max"], description: "Aggregation type" },
-        secondary_group_by: { type: "string", description: "Optional second grouping field for breakdown" },
-        limit: { type: "number", description: "Max groups to return (default: 15)" },
-        sort: { type: "string", enum: ["desc", "asc"], description: "Sort direction (default: desc)" }
+        metric: { 
+          type: "string", 
+          description: "Field to aggregate (e.g., 'retail', 'miles', 'total_weight')" 
+        },
+        aggregation: { 
+          type: "string", 
+          enum: ["sum", "avg", "count", "min", "max"],
+          description: "How to aggregate the metric" 
+        },
+        group_by: { 
+          type: "string", 
+          description: "Field to group by - can be categorical (carrier_name) OR numeric (miles). Numeric fields are auto-bucketed." 
+        },
+        derived_metric: { 
+          type: "string", 
+          enum: ["cost_per_mile", "cost_per_pound", "none"],
+          description: "Optional: calculate a derived 'per unit' metric. Use for 'cost per mile' type questions." 
+        },
+        limit: { 
+          type: "number", 
+          description: "Max groups to return (default: 15)" 
+        },
+        time_range: {
+          type: "string",
+          enum: ["last7", "last30", "last90", "last180", "all"],
+          description: "Optional time filter"
+        }
       },
-      required: ["group_by", "metric", "aggregation"]
+      required: ["metric", "aggregation", "group_by"]
     }
   },
+
+  {
+    name: "get_trend",
+    description: `Get time-series trend data for a metric.
+Returns: data points over time (daily, weekly, or monthly).
+Use for "show me trend" or "how has X changed over time" questions.`,
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        metric: { type: "string", description: "Metric to trend (e.g., 'retail', 'miles')" },
+        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation" },
+        period: { type: "string", enum: ["daily", "weekly", "monthly"], description: "Time granularity" },
+        range: { type: "string", description: "Time range (e.g., 'last30', 'last90', 'last180')" }
+      },
+      required: ["metric", "aggregation", "period"]
+    }
+  },
+
   {
     name: "compare_periods",
     description: `Compare a metric across two time periods to show change.
@@ -86,15 +399,15 @@ Use for "how has X changed" or "compare this month to last month" questions.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        metric: { type: "string", description: "Metric to compare (e.g., 'cost', 'retail')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct"], description: "How to aggregate" },
+        metric: { type: "string", description: "Metric to compare (e.g., 'retail')" },
+        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "How to aggregate" },
         period1: { type: "string", description: "Current period (e.g., 'last30', 'last7', 'last90')" },
-        period2: { type: "string", description: "Previous period to compare against (e.g., 'last60', 'last180')" },
-        group_by: { type: "string", description: "Optional grouping for breakdown by dimension" }
+        period2: { type: "string", description: "Previous period to compare against (e.g., 'last60', 'last180')" }
       },
       required: ["metric", "aggregation", "period1", "period2"]
     }
   },
+
   {
     name: "detect_anomalies",
     description: `Find anomalies - spikes, drops, outliers, unusual patterns in data.
@@ -110,38 +423,7 @@ Use for "what's unusual" or "find problems" type questions.`,
       required: ["metric"]
     }
   },
-  {
-    name: "investigate_root_cause",
-    description: `Deep dive root cause analysis across multiple dimensions.
-Returns: breakdown by carrier, origin, destination, mode to find where issues come from.
-Use for "why is X happening" or diagnostic questions.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        question: { type: "string", description: "The question to investigate" },
-        metric: { type: "string", description: "Primary metric to analyze" },
-        filters: { type: "object", description: "Optional filters to narrow scope" },
-        max_depth: { type: "number", description: "How many dimensions to analyze (default: 3)" }
-      },
-      required: ["question", "metric"]
-    }
-  },
-  {
-    name: "get_trend",
-    description: `Get time-series trend data for a metric.
-Returns: data points over time (daily, weekly, or monthly).
-Use for "show me trend" or "how has X changed over time" questions.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        metric: { type: "string", description: "Metric to trend (e.g., 'cost', 'retail', 'miles')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation" },
-        period: { type: "string", enum: ["daily", "weekly", "monthly"], description: "Time granularity" },
-        range: { type: "string", description: "Time range (e.g., 'last30', 'last90', 'last180')" }
-      },
-      required: ["metric", "aggregation", "period"]
-    }
-  },
+
   {
     name: "get_summary_stats",
     description: `Get summary statistics for the customer's data.
@@ -154,254 +436,518 @@ Use as a starting point for overview questions.`,
       },
       required: []
     }
-  },
-  {
-    name: "get_hierarchical_data",
-    description: `Get hierarchical data for treemap or sunburst visualizations.
-Returns: nested data structure showing proportions of a metric across categories.
-Use when user asks for treemap, proportion breakdown, or "how is X distributed".`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        metric: { type: "string", description: "Metric to visualize (e.g., 'cost', 'retail')" },
-        group_by: { type: "string", description: "Primary grouping (e.g., 'carrier_name', 'mode_name')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation type" },
-        limit: { type: "number", description: "Max items to return (default: 20)" }
-      },
-      required: ["metric", "group_by", "aggregation"]
-    }
-  },
-  {
-    name: "get_daily_activity",
-    description: `Get daily activity data for heatmap/calendar visualizations.
-Returns: date-value pairs showing activity level per day.
-Use when user asks for heatmap, calendar view, or daily patterns.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        metric: { type: "string", description: "Metric to measure (e.g., 'cost', 'retail')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation type" },
-        range: { type: "string", description: "Time range (e.g., 'last90', 'last180')" }
-      },
-      required: ["metric", "aggregation"]
-    }
-  },
-  {
-    name: "get_geographic_data",
-    description: `Get data aggregated by state/region for map visualizations.
-Returns: state codes with metric values for choropleth maps.
-Use when user asks about states, regions, geographic distribution, or map view.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        metric: { type: "string", description: "Metric to map (e.g., 'cost', 'retail')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation" },
-        location_type: { type: "string", enum: ["origin", "destination"], description: "Use origin or destination state" }
-      },
-      required: ["metric", "aggregation", "location_type"]
-    }
-  },
-  {
-    name: "get_flow_data",
-    description: `Get origin-destination flow data for flow map visualizations.
-Returns: origin-destination pairs with volume/value for showing shipping lanes.
-Use when user asks about lanes, routes, flows, or origin-to-destination patterns.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        metric: { type: "string", description: "Metric to aggregate (e.g., 'cost', 'retail')" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "Aggregation" },
-        limit: { type: "number", description: "Max lanes to return (default: 20)" }
-      },
-      required: ["metric", "aggregation"]
-    }
-  },
-  {
-    name: "get_multi_metric_comparison",
-    description: `Get multiple metrics for radar chart comparison.
-Returns: normalized scores across multiple dimensions for comparison.
-Use when user wants to compare performance across multiple metrics or dimensions.`,
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        group_by: { type: "string", description: "What to compare (e.g., 'carrier_name')" },
-        metrics: {
-          type: "array",
-          items: { type: "string" },
-          description: "List of metrics to compare (e.g., ['cost', 'miles', 'retail'])"
-        },
-        limit: { type: "number", description: "Max items to compare (default: 5)" }
-      },
-      required: ["group_by", "metrics"]
-    }
   }
 ];
 
+// =============================================================================
+// SYSTEM PROMPT
+// =============================================================================
+
 const DEFAULT_SYSTEM_PROMPT = `You are an expert logistics data analyst. Your job is to investigate shipping data and provide actionable insights with visualizations.
 
-## APPROACH
-1. Understand what the user is asking
-2. Choose the RIGHT visualization for the question
-3. Use tools to get REAL DATA
-4. Synthesize findings into clear explanations
-5. Suggest follow-up questions
+## CRITICAL: USE analyze_metric FOR ALMOST EVERYTHING
 
-## VISUALIZATION TOOLS (use these for visual requests)
-- get_hierarchical_data: For TREEMAP visualizations showing proportions
-- get_daily_activity: For HEATMAP/calendar showing daily patterns
-- get_geographic_data: For CHOROPLETH maps showing state-level data
-- get_flow_data: For FLOWMAP showing shipping lanes/routes
-- get_multi_metric_comparison: For RADAR charts comparing multiple metrics
+The \`analyze_metric\` tool is your PRIMARY analysis tool. It handles:
+- Categorical grouping: "cost by carrier" → group_by: "carrier_name"
+- Numeric bucketing: "cost by mileage bands" → group_by: "miles" (AUTO-BUCKETS!)
+- Derived metrics: "cost per mile" → derived_metric: "cost_per_mile"
 
-## ANALYSIS TOOLS
-- preview_aggregation: Bar/pie charts for "X by Y" questions
-- get_trend: Line charts for time-series data
-- compare_periods: Stat cards showing change over time
-- explore_field: Pie charts for field distributions
-- detect_anomalies: Find unusual patterns
-- investigate_root_cause: Deep dive analysis
-- get_summary_stats: Overview statistics
+### How It Works
+The tool AUTO-DETECTS the field type:
+- If group_by is numeric (miles, retail, total_weight) → Creates smart buckets automatically
+- If group_by is categorical (carrier_name, origin_state) → Standard grouping
 
-## MATCHING QUESTIONS TO TOOLS
-- "treemap of X by Y" -> get_hierarchical_data
-- "heatmap of daily X" -> get_daily_activity
-- "which states have highest X" -> get_geographic_data
-- "top shipping lanes" -> get_flow_data
-- "compare carriers across metrics" -> get_multi_metric_comparison
-- "show X by Y" -> preview_aggregation
-- "trend of X over time" -> get_trend
+### Question → Tool Mapping
+| Question Pattern | Tool | Key Parameters |
+|-----------------|------|----------------|
+| "cost by carrier" | analyze_metric | group_by: "carrier_name", metric: "retail" |
+| "cost by mileage bands" | analyze_metric | group_by: "miles", metric: "retail" |
+| "cost per mile by distance" | analyze_metric | group_by: "miles", derived_metric: "cost_per_mile" |
+| "shipments by state" | analyze_metric | group_by: "origin_state", aggregation: "count" |
+| "trend over time" | get_trend | period: "weekly" |
+| "compare to last month" | compare_periods | period1: "last30", period2: "last60" |
+| "what's unusual" | detect_anomalies | sensitivity: "medium" |
+| "overview of my data" | get_summary_stats | time_range: "last90" |
+
+### Available Fields
+**Metrics (for aggregation):** retail (cost), miles, total_weight
+**Dimensions (for grouping):** carrier_name, origin_state, destination_state, mode_name, equipment_name, status_name
+**Derived Metrics:** cost_per_mile, cost_per_pound
+
+### IMPORTANT RULES
+1. ALWAYS use analyze_metric for "X by Y" questions
+2. For mileage/weight/cost bands → the tool auto-buckets, just pass the numeric field
+3. For "per mile" or "per pound" questions → use derived_metric parameter
+4. Never guess at numbers - always use tools
 
 ## RESPONSE FORMAT
 After investigating:
 1. Lead with a direct answer
 2. Include key supporting data points
 3. Note any caveats
-4. Suggest 2-3 follow-up questions
+4. Suggest 2-3 follow-up questions`;
 
-ALWAYS use tools to get real data - never guess at numbers.`;
+// =============================================================================
+// TOOL EXECUTION
+// =============================================================================
 
-async function loadSystemPrompt(supabase: SupabaseClient): Promise<string> {
-  try {
-    const { data, error } = await supabase
-      .from('ai_settings')
-      .select('setting_value')
-      .eq('setting_key', 'investigator_system_prompt')
-      .maybeSingle();
-
-    if (error) {
-      console.warn('[Investigate] Failed to load custom system prompt:', error.message);
-      return DEFAULT_SYSTEM_PROMPT;
+async function executeToolCall(
+  supabase: SupabaseClient,
+  customerId: string,
+  toolName: string,
+  toolInput: Record<string, unknown>
+): Promise<unknown> {
+  switch (toolName) {
+    case 'get_field_info': {
+      const fieldName = toolInput.field_name as string | undefined;
+      
+      if (fieldName) {
+        const metadata = FIELD_METADATA[fieldName];
+        if (!metadata) {
+          return { error: `Unknown field: ${fieldName}`, available_fields: Object.keys(FIELD_METADATA) };
+        }
+        return { field: fieldName, ...metadata };
+      }
+      
+      const fields = {
+        numeric_fields: Object.entries(FIELD_METADATA)
+          .filter(([_, m]) => m.type === 'numeric')
+          .map(([name, m]) => ({ name, displayName: m.displayName, canBucket: m.canBucket })),
+        categorical_fields: Object.entries(FIELD_METADATA)
+          .filter(([_, m]) => m.type === 'categorical')
+          .map(([name, m]) => ({ name, displayName: m.displayName })),
+        derived_metrics: Object.entries(DERIVED_METRICS)
+          .map(([name, m]) => ({ name, displayName: m.displayName, formula: m.formula }))
+      };
+      return fields;
     }
 
-    return data?.setting_value || DEFAULT_SYSTEM_PROMPT;
-  } catch (err) {
-    console.warn('[Investigate] Error loading system prompt:', err);
-    return DEFAULT_SYSTEM_PROMPT;
+    case 'analyze_metric': {
+      const groupBy = toolInput.group_by as string;
+      const metric = toolInput.metric as string;
+      const aggregation = toolInput.aggregation as string;
+      const derivedMetric = (toolInput.derived_metric as string) || 'none';
+      const limit = (toolInput.limit as number) || 15;
+      const timeRange = toolInput.time_range as string | undefined;
+
+      const needsBucketing = isNumericField(groupBy) && canFieldBeBucketed(groupBy);
+
+      if (needsBucketing) {
+        return await executeBucketedAnalysis(supabase, customerId, {
+          bucketField: groupBy,
+          metric,
+          aggregation,
+          derivedMetric,
+          timeRange
+        });
+      } else {
+        return await executeCategoricalAnalysis(supabase, customerId, {
+          groupBy,
+          metric,
+          aggregation,
+          derivedMetric,
+          limit,
+          timeRange
+        });
+      }
+    }
+
+    case 'get_trend': {
+      const metric = toolInput.metric as string;
+      const period = toolInput.period as string;
+      const range = (toolInput.range as string) || 'last90';
+
+      const rangeDays: Record<string, number> = {
+        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365
+      };
+      const days = rangeDays[range.toLowerCase()] || 90;
+
+      const { data } = await supabase
+        .from('shipment_report_view')
+        .select(`created_date, ${metric}`)
+        .eq('customer_id', parseInt(customerId, 10))
+        .gte('created_date', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('created_date', { ascending: true });
+
+      if (!data || data.length === 0) {
+        return { trend: [], message: 'No data found for the specified period' };
+      }
+
+      const grouped = new Map<string, number[]>();
+      for (const row of data) {
+        const date = new Date(row.created_date);
+        let key: string;
+        if (period === 'daily') key = date.toISOString().split('T')[0];
+        else if (period === 'weekly') {
+          const weekStart = new Date(date);
+          weekStart.setDate(date.getDate() - date.getDay());
+          key = weekStart.toISOString().split('T')[0];
+        } else {
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(parseFloat(row[metric]) || 0);
+      }
+
+      const agg = toolInput.aggregation as string;
+      const trend = Array.from(grouped.entries()).map(([periodKey, values]) => {
+        let value: number;
+        switch (agg) {
+          case 'sum': value = values.reduce((a, b) => a + b, 0); break;
+          case 'avg': value = values.reduce((a, b) => a + b, 0) / values.length; break;
+          case 'count': value = values.length; break;
+          default: value = values.reduce((a, b) => a + b, 0);
+        }
+        return { period: periodKey, value, count: values.length };
+      });
+
+      return { trend, metric, aggregation: agg };
+    }
+
+    case 'compare_periods': {
+      const periodDays: Record<string, number> = {
+        'last7': 7, 'last30': 30, 'last60': 60, 'last90': 90,
+        'last180': 180, 'lastyear': 365
+      };
+      const days1 = periodDays[(toolInput.period1 as string).toLowerCase()] || 30;
+      const days2 = periodDays[(toolInput.period2 as string).toLowerCase()] || 60;
+
+      const { data: period1Data } = await supabase
+        .from('shipment_report_view')
+        .select(toolInput.metric as string)
+        .eq('customer_id', parseInt(customerId, 10))
+        .gte('created_date', new Date(Date.now() - days1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+      const { data: period2Data } = await supabase
+        .from('shipment_report_view')
+        .select(toolInput.metric as string)
+        .eq('customer_id', parseInt(customerId, 10))
+        .gte('created_date', new Date(Date.now() - days2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .lt('created_date', new Date(Date.now() - days1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+
+      const agg = toolInput.aggregation as string;
+      const calcValue = (data: any[], field: string, agg: string) => {
+        if (!data || data.length === 0) return 0;
+        const values = data.map(r => parseFloat(r[field]) || 0).filter(v => !isNaN(v));
+        if (values.length === 0) return 0;
+        switch (agg) {
+          case 'sum': return values.reduce((a, b) => a + b, 0);
+          case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
+          case 'count': return data.length;
+          default: return values.reduce((a, b) => a + b, 0);
+        }
+      };
+
+      const val1 = calcValue(period1Data || [], toolInput.metric as string, agg);
+      const val2 = calcValue(period2Data || [], toolInput.metric as string, agg);
+      const changePercent = val2 !== 0 ? ((val1 - val2) / val2) * 100 : 0;
+
+      return {
+        period1: { label: toolInput.period1, value: val1, count: period1Data?.length || 0 },
+        period2: { label: toolInput.period2, value: val2, count: period2Data?.length || 0 },
+        change: { absolute: val1 - val2, percent: changePercent }
+      };
+    }
+
+    case 'detect_anomalies': {
+      const metric = toolInput.metric as string;
+      const groupBy = (toolInput.group_by as string) || 'carrier_name';
+
+      const { data } = await supabase.rpc('preview_grouping', {
+        p_customer_id: customerId,
+        p_group_by: groupBy,
+        p_metric: metric,
+        p_aggregation: 'sum',
+        p_limit: 50
+      });
+
+      if (!data || !data.results || data.results.length < 3) {
+        return { anomalies: [], message: 'Not enough data for anomaly detection' };
+      }
+
+      const values = data.results.map((g: any) => g.value);
+      const mean = values.reduce((a: number, b: number) => a + b, 0) / values.length;
+      const stdDev = Math.sqrt(values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / values.length);
+      const threshold = toolInput.sensitivity === 'high' ? 1.5 : toolInput.sensitivity === 'low' ? 3 : 2;
+
+      const anomalies = data.results
+        .filter((g: any) => Math.abs(g.value - mean) > threshold * stdDev)
+        .map((g: any) => ({
+          group: g.name,
+          value: g.value,
+          deviation: ((g.value - mean) / stdDev).toFixed(2),
+          type: g.value > mean ? 'high' : 'low'
+        }));
+
+      return { anomalies, stats: { mean, stdDev, threshold }, group_by: groupBy };
+    }
+
+    case 'get_summary_stats': {
+      const timeRange = (toolInput.time_range as string) || 'last90';
+      const rangeDays: Record<string, number> = {
+        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365, 'all': 9999
+      };
+      const days = rangeDays[timeRange.toLowerCase()] || 90;
+
+      const dateFilter = days < 9999
+        ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : '1900-01-01';
+
+      const { data: shipments } = await supabase
+        .from('shipment_report_view')
+        .select('retail, miles, carrier_name, created_date, total_weight')
+        .eq('customer_id', parseInt(customerId, 10))
+        .gte('created_date', dateFilter);
+
+      if (!shipments || shipments.length === 0) {
+        return { message: 'No shipments found', stats: {} };
+      }
+
+      const totalRetail = shipments.reduce((sum, s) => sum + (parseFloat(s.retail) || 0), 0);
+      const totalMiles = shipments.reduce((sum, s) => sum + (parseFloat(s.miles) || 0), 0);
+      const totalWeight = shipments.reduce((sum, s) => sum + (parseFloat(s.total_weight) || 0), 0);
+      const carriers = new Set(shipments.map(s => s.carrier_name).filter(Boolean));
+      const dates = shipments.map(s => s.created_date).filter(Boolean).sort();
+
+      return {
+        total_shipments: shipments.length,
+        total_cost: totalRetail,
+        total_miles: totalMiles,
+        total_weight: totalWeight,
+        avg_cost: totalRetail / shipments.length,
+        avg_miles: totalMiles / shipments.length,
+        cost_per_mile: totalMiles > 0 ? totalRetail / totalMiles : 0,
+        unique_carriers: carriers.size,
+        date_range: {
+          earliest: dates[0],
+          latest: dates[dates.length - 1]
+        }
+      };
+    }
+
+    default:
+      return { error: `Unknown tool: ${toolName}` };
   }
 }
 
-function classifyQuestion(question: string): { mode: 'quick' | 'deep' | 'visual'; confidence: number; reason: string } {
-  const q = question.toLowerCase();
+// =============================================================================
+// SPECIALIZED ANALYSIS FUNCTIONS
+// =============================================================================
 
-  const quickPatterns = [
-    /^(how many|what('?s| is) the (total|count|number)|count of)/i,
-    /^(what|who) (is|are) (the )?(top|best|worst|highest|lowest)/i,
-    /simple|quick|fast|just tell me/i
-  ];
+async function executeBucketedAnalysis(
+  supabase: SupabaseClient,
+  customerId: string,
+  params: {
+    bucketField: string;
+    metric: string;
+    aggregation: string;
+    derivedMetric: string;
+    timeRange?: string;
+  }
+): Promise<unknown> {
+  const { bucketField, metric, aggregation, derivedMetric, timeRange } = params;
+  const bucketDefs = getDefaultBuckets(bucketField);
 
-  const visualPatterns = [
-    /show me|visualize|chart|graph|plot|display|breakdown/i,
-    /over time|trend|by (month|week|day|year)/i,
-    /compare|vs|versus|distribution/i,
-    /treemap|heatmap|heat map|calendar|radar|waterfall/i,
-    /map|state|geographic|region|choropleth/i,
-    /flow|lane|route|origin.+destination/i
-  ];
+  let selectFields = `${bucketField}, ${metric}`;
+  if (derivedMetric === 'cost_per_mile') {
+    selectFields = `${bucketField}, ${metric}, miles`;
+  } else if (derivedMetric === 'cost_per_pound') {
+    selectFields = `${bucketField}, ${metric}, total_weight`;
+  }
 
-  const deepPatterns = [
-    /why|how come|explain|analyze|investigate|dig into/i,
-    /root cause|problem|issue|anomal/i,
-    /understand|figure out|what('?s| is) (happening|going on|wrong)/i
-  ];
+  let query = supabase
+    .from('shipment_report_view')
+    .select(selectFields)
+    .eq('customer_id', parseInt(customerId, 10))
+    .not(bucketField, 'is', null)
+    .not(metric, 'is', null)
+    .limit(10000);
 
-  for (const pattern of quickPatterns) {
-    if (pattern.test(q)) {
-      return { mode: 'quick', confidence: 0.8, reason: 'Simple factual question' };
+  if (timeRange && timeRange !== 'all') {
+    const rangeDays: Record<string, number> = {
+      'last7': 7, 'last30': 30, 'last90': 90, 'last180': 180
+    };
+    const days = rangeDays[timeRange] || 90;
+    query = query.gte('created_date', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Bucketed analysis error:', error);
+    return { error: error.message, buckets: [] };
+  }
+
+  if (!data || data.length === 0) {
+    return { buckets: [], message: 'No data found for bucketed analysis' };
+  }
+
+  const bucketResults = bucketDefs.map(bucket => {
+    const bucketData = data.filter(r => {
+      const val = parseFloat(r[bucketField]) || 0;
+      return val >= bucket.min && val < bucket.max;
+    });
+
+    const metricValues = bucketData.map(r => parseFloat(r[metric]) || 0);
+    
+    let value: number = 0;
+    switch (aggregation) {
+      case 'sum': value = metricValues.reduce((a, b) => a + b, 0); break;
+      case 'avg': value = metricValues.length > 0 ? metricValues.reduce((a, b) => a + b, 0) / metricValues.length : 0; break;
+      case 'count': value = bucketData.length; break;
+      case 'min': value = metricValues.length > 0 ? Math.min(...metricValues) : 0; break;
+      case 'max': value = metricValues.length > 0 ? Math.max(...metricValues) : 0; break;
+    }
+
+    let derivedValue: number | undefined;
+    if (derivedMetric === 'cost_per_mile') {
+      const totalMetric = metricValues.reduce((a, b) => a + b, 0);
+      const totalMiles = bucketData.reduce((sum, r) => sum + (parseFloat(r.miles) || 0), 0);
+      derivedValue = totalMiles > 0 ? totalMetric / totalMiles : 0;
+    } else if (derivedMetric === 'cost_per_pound') {
+      const totalMetric = metricValues.reduce((a, b) => a + b, 0);
+      const totalWeight = bucketData.reduce((sum, r) => sum + (parseFloat(r.total_weight) || 0), 0);
+      derivedValue = totalWeight > 0 ? totalMetric / totalWeight : 0;
+    }
+
+    return {
+      label: bucket.label,
+      value: Math.round(value * 100) / 100,
+      count: bucketData.length,
+      derived_value: derivedValue !== undefined ? Math.round(derivedValue * 100) / 100 : undefined
+    };
+  }).filter(b => b.count > 0);
+
+  return {
+    is_bucketed: true,
+    buckets: bucketResults,
+    bucket_field: bucketField,
+    metric,
+    aggregation,
+    derived_metric: derivedMetric !== 'none' ? derivedMetric : undefined,
+    total_records: data.length
+  };
+}
+
+async function executeCategoricalAnalysis(
+  supabase: SupabaseClient,
+  customerId: string,
+  params: {
+    groupBy: string;
+    metric: string;
+    aggregation: string;
+    derivedMetric: string;
+    limit: number;
+    timeRange?: string;
+  }
+): Promise<unknown> {
+  const { groupBy, metric, aggregation, derivedMetric, limit, timeRange } = params;
+
+  const { data, error } = await supabase.rpc('preview_grouping', {
+    p_customer_id: customerId,
+    p_group_by: groupBy,
+    p_metric: metric,
+    p_aggregation: aggregation,
+    p_limit: limit
+  });
+
+  if (error) {
+    console.error('Categorical analysis error:', error);
+    return { error: error.message, results: [] };
+  }
+
+  if (derivedMetric && derivedMetric !== 'none' && data?.results) {
+    const derivedConfig = DERIVED_METRICS[derivedMetric];
+    if (derivedConfig) {
+      return {
+        is_bucketed: false,
+        group_by: groupBy,
+        metric,
+        aggregation,
+        results: data.results,
+        total_groups: data.total_groups,
+        derived_metric_note: `Derived metric ${derivedMetric} available for bucketed analysis`
+      };
     }
   }
 
-  for (const pattern of visualPatterns) {
-    if (pattern.test(q)) {
-      return { mode: 'visual', confidence: 0.85, reason: 'Visualization requested' };
-    }
-  }
-
-  for (const pattern of deepPatterns) {
-    if (pattern.test(q)) {
-      return { mode: 'deep', confidence: 0.9, reason: 'Analytical investigation needed' };
-    }
-  }
-
-  if (q.length > 100) {
-    return { mode: 'deep', confidence: 0.7, reason: 'Complex question' };
-  }
-
-  return { mode: 'deep', confidence: 0.6, reason: 'Default to thorough analysis' };
+  return {
+    is_bucketed: false,
+    group_by: groupBy,
+    metric,
+    aggregation,
+    results: data?.results || [],
+    total_groups: data?.total_groups || 0
+  };
 }
 
-function formatMetricName(metric: string): string {
-  return metric
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function determineFormat(metric: string): string {
-  const lowerMetric = metric.toLowerCase();
-  if (lowerMetric.includes('cost') || lowerMetric.includes('retail') || lowerMetric.includes('price') || lowerMetric.includes('spend')) {
-    return 'currency';
-  }
-  if (lowerMetric.includes('percent') || lowerMetric.includes('rate') || lowerMetric.includes('ratio')) {
-    return 'percent';
-  }
-  return 'number';
-}
+// =============================================================================
+// VISUALIZATION GENERATION
+// =============================================================================
 
 function generateVisualization(toolName: string, toolInput: Record<string, unknown>, result: unknown): Visualization | null {
   const id = crypto.randomUUID();
 
-  if (toolName === 'preview_aggregation' && result && typeof result === 'object') {
-    const data = result as { 
+  if (toolName === 'analyze_metric' && result && typeof result === 'object') {
+    const data = result as {
+      is_bucketed?: boolean;
+      buckets?: Array<{ label: string; value: number; count: number; derived_value?: number }>;
       results?: Array<{ name: string; value: number; count: number }>;
-      groups?: Array<{ group: string; value: number; count: number }>;
-      group_by?: string;
       metric?: string;
+      group_by?: string;
+      bucket_field?: string;
+      derived_metric?: string;
     };
-    
-    const groups = data.results || data.groups;
-    
-    if (groups && groups.length > 0) {
-      const metric = (data.metric || toolInput.metric) as string;
-      const groupBy = (data.group_by || toolInput.group_by) as string;
+
+    if (data.is_bucketed && data.buckets && data.buckets.length > 0) {
+      const metric = data.metric || toolInput.metric as string;
+      const bucketField = data.bucket_field || toolInput.group_by as string;
+      const derivedMetric = data.derived_metric;
+      const useDerived = derivedMetric && data.buckets[0].derived_value !== undefined;
+
+      const title = useDerived
+        ? `${formatMetricName(derivedMetric!)} by ${formatMetricName(bucketField)} Bands`
+        : `${formatMetricName(metric)} by ${formatMetricName(bucketField)} Bands`;
+
+      return {
+        id,
+        type: 'bar',
+        title,
+        subtitle: `${data.buckets.length} bands`,
+        data: {
+          data: data.buckets.map(b => ({
+            label: b.label,
+            value: useDerived ? b.derived_value! : b.value,
+            count: b.count
+          })),
+          format: determineFormat(useDerived ? derivedMetric! : metric)
+        },
+        config: { metric, bucketField, derivedMetric, is_bucketed: true }
+      };
+    } else if (data.results && data.results.length > 0) {
+      const metric = data.metric || toolInput.metric as string;
+      const groupBy = data.group_by || toolInput.group_by as string;
+
       return {
         id,
         type: 'bar',
         title: `${formatMetricName(metric)} by ${formatMetricName(groupBy)}`,
         data: {
-          data: groups.slice(0, 10).map(g => ({
-            label: (g as any).name || (g as any).group || 'Unknown',
+          data: data.results.slice(0, 10).map(g => ({
+            label: g.name || 'Unknown',
             value: Math.round(g.value * 100) / 100
           })),
           format: determineFormat(metric)
         },
-        config: { metric, groupBy }
+        config: { metric, groupBy, is_bucketed: false }
       };
     }
   }
 
   if (toolName === 'get_trend' && result && typeof result === 'object') {
-    const data = result as { trend?: Array<{ period: string; value: number; count: number }> };
+    const data = result as { trend?: Array<{ period: string; value: number; count: number }>; metric?: string };
     if (data.trend && data.trend.length > 0) {
-      const metric = toolInput.metric as string;
+      const metric = (data.metric || toolInput.metric) as string;
       return {
         id,
         type: 'line',
@@ -443,32 +989,8 @@ function generateVisualization(toolName: string, toolInput: Record<string, unkno
     };
   }
 
-  if (toolName === 'explore_field' && result && typeof result === 'object') {
-    const data = result as { values?: Array<{ value: string; count: number }> };
-    if (data.values && data.values.length > 0 && data.values.length <= 10) {
-      const fieldName = toolInput.field_name as string;
-      return {
-        id,
-        type: 'pie',
-        title: `${formatMetricName(fieldName)} Distribution`,
-        data: {
-          data: data.values.map(v => ({
-            label: v.value || 'Unknown',
-            value: v.count
-          })),
-          format: 'number'
-        },
-        config: { field: fieldName }
-      };
-    }
-  }
-
   if (toolName === 'get_summary_stats' && result && typeof result === 'object') {
-    const data = result as {
-      total_shipments?: number;
-      total_cost?: number;
-      avg_cost?: number;
-    };
+    const data = result as { total_cost?: number; total_shipments?: number };
     if (data.total_cost !== undefined) {
       return {
         id,
@@ -483,543 +1005,88 @@ function generateVisualization(toolName: string, toolInput: Record<string, unkno
     }
   }
 
-  if (toolName === 'get_hierarchical_data' && result && typeof result === 'object') {
-    const data = result as { items?: Array<{ name: string; value: number }> };
-    if (data.items && data.items.length > 0) {
-      const metric = toolInput.metric as string;
-      const groupBy = toolInput.group_by as string;
-      return {
-        id,
-        type: 'treemap',
-        title: `${formatMetricName(metric)} by ${formatMetricName(groupBy)}`,
-        subtitle: 'Size represents proportion of total',
-        data: {
-          data: data.items.map(item => ({
-            name: item.name || 'Unknown',
-            value: Math.round(item.value * 100) / 100
-          })),
-          format: determineFormat(metric)
-        },
-        config: { metric, groupBy }
-      };
-    }
-  }
-
-  if (toolName === 'get_daily_activity' && result && typeof result === 'object') {
-    const data = result as { days?: Array<{ date: string; value: number }> };
-    if (data.days && data.days.length > 0) {
-      const metric = toolInput.metric as string;
-      return {
-        id,
-        type: 'heatmap',
-        title: `Daily ${formatMetricName(metric)} Activity`,
-        data: {
-          data: data.days.map(d => ({
-            date: d.date,
-            value: Math.round(d.value * 100) / 100
-          })),
-          valueLabel: formatMetricName(metric)
-        },
-        config: { metric }
-      };
-    }
-  }
-
-  if (toolName === 'get_geographic_data' && result && typeof result === 'object') {
-    const data = result as { states?: Array<{ state: string; value: number }> };
-    if (data.states && data.states.length > 0) {
-      const metric = toolInput.metric as string;
-      const locationType = toolInput.location_type as string;
-      return {
-        id,
-        type: 'choropleth',
-        title: `${formatMetricName(metric)} by ${locationType === 'origin' ? 'Origin' : 'Destination'} State`,
-        subtitle: metric,
-        data: {
-          data: data.states.map(s => ({
-            state: s.state,
-            value: Math.round(s.value * 100) / 100
-          })),
-          format: determineFormat(metric)
-        },
-        config: { metric, locationType }
-      };
-    }
-  }
-
-  if (toolName === 'get_flow_data' && result && typeof result === 'object') {
-    const data = result as { flows?: Array<{ origin: string; destination: string; value: number }> };
-    if (data.flows && data.flows.length > 0) {
-      const metric = toolInput.metric as string;
-      return {
-        id,
-        type: 'flowmap',
-        title: 'Top Shipping Lanes',
-        subtitle: `By ${formatMetricName(metric)}`,
-        data: {
-          data: data.flows.map(f => ({
-            origin: f.origin,
-            destination: f.destination,
-            value: Math.round(f.value * 100) / 100
-          })),
-          format: determineFormat(metric)
-        },
-        config: { metric }
-      };
-    }
-  }
-
-  if (toolName === 'get_multi_metric_comparison' && result && typeof result === 'object') {
-    const data = result as { comparison?: Array<{ label: string; value: number; fullMark?: number }> };
-    if (data.comparison && data.comparison.length > 0) {
-      const groupBy = toolInput.group_by as string;
-      return {
-        id,
-        type: 'radar',
-        title: `${formatMetricName(groupBy)} Performance Comparison`,
-        subtitle: 'Normalized scores across metrics',
-        data: {
-          data: data.comparison.map(c => ({
-            label: c.label,
-            value: Math.round(c.value * 100) / 100,
-            fullMark: c.fullMark || 100
-          }))
-        },
-        config: { groupBy }
-      };
-    }
-  }
-
   return null;
 }
 
-async function executeToolCall(
-  supabase: SupabaseClient,
-  customerId: string,
-  toolName: string,
-  toolInput: Record<string, unknown>
-): Promise<unknown> {
-  switch (toolName) {
-    case 'explore_field': {
-      const fieldName = toolInput.field_name as string;
-      const sampleSize = (toolInput.sample_size as number) || 15;
+// =============================================================================
+// QUESTION CLASSIFICATION
+// =============================================================================
 
-      const { data, error } = await supabase.rpc('explore_single_field', {
-        p_customer_id: parseInt(customerId, 10),
-        p_field_name: fieldName,
-        p_sample_size: sampleSize
-      });
+function classifyQuestion(question: string): { mode: 'quick' | 'deep' | 'visual'; confidence: number; reason: string } {
+  const q = question.toLowerCase();
 
-      if (error) {
-        console.error('explore_field error:', error);
-        return { error: error.message, values: [] };
-      }
-      return data || { values: [], total_count: 0 };
+  const quickPatterns = [
+    /^(how many|what('?s| is) the (total|count|number)|count of)/i,
+    /^(what|who) (is|are) (the )?(top|best|worst|highest|lowest)/i,
+    /simple|quick|fast|just tell me/i
+  ];
+
+  const visualPatterns = [
+    /show me|visualize|chart|graph|plot|display|breakdown/i,
+    /over time|trend|by (month|week|day|year)/i,
+    /compare|vs|versus|distribution/i,
+    /by (carrier|state|mode|mileage|distance|weight)/i,
+    /bands|ranges|buckets|tiers/i
+  ];
+
+  const deepPatterns = [
+    /why|how come|explain|analyze|investigate|dig into/i,
+    /root cause|problem|issue|anomal/i,
+    /understand|figure out|what('?s| is) (happening|going on|wrong)/i
+  ];
+
+  for (const pattern of quickPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'quick', confidence: 0.8, reason: 'Simple factual question' };
+    }
+  }
+
+  for (const pattern of visualPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'visual', confidence: 0.85, reason: 'Visualization requested' };
+    }
+  }
+
+  for (const pattern of deepPatterns) {
+    if (pattern.test(q)) {
+      return { mode: 'deep', confidence: 0.9, reason: 'Analytical investigation needed' };
+    }
+  }
+
+  if (q.length > 100) {
+    return { mode: 'deep', confidence: 0.7, reason: 'Complex question' };
+  }
+
+  return { mode: 'deep', confidence: 0.6, reason: 'Default to thorough analysis' };
+}
+
+// =============================================================================
+// SYSTEM PROMPT LOADER
+// =============================================================================
+
+async function loadSystemPrompt(supabase: SupabaseClient): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('ai_settings')
+      .select('setting_value')
+      .eq('setting_key', 'investigator_system_prompt')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Investigate] Failed to load custom system prompt:', error.message);
+      return DEFAULT_SYSTEM_PROMPT;
     }
 
-    case 'preview_aggregation': {
-      const { data, error } = await supabase.rpc('preview_grouping', {
-        p_customer_id: parseInt(customerId, 10),
-        p_group_by: toolInput.group_by as string,
-        p_metric: toolInput.metric as string,
-        p_aggregation: toolInput.aggregation as string,
-        p_secondary_group_by: toolInput.secondary_group_by as string || null,
-        p_limit: (toolInput.limit as number) || 15
-      });
-
-      if (error) {
-        console.error('preview_aggregation error:', error);
-        return { error: error.message, groups: [] };
-      }
-      return data || { groups: [] };
-    }
-
-    case 'compare_periods': {
-      const periodDays: Record<string, number> = {
-        'last7': 7, 'last30': 30, 'last60': 60, 'last90': 90,
-        'last180': 180, 'lastyear': 365
-      };
-      const days1 = periodDays[(toolInput.period1 as string).toLowerCase()] || 30;
-      const days2 = periodDays[(toolInput.period2 as string).toLowerCase()] || 60;
-
-      const { data: period1Data } = await supabase
-        .from('shipment_report_view')
-        .select(toolInput.metric as string)
-        .eq('customer_id', parseInt(customerId, 10))
-        .gte('created_date', new Date(Date.now() - days1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-
-      const { data: period2Data } = await supabase
-        .from('shipment_report_view')
-        .select(toolInput.metric as string)
-        .eq('customer_id', parseInt(customerId, 10))
-        .gte('created_date', new Date(Date.now() - days2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        .lt('created_date', new Date(Date.now() - days1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-
-      const agg = toolInput.aggregation as string;
-      const calcValue = (data: any[], field: string, agg: string) => {
-        if (!data || data.length === 0) return 0;
-        const values = data.map(r => parseFloat(r[field]) || 0).filter(v => !isNaN(v));
-        if (values.length === 0) return 0;
-        switch (agg) {
-          case 'sum': return values.reduce((a, b) => a + b, 0);
-          case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
-          case 'count': return data.length;
-          case 'countDistinct': return new Set(values).size;
-          default: return values.reduce((a, b) => a + b, 0);
-        }
-      };
-
-      const val1 = calcValue(period1Data || [], toolInput.metric as string, agg);
-      const val2 = calcValue(period2Data || [], toolInput.metric as string, agg);
-      const changePercent = val2 !== 0 ? ((val1 - val2) / val2) * 100 : 0;
-
-      return {
-        period1: { label: toolInput.period1, value: val1, count: period1Data?.length || 0 },
-        period2: { label: toolInput.period2, value: val2, count: period2Data?.length || 0 },
-        change: { absolute: val1 - val2, percent: changePercent }
-      };
-    }
-
-    case 'detect_anomalies': {
-      const metric = toolInput.metric as string;
-      const groupBy = toolInput.group_by as string;
-
-      const { data } = await supabase.rpc('preview_grouping', {
-        p_customer_id: parseInt(customerId, 10),
-        p_group_by: groupBy || 'carrier_name',
-        p_metric: metric,
-        p_aggregation: 'sum',
-        p_secondary_group_by: null,
-        p_limit: 50
-      });
-
-      if (!data || !data.groups || data.groups.length < 3) {
-        return { anomalies: [], message: 'Not enough data for anomaly detection' };
-      }
-
-      const values = data.groups.map((g: any) => g.value);
-      const mean = values.reduce((a: number, b: number) => a + b, 0) / values.length;
-      const stdDev = Math.sqrt(values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / values.length);
-      const threshold = toolInput.sensitivity === 'high' ? 1.5 : toolInput.sensitivity === 'low' ? 3 : 2;
-
-      const anomalies = data.groups
-        .filter((g: any) => Math.abs(g.value - mean) > threshold * stdDev)
-        .map((g: any) => ({
-          group: g.group,
-          value: g.value,
-          deviation: ((g.value - mean) / stdDev).toFixed(2),
-          type: g.value > mean ? 'high' : 'low'
-        }));
-
-      return { anomalies, stats: { mean, stdDev, threshold } };
-    }
-
-    case 'investigate_root_cause': {
-      const dimensions = ['carrier_name', 'origin_state', 'destination_state', 'mode_name'];
-      const results: Record<string, any> = {};
-
-      for (const dim of dimensions.slice(0, (toolInput.max_depth as number) || 3)) {
-        const { data } = await supabase.rpc('preview_grouping', {
-          p_customer_id: parseInt(customerId, 10),
-          p_group_by: dim,
-          p_metric: toolInput.metric as string,
-          p_aggregation: 'sum',
-          p_secondary_group_by: null,
-          p_limit: 10
-        });
-        results[dim] = data?.groups || [];
-      }
-
-      return {
-        question: toolInput.question,
-        metric: toolInput.metric,
-        breakdown_by_dimension: results
-      };
-    }
-
-    case 'get_trend': {
-      const metric = toolInput.metric as string;
-      const period = toolInput.period as string;
-      const range = (toolInput.range as string) || 'last90';
-
-      const rangeDays: Record<string, number> = {
-        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365
-      };
-      const days = rangeDays[range.toLowerCase()] || 90;
-
-      const { data } = await supabase
-        .from('shipment_report_view')
-        .select(`created_date, ${metric}`)
-        .eq('customer_id', parseInt(customerId, 10))
-        .gte('created_date', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        .order('created_date', { ascending: true });
-
-      if (!data || data.length === 0) {
-        return { trend: [], message: 'No data found for the specified period' };
-      }
-
-      const grouped = new Map<string, number[]>();
-      for (const row of data) {
-        const date = new Date(row.created_date);
-        let key: string;
-        if (period === 'daily') key = date.toISOString().split('T')[0];
-        else if (period === 'weekly') {
-          const weekStart = new Date(date);
-          weekStart.setDate(date.getDate() - date.getDay());
-          key = weekStart.toISOString().split('T')[0];
-        } else {
-          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        }
-        if (!grouped.has(key)) grouped.set(key, []);
-        grouped.get(key)!.push(parseFloat(row[metric]) || 0);
-      }
-
-      const agg = toolInput.aggregation as string;
-      const trend = Array.from(grouped.entries()).map(([period, values]) => {
-        let value: number;
-        switch (agg) {
-          case 'sum': value = values.reduce((a, b) => a + b, 0); break;
-          case 'avg': value = values.reduce((a, b) => a + b, 0) / values.length; break;
-          case 'count': value = values.length; break;
-          default: value = values.reduce((a, b) => a + b, 0);
-        }
-        return { period, value, count: values.length };
-      });
-
-      return { trend };
-    }
-
-    case 'get_summary_stats': {
-      const timeRange = (toolInput.time_range as string) || 'last90';
-      const rangeDays: Record<string, number> = {
-        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365, 'all': 9999
-      };
-      const days = rangeDays[timeRange.toLowerCase()] || 90;
-
-      const dateFilter = days < 9999
-        ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        : '1900-01-01';
-
-      const { data: shipments } = await supabase
-        .from('shipment_report_view')
-        .select('cost, retail, miles, carrier_name, created_date')
-        .eq('customer_id', parseInt(customerId, 10))
-        .gte('created_date', dateFilter);
-
-      if (!shipments || shipments.length === 0) {
-        return { message: 'No shipments found', stats: {} };
-      }
-
-      const totalCost = shipments.reduce((sum, s) => sum + (parseFloat(s.cost) || 0), 0);
-      const totalRetail = shipments.reduce((sum, s) => sum + (parseFloat(s.retail) || 0), 0);
-      const totalMiles = shipments.reduce((sum, s) => sum + (parseFloat(s.miles) || 0), 0);
-      const carriers = new Set(shipments.map(s => s.carrier_name).filter(Boolean));
-      const dates = shipments.map(s => s.created_date).filter(Boolean).sort();
-
-      return {
-        total_shipments: shipments.length,
-        total_cost: totalCost,
-        total_retail: totalRetail,
-        total_miles: totalMiles,
-        avg_cost: totalCost / shipments.length,
-        avg_miles: totalMiles / shipments.length,
-        unique_carriers: carriers.size,
-        date_range: {
-          earliest: dates[0],
-          latest: dates[dates.length - 1]
-        }
-      };
-    }
-
-    case 'get_hierarchical_data': {
-      const metric = toolInput.metric as string;
-      const groupBy = toolInput.group_by as string;
-      const aggregation = toolInput.aggregation as string;
-      const limit = (toolInput.limit as number) || 20;
-
-      const { data } = await supabase.rpc('preview_grouping', {
-        p_customer_id: parseInt(customerId, 10),
-        p_group_by: groupBy,
-        p_metric: metric,
-        p_aggregation: aggregation,
-        p_secondary_group_by: null,
-        p_limit: limit
-      });
-
-      if (!data || !data.results) {
-        return { items: [], message: 'No data found' };
-      }
-
-      return {
-        items: data.results.map((g: { name: string; value: number }) => ({
-          name: g.name || 'Unknown',
-          value: g.value
-        }))
-      };
-    }
-
-    case 'get_daily_activity': {
-      const metric = toolInput.metric as string;
-      const aggregation = toolInput.aggregation as string;
-      const range = (toolInput.range as string) || 'last90';
-
-      const rangeDays: Record<string, number> = {
-        'last30': 30, 'last60': 60, 'last90': 90, 'last180': 180, 'lastyear': 365
-      };
-      const days = rangeDays[range.toLowerCase()] || 90;
-
-      const { data } = await supabase
-        .from('shipment_report_view')
-        .select(`created_date, ${metric}`)
-        .eq('customer_id', parseInt(customerId, 10))
-        .gte('created_date', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        .order('created_date', { ascending: true });
-
-      if (!data || data.length === 0) {
-        return { days: [], message: 'No data found' };
-      }
-
-      const grouped = new Map<string, number[]>();
-      for (const row of data) {
-        const dateKey = row.created_date;
-        if (!grouped.has(dateKey)) grouped.set(dateKey, []);
-        grouped.get(dateKey)!.push(parseFloat(row[metric]) || 0);
-      }
-
-      const dailyData = Array.from(grouped.entries()).map(([date, values]) => {
-        let value: number;
-        switch (aggregation) {
-          case 'sum': value = values.reduce((a, b) => a + b, 0); break;
-          case 'avg': value = values.reduce((a, b) => a + b, 0) / values.length; break;
-          case 'count': value = values.length; break;
-          default: value = values.length;
-        }
-        return { date, value };
-      });
-
-      return { days: dailyData };
-    }
-
-    case 'get_geographic_data': {
-      const metric = toolInput.metric as string;
-      const aggregation = toolInput.aggregation as string;
-      const locationType = toolInput.location_type as string;
-      const stateField = locationType === 'origin' ? 'origin_state' : 'destination_state';
-
-      const { data } = await supabase.rpc('preview_grouping', {
-        p_customer_id: parseInt(customerId, 10),
-        p_group_by: stateField,
-        p_metric: metric,
-        p_aggregation: aggregation,
-        p_secondary_group_by: null,
-        p_limit: 60
-      });
-
-      if (!data || !data.results) {
-        return { states: [], message: 'No geographic data found' };
-      }
-
-      return {
-        states: data.results
-          .filter((g: { name: string }) => g.name && g.name.length === 2)
-          .map((g: { name: string; value: number }) => ({
-            state: g.name.toUpperCase(),
-            value: g.value
-          }))
-      };
-    }
-
-    case 'get_flow_data': {
-      const metric = toolInput.metric as string;
-      const aggregation = toolInput.aggregation as string;
-      const limit = (toolInput.limit as number) || 20;
-
-      const { data } = await supabase
-        .from('shipment_report_view')
-        .select(`origin_state, destination_state, ${metric}`)
-        .eq('customer_id', parseInt(customerId, 10))
-        .not('origin_state', 'is', null)
-        .not('destination_state', 'is', null)
-        .limit(5000);
-
-      if (!data || data.length === 0) {
-        return { flows: [], message: 'No flow data found' };
-      }
-
-      const flowMap = new Map<string, number[]>();
-      for (const row of data) {
-        const key = `${row.origin_state}|${row.destination_state}`;
-        if (!flowMap.has(key)) flowMap.set(key, []);
-        flowMap.get(key)!.push(parseFloat(row[metric]) || 0);
-      }
-
-      const flows = Array.from(flowMap.entries())
-        .map(([key, values]) => {
-          const [origin, destination] = key.split('|');
-          let value: number;
-          switch (aggregation) {
-            case 'sum': value = values.reduce((a, b) => a + b, 0); break;
-            case 'avg': value = values.reduce((a, b) => a + b, 0) / values.length; break;
-            case 'count': value = values.length; break;
-            default: value = values.reduce((a, b) => a + b, 0);
-          }
-          return { origin, destination, value };
-        })
-        .sort((a, b) => b.value - a.value)
-        .slice(0, limit);
-
-      return { flows };
-    }
-
-    case 'get_multi_metric_comparison': {
-      const groupBy = toolInput.group_by as string;
-      const metrics = toolInput.metrics as string[];
-      const limit = (toolInput.limit as number) || 5;
-
-      const results: Record<string, Record<string, number>> = {};
-      const metricMaxes: Record<string, number> = {};
-
-      for (const metric of metrics) {
-        const { data } = await supabase.rpc('preview_grouping', {
-          p_customer_id: parseInt(customerId, 10),
-          p_group_by: groupBy,
-          p_metric: metric,
-          p_aggregation: 'sum',
-          p_secondary_group_by: null,
-          p_limit: limit
-        });
-
-        if (data?.results) {
-          const maxValue = Math.max(...data.results.map((g: { value: number }) => g.value));
-          metricMaxes[metric] = maxValue;
-
-          for (const g of data.results) {
-            if (!results[g.name]) results[g.name] = {};
-            results[g.name][metric] = g.value;
-          }
-        }
-      }
-
-      const comparison = metrics.map(metric => {
-        const max = metricMaxes[metric] || 1;
-        const topGroup = Object.entries(results)
-          .filter(([_, vals]) => vals[metric] !== undefined)
-          .sort((a, b) => (b[1][metric] || 0) - (a[1][metric] || 0))[0];
-
-        return {
-          label: formatMetricName(metric),
-          value: topGroup ? Math.round((topGroup[1][metric] / max) * 100) : 0,
-          fullMark: 100
-        };
-      });
-
-      return { comparison };
-    }
-
-    default:
-      return { error: `Unknown tool: ${toolName}` };
+    return data?.setting_value || DEFAULT_SYSTEM_PROMPT;
+  } catch (err) {
+    console.warn('[Investigate] Error loading system prompt:', err);
+    return DEFAULT_SYSTEM_PROMPT;
   }
 }
+
+// =============================================================================
+// MAIN HANDLER
+// =============================================================================
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -1122,7 +1189,7 @@ Deno.serve(async (req: Request) => {
         if (toolUse.type !== "tool_use") continue;
 
         toolCallCount++;
-        console.log(`[Investigate] Tool: ${toolUse.name}`);
+        console.log(`[Investigate] Tool: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
 
         reasoningSteps.push({
           type: 'tool_call',

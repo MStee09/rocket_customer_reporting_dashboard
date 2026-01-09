@@ -72,8 +72,10 @@ export function AISuggestionAssistant() {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
 
-      setTimeout(() => setPhase('searching'), 800);
-      setTimeout(() => setPhase('analyzing'), 1600);
+      const phaseTimer1 = setTimeout(() => setPhase('searching'), 800);
+      const phaseTimer2 = setTimeout(() => setPhase('analyzing'), 1600);
+
+      console.log('[AISuggestionAssistant] Calling widget-builder-ai with prompt:', prompt);
 
       const response = await supabase.functions.invoke('widget-builder-ai', {
         body: {
@@ -84,14 +86,19 @@ export function AISuggestionAssistant() {
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       });
 
+      clearTimeout(phaseTimer1);
+      clearTimeout(phaseTimer2);
+
+      console.log('[AISuggestionAssistant] Response:', response);
+
       if (response.error) {
         throw new Error(response.error.message || 'AI analysis failed');
       }
 
       const result = response.data;
 
-      if (!result.success) {
-        throw new Error(result.error || 'AI returned unsuccessful response');
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'AI returned unsuccessful response');
       }
 
       const steps = buildStepsFromAIResponse(result);
@@ -192,6 +199,8 @@ export function AISuggestionAssistant() {
     error: 'Error',
   };
 
+  const isLoading = phase !== 'idle' && phase !== 'complete' && phase !== 'error';
+
   return (
     <div className="border-b border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50">
       <button
@@ -230,14 +239,14 @@ export function AISuggestionAssistant() {
                   analyzePrompt();
                 }
               }}
-              disabled={phase !== 'idle' && phase !== 'complete' && phase !== 'error'}
+              disabled={isLoading}
             />
             <button
               onClick={analyzePrompt}
-              disabled={!prompt.trim() || (phase !== 'idle' && phase !== 'complete' && phase !== 'error')}
+              disabled={!prompt.trim() || isLoading}
               className="absolute right-2 bottom-2 p-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white rounded-lg transition-colors"
             >
-              {phase !== 'idle' && phase !== 'complete' && phase !== 'error' ? (
+              {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Send className="w-4 h-4" />
@@ -245,7 +254,7 @@ export function AISuggestionAssistant() {
             </button>
           </div>
 
-          {phase !== 'idle' && phase !== 'complete' && phase !== 'error' && (
+          {isLoading && (
             <div className="flex items-center gap-2 text-sm text-amber-700">
               <div className="flex items-center gap-1.5">
                 {phase === 'discovering' && <Database className="w-4 h-4 animate-pulse" />}
@@ -411,11 +420,11 @@ function buildStepsFromAIResponse(result: any): SuggestionStep[] {
 
   steps.push({
     panel: 'visualization',
-    title: `Select ${capitalizeFirst(result.visualizationType)} Chart`,
+    title: `Select ${capitalizeFirst(result.visualizationType || 'bar')} Chart`,
     description: `This visualization type will best show your data`,
     action: {
       type: 'set_visualization',
-      payload: { type: result.visualizationType },
+      payload: { type: result.visualizationType || 'bar' },
     },
   });
 
@@ -423,26 +432,24 @@ function buildStepsFromAIResponse(result: any): SuggestionStep[] {
     steps.push({
       panel: 'fields',
       title: 'Configure Data Fields',
-      description: result.xField
-        ? `Set X-axis to "${result.xField}" and Y-axis to "${result.yField || 'count'}" with ${result.aggregation} aggregation`
-        : 'Map your data fields to chart dimensions',
+      description: `Set X-axis to "${result.xField || 'select field'}" and Y-axis to "${result.yField || 'retail'}" with ${result.aggregation || 'sum'} aggregation`,
       action: {
         type: 'set_field',
         payload: {
           xField: result.xField,
-          yField: result.yField,
-          aggregation: result.aggregation,
+          yField: result.yField || 'retail',
+          aggregation: result.aggregation || 'sum',
         },
       },
     });
   }
 
   if (result.filters && result.filters.length > 0) {
-    const filterDesc = result.filters.map((f: any) => f.value).join(', ');
+    const filterDesc = result.filters.map((f: any) => `${f.field}: ${f.value}`).join(', ');
     steps.push({
       panel: 'logic',
       title: 'Add Data Filter',
-      description: `Filter to include: ${filterDesc}`,
+      description: `Filter: ${filterDesc}`,
       action: {
         type: 'add_filter',
         payload: {
@@ -487,26 +494,49 @@ function buildFallbackSuggestion(prompt: string): AISuggestion {
   if (lower.includes('average') || lower.includes('avg')) aggregation = 'avg';
   else if (lower.includes('count')) aggregation = 'count';
 
+  let xField = '';
+  let yField = 'retail';
+
+  if (lower.includes('carrier')) xField = 'carrier_name';
+  else if (lower.includes('state')) xField = 'origin_state';
+  else if (lower.includes('customer')) xField = 'customer_name';
+  else if (lower.includes('mode')) xField = 'mode_name';
+  else if (lower.includes('month') || lower.includes('date')) xField = 'pickup_date';
+
+  if (lower.includes('cost') || lower.includes('spend') || lower.includes('retail')) yField = 'retail';
+  else if (lower.includes('weight')) yField = 'total_weight';
+  else if (lower.includes('miles')) yField = 'miles';
+  else if (lower.includes('count') || lower.includes('volume')) {
+    yField = '';
+    aggregation = 'count';
+  }
+
   return {
     success: false,
-    summary: `Create a ${visualizationType} chart (fallback - AI unavailable)`,
+    summary: `Create a ${visualizationType} chart${xField ? ` showing ${aggregation} of ${yField || 'shipments'} by ${xField}` : ''} (fallback - AI unavailable)`,
     visualizationType,
+    xField: xField || undefined,
+    yField: yField || undefined,
     aggregation,
-    warning: 'AI analysis failed. This is a basic suggestion that may need manual adjustment.',
+    warning: 'AI analysis failed. This is a basic suggestion based on keywords - you may need to adjust fields manually.',
     steps: [
       {
         panel: 'visualization',
         title: `Select ${capitalizeFirst(visualizationType)} Chart`,
-        description: 'Manually configure your visualization',
+        description: 'Configure your visualization type',
         action: { type: 'set_visualization', payload: { type: visualizationType } },
       },
-      {
-        panel: 'fields',
+      ...(xField ? [{
+        panel: 'fields' as const,
         title: 'Configure Data Fields',
-        description: 'Select your X and Y axis fields manually',
-      },
+        description: `Set X-axis to "${xField}" and Y-axis to "${yField || 'count'}"`,
+        action: {
+          type: 'set_field' as const,
+          payload: { xField, yField: yField || undefined, aggregation },
+        },
+      }] : []),
       {
-        panel: 'preview',
+        panel: 'preview' as const,
         title: 'Preview Results',
         description: 'Verify the data looks correct',
       },

@@ -104,10 +104,13 @@ export function PreviewPanel() {
           const field = (condition.field || '').toLowerCase();
           if (field.includes('description') || field.includes('shipment_item')) {
             if (typeof condition.value === 'string') {
-              const values = condition.value.split('|').map(v => v.trim()).filter(v => v);
+              const values = condition.value
+                .split('|')
+                .map(v => v.trim().replace(/%/g, ''))
+                .filter(v => v.length > 0);
               productFilters.push(...values);
             } else if (Array.isArray(condition.value)) {
-              productFilters.push(...condition.value.filter(v => typeof v === 'string' && v));
+              productFilters.push(...condition.value.map(v => String(v).replace(/%/g, '')).filter(v => v.length > 0));
             }
           }
         }
@@ -120,10 +123,13 @@ export function PreviewPanel() {
             const field = (filter.field || '').toLowerCase();
             if (field.includes('description') || field.includes('shipment_item')) {
               if (typeof filter.value === 'string') {
-                const values = filter.value.split('|').map(v => v.trim()).filter(v => v);
+                const values = filter.value
+                  .split('|')
+                  .map(v => v.trim().replace(/%/g, ''))
+                  .filter(v => v.length > 0);
                 productFilters.push(...values);
               } else if (Array.isArray(filter.value)) {
-                productFilters.push(...filter.value.filter(v => typeof v === 'string' && v));
+                productFilters.push(...filter.value.map(v => String(v).replace(/%/g, '')).filter(v => v.length > 0));
               }
             }
           }

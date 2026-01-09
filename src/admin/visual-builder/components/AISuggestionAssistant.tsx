@@ -1,14 +1,3 @@
-/**
- * AI Suggestion Assistant - Integrated Version
- *
- * LOCATION: /src/admin/visual-builder/components/AISuggestionAssistant.tsx
- *
- * Improvements:
- * - Fixed duplicate product values using Set<string>
- * - Correct field name references
- * - Clear warning about missing database fields
- */
-
 import React, { useState } from 'react';
 import {
   Sparkles,
@@ -22,11 +11,11 @@ import {
   Lightbulb,
   CheckCircle2,
   ArrowRight,
-  Copy,
   Wand2,
   AlertTriangle,
 } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
+import { supabase } from '../../../lib/supabase';
 import type { VisualizationType, FilterCondition } from '../types/BuilderSchema';
 
 interface SuggestionStep {
@@ -49,6 +38,14 @@ interface AISuggestion {
   steps: SuggestionStep[];
   aiPrompt?: string;
   warning?: string;
+  mcpQuery?: any;
+}
+
+interface MCPSearchResult {
+  table: string;
+  field: string;
+  match_count: number;
+  sample_values: string[];
 }
 
 export function AISuggestionAssistant() {
@@ -62,10 +59,281 @@ export function AISuggestionAssistant() {
     if (!prompt.trim()) return;
 
     setIsAnalyzing(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const analysis = parseUserIntent(prompt);
-    setSuggestion(analysis);
+
+    try {
+      const productTerms = extractProductTerms(prompt);
+      let searchResults: MCPSearchResult[] = [];
+
+      if (productTerms.length > 0) {
+        for (const term of productTerms) {
+          const result = await searchWithMCP(term);
+          if (result && result.length > 0) {
+            searchResults = [...searchResults, ...result];
+          }
+        }
+      }
+
+      const analysis = await generateSuggestion(prompt, searchResults, productTerms);
+      setSuggestion(analysis);
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      const fallbackAnalysis = parseUserIntentLocal(prompt);
+      setSuggestion(fallbackAnalysis);
+    }
+
     setIsAnalyzing(false);
+  };
+
+  const searchWithMCP = async (query: string): Promise<MCPSearchResult[]> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-report', {
+        body: {
+          prompt: `Search for "${query}"`,
+          customerId: state.customerId || '',
+          useTools: true,
+          mode: 'investigate',
+          conversationHistory: [],
+        },
+      });
+
+      if (error) throw error;
+
+      const searchTool = data?.toolExecutions?.find(
+        (t: any) => t.toolName === 'search_text'
+      );
+
+      if (searchTool?.result?.results) {
+        return searchTool.result.results;
+      }
+
+      return [];
+    } catch (e) {
+      console.error('MCP search failed:', e);
+      return [];
+    }
+  };
+
+  const extractProductTerms = (text: string): string[] => {
+    const terms: string[] = [];
+    const lower = text.toLowerCase();
+
+    const quotedPattern = /["']([^"']+)["']/g;
+    let match;
+    while ((match = quotedPattern.exec(text)) !== null) {
+      terms.push(match[1].trim());
+    }
+
+    const knownProducts = [
+      'drawer system', 'drawer systems',
+      'cargoglide', 'cargo glide',
+      'toolbox', 'tool box', 'tool boxes',
+    ];
+
+    for (const product of knownProducts) {
+      if (lower.includes(product) && !terms.includes(product)) {
+        terms.push(product);
+      }
+    }
+
+    return terms;
+  };
+
+  const generateSuggestion = async (
+    promptText: string,
+    searchResults: MCPSearchResult[],
+    productTerms: string[]
+  ): Promise<AISuggestion> => {
+    const lower = promptText.toLowerCase();
+
+    let visualizationType: VisualizationType = 'bar';
+    if (lower.includes('line') || lower.includes('trend') || lower.includes('over time')) {
+      visualizationType = 'line';
+    } else if (lower.includes('pie') || lower.includes('distribution')) {
+      visualizationType = 'pie';
+    } else if (lower.includes('map')) {
+      visualizationType = 'choropleth';
+    } else if (lower.includes('table') || lower.includes('list')) {
+      visualizationType = 'table';
+    } else if (lower.includes('kpi') || lower.includes('total')) {
+      visualizationType = 'kpi';
+    }
+
+    let aggregation = 'sum';
+    if (lower.includes('average') || lower.includes('avg')) {
+      aggregation = 'avg';
+    } else if (lower.includes('count') || lower.includes('volume') || lower.includes('how many')) {
+      aggregation = 'count';
+    } else if (lower.includes('max') || lower.includes('highest')) {
+      aggregation = 'max';
+    } else if (lower.includes('min') || lower.includes('lowest')) {
+      aggregation = 'min';
+    }
+
+    let xField = '';
+    let yField = 'retail';
+
+    if (lower.includes('carrier')) {
+      xField = 'carrier_name';
+    } else if (lower.includes('destination state')) {
+      xField = 'destination_state';
+    } else if (lower.includes('state')) {
+      xField = 'origin_state';
+    } else if (lower.includes('mode')) {
+      xField = 'mode_name';
+    } else if (lower.includes('month') || lower.includes('date') || lower.includes('time')) {
+      xField = 'created_date';
+    } else if (productTerms.length > 0) {
+      xField = 'product_category';
+    }
+
+    if (lower.includes('weight')) {
+      yField = 'weight';
+    } else if (lower.includes('miles') || lower.includes('distance')) {
+      yField = 'miles';
+    } else if (lower.includes('count') || lower.includes('volume')) {
+      yField = '';
+      aggregation = 'count';
+    }
+
+    const filters: FilterCondition[] = [];
+    let warning = '';
+    let mcpQuery: any = null;
+
+    if (productTerms.length > 0 && searchResults.length > 0) {
+      const productField = searchResults[0];
+
+      mcpQuery = {
+        base_table: 'shipment',
+        joins: [{ table: productField.table }],
+        filters: productTerms.map(term => ({
+          field: `${productField.table}.${productField.field}`,
+          operator: 'ilike',
+          value: `%${term}%`,
+        })),
+        aggregations: [{
+          field: `shipment.${yField || 'retail'}`,
+          function: aggregation,
+          alias: `${aggregation}_${yField || 'retail'}`,
+        }],
+      };
+
+      filters.push({
+        field: `${productField.table}.${productField.field}`,
+        operator: 'ilike' as any,
+        value: productTerms.join('|'),
+      });
+    } else if (productTerms.length > 0) {
+      warning = `Could not find "${productTerms.join(', ')}" in the database. Try different search terms or check spelling.`;
+    }
+
+    const steps: SuggestionStep[] = [
+      {
+        panel: 'visualization',
+        title: `Select ${visualizationType.charAt(0).toUpperCase() + visualizationType.slice(1)} Chart`,
+        description: `Best visualization for ${aggregation} comparison`,
+        action: {
+          type: 'set_visualization',
+          payload: { type: visualizationType },
+        },
+      },
+      {
+        panel: 'fields',
+        title: 'Configure Data Fields',
+        description: xField
+          ? `X-axis: "${xField}", Y-axis: "${yField || 'count'}" with ${aggregation}`
+          : 'Configure your chart dimensions',
+        action: xField ? {
+          type: 'set_field',
+          payload: { xField, yField: yField || undefined, aggregation },
+        } : undefined,
+      },
+    ];
+
+    if (productTerms.length > 0) {
+      steps.push({
+        panel: 'logic',
+        title: 'Add Product Filter',
+        description: `Filter for: ${productTerms.join(', ')}`,
+        action: {
+          type: 'add_filter',
+          payload: {
+            label: `Product Filter: ${productTerms.join(', ')}`,
+            conditions: filters,
+          },
+        },
+      });
+    }
+
+    steps.push({
+      panel: 'preview',
+      title: 'Preview Results',
+      description: 'Verify data before publishing',
+    });
+
+    return {
+      summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${productTerms.length > 0 ? ` for: ${productTerms.join(', ')}` : ''}.`,
+      visualizationType,
+      xField: xField || undefined,
+      yField: yField || undefined,
+      aggregation,
+      filters: filters.length > 0 ? filters : undefined,
+      steps,
+      warning: warning || undefined,
+      mcpQuery,
+    };
+  };
+
+  const parseUserIntentLocal = (promptText: string): AISuggestion => {
+    const lower = promptText.toLowerCase();
+
+    let visualizationType: VisualizationType = 'bar';
+    if (lower.includes('line') || lower.includes('trend')) {
+      visualizationType = 'line';
+    } else if (lower.includes('pie')) {
+      visualizationType = 'pie';
+    }
+
+    let aggregation = 'sum';
+    if (lower.includes('average') || lower.includes('avg')) {
+      aggregation = 'avg';
+    } else if (lower.includes('count')) {
+      aggregation = 'count';
+    }
+
+    let xField = '';
+    if (lower.includes('carrier')) xField = 'carrier_name';
+    else if (lower.includes('state')) xField = 'origin_state';
+
+    let yField = 'retail';
+    if (lower.includes('weight')) yField = 'total_weight';
+
+    return {
+      summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField} by ${xField || 'category'}.`,
+      visualizationType,
+      xField: xField || undefined,
+      yField,
+      aggregation,
+      steps: [
+        {
+          panel: 'visualization',
+          title: `Select ${visualizationType} Chart`,
+          description: 'Best fit for your request',
+          action: { type: 'set_visualization', payload: { type: visualizationType } },
+        },
+        {
+          panel: 'fields',
+          title: 'Configure Fields',
+          description: `Set up ${xField} and ${yField}`,
+          action: xField ? { type: 'set_field', payload: { xField, yField, aggregation } } : undefined,
+        },
+        {
+          panel: 'preview',
+          title: 'Preview',
+          description: 'Check your results',
+        },
+      ],
+      warning: 'Using simplified analysis. For product filtering, ensure MCP is available.',
+    };
   };
 
   const applyStep = (step: SuggestionStep) => {
@@ -123,16 +391,7 @@ export function AISuggestionAssistant() {
         conditions: suggestion.filters,
         enabled: true,
         label: 'AI Suggested Filter',
-      });
-    }
-
-    if (suggestion.aiPrompt) {
-      addLogicBlock({
-        id: crypto.randomUUID(),
-        type: 'ai',
-        prompt: suggestion.aiPrompt,
-        status: 'pending',
-        enabled: true,
+        mcpQuery: suggestion.mcpQuery,
       });
     }
 
@@ -165,7 +424,7 @@ export function AISuggestionAssistant() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Example: Show me average shipping cost by carrier, or shipment count by state"
+              placeholder="Example: Show me average cost for drawer system, cargoglide, and toolbox"
               rows={3}
               className="w-full px-3 py-2 pr-12 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none bg-white"
             />
@@ -187,9 +446,9 @@ export function AISuggestionAssistant() {
               <span className="text-xs text-slate-500">Try:</span>
               {[
                 'Average cost by carrier',
+                'Cost breakdown for drawer system and cargoglide',
                 'Shipment volume by state',
-                'Cost trend over time',
-                'Top lanes by spend',
+                'Top carriers for toolbox shipments',
               ].map((example) => (
                 <button
                   key={example}
@@ -253,23 +512,6 @@ export function AISuggestionAssistant() {
                   </div>
                 ))}
               </div>
-
-              {suggestion.aiPrompt && (
-                <div className="p-3 bg-amber-50 border-t border-amber-100">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-amber-700">Suggested AI Logic Prompt:</span>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(suggestion.aiPrompt!)}
-                      className="text-amber-600 hover:text-amber-700"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-amber-800 font-mono bg-white p-2 rounded border border-amber-200">
-                    {suggestion.aiPrompt}
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -287,165 +529,6 @@ function StepIcon({ panel }: { panel: string }) {
     publish: <Sparkles className="w-3 h-3 text-amber-500" />,
   };
   return icons[panel] || null;
-}
-
-/**
- * Parse user intent and generate suggestions
- *
- * IMPORTANT: This uses local parsing. In production, you'd call your AI service.
- */
-function parseUserIntent(prompt: string): AISuggestion {
-  const lower = prompt.toLowerCase();
-
-  let visualizationType: VisualizationType = 'bar';
-  if (lower.includes('line') || lower.includes('trend') || lower.includes('over time')) {
-    visualizationType = 'line';
-  } else if (lower.includes('pie') || lower.includes('distribution') || lower.includes('breakdown')) {
-    visualizationType = 'pie';
-  } else if (lower.includes('map') || lower.includes('geographic')) {
-    visualizationType = 'choropleth';
-  } else if (lower.includes('table') || lower.includes('list')) {
-    visualizationType = 'table';
-  } else if (lower.includes('kpi') || lower.includes('metric') || lower.includes('total')) {
-    visualizationType = 'kpi';
-  }
-
-  let aggregation = 'sum';
-  if (lower.includes('average') || lower.includes('avg') || lower.includes('mean')) {
-    aggregation = 'avg';
-  } else if (lower.includes('count') || lower.includes('number of') || lower.includes('how many') || lower.includes('volume')) {
-    aggregation = 'count';
-  } else if (lower.includes('maximum') || lower.includes('max') || lower.includes('highest')) {
-    aggregation = 'max';
-  } else if (lower.includes('minimum') || lower.includes('min') || lower.includes('lowest')) {
-    aggregation = 'min';
-  }
-
-  let xField = '';
-  let yField = '';
-  let warning = '';
-
-  if (lower.includes('carrier')) {
-    xField = 'carrier_name';
-  } else if (lower.includes('state') && !lower.includes('destination')) {
-    xField = 'origin_state';
-  } else if (lower.includes('destination state')) {
-    xField = 'destination_state';
-  } else if (lower.includes('customer')) {
-    xField = 'customer_name';
-  } else if (lower.includes('mode')) {
-    xField = 'mode_name';
-  } else if (lower.includes('status')) {
-    xField = 'status_name';
-  } else if (lower.includes('month') || lower.includes('date') || lower.includes('time') || lower.includes('trend')) {
-    xField = 'created_date';
-  } else if (lower.includes('lane')) {
-    xField = 'origin_state';
-  } else if (lower.includes('product') || lower.includes('description') || lower.includes('item')) {
-    xField = 'reference_number';
-    warning = 'Product descriptions are not available in the current data view. Using reference_number instead. To enable product filtering, ask your admin to add item_descriptions to the shipment_report_view.';
-  }
-
-  if (lower.includes('cost') || lower.includes('spend') || lower.includes('price') || lower.includes('retail')) {
-    yField = 'retail';
-  } else if (lower.includes('weight')) {
-    yField = 'total_weight';
-  } else if (lower.includes('miles') || lower.includes('distance')) {
-    yField = 'miles';
-  } else if (lower.includes('volume') || lower.includes('shipment') || lower.includes('count')) {
-    yField = '';
-    aggregation = 'count';
-  }
-
-  const productMatches = new Set<string>();
-
-  const quotedPattern = /["']([^"']+)["']/g;
-  let match;
-  while ((match = quotedPattern.exec(prompt)) !== null) {
-    productMatches.add(match[1].toLowerCase().trim());
-  }
-
-  const knownProducts = ['drawer system', 'cargoglide', 'cargo glide', 'toolbox', 'tool box'];
-  for (const product of knownProducts) {
-    if (lower.includes(product)) {
-      const normalized = product
-        .replace('cargo glide', 'cargoglide')
-        .replace('tool box', 'toolbox');
-      productMatches.add(normalized);
-    }
-  }
-
-  const uniqueProducts = Array.from(productMatches);
-
-  const filters: FilterCondition[] = [];
-  let aiPrompt = '';
-
-  if (uniqueProducts.length > 0) {
-    aiPrompt = `Filter shipments where description contains any of: ${uniqueProducts.map(p => `"${p}"`).join(', ')}`;
-
-    filters.push({
-      field: 'item_descriptions',
-      operator: 'contains_any' as any,
-      value: uniqueProducts,
-    });
-
-    if (!warning) {
-      warning = 'Product filtering requires the item_descriptions field. If this field is not available, the filter will not work. Ask your admin to run the database migration.';
-    }
-  }
-
-  const steps: SuggestionStep[] = [
-    {
-      panel: 'visualization',
-      title: `Select ${visualizationType.charAt(0).toUpperCase() + visualizationType.slice(1)} Chart`,
-      description: `This visualization type will best show your ${aggregation} comparison`,
-      action: {
-        type: 'set_visualization',
-        payload: { type: visualizationType },
-      },
-    },
-    {
-      panel: 'fields',
-      title: 'Configure Data Fields',
-      description: xField
-        ? `Set X-axis to "${xField}" and Y-axis to "${yField || 'count'}" with ${aggregation} aggregation`
-        : 'Map your data fields to chart dimensions',
-      action: xField ? {
-        type: 'set_field',
-        payload: { xField, yField: yField || undefined, aggregation },
-      } : undefined,
-    },
-  ];
-
-  if (uniqueProducts.length > 0) {
-    steps.push({
-      panel: 'logic',
-      title: 'Add Product Filter',
-      description: `Filter to include: ${uniqueProducts.join(', ')}`,
-      action: {
-        type: 'add_ai_block',
-        payload: { prompt: aiPrompt },
-      },
-    });
-  }
-
-  steps.push({
-    panel: 'preview',
-    title: 'Preview Results',
-    description: 'Verify the data looks correct before publishing',
-  });
-
-  return {
-    summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${uniqueProducts.length > 0 ? ` for products: ${uniqueProducts.join(', ')}` : ''}.`,
-    visualizationType,
-    xField: xField || undefined,
-    yField: yField || undefined,
-    aggregation,
-    filters: filters.length > 0 ? filters : undefined,
-    steps,
-    aiPrompt: aiPrompt || undefined,
-    warning: warning || undefined,
-  };
 }
 
 export default AISuggestionAssistant;

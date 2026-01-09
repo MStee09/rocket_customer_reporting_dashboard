@@ -1,13 +1,3 @@
-/**
- * Preview Panel - FIXED VERSION
- *
- * LOCATION: /src/admin/visual-builder/components/panels/PreviewPanel.tsx
- *
- * FIXES:
- * 1. Renamed Map icon import to MapIcon to avoid shadowing native Map constructor
- * 2. Removed date range filtering - preview shows sample data
- */
-
 import React, { useState, useEffect } from 'react';
 import {
   RefreshCw,
@@ -52,10 +42,114 @@ export function PreviewPanel() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [rowCount, setRowCount] = useState<number | null>(null);
+  const [usingMCP, setUsingMCP] = useState(false);
 
-  const fetchPreviewData = async () => {
+  const needsMCPQuery = (): boolean => {
+    if (!state.logicBlocks) return false;
+
+    for (const block of state.logicBlocks) {
+      if ((block as any).mcpQuery) return true;
+
+      if (block.type === 'filter' && block.conditions) {
+        for (const condition of block.conditions) {
+          const field = condition.field?.toLowerCase() || '';
+          if (
+            field.includes('shipment_item.') ||
+            field.includes('description') ||
+            field.includes('item_') ||
+            field.includes('carrier.') ||
+            field.includes('accessorial')
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  };
+
+  const fetchPreviewDataWithMCP = async () => {
     setLoading(true);
     setError(null);
+    setUsingMCP(true);
+
+    try {
+      let productFilters: string[] = [];
+
+      for (const block of state.logicBlocks || []) {
+        if (block.type === 'filter' && block.conditions) {
+          for (const condition of block.conditions) {
+            if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
+              if (typeof condition.value === 'string') {
+                productFilters.push(condition.value);
+              } else if (Array.isArray(condition.value)) {
+                productFilters.push(...condition.value);
+              }
+            }
+          }
+        }
+      }
+
+      const filters = productFilters.map(term => ({
+        field: 'shipment_item.description',
+        operator: 'ilike',
+        value: `%${term}%`,
+      }));
+
+      const { data: response, error: funcError } = await supabase.functions.invoke('generate-report', {
+        body: {
+          prompt: 'Execute MCP query for widget preview',
+          customerId: state.customerId || '',
+          useTools: true,
+          mode: 'investigate',
+          directQuery: {
+            base_table: 'shipment',
+            joins: [{ table: 'shipment_item' }],
+            select: [
+              'shipment.load_id',
+              'shipment.retail',
+              'shipment_item.description',
+              'shipment_item.weight',
+            ],
+            filters,
+            limit: 500,
+          },
+        },
+      });
+
+      if (funcError) throw funcError;
+
+      let rawData: any[] = [];
+
+      if (response?.toolExecutions) {
+        const queryResult = response.toolExecutions.find(
+          (t: any) => t.toolName === 'query_with_join' || t.toolName === 'query_table'
+        );
+        if (queryResult?.result?.data) {
+          rawData = queryResult.result.data;
+        }
+      } else if (response?.data) {
+        rawData = response.data;
+      }
+
+      setRowCount(rawData.length);
+
+      const processedData = processDataForVisualization(rawData, state.visualization);
+      setData(processedData);
+
+    } catch (err) {
+      console.error('MCP query failed:', err);
+      setError(err instanceof Error ? err.message : 'MCP query failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPreviewDataDirect = async () => {
+    setLoading(true);
+    setError(null);
+    setUsingMCP(false);
 
     try {
       let query = supabase
@@ -70,38 +164,45 @@ export function PreviewPanel() {
               const { field, operator, value } = condition;
               if (!field || value === undefined || value === '') continue;
 
+              if (field.includes('.') && !field.startsWith('shipment_report_view')) {
+                continue;
+              }
+
+              const cleanField = field.replace('shipment_report_view.', '');
+
               switch (operator) {
                 case 'eq':
-                  query = query.eq(field, value);
+                  query = query.eq(cleanField, value);
                   break;
                 case 'neq':
-                  query = query.neq(field, value);
+                  query = query.neq(cleanField, value);
                   break;
                 case 'gt':
-                  query = query.gt(field, value);
+                  query = query.gt(cleanField, value);
                   break;
                 case 'gte':
-                  query = query.gte(field, value);
+                  query = query.gte(cleanField, value);
                   break;
                 case 'lt':
-                  query = query.lt(field, value);
+                  query = query.lt(cleanField, value);
                   break;
                 case 'lte':
-                  query = query.lte(field, value);
+                  query = query.lte(cleanField, value);
                   break;
                 case 'contains':
-                  query = query.ilike(field, `%${value}%`);
+                case 'ilike':
+                  query = query.ilike(cleanField, `%${value}%`);
                   break;
                 case 'in':
                   if (Array.isArray(value)) {
-                    query = query.in(field, value);
+                    query = query.in(cleanField, value);
                   }
                   break;
                 case 'is_null':
-                  query = query.is(field, null);
+                  query = query.is(cleanField, null);
                   break;
                 case 'is_not_null':
-                  query = query.not(field, 'is', null);
+                  query = query.not(cleanField, 'is', null);
                   break;
               }
             }
@@ -125,6 +226,14 @@ export function PreviewPanel() {
       setError(err instanceof Error ? err.message : 'Failed to fetch preview data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPreviewData = async () => {
+    if (needsMCPQuery()) {
+      await fetchPreviewDataWithMCP();
+    } else {
+      await fetchPreviewDataDirect();
     }
   };
 
@@ -155,6 +264,11 @@ export function PreviewPanel() {
             <p className="text-xs text-slate-500 flex items-center gap-1">
               <Database className="w-3 h-3" />
               {rowCount.toLocaleString()} rows (sample)
+              {usingMCP && (
+                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px]">
+                  MCP
+                </span>
+              )}
             </p>
           )}
         </div>
@@ -184,7 +298,12 @@ export function PreviewPanel() {
       <div className={`bg-slate-50 rounded-lg ${isFullscreen ? 'h-[calc(100vh-120px)]' : 'h-80'}`}>
         {loading ? (
           <div className="h-full flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
+              {usingMCP && (
+                <p className="text-xs text-slate-500 mt-2">Querying with MCP...</p>
+              )}
+            </div>
           </div>
         ) : error ? (
           <div className="h-full flex items-center justify-center">
@@ -201,14 +320,14 @@ export function PreviewPanel() {
           </div>
         ) : data.length === 0 ? (
           <div className="h-full flex items-center justify-center">
-            <div className="text-center">
-              <Database className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">No data matches your filters</p>
-              <p className="text-xs text-slate-400 mt-1">Try adjusting your filter criteria</p>
+            <div className="text-center text-slate-400">
+              <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No data matches your filters</p>
+              <p className="text-xs mt-1">Try adjusting your filter criteria</p>
             </div>
           </div>
         ) : (
-          <ChartRenderer
+          <VisualizationRenderer
             type={state.visualization.type}
             data={data}
             config={state.visualization}
@@ -216,76 +335,37 @@ export function PreviewPanel() {
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1">
-          <VisualizationIcon type={state.visualization.type} />
-          {state.visualization.type}
-        </span>
-        {state.visualization.xField && (
-          <span>X: {state.visualization.xField}</span>
-        )}
-        {state.visualization.yField && (
-          <span>Y: {state.visualization.yField}</span>
-        )}
-        {state.visualization.aggregation && (
-          <span>Agg: {state.visualization.aggregation}</span>
-        )}
+      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-3 h-3" />
+          <span>{state.visualization.type}</span>
+          {state.visualization.aggregation && (
+            <span className="px-1.5 py-0.5 bg-slate-100 rounded">
+              Agg: {state.visualization.aggregation}
+            </span>
+          )}
+        </div>
+        <span>Preview shows sample data. Published widget will use Analytics Hub date range.</span>
       </div>
-
-      <p className="mt-2 text-xs text-slate-400 italic">
-        Preview shows sample data. Published widget will use Analytics Hub date range.
-      </p>
     </div>
   );
 }
 
-function VisualizationIcon({ type }: { type: string }) {
-  const icons: Record<string, React.ElementType> = {
-    bar: BarChart3,
-    line: LineChart,
-    pie: PieChart,
-    area: LineChart,
-    scatter: BarChart3,
-    table: Table2,
-    choropleth: MapIcon,
-    flow: MapIcon,
-    kpi: TrendingUp,
-    histogram: BarChart3,
-    treemap: BarChart3,
-    funnel: BarChart3,
-    sparkline: LineChart,
-    heatmap: BarChart3,
-  };
-  const Icon = icons[type] || BarChart3;
-  return <Icon className="w-3 h-3" />;
-}
+const COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#14b8a6', '#f59e0b', '#6366f1'];
 
-interface ChartRendererProps {
-  type: string;
-  data: any[];
-  config: any;
-}
-
-function ChartRenderer({ type, data, config }: ChartRendererProps) {
-  const colors = config.colors || ['#f97316', '#3b82f6', '#22c55e', '#eab308', '#8b5cf6'];
+function VisualizationRenderer({ type, data, config }: { type: string; data: any[]; config: any }) {
+  const colors = config.colors || COLORS;
 
   switch (type) {
     case 'bar':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, left: 80, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-            <Tooltip />
-            {config.showLegend !== false && <Legend />}
-            <Bar dataKey="value" fill={colors[0]} radius={[4, 4, 0, 0]}>
+            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />
+            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={70} />
+            <Tooltip formatter={(value: number) => value.toLocaleString()} />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
@@ -297,25 +377,12 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
     case 'line':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsLineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <RechartsLineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
             <Tooltip />
-            {config.showLegend !== false && <Legend />}
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={colors[0]}
-              strokeWidth={2}
-              dot={{ fill: colors[0], strokeWidth: 2 }}
-            />
+            <Line type="monotone" dataKey="value" stroke={colors[0]} strokeWidth={2} dot={{ r: 4 }} />
           </RechartsLineChart>
         </ResponsiveContainer>
       );
@@ -323,26 +390,12 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
     case 'area':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: '#64748b' }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
             <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
             <Tooltip />
-            {config.showLegend !== false && <Legend />}
-            <Area
-              type="monotone"
-              dataKey="value"
-              fill={colors[0]}
-              fillOpacity={0.3}
-              stroke={colors[0]}
-              strokeWidth={2}
-            />
+            <Area type="monotone" dataKey="value" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} />
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -350,7 +403,7 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
     case 'pie':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsPieChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <RechartsPieChart>
             <Pie
               data={data}
               dataKey="value"
@@ -358,17 +411,23 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
               cx="50%"
               cy="50%"
               outerRadius={100}
-              label={config.showLabels !== false}
+              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              labelLine={false}
             >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
             <Tooltip />
-            {config.showLegend !== false && <Legend />}
           </RechartsPieChart>
         </ResponsiveContainer>
       );
+
+    case 'kpi':
+      return <KPIPreview data={data} config={config} />;
+
+    case 'table':
+      return <TablePreview data={data} />;
 
     case 'scatter':
       return (
@@ -383,26 +442,11 @@ function ChartRenderer({ type, data, config }: ChartRendererProps) {
         </ResponsiveContainer>
       );
 
-    case 'kpi':
-      return <KPIPreview data={data} config={config} />;
-
-    case 'table':
-      return <TablePreview data={data} />;
-
     case 'choropleth':
       return <ChoroplethPreview data={data} config={config} />;
 
     case 'flow':
       return <FlowMapPreview data={data} />;
-
-    case 'histogram':
-      return <HistogramPreview data={data} config={config} colors={colors} />;
-
-    case 'treemap':
-      return <TreemapPreview data={data} colors={colors} />;
-
-    case 'funnel':
-      return <FunnelPreview data={data} colors={colors} />;
 
     default:
       return (
@@ -488,7 +532,7 @@ function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
         <MapIcon className="w-16 h-16 text-slate-300 mx-auto mb-3" />
         <p className="text-sm text-slate-600">Choropleth Map Preview</p>
         <p className="text-xs text-slate-400 mt-1">
-          {config.geo?.mapKey || 'us_states'} • {data.length} regions
+          {config.geo?.mapKey || 'us_states'} - {data.length} regions
         </p>
         <div className="mt-3 flex flex-wrap justify-center gap-1">
           {data.slice(0, 5).map((d, i) => (
@@ -510,7 +554,7 @@ function FlowMapPreview({ data }: { data: any[] }) {
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
             <MapIcon className="w-6 h-6 text-blue-500" />
           </div>
-          <div className="text-2xl text-slate-300">→</div>
+          <div className="text-2xl text-slate-300">-&gt;</div>
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
             <MapIcon className="w-6 h-6 text-orange-500" />
           </div>
@@ -520,66 +564,6 @@ function FlowMapPreview({ data }: { data: any[] }) {
           {data.length} origin-destination pairs
         </p>
       </div>
-    </div>
-  );
-}
-
-function HistogramPreview({ data, config, colors }: { data: any[]; config: any; colors: string[] }) {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-        <XAxis dataKey="bin" tick={{ fontSize: 11, fill: '#64748b' }} />
-        <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-        <Tooltip />
-        <Bar dataKey="count" fill={colors[0]} radius={[2, 2, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function TreemapPreview({ data, colors }: { data: any[]; colors: string[] }) {
-  return (
-    <div className="h-full p-4">
-      <div className="h-full grid grid-cols-4 gap-1">
-        {data.slice(0, 12).map((d, i) => (
-          <div
-            key={i}
-            className="rounded flex items-center justify-center text-white text-xs font-medium"
-            style={{
-              backgroundColor: colors[i % colors.length],
-              gridColumn: i < 2 ? 'span 2' : 'span 1',
-              gridRow: i < 2 ? 'span 2' : 'span 1',
-            }}
-          >
-            {d.name}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FunnelPreview({ data, colors }: { data: any[]; colors: string[] }) {
-  const maxValue = Math.max(...data.map(d => d.value || 0), 1);
-
-  return (
-    <div className="h-full flex flex-col items-center justify-center p-4 gap-1">
-      {data.slice(0, 5).map((d, i) => {
-        const width = 60 + (40 * ((d.value || 0) / maxValue));
-        return (
-          <div
-            key={i}
-            className="h-10 rounded flex items-center justify-center text-white text-sm font-medium transition-all"
-            style={{
-              width: `${width}%`,
-              backgroundColor: colors[i % colors.length],
-            }}
-          >
-            {d.name}: {(d.value || 0).toLocaleString()}
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -631,14 +615,12 @@ function processDataForVisualization(rawData: any[], config: any): any[] {
       .slice(0, 20);
   }
 
-  if (type === 'histogram' && xField) {
-    const values = rawData.map(r => Number(r[xField])).filter(v => !isNaN(v));
-    const binCount = config.histogram?.binCount || 10;
-    return createHistogramBins(values, binCount);
-  }
-
   if (xField) {
     return groupAndAggregate(rawData, xField, yField, aggregation);
+  }
+
+  if (rawData[0]?.description) {
+    return groupAndAggregate(rawData, 'description', yField || 'retail', aggregation);
   }
 
   return [];
@@ -653,7 +635,13 @@ function groupAndAggregate(
   const groups: Record<string, number[]> = {};
 
   for (const row of data) {
-    const key = String(row[groupField] || 'Unknown');
+    let key = String(row[groupField] || 'Unknown');
+
+    if (groupField === 'description' && key.length > 30) {
+      const match = key.match(/^([^\/\-\d]+)/);
+      key = match ? match[1].trim() : key.substring(0, 25);
+    }
+
     const value = valueField ? Number(row[valueField]) || 0 : 1;
 
     if (!groups[key]) {
@@ -696,28 +684,6 @@ function aggregateArray(values: number[], aggregation: string): number {
     default:
       return values.reduce((a, b) => a + b, 0);
   }
-}
-
-function createHistogramBins(values: number[], binCount: number): { bin: string; count: number }[] {
-  if (values.length === 0) return [];
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (min === max) return [{ bin: String(min), count: values.length }];
-
-  const binWidth = (max - min) / binCount;
-
-  const bins = Array(binCount).fill(0).map((_, i) => ({
-    bin: `${(min + i * binWidth).toFixed(0)}-${(min + (i + 1) * binWidth).toFixed(0)}`,
-    count: 0,
-  }));
-
-  for (const value of values) {
-    const binIndex = Math.min(Math.floor((value - min) / binWidth), binCount - 1);
-    bins[binIndex].count++;
-  }
-
-  return bins;
 }
 
 export default PreviewPanel;

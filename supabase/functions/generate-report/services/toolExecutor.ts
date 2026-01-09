@@ -35,152 +35,233 @@ interface ReportSection {
   data?: unknown;
 }
 
+interface ToolResult {
+  success: boolean;
+  error?: string;
+  [key: string]: unknown;
+}
+
 export class ToolExecutor {
   private supabase: SupabaseClient;
   private customerId: string;
   private isAdmin: boolean;
-  private availableFields: string[];
   private currentReport: ReportDraft | null = null;
 
-  constructor(
-    supabase: SupabaseClient,
-    customerId: string,
-    isAdmin: boolean,
-    availableFields: string[]
-  ) {
+  constructor(supabase: SupabaseClient, customerId: string, isAdmin: boolean) {
     this.supabase = supabase;
     this.customerId = customerId;
     this.isAdmin = isAdmin;
-    this.availableFields = availableFields;
   }
 
   getCurrentReport(): Record<string, unknown> | null {
     return this.currentReport as Record<string, unknown> | null;
   }
 
+  private requireString(input: Record<string, unknown>, key: string): string {
+    const value = input[key];
+    if (typeof value !== 'string' || value.trim() === '') throw new Error(`${key} is required`);
+    return value.trim();
+  }
+
+  private optionalString(input: Record<string, unknown>, key: string, defaultValue?: string): string | undefined {
+    const value = input[key];
+    if (value === undefined || value === null) return defaultValue;
+    if (typeof value !== 'string') throw new Error(`${key} must be a string`);
+    return value;
+  }
+
+  private optionalNumber(input: Record<string, unknown>, key: string, defaultValue: number): number {
+    const value = input[key];
+    if (value === undefined || value === null) return defaultValue;
+    if (typeof value !== 'number') throw new Error(`${key} must be a number`);
+    return value;
+  }
+
+  private optionalBoolean(input: Record<string, unknown>, key: string, defaultValue: boolean): boolean {
+    const value = input[key];
+    if (value === undefined || value === null) return defaultValue;
+    if (typeof value !== 'boolean') throw new Error(`${key} must be a boolean`);
+    return value;
+  }
+
+  private optionalArray<T>(input: Record<string, unknown>, key: string, defaultValue: T[] | null = null): T[] | null {
+    const value = input[key];
+    if (value === undefined || value === null) return defaultValue;
+    if (!Array.isArray(value)) throw new Error(`${key} must be an array`);
+    return value as T[];
+  }
+
   async execute(toolName: string, input: Record<string, unknown>): Promise<ToolExecution> {
     const startTime = Date.now();
-    let result: unknown;
+    let result: ToolResult;
 
     try {
       switch (toolName) {
-        // === EXPLORATION TOOLS ===
-        case 'explore_field':
-          result = await this.exploreField(input);
-          break;
+        case 'discover_tables': result = await this.discoverTables(input); break;
+        case 'discover_fields': result = await this.discoverFields(input); break;
+        case 'discover_joins': result = await this.discoverJoins(input); break;
+        case 'query_table': result = await this.queryTable(input); break;
+        case 'search_text': result = await this.searchText(input); break;
+        case 'query_with_join': result = await this.queryWithJoin(input); break;
+        case 'aggregate': result = await this.aggregate(input); break;
+        case 'explore_field': result = await this.exploreField(input); break;
         case 'preview_aggregation':
-        case 'preview_grouping':
-          result = await this.previewAggregation(input);
-          break;
-        case 'compare_periods':
-          result = await this.comparePeriods(input);
-          break;
-        case 'detect_anomalies':
-          result = await this.detectAnomalies(input);
-          break;
-        case 'investigate_cause':
-          result = await this.investigateCause(input);
-          break;
-
-        // === REPORT BUILDING TOOLS ===
-        case 'create_report_draft':
-          result = this.createReportDraft(input);
-          break;
-        case 'add_section':
-          result = await this.addSection(input);
-          break;
-        case 'modify_section':
-          result = this.modifySection(input);
-          break;
-        case 'remove_section':
-          result = this.removeSection(input);
-          break;
-        case 'reorder_sections':
-          result = this.reorderSections(input);
-          break;
-        case 'preview_report':
-          result = await this.previewReport(input);
-          break;
-        case 'finalize_report':
-          result = this.finalizeReport(input);
-          break;
-
-        // === LEARNING TOOLS ===
+        case 'preview_grouping': result = await this.previewAggregation(input); break;
+        case 'compare_periods': result = await this.comparePeriods(input); break;
+        case 'detect_anomalies': result = await this.detectAnomalies(input); break;
+        case 'investigate_cause': result = await this.investigateCause(input); break;
+        case 'create_report_draft': result = this.createReportDraft(input); break;
+        case 'add_section': result = await this.addSection(input); break;
+        case 'modify_section': result = this.modifySection(input); break;
+        case 'remove_section': result = this.removeSection(input); break;
+        case 'reorder_sections': result = this.reorderSections(input); break;
+        case 'preview_report': result = await this.previewReport(input); break;
+        case 'finalize_report': result = this.finalizeReport(input); break;
         case 'learn_terminology':
-        case 'emit_learning':
-          result = await this.learnTerminology(input);
-          break;
-        case 'learn_preference':
-          result = await this.learnPreference(input);
-          break;
-        case 'record_correction':
-          result = await this.recordCorrection(input);
-          break;
-        case 'get_customer_memory':
-          result = await this.getCustomerMemory(input);
-          break;
-
-        // === INSIGHT TOOLS ===
-        case 'generate_insight':
-          result = await this.generateInsight(input);
-          break;
-        case 'generate_recommendation':
-          result = await this.generateRecommendation(input);
-          break;
-        case 'generate_section_insight':
-          result = await this.generateSectionInsightWithHaiku(input);
-          break;
-
-        // === CLARIFICATION TOOLS ===
-        case 'ask_clarification':
-          result = {
-            question: input.question,
-            options: input.options,
-            context: input.context,
-            default_if_no_response: input.default_if_no_response
-          };
-          break;
-        case 'confirm_understanding':
-          result = {
-            interpretation: input.interpretation,
-            planned_actions: input.planned_actions,
-            assumptions: input.assumptions,
-            awaiting_confirmation: true
-          };
-          break;
-
-        default:
-          result = { error: `Unknown tool: ${toolName}` };
+        case 'emit_learning': result = await this.learnTerminology(input); break;
+        case 'learn_preference': result = await this.learnPreference(input); break;
+        case 'record_correction': result = await this.recordCorrection(input); break;
+        case 'get_customer_memory': result = await this.getCustomerMemory(input); break;
+        case 'generate_insight': result = await this.generateInsight(input); break;
+        case 'generate_recommendation': result = await this.generateRecommendation(input); break;
+        case 'generate_section_insight': result = await this.generateSectionInsightWithHaiku(input); break;
+        case 'ask_clarification': result = { success: true, question: input.question, options: input.options, context: input.context }; break;
+        case 'confirm_understanding': result = { success: true, interpretation: input.interpretation, planned_actions: input.planned_actions, assumptions: input.assumptions, awaiting_confirmation: true }; break;
+        default: result = { success: false, error: `Unknown tool: ${toolName}` };
       }
     } catch (e) {
-      result = { error: e instanceof Error ? e.message : 'Tool execution failed' };
+      result = { success: false, error: e instanceof Error ? e.message : 'Tool execution failed' };
     }
 
-    return {
-      toolName,
-      toolInput: input,
-      result,
-      timestamp: new Date().toISOString(),
-      duration: Date.now() - startTime
-    };
+    return { toolName, toolInput: input, result, timestamp: new Date().toISOString(), duration: Date.now() - startTime };
   }
 
-  // ==========================================
-  // EXPLORATION TOOLS
-  // ==========================================
+  private async discoverTables(input: Record<string, unknown>): Promise<ToolResult> {
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_get_tables', {
+        p_category: this.optionalString(input, 'category') || null,
+        p_include_row_counts: this.optionalBoolean(input, 'include_row_counts', false)
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true, tables: data || [], count: data?.length || 0, hint: "Use discover_fields(table_name) to see fields" };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
 
-  private async exploreField(input: Record<string, unknown>): Promise<unknown> {
-    const fieldName = input.field_name as string;
-    const sampleSize = (input.sample_size as number) || 15;
-    const includeNulls = input.include_nulls !== false;
-
-    if (!this.availableFields.includes(fieldName)) {
+  private async discoverFields(input: Record<string, unknown>): Promise<ToolResult> {
+    const tableName = this.requireString(input, 'table_name');
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_get_fields', {
+        p_table_name: tableName,
+        p_include_samples: this.optionalBoolean(input, 'include_samples', true),
+        p_admin_mode: this.isAdmin
+      });
+      if (error) return { success: false, error: error.message };
+      const fields = data || [];
       return {
-        error: `Field "${fieldName}" not found`,
-        available_fields: this.availableFields.slice(0, 30),
-        suggestion: this.findSimilarField(fieldName)
+        success: true, table_name: tableName, field_count: fields.length, fields,
+        summary: {
+          groupable_fields: fields.filter((f: { is_groupable: boolean }) => f.is_groupable).map((f: { field_name: string }) => f.field_name),
+          aggregatable_fields: fields.filter((f: { is_aggregatable: boolean }) => f.is_aggregatable).map((f: { field_name: string }) => f.field_name),
+          searchable_fields: fields.filter((f: { is_searchable: boolean }) => f.is_searchable).map((f: { field_name: string }) => f.field_name)
+        },
+        hint: "Use query_table() to query this table"
       };
-    }
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async discoverJoins(input: Record<string, unknown>): Promise<ToolResult> {
+    const tableName = this.requireString(input, 'table_name');
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_get_table_joins', { p_table_name: tableName });
+      if (error) return { success: false, error: error.message };
+      return { success: true, table_name: tableName, joins: data || [], join_count: data?.length || 0, hint: "Use query_with_join() for multi-table queries" };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async queryTable(input: Record<string, unknown>): Promise<ToolResult> {
+    const tableName = this.requireString(input, 'table_name');
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_query_table', {
+        p_table_name: tableName,
+        p_customer_id: parseInt(this.customerId, 10),
+        p_is_admin: this.isAdmin,
+        p_select: this.optionalArray<string>(input, 'select', ['*']),
+        p_filters: input.filters || [],
+        p_group_by: this.optionalArray<string>(input, 'group_by'),
+        p_aggregations: input.aggregations || null,
+        p_order_by: this.optionalString(input, 'order_by'),
+        p_order_dir: this.optionalString(input, 'order_dir', 'desc'),
+        p_limit: this.optionalNumber(input, 'limit', 100)
+      });
+      if (error) return { success: false, error: error.message };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: result?.success ?? true, table: tableName, row_count: result?.row_count || 0, data: result?.data || [], query: result?.query };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async searchText(input: Record<string, unknown>): Promise<ToolResult> {
+    const query = this.requireString(input, 'query');
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_search_text', {
+        p_query: query,
+        p_customer_id: parseInt(this.customerId, 10),
+        p_is_admin: this.isAdmin,
+        p_tables: this.optionalArray<string>(input, 'tables'),
+        p_fields: this.optionalArray<string>(input, 'fields'),
+        p_match_type: this.optionalString(input, 'match_type', 'contains'),
+        p_limit: this.optionalNumber(input, 'limit', 50)
+      });
+      if (error) return { success: false, error: error.message };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: true, query, total_matches: result?.total_matches || 0, results: result?.results || [],
+        hint: result?.results?.length > 0 ? `Found in ${result.results.length} field(s). Use query_table() with filters.` : "No matches. Try different term." };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async queryWithJoin(input: Record<string, unknown>): Promise<ToolResult> {
+    const baseTable = this.requireString(input, 'base_table');
+    const joins = this.optionalArray<{ table: string; type?: string; on?: string }>(input, 'joins');
+    if (!joins || joins.length === 0) return { success: false, error: 'joins required' };
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_query_with_join', {
+        p_base_table: baseTable,
+        p_customer_id: parseInt(this.customerId, 10),
+        p_is_admin: this.isAdmin,
+        p_joins: joins,
+        p_select: this.optionalArray<string>(input, 'select', ['*']),
+        p_filters: input.filters || [],
+        p_group_by: this.optionalArray<string>(input, 'group_by'),
+        p_aggregations: input.aggregations || null,
+        p_order_by: this.optionalString(input, 'order_by'),
+        p_limit: this.optionalNumber(input, 'limit', 100)
+      });
+      if (error) return { success: false, error: error.message };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: result?.success ?? true, base_table: baseTable, joins: joins.map(j => j.table), row_count: result?.row_count || 0, data: result?.data || [], query: result?.query };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async aggregate(input: Record<string, unknown>): Promise<ToolResult> {
+    try {
+      const { data, error } = await this.supabase.rpc('mcp_aggregate', {
+        p_table_name: this.requireString(input, 'table_name'),
+        p_customer_id: parseInt(this.customerId, 10),
+        p_is_admin: this.isAdmin,
+        p_group_by: this.requireString(input, 'group_by'),
+        p_metric: this.requireString(input, 'metric'),
+        p_aggregation: this.requireString(input, 'aggregation'),
+        p_filters: input.filters || [],
+        p_limit: this.optionalNumber(input, 'limit', 20)
+      });
+      if (error) return { success: false, error: error.message };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: result?.success ?? true, row_count: result?.row_count || 0, data: result?.data || [] };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+  }
+
+  private async exploreField(input: Record<string, unknown>): Promise<ToolResult> {
+    const fieldName = this.requireString(input, 'field_name');
+    const sampleSize = this.optionalNumber(input, 'sample_size', 15);
 
     try {
       const { data, error } = await this.supabase.rpc('explore_single_field', {
@@ -189,39 +270,25 @@ export class ToolExecutor {
         p_sample_size: sampleSize
       });
 
-      if (error) {
-        return { error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
 
       const result = data || { values: [], totalCount: 0, nullCount: 0 };
-      const populatedPercent = result.total_count > 0
-        ? Math.round((result.populated_count / result.total_count) * 100)
-        : 0;
+      const populatedPercent = result.total_count > 0 ? Math.round((result.populated_count / result.total_count) * 100) : 0;
 
       return {
+        success: true,
         ...result,
         data_quality: this.assessDataQuality(populatedPercent, result.unique_count, result.total_count),
         recommendation: this.getFieldRecommendation(fieldName, populatedPercent, result.unique_count)
       };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to explore field' };
-    }
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed to explore field' }; }
   }
 
-  private async previewAggregation(input: Record<string, unknown>): Promise<unknown> {
-    const groupBy = input.group_by as string;
-    const metric = input.metric as string;
-    const aggregation = input.aggregation as string;
-    const secondaryGroupBy = input.secondary_group_by as string | undefined;
-    const limit = (input.limit as number) || 15;
-    const sort = (input.sort as string) || 'desc';
-
-    if (!this.availableFields.includes(groupBy)) {
-      return { error: `Group by field "${groupBy}" not available`, available_fields: this.availableFields.slice(0, 20) };
-    }
-    if (!this.availableFields.includes(metric)) {
-      return { error: `Metric field "${metric}" not available`, available_fields: this.availableFields.slice(0, 20) };
-    }
+  private async previewAggregation(input: Record<string, unknown>): Promise<ToolResult> {
+    const groupBy = this.requireString(input, 'group_by');
+    const metric = this.requireString(input, 'metric');
+    const aggregation = this.optionalString(input, 'aggregation', 'sum') || 'sum';
+    const limit = this.optionalNumber(input, 'limit', 15);
 
     try {
       const { data, error } = await this.supabase.rpc('preview_grouping', {
@@ -232,499 +299,307 @@ export class ToolExecutor {
         p_limit: limit
       });
 
-      if (error) {
-        return { error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
 
       const results = data?.results || [];
       const totalGroups = data?.total_groups || results.length;
 
       return {
+        success: true,
         ...data,
         quality: this.assessGroupingQuality(results, totalGroups),
         visualization_suggestion: this.suggestVisualization(groupBy, metric, aggregation, totalGroups),
         warning: totalGroups > 20 ? `High cardinality (${totalGroups} groups) - consider limiting or filtering` : null
       };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to preview aggregation' };
-    }
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed to preview aggregation' }; }
   }
 
-  private async comparePeriods(input: Record<string, unknown>): Promise<unknown> {
-    const metric = input.metric as string;
-    const aggregation = input.aggregation as string;
-    const period1 = input.period1 as string;
-    const period2 = input.period2 as string;
-    const groupBy = input.group_by as string | undefined;
+  private async comparePeriods(input: Record<string, unknown>): Promise<ToolResult> {
+    const metric = this.requireString(input, 'metric');
+    const aggregation = this.requireString(input, 'aggregation');
+    const period1 = this.requireString(input, 'period1');
+    const period2 = this.requireString(input, 'period2');
+    const tableName = this.optionalString(input, 'table_name', 'shipment');
 
-    const { start: start1, end: end1 } = this.parsePeriod(period1);
-    const { start: start2, end: end2 } = this.parsePeriod(period2);
+    const p1Range = this.parsePeriod(period1);
+    const p2Range = this.parsePeriod(period2);
 
-    try {
-      const { data, error } = await this.supabase.rpc('get_period_comparison', {
-        p_customer_id: this.customerId,
-        p_start_date: start1,
-        p_end_date: end1
-      });
+    const r1 = await this.queryTable({ table_name: tableName, filters: [{ field: 'pickup_date', operator: 'gte', value: p1Range.start }, { field: 'pickup_date', operator: 'lte', value: p1Range.end }], aggregations: [{ field: metric, function: aggregation, alias: 'value' }] }) as ToolResult;
+    const r2 = await this.queryTable({ table_name: tableName, filters: [{ field: 'pickup_date', operator: 'gte', value: p2Range.start }, { field: 'pickup_date', operator: 'lte', value: p2Range.end }], aggregations: [{ field: metric, function: aggregation, alias: 'value' }] }) as ToolResult;
 
-      if (error) {
-        return { error: error.message };
-      }
+    const v1 = (r1?.data as Array<{ value: number }>)?.[0]?.value || 0;
+    const v2 = (r2?.data as Array<{ value: number }>)?.[0]?.value || 0;
+    const change = v2 !== 0 ? ((v1 - v2) / v2) * 100 : 0;
 
-      const changePercent = data?.spend_change_percent || 0;
-      const significance = Math.abs(changePercent) > 20 ? 'significant' :
-                          Math.abs(changePercent) > 10 ? 'moderate' : 'minor';
-
-      return {
-        period1: { start: start1, end: end1, label: period1 },
-        period2: { start: start2, end: end2, label: period2 },
-        comparison: data,
-        significance,
-        insight: this.generateComparisonInsight(data, period1, period2)
-      };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to compare periods' };
-    }
+    return {
+      success: true,
+      metric,
+      period1: { range: p1Range, value: v1 },
+      period2: { range: p2Range, value: v2 },
+      change_percent: Math.round(change * 10) / 10,
+      insight: this.generateComparisonInsight({ spend_change_percent: change, volume_change_percent: 0 }, period1, period2)
+    };
   }
 
-  private async detectAnomalies(input: Record<string, unknown>): Promise<unknown> {
-    const metric = input.metric as string;
-    const groupBy = input.group_by as string | undefined;
-    const sensitivity = (input.sensitivity as string) || 'medium';
-    const baseline = (input.baseline as string) || 'historical_avg';
+  private async detectAnomalies(input: Record<string, unknown>): Promise<ToolResult> {
+    const metric = this.requireString(input, 'metric');
+    const groupBy = this.optionalString(input, 'group_by', 'carrier_name');
+    const sensitivity = this.optionalString(input, 'sensitivity', 'medium') || 'medium';
 
     const thresholds = { high: 1.5, medium: 2.0, low: 3.0 };
     const threshold = thresholds[sensitivity as keyof typeof thresholds] || 2.0;
 
-    try {
-      const { data: stats, error: statsError } = await this.supabase.rpc('explore_single_field', {
-        p_customer_id: parseInt(this.customerId, 10),
-        p_field_name: metric,
-        p_sample_size: 100
-      });
+    const result = await this.aggregate({
+      table_name: this.optionalString(input, 'table_name', 'shipment'),
+      group_by: groupBy!,
+      metric,
+      aggregation: 'avg',
+      limit: 50
+    }) as ToolResult;
 
-      if (statsError) {
-        return { error: statsError.message };
-      }
-
-      if (groupBy) {
-        const { data: groupData } = await this.supabase.rpc('preview_grouping', {
-          p_customer_id: parseInt(this.customerId, 10),
-          p_group_by: groupBy,
-          p_metric: metric,
-          p_aggregation: 'avg',
-          p_limit: 50
-        });
-
-        const results = groupData?.results || [];
-        const values = results.map((r: { value: number }) => r.value);
-        const mean = values.reduce((a: number, b: number) => a + b, 0) / values.length;
-        const stdDev = Math.sqrt(values.reduce((sq: number, n: number) => sq + Math.pow(n - mean, 2), 0) / values.length);
-
-        const anomalies = results.filter((r: { value: number }) =>
-          Math.abs(r.value - mean) > threshold * stdDev
-        ).map((r: { name: string; value: number; count: number }) => ({
-          ...r,
-          deviation: ((r.value - mean) / stdDev).toFixed(2),
-          direction: r.value > mean ? 'high' : 'low'
-        }));
-
-        return {
-          metric,
-          group_by: groupBy,
-          baseline_type: baseline,
-          sensitivity,
-          statistics: { mean: mean.toFixed(2), std_dev: stdDev.toFixed(2), threshold },
-          anomalies,
-          anomaly_count: anomalies.length,
-          insight: anomalies.length > 0
-            ? `Found ${anomalies.length} anomalies in ${metric} grouped by ${groupBy}`
-            : `No significant anomalies detected in ${metric}`
-        };
-      }
-
-      return {
-        metric,
-        baseline_type: baseline,
-        sensitivity,
-        statistics: stats,
-        note: "For time-based anomaly detection, specify a group_by field like 'carrier_name' or 'destination_state'"
-      };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to detect anomalies' };
+    if (!result?.data || !(result.data as Array<{ value: number }>).length) {
+      return { success: true, anomalies: [] };
     }
+
+    const data = result.data as Array<{ name: string; value: number; count: number }>;
+    const values = data.map(r => r.value || 0);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const stddev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
+
+    const anomalies = data.filter(r => Math.abs((r.value || 0) - mean) > threshold * stddev).map(r => ({
+      ...r,
+      deviation: ((r.value || 0) - mean) / stddev,
+      direction: r.value > mean ? 'high' : 'low'
+    }));
+
+    return {
+      success: true,
+      metric,
+      group_by: groupBy,
+      statistics: { mean: Math.round(mean * 100) / 100, stddev: Math.round(stddev * 100) / 100, threshold },
+      anomalies,
+      anomaly_count: anomalies.length
+    };
   }
 
-  private async investigateCause(input: Record<string, unknown>): Promise<unknown> {
-    const question = input.question as string;
-    const metric = input.metric as string;
-    const context = input.context as Record<string, unknown> | undefined;
-    const maxDepth = (input.max_depth as number) || 3;
+  private async investigateCause(input: Record<string, unknown>): Promise<ToolResult> {
+    const question = this.optionalString(input, 'question', 'What is driving this metric?') || '';
+    const metric = this.requireString(input, 'metric');
+    const maxDepth = this.optionalNumber(input, 'max_depth', 3);
 
     const drillDownFields = ['carrier_name', 'destination_state', 'origin_state', 'mode_name'];
     const findings: Array<{ dimension: string; insights: unknown }> = [];
 
-    try {
-      for (const field of drillDownFields.slice(0, maxDepth)) {
-        const { data } = await this.supabase.rpc('preview_grouping', {
-          p_customer_id: parseInt(this.customerId, 10),
-          p_group_by: field,
-          p_metric: metric,
-          p_aggregation: 'sum',
-          p_limit: 5
+    for (const field of drillDownFields.slice(0, maxDepth)) {
+      const result = await this.previewAggregation({ group_by: field, metric, aggregation: 'sum', limit: 5 }) as ToolResult;
+
+      if (result?.results && Array.isArray(result.results) && result.results.length > 0) {
+        const results = result.results as Array<{ name: string; value: number; count: number }>;
+        const total = results.reduce((sum, r) => sum + r.value, 0);
+        const topContributor = results[0];
+        const concentration = (topContributor.value / total * 100).toFixed(1);
+
+        findings.push({
+          dimension: field,
+          insights: {
+            top_contributor: topContributor.name,
+            top_value: topContributor.value,
+            concentration_percent: concentration,
+            distribution: results.slice(0, 3).map(r => ({ name: r.name, percent: (r.value / total * 100).toFixed(1) }))
+          }
         });
-
-        if (data?.results?.length > 0) {
-          const results = data.results;
-          const total = results.reduce((sum: number, r: { value: number }) => sum + r.value, 0);
-          const topContributor = results[0];
-          const concentration = (topContributor.value / total * 100).toFixed(1);
-
-          findings.push({
-            dimension: field,
-            insights: {
-              top_contributor: topContributor.name,
-              top_value: topContributor.value,
-              concentration_percent: concentration,
-              distribution: results.slice(0, 3).map((r: { name: string; value: number }) => ({
-                name: r.name,
-                percent: (r.value / total * 100).toFixed(1)
-              }))
-            }
-          });
-        }
       }
-
-      return {
-        question,
-        metric,
-        investigation_depth: maxDepth,
-        findings,
-        summary: this.summarizeInvestigation(findings, question),
-        suggested_actions: this.suggestActionsFromFindings(findings)
-      };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to investigate cause' };
     }
+
+    return {
+      success: true,
+      question,
+      metric,
+      investigation_depth: maxDepth,
+      findings,
+      summary: this.summarizeInvestigation(findings, question),
+      suggested_actions: this.suggestActionsFromFindings(findings)
+    };
   }
 
-  // ==========================================
-  // REPORT BUILDING TOOLS
-  // ==========================================
-
-  private createReportDraft(input: Record<string, unknown>): unknown {
-    const name = input.name as string;
-    const description = input.description as string | undefined;
-    const theme = (input.theme as string) || 'blue';
-    const dateRange = (input.date_range as string) || 'last90';
-
+  private createReportDraft(input: Record<string, unknown>): ToolResult {
     this.currentReport = {
       id: crypto.randomUUID(),
-      name,
-      description,
-      theme,
-      dateRange: { type: dateRange },
+      name: this.optionalString(input, 'name', 'Untitled Report') || 'Untitled Report',
+      description: this.optionalString(input, 'description'),
+      theme: this.optionalString(input, 'theme', 'blue') || 'blue',
+      dateRange: { type: this.optionalString(input, 'date_range', 'last30') || 'last30' },
       sections: [],
       createdAt: new Date().toISOString(),
       customerId: this.customerId
     };
-
-    return {
-      success: true,
-      report_id: this.currentReport.id,
-      name,
-      theme,
-      date_range: dateRange,
-      sections_count: 0,
-      message: `Draft created. Use add_section to build the report incrementally.`
-    };
+    return { success: true, report_id: this.currentReport.id, message: `Created: "${this.currentReport.name}"` };
   }
 
-  private async addSection(input: Record<string, unknown>): Promise<unknown> {
+  private async addSection(input: Record<string, unknown>): Promise<ToolResult> {
     if (!this.currentReport) {
       this.createReportDraft({ name: 'Generated Report' });
     }
 
-    const sectionType = input.section_type as string;
-    const title = input.title as string | undefined;
-    const config = input.config as Record<string, unknown>;
-    const position = input.position as number | undefined;
-    const generateInsight = input.generate_insight !== false;
-
     const section: ReportSection = {
-      type: sectionType,
-      title,
-      config
+      type: this.requireString(input, 'section_type'),
+      title: this.optionalString(input, 'title'),
+      config: (input.config as Record<string, unknown>) || {}
     };
 
-    if (config.groupBy && config.metric) {
-      try {
-        const { data } = await this.supabase.rpc('preview_grouping', {
-          p_customer_id: parseInt(this.customerId, 10),
-          p_group_by: config.groupBy as string,
-          p_metric: (config.metric as { field: string }).field || config.metric as string,
-          p_aggregation: (config.metric as { aggregation: string })?.aggregation || 'sum',
-          p_limit: (config.limit as number) || 10
-        });
-        section.data = data;
+    if (section.config.groupBy && section.config.metric) {
+      const preview = await this.previewAggregation({
+        group_by: section.config.groupBy as string,
+        metric: (section.config.metric as { field: string })?.field || section.config.metric as string,
+        aggregation: (section.config.metric as { aggregation: string })?.aggregation || 'sum',
+        limit: 10
+      }) as ToolResult;
+      section.data = preview?.results || preview?.data;
 
-        if (generateInsight && data?.results) {
-          section.insight = this.generateSectionInsight(sectionType, data.results, title);
-        }
-      } catch {
-        // Preview failed, section will render without data
+      if (section.data && Array.isArray(section.data)) {
+        section.insight = this.generateSectionInsight(section.type, section.data, section.title);
       }
     }
 
-    if (position !== undefined && position >= 0 && position < this.currentReport!.sections.length) {
-      this.currentReport!.sections.splice(position, 0, section);
-    } else {
-      this.currentReport!.sections.push(section);
-    }
-
-    const previewSummary = section.data ? {
-      rows: Array.isArray((section.data as any).results) ? (section.data as any).results.length : 0,
-      top_value: Array.isArray((section.data as any).results) && (section.data as any).results[0]
-        ? `${(section.data as any).results[0].name}: ${(section.data as any).results[0].value}`
-        : null
-    } : null;
+    this.currentReport!.sections.push(section);
 
     return {
       success: true,
       section_index: this.currentReport!.sections.length - 1,
-      type: sectionType,
-      title,
+      total_sections: this.currentReport!.sections.length,
       has_data: !!section.data,
-      preview_summary: previewSummary,
-      insight: section.insight,
-      total_sections: this.currentReport!.sections.length
+      insight: section.insight
     };
   }
 
-  private modifySection(input: Record<string, unknown>): unknown {
-    if (!this.currentReport) {
-      return { error: 'No report draft exists. Call create_report_draft first.' };
+  private modifySection(input: Record<string, unknown>): ToolResult {
+    if (!this.currentReport) return { success: false, error: 'No report draft' };
+    const idx = input.section_index as number;
+    if (typeof idx !== 'number' || idx < 0 || idx >= this.currentReport.sections.length) {
+      return { success: false, error: 'Invalid index' };
     }
-
-    const sectionIndex = input.section_index as number;
-    const updates = input.updates as Record<string, unknown>;
-
-    if (sectionIndex < 0 || sectionIndex >= this.currentReport.sections.length) {
-      return { error: `Invalid section index. Report has ${this.currentReport.sections.length} sections.` };
-    }
-
-    const section = this.currentReport.sections[sectionIndex];
-    Object.assign(section, updates);
-
-    return {
-      success: true,
-      section_index: sectionIndex,
-      updated_section: section
-    };
+    this.currentReport.sections[idx] = { ...this.currentReport.sections[idx], ...(input.updates as Record<string, unknown>) };
+    return { success: true, section_index: idx };
   }
 
-  private removeSection(input: Record<string, unknown>): unknown {
-    if (!this.currentReport) {
-      return { error: 'No report draft exists.' };
+  private removeSection(input: Record<string, unknown>): ToolResult {
+    if (!this.currentReport) return { success: false, error: 'No report draft' };
+    const idx = input.section_index as number;
+    if (typeof idx !== 'number' || idx < 0 || idx >= this.currentReport.sections.length) {
+      return { success: false, error: 'Invalid index' };
     }
-
-    const sectionIndex = input.section_index as number;
-
-    if (sectionIndex < 0 || sectionIndex >= this.currentReport.sections.length) {
-      return { error: `Invalid section index. Report has ${this.currentReport.sections.length} sections.` };
-    }
-
-    const removed = this.currentReport.sections.splice(sectionIndex, 1)[0];
-
-    return {
-      success: true,
-      removed_section: removed,
-      remaining_sections: this.currentReport.sections.length
-    };
+    this.currentReport.sections.splice(idx, 1);
+    return { success: true, remaining: this.currentReport.sections.length };
   }
 
-  private reorderSections(input: Record<string, unknown>): unknown {
-    if (!this.currentReport) {
-      return { error: 'No report draft exists.' };
-    }
-
+  private reorderSections(input: Record<string, unknown>): ToolResult {
+    if (!this.currentReport) return { success: false, error: 'No report draft' };
     const newOrder = input.new_order as number[];
-
-    if (newOrder.length !== this.currentReport.sections.length) {
-      return { error: 'New order must include all section indices.' };
+    if (!newOrder || newOrder.length !== this.currentReport.sections.length) {
+      return { success: false, error: 'New order must include all section indices' };
     }
-
-    const reordered = newOrder.map(i => this.currentReport!.sections[i]);
-    this.currentReport.sections = reordered;
-
-    return {
-      success: true,
-      new_order: newOrder,
-      sections: reordered.map((s, i) => ({ index: i, type: s.type, title: s.title }))
-    };
+    this.currentReport.sections = newOrder.map(i => this.currentReport!.sections[i]);
+    return { success: true, new_order: newOrder };
   }
 
-  private async previewReport(input: Record<string, unknown>): Promise<unknown> {
-    if (!this.currentReport) {
-      return { error: 'No report draft exists.' };
-    }
-
-    const includeInsights = input.include_insights !== false;
-    const includeNarrative = input.include_narrative === true;
+  private async previewReport(_input: Record<string, unknown>): Promise<ToolResult> {
+    if (!this.currentReport) return { success: false, error: 'No report draft' };
 
     for (const section of this.currentReport.sections) {
-      if (section.config?.groupBy && section.config?.metric) {
-        try {
-          const { data } = await this.supabase.rpc('preview_grouping', {
-            p_customer_id: parseInt(this.customerId, 10),
-            p_group_by: section.config.groupBy as string,
-            p_metric: (section.config.metric as { field: string }).field,
-            p_aggregation: (section.config.metric as { aggregation: string })?.aggregation || 'sum',
-            p_limit: (section.config.limit as number) || 10
-          });
-          section.data = data;
-
-          if (includeInsights) {
-            section.insight = this.generateSectionInsight(section.type, data?.results, section.title);
-          }
-        } catch {
-          // Continue with other sections
+      if (section.config?.groupBy && section.config?.metric && !section.data) {
+        const preview = await this.previewAggregation({
+          group_by: section.config.groupBy as string,
+          metric: (section.config.metric as { field: string })?.field || section.config.metric as string,
+          aggregation: (section.config.metric as { aggregation: string })?.aggregation || 'sum',
+          limit: 10
+        }) as ToolResult;
+        section.data = preview?.results || preview?.data;
+        if (section.data && Array.isArray(section.data)) {
+          section.insight = this.generateSectionInsight(section.type, section.data, section.title);
         }
       }
     }
 
-    const sectionsSummary = this.currentReport.sections.map((s, i) => ({
-      index: i,
-      type: s.type,
-      title: s.title,
-      has_data: !!s.data,
-      insight: s.insight
-    }));
-
     return {
+      success: true,
       report_name: this.currentReport.name,
       theme: this.currentReport.theme,
-      sections_with_data: this.currentReport.sections.filter(s => s.data).length,
       total_sections: this.currentReport.sections.length,
-      sections: sectionsSummary,
-      narrative: includeNarrative ? this.generateReportNarrative() : undefined,
+      sections: this.currentReport.sections.map((s, i) => ({ index: i, type: s.type, title: s.title, has_data: !!s.data })),
       ready_to_finalize: true
     };
   }
 
-  private finalizeReport(input: Record<string, unknown>): unknown {
+  private finalizeReport(input: Record<string, unknown>): ToolResult {
     let report = input.report as Record<string, unknown> | undefined;
-    const summary = input.summary as string;
-
     if (!report && this.currentReport) {
       report = this.currentReport as unknown as Record<string, unknown>;
     }
-
-    if (!report) {
-      return { error: 'No report provided and no draft exists.' };
-    }
+    if (!report) return { success: false, error: 'No report provided and no draft exists' };
 
     if (!report.name) report.name = 'Generated Report';
     if (!report.id) report.id = crypto.randomUUID();
     if (!report.createdAt) report.createdAt = new Date().toISOString();
     report.customerId = this.customerId;
 
-    const validation = this.validateReport(report);
-
-    return {
-      report,
-      summary,
-      validation,
-      ready_to_save: validation.valid
-    };
+    return { success: true, report, summary: input.summary, ready_to_save: true };
   }
 
-  // ==========================================
-  // LEARNING TOOLS
-  // ==========================================
-
-  private async learnTerminology(input: Record<string, unknown>): Promise<unknown> {
+  private async learnTerminology(input: Record<string, unknown>): Promise<ToolResult> {
     const term = (input.term || input.key) as string;
     const meaning = (input.meaning || input.value) as string;
-    const mapsToField = (input.maps_to_field || input.mapsToField) as string | undefined;
-    const mapsToFilter = input.maps_to_filter as Record<string, unknown> | undefined;
-    const confidence = (input.confidence as string) || 'medium';
+    if (!term || !meaning) return { success: false, error: 'term and meaning are required' };
 
+    const confidence = this.optionalString(input, 'confidence', 'medium') || 'medium';
     const confidenceScore = confidence === 'high' ? 0.9 : confidence === 'low' ? 0.5 : 0.7;
-    const key = term.toLowerCase().replace(/[^a-z0-9]+/g, '_');
 
     try {
       const { error } = await this.supabase.from('ai_knowledge').upsert({
         knowledge_type: 'term',
-        key,
+        key: term.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
         label: term,
         definition: meaning,
         scope: 'customer',
-        customer_id: this.customerId,
+        customer_id: parseInt(this.customerId, 10),
         source: 'learned',
         confidence: confidenceScore,
         needs_review: confidenceScore < 0.8,
         is_active: confidenceScore >= 0.8,
-        metadata: {
-          maps_to_field: mapsToField,
-          maps_to_filter: mapsToFilter
-        }
+        metadata: { maps_to_field: input.maps_to_field, maps_to_filter: input.maps_to_filter }
       }, { onConflict: 'knowledge_type,key,scope,customer_id' });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return {
-        success: true,
-        term,
-        meaning,
-        confidence,
-        will_remember: confidenceScore >= 0.8,
-        needs_review: confidenceScore < 0.8
-      };
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Failed to save terminology' };
-    }
+      if (error) return { success: false, error: error.message };
+      return { success: true, term, meaning, message: `Learned: "${term}" = "${meaning}"` };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
   }
 
-  private async learnPreference(input: Record<string, unknown>): Promise<unknown> {
-    const preferenceType = input.preference_type as string;
-    const key = input.key as string;
-    const value = input.value as string;
-    const context = input.context as string | undefined;
-
-    const prefKey = `${preferenceType}:${key}`.toLowerCase().replace(/[^a-z0-9:]+/g, '_');
+  private async learnPreference(input: Record<string, unknown>): Promise<ToolResult> {
+    const prefType = this.requireString(input, 'preference_type');
+    const key = this.requireString(input, 'key');
+    const value = this.requireString(input, 'value');
 
     try {
       const { error } = await this.supabase.from('ai_knowledge').upsert({
         knowledge_type: 'preference',
-        key: prefKey,
-        label: `${preferenceType}: ${key}`,
+        key: `${prefType}:${key}`.toLowerCase().replace(/[^a-z0-9:]+/g, '_'),
+        label: `${prefType}: ${key}`,
         definition: value,
         scope: 'customer',
-        customer_id: this.customerId,
+        customer_id: parseInt(this.customerId, 10),
         source: 'learned',
         confidence: 0.8,
         is_active: true,
-        metadata: { preference_type: preferenceType, context }
+        metadata: { preference_type: prefType, context: input.context }
       }, { onConflict: 'knowledge_type,key,scope,customer_id' });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, preference_type: preferenceType, key, value, context };
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Failed to save preference' };
-    }
+      if (error) return { success: false, error: error.message };
+      return { success: true, message: `Learned preference: ${key} = ${value}` };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
   }
 
-  private async recordCorrection(input: Record<string, unknown>): Promise<unknown> {
-    const original = input.original as string;
-    const corrected = input.corrected as string;
-    const context = input.context as string;
-    const applyImmediately = input.apply_immediately !== false;
+  private async recordCorrection(input: Record<string, unknown>): Promise<ToolResult> {
+    const original = this.requireString(input, 'original');
+    const corrected = this.requireString(input, 'corrected');
 
     try {
       const { error } = await this.supabase.from('ai_knowledge').insert({
@@ -733,75 +608,45 @@ export class ToolExecutor {
         label: `Correction: ${original.substring(0, 50)}`,
         definition: corrected,
         scope: 'customer',
-        customer_id: this.customerId,
+        customer_id: parseInt(this.customerId, 10),
         source: 'correction',
         confidence: 1.0,
         needs_review: true,
         is_active: false,
-        metadata: { original, corrected, context, recorded_at: new Date().toISOString() }
+        metadata: { original, corrected, context: input.context, recorded_at: new Date().toISOString() }
       });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return {
-        success: true,
-        original,
-        corrected,
-        applied: applyImmediately,
-        message: 'Correction recorded for review'
-      };
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Failed to record correction' };
-    }
+      if (error) return { success: false, error: error.message };
+      return { success: true, original, corrected, message: 'Correction recorded for review' };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
   }
 
-  private async getCustomerMemory(input: Record<string, unknown>): Promise<unknown> {
-    const includeTerminology = input.include_terminology !== false;
-    const includePreferences = input.include_preferences !== false;
-    const includeHistory = input.include_history === true;
-
+  private async getCustomerMemory(input: Record<string, unknown>): Promise<ToolResult> {
     try {
-      const { data, error } = await this.supabase.rpc('get_customer_knowledge', {
-        p_customer_id: this.customerId
-      });
+      const { data, error } = await this.supabase.rpc('get_customer_knowledge', { p_customer_id: this.customerId });
 
-      if (error) {
-        return { error: error.message };
-      }
+      if (error) return { success: false, error: error.message };
 
       const memory: Record<string, unknown> = {};
-
-      if (includeTerminology) {
+      if (input.include_terminology !== false) {
         memory.terminology = (data || []).filter((k: { knowledge_type: string }) => k.knowledge_type === 'term');
       }
-      if (includePreferences) {
+      if (input.include_preferences !== false) {
         memory.preferences = (data || []).filter((k: { knowledge_type: string }) => k.knowledge_type === 'preference');
       }
-      if (includeHistory) {
+      if (input.include_history === true) {
         memory.corrections = (data || []).filter((k: { knowledge_type: string }) => k.knowledge_type === 'correction');
       }
 
-      return {
-        customer_id: this.customerId,
-        memory,
-        total_items: (data || []).length
-      };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Failed to get customer memory' };
-    }
+      return { success: true, customer_id: this.customerId, memory, total_items: (data || []).length };
+    } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
   }
 
-  // ==========================================
-  // INSIGHT TOOLS (Claude Haiku Powered)
-  // ==========================================
-
-  private async generateInsight(input: Record<string, unknown>): Promise<unknown> {
+  private async generateInsight(input: Record<string, unknown>): Promise<ToolResult> {
     const dataPoint = input.data_point as string || JSON.stringify(input.data || {}).substring(0, 200);
     const context = input.context as string;
-    const audience = (input.audience as string) || 'operations';
-    const insightType = (input.type as string) || 'observation';
+    const audience = this.optionalString(input, 'audience', 'operations') || 'operations';
+    const insightType = this.optionalString(input, 'type', 'observation') || 'observation';
 
     const prompt = `You are a freight logistics analyst generating insights for a ${audience} audience.
 
@@ -809,16 +654,10 @@ Data Point: ${dataPoint}
 Context: ${context}
 Insight Type: ${insightType}
 
-Generate a concise, actionable insight (2-3 sentences max). Be specific and quantitative where possible. Focus on business impact and next steps.
-
-For ${audience}:
-- executive: Focus on cost impact, strategic implications, bottom-line effect
-- operations: Focus on efficiency, process improvements, operational changes
-- finance: Focus on spend patterns, budget impact, cost optimization`;
+Generate a concise, actionable insight (2-3 sentences max). Be specific and quantitative where possible.`;
 
     try {
       const startTime = Date.now();
-
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -833,12 +672,10 @@ For ${audience}:
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Haiku API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Haiku API error: ${response.status}`);
 
       const data = await response.json();
-      const insight = data.content?.[0]?.text || this.generateFallbackInsight(dataPoint, context, audience);
+      const insight = data.content?.[0]?.text || this.generateFallbackInsight(dataPoint, audience);
       const latencyMs = Date.now() - startTime;
 
       try {
@@ -852,68 +689,35 @@ For ${audience}:
           model_used: 'claude-3-haiku-20240307',
           latency_ms: latencyMs
         });
-      } catch (logError) {
-        console.error('[generateInsight] Failed to log insight:', logError);
-      }
+      } catch { /* ignore logging errors */ }
 
-      return {
-        success: true,
-        insight,
-        audience,
-        type: insightType,
-        model: 'claude-3-haiku',
-        latency_ms: latencyMs
-      };
-
-    } catch (error) {
-      console.error('[generateInsight] Haiku error, using fallback:', error);
-      return {
-        success: true,
-        insight: this.generateFallbackInsight(dataPoint, context, audience),
-        audience,
-        type: insightType,
-        model: 'fallback'
-      };
+      return { success: true, insight, audience, type: insightType, model: 'claude-3-haiku', latency_ms: latencyMs };
+    } catch {
+      return { success: true, insight: this.generateFallbackInsight(dataPoint, audience), audience, type: insightType, model: 'fallback' };
     }
   }
 
-  private generateFallbackInsight(dataPoint: string, context: string, audience: string): string {
-    const templates: Record<string, string[]> = {
-      executive: [
-        `${dataPoint} represents a key metric for cost management. ${context ? 'Given ' + context + ', this' : 'This'} warrants strategic review.`,
-        `Analysis shows ${dataPoint}. Consider reviewing carrier contracts to optimize spend.`
-      ],
-      operations: [
-        `${dataPoint} indicates an opportunity for process optimization. ${context ? context + ' suggests' : 'Consider'} reviewing routing efficiency.`,
-        `Operational data shows ${dataPoint}. Review carrier allocation for efficiency gains.`
-      ],
-      finance: [
-        `${dataPoint} impacts budget forecasting. ${context ? 'With ' + context + ', recommend' : 'Recommend'} quarterly spend review.`,
-        `Financial analysis: ${dataPoint}. Consider cost allocation adjustments.`
-      ]
+  private generateFallbackInsight(dataPoint: string, audience: string): string {
+    const templates: Record<string, string> = {
+      executive: `${dataPoint} represents a key metric for cost management. This warrants strategic review.`,
+      operations: `${dataPoint} indicates an opportunity for process optimization. Consider reviewing routing efficiency.`,
+      finance: `${dataPoint} impacts budget forecasting. Recommend quarterly spend review.`
     };
-
-    const options = templates[audience] || templates.operations;
-    return options[Math.floor(Math.random() * options.length)];
+    return templates[audience] || templates.operations;
   }
 
-  private async generateRecommendation(input: Record<string, unknown>): Promise<unknown> {
-    const finding = input.finding as string;
-    const goal = (input.goal as string) || 'cost optimization';
-    const constraints = input.constraints as string[];
-    const priority = (input.priority as string) || 'medium';
+  private async generateRecommendation(input: Record<string, unknown>): Promise<ToolResult> {
+    const finding = this.requireString(input, 'finding');
+    const goal = this.optionalString(input, 'goal', 'cost optimization') || 'cost optimization';
+    const priority = this.optionalString(input, 'priority', 'medium') || 'medium';
 
     const prompt = `You are a freight logistics consultant providing actionable recommendations.
 
 Finding: ${finding}
 Goal: ${goal}
 Priority: ${priority}
-${constraints?.length ? 'Constraints: ' + constraints.join(', ') : ''}
 
-Provide a specific, actionable recommendation (2-3 sentences). Include:
-1. What action to take
-2. Expected impact/benefit
-3. Timeline or urgency`;
+Provide a specific, actionable recommendation (2-3 sentences). Include what action to take and expected impact.`;
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -930,47 +734,22 @@ Provide a specific, actionable recommendation (2-3 sentences). Include:
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Haiku API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Haiku API error: ${response.status}`);
 
       const data = await response.json();
-      const recommendation = data.content?.[0]?.text || this.generateFallbackRecommendation(finding, goal);
-
-      return {
-        success: true,
-        recommendation,
-        goal,
-        priority,
-        model: 'claude-3-haiku'
-      };
-
-    } catch (error) {
-      console.error('[generateRecommendation] Haiku error, using fallback:', error);
-      return {
-        success: true,
-        recommendation: this.generateFallbackRecommendation(finding, goal),
-        goal,
-        priority,
-        model: 'fallback'
-      };
+      return { success: true, recommendation: data.content?.[0]?.text || `Based on ${finding}, recommend detailed analysis to support ${goal}.`, goal, priority, model: 'claude-3-haiku' };
+    } catch {
+      return { success: true, recommendation: `Based on ${finding}, recommend detailed analysis to support ${goal}.`, goal, priority, model: 'fallback' };
     }
   }
 
-  private generateFallbackRecommendation(finding: string, goal: string): string {
-    return `Based on ${finding}, recommend conducting a detailed analysis to support ${goal}. Schedule a review within the next 2 weeks to identify specific optimization opportunities.`;
-  }
-
-  private async generateSectionInsightWithHaiku(input: Record<string, unknown>): Promise<unknown> {
+  private async generateSectionInsightWithHaiku(input: Record<string, unknown>): Promise<ToolResult> {
     const sectionType = input.section_type as string;
     const sectionTitle = input.title as string;
     const dataPreview = input.data_preview as string;
-    const metric = input.metric as string;
 
     const prompt = `Generate a one-line insight for a ${sectionType} titled "${sectionTitle}".
 Data: ${dataPreview}
-Metric: ${metric}
-
 Write a brief, specific insight (1 sentence) highlighting the key takeaway. Be quantitative.`;
 
     try {
@@ -988,61 +767,33 @@ Write a brief, specific insight (1 sentence) highlighting the key takeaway. Be q
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Haiku API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Haiku API error: ${response.status}`);
 
       const data = await response.json();
-      return {
-        success: true,
-        insight: data.content?.[0]?.text || `Key finding from ${sectionTitle}`,
-        model: 'claude-3-haiku'
-      };
-
-    } catch (error) {
-      return {
-        success: true,
-        insight: `Key finding from ${sectionTitle}`,
-        model: 'fallback'
-      };
+      return { success: true, insight: data.content?.[0]?.text || `Key finding from ${sectionTitle}`, model: 'claude-3-haiku' };
+    } catch {
+      return { success: true, insight: `Key finding from ${sectionTitle}`, model: 'fallback' };
     }
   }
 
-  // ==========================================
-  // HELPER METHODS
-  // ==========================================
+  private parsePeriod(period: string): { start: string; end: string } {
+    const now = new Date();
+    const end = now.toISOString().split('T')[0];
+    let start: Date;
 
-  private validateReport(report: Record<string, unknown>): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (!report.name) errors.push('Report must have a name');
-    if (!report.sections || !Array.isArray(report.sections)) {
-      errors.push('Report must have a sections array');
-    } else {
-      const validTypes = ['hero', 'stat-row', 'category-grid', 'chart', 'table', 'header', 'map'];
-      for (let i = 0; i < (report.sections as unknown[]).length; i++) {
-        const section = (report.sections as Record<string, unknown>[])[i];
-        if (!section.type || !validTypes.includes(section.type as string)) {
-          errors.push(`Section ${i + 1}: Invalid or missing type`);
-        }
-      }
+    switch (period) {
+      case 'last7': start = new Date(now.getTime() - 7 * 86400000); break;
+      case 'last30': start = new Date(now.getTime() - 30 * 86400000); break;
+      case 'last90': start = new Date(now.getTime() - 90 * 86400000); break;
+      case 'last6months': start = new Date(now); start.setMonth(start.getMonth() - 6); break;
+      case 'lastYear': start = new Date(now); start.setFullYear(start.getFullYear() - 1); break;
+      default: start = new Date(now.getTime() - 30 * 86400000);
     }
 
-    return { valid: errors.length === 0, errors };
+    return { start: start.toISOString().split('T')[0], end };
   }
 
-  private findSimilarField(fieldName: string): string | null {
-    const normalized = fieldName.toLowerCase().replace(/[_-]/g, '');
-    for (const field of this.availableFields) {
-      if (field.toLowerCase().replace(/[_-]/g, '').includes(normalized) ||
-          normalized.includes(field.toLowerCase().replace(/[_-]/g, ''))) {
-        return field;
-      }
-    }
-    return null;
-  }
-
-  private assessDataQuality(populatedPercent: number, uniqueCount: number, totalCount: number): string {
+  private assessDataQuality(populatedPercent: number, _uniqueCount: number, _totalCount: number): string {
     if (populatedPercent >= 95) return 'excellent';
     if (populatedPercent >= 80) return 'good';
     if (populatedPercent >= 50) return 'moderate';
@@ -1050,15 +801,9 @@ Write a brief, specific insight (1 sentence) highlighting the key takeaway. Be q
   }
 
   private getFieldRecommendation(fieldName: string, populatedPercent: number, uniqueCount: number): string {
-    if (populatedPercent < 50) {
-      return `Low coverage (${populatedPercent}%) - consider using a different field for reliable analysis`;
-    }
-    if (uniqueCount === 1) {
-      return 'Single value - not useful for grouping or comparison';
-    }
-    if (uniqueCount > 100) {
-      return 'High cardinality - consider aggregating or filtering before use';
-    }
+    if (populatedPercent < 50) return `Low coverage (${populatedPercent}%) - consider using a different field`;
+    if (uniqueCount === 1) return 'Single value - not useful for grouping';
+    if (uniqueCount > 100) return 'High cardinality - consider filtering';
     return 'Good for analysis';
   }
 
@@ -1070,92 +815,45 @@ Write a brief, specific insight (1 sentence) highlighting the key takeaway. Be q
     return 'high_cardinality';
   }
 
-  private suggestVisualization(groupBy: string, metric: string, aggregation: string, totalGroups: number): string {
+  private suggestVisualization(_groupBy: string, _metric: string, _aggregation: string, totalGroups: number): string {
     if (totalGroups <= 5) return 'pie or donut chart';
     if (totalGroups <= 10) return 'bar chart';
     if (totalGroups <= 20) return 'horizontal bar chart';
     return 'table or filtered chart';
   }
 
-  private parsePeriod(period: string): { start: string; end: string } {
-    const now = new Date();
-    const end = now.toISOString().split('T')[0];
-    let start: Date;
-
-    switch (period) {
-      case 'last7':
-        start = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case 'last30':
-        start = new Date(now.setDate(now.getDate() - 30));
-        break;
-      case 'last90':
-        start = new Date(now.setDate(now.getDate() - 90));
-        break;
-      default:
-        start = new Date(now.setDate(now.getDate() - 30));
-    }
-
-    return { start: start.toISOString().split('T')[0], end };
-  }
-
   private generateComparisonInsight(data: Record<string, unknown>, period1: string, period2: string): string {
     const spendChange = data?.spend_change_percent as number || 0;
-    const volumeChange = data?.volume_change_percent as number || 0;
-
-    if (Math.abs(spendChange) < 5 && Math.abs(volumeChange) < 5) {
-      return `Stable performance between ${period1} and ${period2}`;
-    }
-
-    const spendDirection = spendChange > 0 ? 'increased' : 'decreased';
-    const volumeDirection = volumeChange > 0 ? 'increased' : 'decreased';
-
-    return `Spend ${spendDirection} ${Math.abs(spendChange).toFixed(1)}% while volume ${volumeDirection} ${Math.abs(volumeChange).toFixed(1)}%`;
+    if (Math.abs(spendChange) < 5) return `Stable performance between ${period1} and ${period2}`;
+    const direction = spendChange > 0 ? 'increased' : 'decreased';
+    return `Spend ${direction} ${Math.abs(spendChange).toFixed(1)}% from ${period2} to ${period1}`;
   }
 
-  private summarizeInvestigation(findings: Array<{ dimension: string; insights: unknown }>, question: string): string {
+  private summarizeInvestigation(findings: Array<{ dimension: string; insights: unknown }>, _question: string): string {
     if (findings.length === 0) return 'No significant patterns found';
-
-    const topFinding = findings[0];
-    const insights = topFinding.insights as Record<string, unknown>;
-
-    return `Primary driver: ${topFinding.dimension} - ${insights.top_contributor} accounts for ${insights.concentration_percent}% of the total`;
+    const top = findings[0];
+    const insights = top.insights as Record<string, unknown>;
+    return `Primary driver: ${top.dimension} - ${insights.top_contributor} accounts for ${insights.concentration_percent}% of total`;
   }
 
   private suggestActionsFromFindings(findings: Array<{ dimension: string; insights: unknown }>): string[] {
     const actions: string[] = [];
-
     for (const finding of findings) {
       const insights = finding.insights as Record<string, unknown>;
       const concentration = parseFloat(insights.concentration_percent as string);
-
       if (concentration > 50) {
         actions.push(`Review concentration risk in ${finding.dimension} (${insights.top_contributor}: ${concentration}%)`);
       }
     }
-
-    if (actions.length === 0) {
-      actions.push('No immediate actions required - distribution appears healthy');
-    }
-
+    if (actions.length === 0) actions.push('No immediate actions required - distribution appears healthy');
     return actions;
   }
 
   private generateSectionInsight(sectionType: string, data: unknown[], title?: string): string {
     if (!data || data.length === 0) return '';
-
     const total = data.reduce((sum: number, r: { value?: number }) => sum + (r.value || 0), 0);
     const top = data[0] as { name: string; value: number };
     const topPercent = total > 0 ? (top.value / total * 100).toFixed(1) : '0';
-
-    return `${top.name} leads with ${topPercent}% of ${title || 'total'}`;
-  }
-
-  private generateReportNarrative(): string {
-    if (!this.currentReport || this.currentReport.sections.length === 0) {
-      return 'Report is empty';
-    }
-
-    return `This ${this.currentReport.name} contains ${this.currentReport.sections.length} sections analyzing your shipping data.`;
+    return `${top.name} leads with ${topPercent}% of ${title || sectionType}`;
   }
 }

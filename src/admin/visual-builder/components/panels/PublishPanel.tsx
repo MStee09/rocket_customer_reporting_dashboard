@@ -1,11 +1,3 @@
-/**
- * Publish Panel
- *
- * LOCATION: /src/admin/visual-builder/components/panels/PublishPanel.tsx
- *
- * Allows admins to configure publishing options and deploy the widget.
- */
-
 import React, { useState, useEffect } from 'react';
 import {
   Upload,
@@ -23,14 +15,16 @@ import {
 import { useBuilder } from '../BuilderContext';
 import { validateBuilderSchema } from '../../types/BuilderSchema';
 import { supabase } from '../../../../lib/supabase';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface Customer {
-  id: number;
+  customer_id: number;
   company_name: string;
 }
 
 export function PublishPanel() {
   const { state, setPublishConfig } = useBuilder();
+  const { customers: authCustomers } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -40,19 +34,32 @@ export function PublishPanel() {
 
   useEffect(() => {
     if (state.publish.scope === 'customer') {
-      loadCustomers();
+      if (authCustomers && authCustomers.length > 0) {
+        setCustomers(authCustomers.map(c => ({
+          customer_id: c.customer_id,
+          company_name: c.customer_name || `Customer ${c.customer_id}`
+        })));
+      } else {
+        loadCustomers();
+      }
     }
-  }, [state.publish.scope]);
+  }, [state.publish.scope, authCustomers]);
 
   const loadCustomers = async () => {
     setLoadingCustomers(true);
     try {
       const { data, error } = await supabase
-        .from('customers')
-        .select('id, company_name')
+        .from('customer')
+        .select('customer_id, company_name')
+        .eq('is_active', true)
         .order('company_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('[PublishPanel] Failed to load customers:', error);
+        throw error;
+      }
+
+      console.log('[PublishPanel] Loaded customers:', data?.length);
       setCustomers(data || []);
     } catch (err) {
       console.error('Failed to load customers:', err);
@@ -192,6 +199,10 @@ export function PublishPanel() {
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Loading customers...
               </div>
+            ) : customers.length === 0 ? (
+              <div className="text-sm text-amber-600 p-2 bg-amber-50 rounded-lg">
+                No customers found. Check database connection.
+              </div>
             ) : (
               <select
                 value={state.publish.customerId || ''}
@@ -200,7 +211,9 @@ export function PublishPanel() {
               >
                 <option value="">Select a customer...</option>
                 {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.company_name}</option>
+                  <option key={c.customer_id} value={c.customer_id}>
+                    {c.company_name}
+                  </option>
                 ))}
               </select>
             )}

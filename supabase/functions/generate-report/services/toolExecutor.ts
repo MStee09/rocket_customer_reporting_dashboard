@@ -203,11 +203,9 @@ export class ToolExecutor {
     const query = this.requireString(input, 'query');
     try {
       const { data, error } = await this.supabase.rpc('mcp_search_text', {
-        p_query: query,
+        p_search_query: query,
         p_customer_id: parseInt(this.customerId, 10),
         p_is_admin: this.isAdmin,
-        p_tables: this.optionalArray<string>(input, 'tables'),
-        p_fields: this.optionalArray<string>(input, 'fields'),
         p_match_type: this.optionalString(input, 'match_type', 'contains'),
         p_limit: this.optionalNumber(input, 'limit', 50)
       });

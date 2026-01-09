@@ -35,6 +35,14 @@ Present findings with specific numbers. Offer follow-up options.
 - **shipment_address** - Addresses (address_type: 1=origin, 2=dest)
 - **carrier** - Carrier info (name, SCAC)
 
+## CRITICAL FIELD NOTES
+- **carrier_name** is in the 'carrier' table, NOT shipment. Always JOIN to get carrier names.
+- **retail** = customer's cost (what they pay)
+- **cost** = carrier cost (ADMIN ONLY - don't show to customers)
+- **weight** is in shipment_item table, NOT shipment. Use SUM(weight) for total shipment weight.
+- Use **rate_carrier_id** to join shipment -> carrier (NOT carrier_id)
+- Use **load_id** to join shipment -> shipment_item
+
 ## EXAMPLES
 
 ### Finding Product Data

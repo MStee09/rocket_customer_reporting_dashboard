@@ -37,7 +37,7 @@ import {
 
 export function PreviewPanel() {
   const { state } = useBuilder();
-  const { selectedCustomer, role } = useAuth();
+  const { effectiveCustomerId, role } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,10 +78,10 @@ export function PreviewPanel() {
         for (const condition of block.conditions) {
           if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
             if (typeof condition.value === 'string') {
-              const values = condition.value.split('|').map(v => v.trim());
+              const values = condition.value.split('|').map(v => v.trim()).filter(v => v);
               productFilters.push(...values);
             } else if (Array.isArray(condition.value)) {
-              productFilters.push(...condition.value);
+              productFilters.push(...condition.value.filter(v => v));
             }
           }
         }
@@ -98,42 +98,59 @@ export function PreviewPanel() {
 
     try {
       const productFilters = extractProductFilters();
-      const customerId = selectedCustomer || state.customerId;
+      const customerId = effectiveCustomerId;
       const isAdmin = role === 'admin';
 
-      const filters = productFilters.map(term => ({
-        field: 'shipment_item.description',
-        operator: 'ilike',
-        value: `%${term}%`,
-      }));
+      console.log('[PreviewPanel MCP] Starting query with:', {
+        customerId,
+        isAdmin,
+        productFilters,
+      });
+
+      if (!customerId) {
+        throw new Error('No customer selected');
+      }
 
       const { data: result, error: rpcError } = await supabase.rpc('mcp_query_with_join', {
         p_base_table: 'shipment',
-        p_customer_id: parseInt(customerId || '0', 10),
+        p_customer_id: customerId,
         p_is_admin: isAdmin,
         p_joins: [{ table: 'shipment_item' }],
         p_select: ['shipment.load_id', 'shipment.retail', 'shipment_item.description', 'shipment_item.weight'],
-        p_filters: filters,
+        p_filters: [],
         p_group_by: null,
         p_aggregations: null,
         p_order_by: 'shipment.retail DESC',
-        p_limit: 500,
+        p_limit: 1000,
       });
+
+      console.log('[PreviewPanel MCP] RPC response:', { result, error: rpcError });
 
       if (rpcError) {
         throw new Error(rpcError.message);
       }
 
       const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-      const rawData = parsed?.data || [];
+      let rawData = parsed?.data || [];
+
+      console.log('[PreviewPanel MCP] Raw data count:', rawData.length);
+
+      if (productFilters.length > 0) {
+        rawData = rawData.filter((row: any) => {
+          const desc = (row.description || '').toLowerCase();
+          return productFilters.some(term => desc.includes(term.toLowerCase()));
+        });
+        console.log('[PreviewPanel MCP] After product filter:', rawData.length, 'rows');
+      }
 
       setRowCount(rawData.length);
 
       const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
+      console.log('[PreviewPanel MCP] Processed data:', processedData);
       setData(processedData);
 
     } catch (err) {
-      console.error('MCP query failed:', err);
+      console.error('[PreviewPanel MCP] Error:', err);
       setError(err instanceof Error ? err.message : 'MCP query failed');
     } finally {
       setLoading(false);
@@ -244,7 +261,7 @@ export function PreviewPanel() {
     state.visualization.geo,
     state.visualization.flow,
     state.logicBlocks,
-    selectedCustomer,
+    effectiveCustomerId,
   ]);
 
   const containerClass = isFullscreen
@@ -358,7 +375,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, left: 100, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />
+            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `$${v.toLocaleString()}`} />
             <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={90} />
             <Tooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -630,7 +647,7 @@ function processDataForVisualization(rawData: any[], config: any, productFilters
     }
 
     const results = Object.entries(productGroups).map(([name, values]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
+      name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
       value: aggregateArray(values, aggregation || 'avg'),
     }));
 

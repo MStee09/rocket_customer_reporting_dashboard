@@ -13,9 +13,9 @@ import {
   ArrowRight,
   Wand2,
   AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
-import { supabase } from '../../../lib/supabase';
 import type { VisualizationType, FilterCondition } from '../types/BuilderSchema';
 
 interface SuggestionStep {
@@ -38,14 +38,8 @@ interface AISuggestion {
   steps: SuggestionStep[];
   aiPrompt?: string;
   warning?: string;
+  info?: string;
   mcpQuery?: any;
-}
-
-interface MCPSearchResult {
-  table: string;
-  field: string;
-  match_count: number;
-  sample_values: string[];
 }
 
 export function AISuggestionAssistant() {
@@ -59,281 +53,10 @@ export function AISuggestionAssistant() {
     if (!prompt.trim()) return;
 
     setIsAnalyzing(true);
-
-    try {
-      const productTerms = extractProductTerms(prompt);
-      let searchResults: MCPSearchResult[] = [];
-
-      if (productTerms.length > 0) {
-        for (const term of productTerms) {
-          const result = await searchWithMCP(term);
-          if (result && result.length > 0) {
-            searchResults = [...searchResults, ...result];
-          }
-        }
-      }
-
-      const analysis = await generateSuggestion(prompt, searchResults, productTerms);
-      setSuggestion(analysis);
-    } catch (error) {
-      console.error('AI analysis error:', error);
-      const fallbackAnalysis = parseUserIntentLocal(prompt);
-      setSuggestion(fallbackAnalysis);
-    }
-
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const analysis = parseUserIntent(prompt);
+    setSuggestion(analysis);
     setIsAnalyzing(false);
-  };
-
-  const searchWithMCP = async (query: string): Promise<MCPSearchResult[]> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-report', {
-        body: {
-          prompt: `Search for "${query}"`,
-          customerId: state.customerId || '',
-          useTools: true,
-          mode: 'investigate',
-          conversationHistory: [],
-        },
-      });
-
-      if (error) throw error;
-
-      const searchTool = data?.toolExecutions?.find(
-        (t: any) => t.toolName === 'search_text'
-      );
-
-      if (searchTool?.result?.results) {
-        return searchTool.result.results;
-      }
-
-      return [];
-    } catch (e) {
-      console.error('MCP search failed:', e);
-      return [];
-    }
-  };
-
-  const extractProductTerms = (text: string): string[] => {
-    const terms: string[] = [];
-    const lower = text.toLowerCase();
-
-    const quotedPattern = /["']([^"']+)["']/g;
-    let match;
-    while ((match = quotedPattern.exec(text)) !== null) {
-      terms.push(match[1].trim());
-    }
-
-    const knownProducts = [
-      'drawer system', 'drawer systems',
-      'cargoglide', 'cargo glide',
-      'toolbox', 'tool box', 'tool boxes',
-    ];
-
-    for (const product of knownProducts) {
-      if (lower.includes(product) && !terms.includes(product)) {
-        terms.push(product);
-      }
-    }
-
-    return terms;
-  };
-
-  const generateSuggestion = async (
-    promptText: string,
-    searchResults: MCPSearchResult[],
-    productTerms: string[]
-  ): Promise<AISuggestion> => {
-    const lower = promptText.toLowerCase();
-
-    let visualizationType: VisualizationType = 'bar';
-    if (lower.includes('line') || lower.includes('trend') || lower.includes('over time')) {
-      visualizationType = 'line';
-    } else if (lower.includes('pie') || lower.includes('distribution')) {
-      visualizationType = 'pie';
-    } else if (lower.includes('map')) {
-      visualizationType = 'choropleth';
-    } else if (lower.includes('table') || lower.includes('list')) {
-      visualizationType = 'table';
-    } else if (lower.includes('kpi') || lower.includes('total')) {
-      visualizationType = 'kpi';
-    }
-
-    let aggregation = 'sum';
-    if (lower.includes('average') || lower.includes('avg')) {
-      aggregation = 'avg';
-    } else if (lower.includes('count') || lower.includes('volume') || lower.includes('how many')) {
-      aggregation = 'count';
-    } else if (lower.includes('max') || lower.includes('highest')) {
-      aggregation = 'max';
-    } else if (lower.includes('min') || lower.includes('lowest')) {
-      aggregation = 'min';
-    }
-
-    let xField = '';
-    let yField = 'retail';
-
-    if (lower.includes('carrier')) {
-      xField = 'carrier_name';
-    } else if (lower.includes('destination state')) {
-      xField = 'destination_state';
-    } else if (lower.includes('state')) {
-      xField = 'origin_state';
-    } else if (lower.includes('mode')) {
-      xField = 'mode_name';
-    } else if (lower.includes('month') || lower.includes('date') || lower.includes('time')) {
-      xField = 'created_date';
-    } else if (productTerms.length > 0) {
-      xField = 'product_category';
-    }
-
-    if (lower.includes('weight')) {
-      yField = 'weight';
-    } else if (lower.includes('miles') || lower.includes('distance')) {
-      yField = 'miles';
-    } else if (lower.includes('count') || lower.includes('volume')) {
-      yField = '';
-      aggregation = 'count';
-    }
-
-    const filters: FilterCondition[] = [];
-    let warning = '';
-    let mcpQuery: any = null;
-
-    if (productTerms.length > 0 && searchResults.length > 0) {
-      const productField = searchResults[0];
-
-      mcpQuery = {
-        base_table: 'shipment',
-        joins: [{ table: productField.table }],
-        filters: productTerms.map(term => ({
-          field: `${productField.table}.${productField.field}`,
-          operator: 'ilike',
-          value: `%${term}%`,
-        })),
-        aggregations: [{
-          field: `shipment.${yField || 'retail'}`,
-          function: aggregation,
-          alias: `${aggregation}_${yField || 'retail'}`,
-        }],
-      };
-
-      filters.push({
-        field: `${productField.table}.${productField.field}`,
-        operator: 'ilike' as any,
-        value: productTerms.join('|'),
-      });
-    } else if (productTerms.length > 0) {
-      warning = `Could not find "${productTerms.join(', ')}" in the database. Try different search terms or check spelling.`;
-    }
-
-    const steps: SuggestionStep[] = [
-      {
-        panel: 'visualization',
-        title: `Select ${visualizationType.charAt(0).toUpperCase() + visualizationType.slice(1)} Chart`,
-        description: `Best visualization for ${aggregation} comparison`,
-        action: {
-          type: 'set_visualization',
-          payload: { type: visualizationType },
-        },
-      },
-      {
-        panel: 'fields',
-        title: 'Configure Data Fields',
-        description: xField
-          ? `X-axis: "${xField}", Y-axis: "${yField || 'count'}" with ${aggregation}`
-          : 'Configure your chart dimensions',
-        action: xField ? {
-          type: 'set_field',
-          payload: { xField, yField: yField || undefined, aggregation },
-        } : undefined,
-      },
-    ];
-
-    if (productTerms.length > 0) {
-      steps.push({
-        panel: 'logic',
-        title: 'Add Product Filter',
-        description: `Filter for: ${productTerms.join(', ')}`,
-        action: {
-          type: 'add_filter',
-          payload: {
-            label: `Product Filter: ${productTerms.join(', ')}`,
-            conditions: filters,
-          },
-        },
-      });
-    }
-
-    steps.push({
-      panel: 'preview',
-      title: 'Preview Results',
-      description: 'Verify data before publishing',
-    });
-
-    return {
-      summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${productTerms.length > 0 ? ` for: ${productTerms.join(', ')}` : ''}.`,
-      visualizationType,
-      xField: xField || undefined,
-      yField: yField || undefined,
-      aggregation,
-      filters: filters.length > 0 ? filters : undefined,
-      steps,
-      warning: warning || undefined,
-      mcpQuery,
-    };
-  };
-
-  const parseUserIntentLocal = (promptText: string): AISuggestion => {
-    const lower = promptText.toLowerCase();
-
-    let visualizationType: VisualizationType = 'bar';
-    if (lower.includes('line') || lower.includes('trend')) {
-      visualizationType = 'line';
-    } else if (lower.includes('pie')) {
-      visualizationType = 'pie';
-    }
-
-    let aggregation = 'sum';
-    if (lower.includes('average') || lower.includes('avg')) {
-      aggregation = 'avg';
-    } else if (lower.includes('count')) {
-      aggregation = 'count';
-    }
-
-    let xField = '';
-    if (lower.includes('carrier')) xField = 'carrier_name';
-    else if (lower.includes('state')) xField = 'origin_state';
-
-    let yField = 'retail';
-    if (lower.includes('weight')) yField = 'total_weight';
-
-    return {
-      summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField} by ${xField || 'category'}.`,
-      visualizationType,
-      xField: xField || undefined,
-      yField,
-      aggregation,
-      steps: [
-        {
-          panel: 'visualization',
-          title: `Select ${visualizationType} Chart`,
-          description: 'Best fit for your request',
-          action: { type: 'set_visualization', payload: { type: visualizationType } },
-        },
-        {
-          panel: 'fields',
-          title: 'Configure Fields',
-          description: `Set up ${xField} and ${yField}`,
-          action: xField ? { type: 'set_field', payload: { xField, yField, aggregation } } : undefined,
-        },
-        {
-          panel: 'preview',
-          title: 'Preview',
-          description: 'Check your results',
-        },
-      ],
-      warning: 'Using simplified analysis. For product filtering, ensure MCP is available.',
-    };
   };
 
   const applyStep = (step: SuggestionStep) => {
@@ -358,6 +81,7 @@ export function AISuggestionAssistant() {
           conditions: step.action.payload.conditions,
           enabled: true,
           label: step.action.payload.label,
+          mcpQuery: step.action.payload.mcpQuery,
         });
         setActivePanel('logic');
         break;
@@ -395,6 +119,16 @@ export function AISuggestionAssistant() {
       });
     }
 
+    if (suggestion.aiPrompt) {
+      addLogicBlock({
+        id: crypto.randomUUID(),
+        type: 'ai',
+        prompt: suggestion.aiPrompt,
+        status: 'pending',
+        enabled: true,
+      });
+    }
+
     setActivePanel('preview');
   };
 
@@ -427,6 +161,12 @@ export function AISuggestionAssistant() {
               placeholder="Example: Show me average cost for drawer system, cargoglide, and toolbox"
               rows={3}
               className="w-full px-3 py-2 pr-12 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none bg-white"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  analyzePrompt();
+                }
+              }}
             />
             <button
               onClick={analyzePrompt}
@@ -480,6 +220,13 @@ export function AISuggestionAssistant() {
                 <p className="text-sm text-slate-600 mt-1">{suggestion.summary}</p>
               </div>
 
+              {suggestion.info && (
+                <div className="p-3 bg-blue-50 border-b border-blue-100 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-800">{suggestion.info}</p>
+                </div>
+              )}
+
               {suggestion.warning && (
                 <div className="p-3 bg-amber-50 border-b border-amber-100 flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -529,6 +276,190 @@ function StepIcon({ panel }: { panel: string }) {
     publish: <Sparkles className="w-3 h-3 text-amber-500" />,
   };
   return icons[panel] || null;
+}
+
+function parseUserIntent(prompt: string): AISuggestion {
+  const lower = prompt.toLowerCase();
+
+  let visualizationType: VisualizationType = 'bar';
+  if (lower.includes('line') || lower.includes('trend') || lower.includes('over time')) {
+    visualizationType = 'line';
+  } else if (lower.includes('pie') || lower.includes('distribution') || lower.includes('breakdown')) {
+    visualizationType = 'pie';
+  } else if (lower.includes('map') || lower.includes('geographic')) {
+    visualizationType = 'choropleth';
+  } else if (lower.includes('table') || lower.includes('list')) {
+    visualizationType = 'table';
+  } else if (lower.includes('kpi') || lower.includes('metric') || lower.includes('total')) {
+    visualizationType = 'kpi';
+  }
+
+  let aggregation = 'sum';
+  if (lower.includes('average') || lower.includes('avg') || lower.includes('mean')) {
+    aggregation = 'avg';
+  } else if (lower.includes('count') || lower.includes('number of') || lower.includes('how many') || lower.includes('volume')) {
+    aggregation = 'count';
+  } else if (lower.includes('maximum') || lower.includes('max') || lower.includes('highest')) {
+    aggregation = 'max';
+  } else if (lower.includes('minimum') || lower.includes('min') || lower.includes('lowest')) {
+    aggregation = 'min';
+  }
+
+  let xField = '';
+  let yField = 'retail';
+  let warning = '';
+  let info = '';
+
+  if (lower.includes('carrier')) {
+    xField = 'carrier_name';
+  } else if (lower.includes('state') && !lower.includes('destination')) {
+    xField = 'origin_state';
+  } else if (lower.includes('destination state')) {
+    xField = 'destination_state';
+  } else if (lower.includes('customer')) {
+    xField = 'customer_name';
+  } else if (lower.includes('mode')) {
+    xField = 'mode_name';
+  } else if (lower.includes('status')) {
+    xField = 'status_name';
+  } else if (lower.includes('month') || lower.includes('date') || lower.includes('time') || lower.includes('trend')) {
+    xField = 'created_date';
+  } else if (lower.includes('lane')) {
+    xField = 'origin_state';
+  }
+
+  if (lower.includes('cost') || lower.includes('spend') || lower.includes('price') || lower.includes('retail')) {
+    yField = 'retail';
+  } else if (lower.includes('weight')) {
+    yField = 'weight';
+  } else if (lower.includes('miles') || lower.includes('distance')) {
+    yField = 'miles';
+  } else if (lower.includes('volume') || lower.includes('shipment') || lower.includes('count')) {
+    yField = '';
+    aggregation = 'count';
+  }
+
+  const productMatches = new Set<string>();
+
+  const quotedPattern = /["']([^"']+)["']/g;
+  let match;
+  while ((match = quotedPattern.exec(prompt)) !== null) {
+    productMatches.add(match[1].toLowerCase().trim());
+  }
+
+  const knownProducts = [
+    { pattern: 'drawer system', normalized: 'drawer system' },
+    { pattern: 'drawer systems', normalized: 'drawer system' },
+    { pattern: 'cargoglide', normalized: 'cargoglide' },
+    { pattern: 'cargo glide', normalized: 'cargoglide' },
+    { pattern: 'toolbox', normalized: 'tool box' },
+    { pattern: 'tool box', normalized: 'tool box' },
+    { pattern: 'tool boxes', normalized: 'tool box' },
+  ];
+
+  for (const product of knownProducts) {
+    if (lower.includes(product.pattern)) {
+      productMatches.add(product.normalized);
+    }
+  }
+
+  const uniqueProducts = Array.from(productMatches);
+
+  const filters: FilterCondition[] = [];
+  let mcpQuery: any = null;
+  let aiPrompt = '';
+
+  if (uniqueProducts.length > 0) {
+    info = `Product filtering will use MCP to search shipment_item.description for: ${uniqueProducts.join(', ')}`;
+
+    if (!xField) {
+      xField = 'description';
+    }
+
+    mcpQuery = {
+      base_table: 'shipment',
+      joins: [{ table: 'shipment_item' }],
+      select: ['shipment.load_id', 'shipment.retail', 'shipment_item.description', 'shipment_item.weight'],
+      filters: uniqueProducts.map(term => ({
+        field: 'shipment_item.description',
+        operator: 'ilike',
+        value: `%${term}%`,
+      })),
+      group_by: ['shipment_item.description'],
+      aggregations: [{
+        field: yField ? `shipment.${yField}` : 'shipment.load_id',
+        function: aggregation,
+        alias: `${aggregation}_value`,
+      }],
+    };
+
+    filters.push({
+      field: 'shipment_item.description',
+      operator: 'ilike' as any,
+      value: uniqueProducts,
+    });
+
+    aiPrompt = `Filter shipments containing products: ${uniqueProducts.join(', ')}`;
+  }
+
+  const steps: SuggestionStep[] = [
+    {
+      panel: 'visualization',
+      title: `Select ${visualizationType.charAt(0).toUpperCase() + visualizationType.slice(1)} Chart`,
+      description: `This visualization type will best show your ${aggregation} comparison`,
+      action: {
+        type: 'set_visualization',
+        payload: { type: visualizationType },
+      },
+    },
+    {
+      panel: 'fields',
+      title: 'Configure Data Fields',
+      description: xField
+        ? `Set X-axis to "${xField}" and Y-axis to "${yField || 'count'}" with ${aggregation} aggregation`
+        : 'Map your data fields to chart dimensions',
+      action: xField ? {
+        type: 'set_field',
+        payload: { xField, yField: yField || undefined, aggregation },
+      } : undefined,
+    },
+  ];
+
+  if (uniqueProducts.length > 0) {
+    steps.push({
+      panel: 'logic',
+      title: 'Add Product Filter',
+      description: `Filter to include: ${uniqueProducts.join(', ')}`,
+      action: {
+        type: 'add_filter',
+        payload: {
+          label: `Products: ${uniqueProducts.join(', ')}`,
+          conditions: filters,
+          mcpQuery,
+        },
+      },
+    });
+  }
+
+  steps.push({
+    panel: 'preview',
+    title: 'Preview Results',
+    description: 'Verify the data looks correct before publishing',
+  });
+
+  return {
+    summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${uniqueProducts.length > 0 ? ` for products: ${uniqueProducts.join(', ')}` : ''}.`,
+    visualizationType,
+    xField: xField || undefined,
+    yField: yField || undefined,
+    aggregation,
+    filters: filters.length > 0 ? filters : undefined,
+    steps,
+    aiPrompt: aiPrompt || undefined,
+    warning: warning || undefined,
+    info: info || undefined,
+    mcpQuery,
+  };
 }
 
 export default AISuggestionAssistant;

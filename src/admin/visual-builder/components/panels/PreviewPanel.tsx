@@ -8,11 +8,13 @@ import {
   BarChart3,
   Database,
   Map as MapIcon,
-  Bug,
+  Users,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
 import { usePreviewCustomer } from '../VisualBuilderPage';
 import { supabase } from '../../../../lib/supabase';
+import { useAuth } from '../../../../contexts/AuthContext';
+import type { LogicBlock, AILogicBlock, FilterBlock } from '../../types/BuilderSchema';
 import {
   BarChart,
   Bar,
@@ -34,39 +36,54 @@ import {
 
 export function PreviewPanel() {
   const { state } = useBuilder();
-  const { previewCustomerId } = usePreviewCustomer();
+  const { previewCustomerId, setPreviewCustomerId } = usePreviewCustomer();
+  const { role, customers } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [rowCount, setRowCount] = useState<number | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-  const [showDebug, setShowDebug] = useState(true);
+  const [usingJoin, setUsingJoin] = useState(false);
 
+  const isAdmin = role === 'admin';
   const isAllCustomers = previewCustomerId === null;
-
-  const addDebug = (msg: string) => {
-    console.log('[PreviewPanel DEBUG]', msg);
-    setDebugInfo(prev => [...prev.slice(-9), msg]);
-  };
 
   const needsJoinQuery = (): boolean => {
     if (!state.logicBlocks) return false;
 
     for (const block of state.logicBlocks) {
-      if ((block as any).mcpQuery) return true;
+      if (!block.enabled) continue;
 
-      if (block.type === 'filter' && block.conditions) {
-        for (const condition of block.conditions) {
-          const field = condition.field?.toLowerCase() || '';
+      if (block.type === 'filter') {
+        const filterBlock = block as FilterBlock;
+        for (const condition of filterBlock.conditions || []) {
+          const field = (condition.field || '').toLowerCase();
           if (
-            field.includes('shipment_item.') ||
+            field.includes('shipment_item') ||
             field.includes('description') ||
-            field.includes('item_') ||
-            field.includes('carrier.') ||
-            field.includes('accessorial')
+            field.includes('shipment_description') ||
+            field.includes('item_')
           ) {
+            console.log('[PreviewPanel] needsJoin: true (filter block field:', field, ')');
             return true;
+          }
+        }
+      }
+
+      if (block.type === 'ai') {
+        const aiBlock = block as AILogicBlock;
+        if (aiBlock.compiledRule?.filters) {
+          for (const filter of aiBlock.compiledRule.filters) {
+            const field = (filter.field || '').toLowerCase();
+            if (
+              field.includes('shipment_item') ||
+              field.includes('description') ||
+              field.includes('shipment_description') ||
+              field.includes('item_')
+            ) {
+              console.log('[PreviewPanel] needsJoin: true (AI block field:', field, ')');
+              return true;
+            }
           }
         }
       }
@@ -79,172 +96,206 @@ export function PreviewPanel() {
     const productFilters: string[] = [];
 
     for (const block of state.logicBlocks || []) {
-      if (block.type === 'filter' && block.conditions) {
-        for (const condition of block.conditions) {
-          if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
+      if (!block.enabled) continue;
+
+      if (block.type === 'filter') {
+        const filterBlock = block as FilterBlock;
+        for (const condition of filterBlock.conditions || []) {
+          const field = (condition.field || '').toLowerCase();
+          if (field.includes('description') || field.includes('shipment_item')) {
             if (typeof condition.value === 'string') {
               const values = condition.value.split('|').map(v => v.trim()).filter(v => v);
               productFilters.push(...values);
             } else if (Array.isArray(condition.value)) {
-              productFilters.push(...condition.value.filter(v => v));
+              productFilters.push(...condition.value.filter(v => typeof v === 'string' && v));
+            }
+          }
+        }
+      }
+
+      if (block.type === 'ai') {
+        const aiBlock = block as AILogicBlock;
+        if (aiBlock.compiledRule?.filters) {
+          for (const filter of aiBlock.compiledRule.filters) {
+            const field = (filter.field || '').toLowerCase();
+            if (field.includes('description') || field.includes('shipment_item')) {
+              if (typeof filter.value === 'string') {
+                const values = filter.value.split('|').map(v => v.trim()).filter(v => v);
+                productFilters.push(...values);
+              } else if (Array.isArray(filter.value)) {
+                productFilters.push(...filter.value.filter(v => typeof v === 'string' && v));
+              }
             }
           }
         }
       }
     }
 
+    console.log('[PreviewPanel] Extracted product filters:', productFilters);
     return productFilters;
   };
 
-  const fetchPreviewData = async () => {
+  const fetchPreviewDataWithJoin = async () => {
     setLoading(true);
     setError(null);
-    setDebugInfo([]);
-
-    const productFilters = extractProductFilters();
-    const needsJoin = needsJoinQuery();
-
-    addDebug(`Starting fetch - needsJoin: ${needsJoin}, filters: ${productFilters.join(', ') || 'none'}`);
-    addDebug(`Customer: ${previewCustomerId ?? 'ALL'}`);
+    setUsingJoin(true);
 
     try {
-      addDebug('Step 1: Checking shipment_item table...');
-      const { data: itemCheck, error: itemError, count: itemCount } = await supabase
-        .from('shipment_item')
-        .select('load_id, description', { count: 'exact' })
-        .limit(3);
+      const productFilters = extractProductFilters();
 
-      if (itemError) {
-        addDebug(`ERROR: shipment_item query failed: ${itemError.message}`);
-        throw new Error(`shipment_item check failed: ${itemError.message}`);
-      }
-
-      addDebug(`shipment_item has ${itemCount ?? 0} rows. Sample: ${JSON.stringify(itemCheck?.slice(0, 2))}`);
-
-      addDebug('Step 2: Checking shipment table...');
-      let shipmentQuery = supabase
-        .from('shipment')
-        .select('load_id, customer_id, retail', { count: 'exact' })
-        .limit(3);
-
-      if (!isAllCustomers && previewCustomerId) {
-        shipmentQuery = shipmentQuery.eq('customer_id', previewCustomerId);
-      }
-
-      const { data: shipmentCheck, error: shipmentError, count: shipmentCount } = await shipmentQuery;
-
-      if (shipmentError) {
-        addDebug(`ERROR: shipment query failed: ${shipmentError.message}`);
-        throw new Error(`shipment check failed: ${shipmentError.message}`);
-      }
-
-      addDebug(`shipment has ${shipmentCount ?? 0} rows for customer ${previewCustomerId ?? 'ALL'}`);
-
-      if (needsJoin && (itemCount ?? 0) > 0) {
-        addDebug('Step 3: Attempting join query...');
-
-        let joinQuery = supabase
-          .from('shipment')
-          .select(`
-            load_id,
-            retail,
-            customer_id,
-            shipment_item (
-              description,
-              weight
-            )
-          `)
-          .limit(20);
-
-        if (!isAllCustomers && previewCustomerId) {
-          joinQuery = joinQuery.eq('customer_id', previewCustomerId);
-        }
-
-        const { data: joinData, error: joinError } = await joinQuery;
-
-        if (joinError) {
-          addDebug(`ERROR: Join query failed: ${joinError.message}`);
-        } else {
-          addDebug(`Join returned ${joinData?.length ?? 0} shipments`);
-
-          const withItems = (joinData || []).filter(s =>
-            s.shipment_item && (Array.isArray(s.shipment_item) ? s.shipment_item.length > 0 : true)
-          );
-          addDebug(`${withItems.length} shipments have items`);
-
-          if (withItems.length > 0) {
-            let rawData = (joinData || []).flatMap(ship => {
-              const items = Array.isArray(ship.shipment_item) ? ship.shipment_item :
-                ship.shipment_item ? [ship.shipment_item] : [];
-              return items.filter(Boolean).map((item: any) => ({
-                load_id: ship.load_id,
-                retail: ship.retail,
-                customer_id: ship.customer_id,
-                description: item.description,
-                weight: item.weight
-              }));
-            });
-
-            addDebug(`Flattened to ${rawData.length} item rows`);
-
-            if (productFilters.length > 0 && rawData.length > 0) {
-              const beforeFilter = rawData.length;
-              rawData = rawData.filter((row: any) => {
-                const desc = (row.description || '').toLowerCase();
-                return productFilters.some(term => desc.includes(term.toLowerCase()));
-              });
-              addDebug(`After filter: ${beforeFilter} -> ${rawData.length} rows`);
-            }
-
-            if (rawData.length > 0) {
-              setRowCount(rawData.length);
-              const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
-              addDebug(`Processed to ${processedData.length} chart items`);
-              setData(processedData);
-              setLoading(false);
-              return;
-            }
-          }
-        }
-      }
-
-      addDebug('Step 4: Using shipment_report_view fallback...');
+      console.log('[PreviewPanel] Join query with:', {
+        previewCustomerId,
+        isAllCustomers,
+        productFilters,
+      });
 
       let query = supabase
-        .from('shipment_report_view')
-        .select('*', { count: 'exact' })
+        .from('shipment')
+        .select(`
+          load_id,
+          retail,
+          customer_id,
+          shipment_item (
+            description,
+            weight
+          )
+        `)
         .limit(500);
 
       if (!isAllCustomers && previewCustomerId) {
         query = query.eq('customer_id', previewCustomerId);
       }
 
-      const { data: viewData, error: viewError, count: viewCount } = await query;
+      const { data: joinedData, error: joinError } = await query;
 
-      if (viewError) {
-        addDebug(`ERROR: shipment_report_view failed: ${viewError.message}`);
-        throw viewError;
+      console.log('[PreviewPanel] Join result:', {
+        count: joinedData?.length,
+        error: joinError,
+        sample: joinedData?.slice(0, 2)
+      });
+
+      if (joinError) throw joinError;
+
+      let rawData = (joinedData || []).flatMap(ship => {
+        const items = Array.isArray(ship.shipment_item) ? ship.shipment_item :
+          ship.shipment_item ? [ship.shipment_item] : [];
+        return items.filter(Boolean).map((item: any) => ({
+          load_id: ship.load_id,
+          retail: ship.retail,
+          customer_id: ship.customer_id,
+          description: item.description,
+          weight: item.weight
+        }));
+      });
+
+      console.log('[PreviewPanel] Flattened data:', rawData.length, 'rows');
+
+      if (productFilters.length > 0 && rawData.length > 0) {
+        rawData = rawData.filter((row: any) => {
+          const desc = (row.description || '').toLowerCase();
+          return productFilters.some(term => desc.includes(term.toLowerCase()));
+        });
+        console.log('[PreviewPanel] After product filter:', rawData.length, 'rows');
       }
 
-      addDebug(`shipment_report_view returned ${viewCount ?? 0} rows`);
+      setRowCount(rawData.length);
 
-      if ((viewData?.length ?? 0) > 0) {
-        setRowCount(viewCount);
-        const processedData = processDataForVisualization(viewData || [], state.visualization, []);
-        addDebug(`Processed to ${processedData.length} chart items`);
-        setData(processedData);
-      } else {
-        addDebug('No data found in any source');
-        setData([]);
-        setRowCount(0);
-      }
+      const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
+      console.log('[PreviewPanel] Processed data:', processedData);
+      setData(processedData);
 
     } catch (err) {
-      console.error('[PreviewPanel] Error:', err);
-      addDebug(`FATAL ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      console.error('[PreviewPanel] Join query error:', err);
       setError(err instanceof Error ? err.message : 'Query failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPreviewDataDirect = async () => {
+    setLoading(true);
+    setError(null);
+    setUsingJoin(false);
+
+    try {
+      let query = supabase
+        .from('shipment_report_view')
+        .select('*', { count: 'exact' })
+        .limit(1000);
+
+      if (!isAllCustomers && previewCustomerId) {
+        query = query.eq('customer_id', previewCustomerId);
+      }
+
+      for (const block of state.logicBlocks || []) {
+        if (!block.enabled) continue;
+
+        if (block.type === 'filter') {
+          const filterBlock = block as FilterBlock;
+          for (const condition of filterBlock.conditions || []) {
+            const { field, operator, value } = condition;
+            if (!field || value === undefined || value === '') continue;
+
+            if (field.includes('shipment_item') || field.includes('.')) continue;
+
+            const cleanField = field.replace('shipment_report_view.', '');
+
+            switch (operator) {
+              case 'eq':
+                query = query.eq(cleanField, value);
+                break;
+              case 'neq':
+                query = query.neq(cleanField, value);
+                break;
+              case 'gt':
+                query = query.gt(cleanField, value);
+                break;
+              case 'gte':
+                query = query.gte(cleanField, value);
+                break;
+              case 'lt':
+                query = query.lt(cleanField, value);
+                break;
+              case 'lte':
+                query = query.lte(cleanField, value);
+                break;
+              case 'contains':
+                query = query.ilike(cleanField, `%${value}%`);
+                break;
+              case 'in':
+                if (Array.isArray(value)) {
+                  query = query.in(cleanField, value);
+                }
+                break;
+            }
+          }
+        }
+      }
+
+      const { data: rawData, error: queryError, count } = await query;
+
+      if (queryError) throw queryError;
+
+      setRowCount(count);
+
+      const processedData = processDataForVisualization(rawData || [], state.visualization, []);
+      setData(processedData);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch preview data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPreviewData = async () => {
+    const needsJoin = needsJoinQuery();
+    console.log('[PreviewPanel] Starting fetch - needsJoin:', needsJoin);
+
+    if (needsJoin) {
+      await fetchPreviewDataWithJoin();
+    } else {
+      await fetchPreviewDataDirect();
     }
   };
 
@@ -261,28 +312,50 @@ export function PreviewPanel() {
     previewCustomerId,
   ]);
 
-  const containerClass = isFullscreen
-    ? 'fixed inset-0 z-50 bg-white p-6'
-    : 'p-4';
+  const containerClass = isFullscreen ? 'fixed inset-0 z-50 bg-white p-6' : '';
 
   return (
     <div className={containerClass}>
-      <div className="flex items-center justify-between mb-4">
+      {isAdmin && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
+          <label className="text-xs text-slate-500 flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" />
+            Preview Data:
+          </label>
+          <select
+            value={previewCustomerId ?? 'all'}
+            onChange={(e) => {
+              const value = e.target.value;
+              setPreviewCustomerId(value === 'all' ? null : parseInt(value, 10));
+            }}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 max-w-xs"
+          >
+            <option value="all">All Customers (Admin)</option>
+            <optgroup label="Individual Customers">
+              {customers.map((customer) => (
+                <option key={customer.customer_id} value={customer.customer_id}>
+                  {customer.customer_name || `Customer ${customer.customer_id}`}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between p-4 pb-2">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Preview</h3>
           <p className="text-xs text-slate-500 flex items-center gap-1">
             <Database className="w-3 h-3" />
             {rowCount !== null ? `${rowCount.toLocaleString()} rows` : 'Loading...'}
+            {usingJoin && (
+              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
+                JOIN
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowDebug(!showDebug)}
-            className={`p-1.5 rounded transition-colors ${showDebug ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}
-            title="Toggle debug info"
-          >
-            <Bug className="w-4 h-4" />
-          </button>
           <button
             onClick={fetchPreviewData}
             disabled={loading}
@@ -301,24 +374,14 @@ export function PreviewPanel() {
         </div>
       </div>
 
-      {showDebug && (
-        <div className="mb-4 p-2 bg-slate-800 text-green-400 rounded text-xs font-mono overflow-auto max-h-32">
-          {debugInfo.length === 0 ? (
-            <div className="text-slate-500">Waiting for query...</div>
-          ) : (
-            debugInfo.map((msg, i) => (
-              <div key={i} className={msg.includes('ERROR') ? 'text-red-400' : ''}>{msg}</div>
-            ))
-          )}
-        </div>
-      )}
-
-      <div className={`bg-slate-50 rounded-lg ${isFullscreen ? 'h-[calc(100vh-200px)]' : 'h-64'}`}>
+      <div className={`mx-4 bg-slate-50 rounded-lg ${isFullscreen ? 'h-[calc(100vh-180px)]' : 'h-80'}`}>
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-              <p className="text-xs text-slate-500 mt-2">Loading preview...</p>
+              <p className="text-xs text-slate-500 mt-2">
+                {usingJoin ? 'Querying with join...' : 'Loading preview...'}
+              </p>
             </div>
           </div>
         ) : error ? (
@@ -339,7 +402,7 @@ export function PreviewPanel() {
             <div className="text-center text-slate-400">
               <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No data matches your filters</p>
-              <p className="text-xs mt-1">Check debug panel for details</p>
+              <p className="text-xs mt-1">Try adjusting your filter criteria</p>
             </div>
           </div>
         ) : (
@@ -351,7 +414,7 @@ export function PreviewPanel() {
         )}
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+      <div className="px-4 py-2 flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-3 h-3" />
           <span>{state.visualization.type}</span>
@@ -361,7 +424,7 @@ export function PreviewPanel() {
             </span>
           )}
         </div>
-        <span>Customer: {previewCustomerId ?? 'All'}</span>
+        <span>Preview shows sample data. Published widget will use Analytics Hub date range.</span>
       </div>
     </div>
   );
@@ -426,7 +489,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
               nameKey="name"
               cx="50%"
               cy="50%"
-              outerRadius={80}
+              outerRadius={100}
               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               labelLine={false}
             >
@@ -440,25 +503,10 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
       );
 
     case 'kpi':
-      const value = data[0]?.value || 0;
-      const format = config.kpi?.format || 'number';
-      let formatted: string;
-      if (format === 'currency') {
-        formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
-      } else if (format === 'percent') {
-        formatted = `${(value * 100).toFixed(1)}%`;
-      } else {
-        formatted = new Intl.NumberFormat('en-US').format(value);
-      }
-      return (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-slate-900">
-              {config.kpi?.prefix}{formatted}{config.kpi?.suffix}
-            </div>
-          </div>
-        </div>
-      );
+      return <KPIPreview data={data} config={config} />;
+
+    case 'table':
+      return <TablePreview data={data} />;
 
     case 'scatter':
       return (
@@ -474,36 +522,10 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
       );
 
     case 'choropleth':
-      return (
-        <div className="h-full flex items-center justify-center p-4">
-          <div className="text-center">
-            <MapIcon className="w-16 h-16 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-600">Choropleth Map Preview</p>
-            <p className="text-xs text-slate-400 mt-1">
-              {config.geo?.mapKey || 'us_states'} - {data.length} regions
-            </p>
-          </div>
-        </div>
-      );
+      return <ChoroplethPreview data={data} config={config} />;
 
     case 'flow':
-      return (
-        <div className="h-full flex items-center justify-center p-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <MapIcon className="w-6 h-6 text-blue-500" />
-              </div>
-              <div className="text-2xl text-slate-300">→</div>
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                <MapIcon className="w-6 h-6 text-orange-500" />
-              </div>
-            </div>
-            <p className="text-sm text-slate-600">Flow Map Preview</p>
-            <p className="text-xs text-slate-400 mt-1">{data.length} origin-destination pairs</p>
-          </div>
-        </div>
-      );
+      return <FlowMapPreview data={data} />;
 
     default:
       return (
@@ -515,6 +537,104 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
         </div>
       );
   }
+}
+
+function KPIPreview({ data, config }: { data: any[]; config: any }) {
+  const value = data[0]?.value || 0;
+  const format = config.kpi?.format || 'number';
+
+  let formatted: string;
+  if (format === 'currency') {
+    formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+  } else if (format === 'percent') {
+    formatted = `${(value * 100).toFixed(1)}%`;
+  } else {
+    formatted = new Intl.NumberFormat('en-US').format(value);
+  }
+
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-4xl font-bold text-slate-900">
+          {config.kpi?.prefix}{formatted}{config.kpi?.suffix}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TablePreview({ data }: { data: any[] }) {
+  if (data.length === 0) return null;
+
+  const columns = Object.keys(data[0]);
+
+  return (
+    <div className="h-full overflow-auto p-2">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-slate-100">
+            {columns.map(col => (
+              <th key={col} className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+                {col}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {data.slice(0, 10).map((row, i) => (
+            <tr key={i} className="hover:bg-slate-50">
+              {columns.map(col => (
+                <td key={col} className="px-3 py-2 text-slate-700">
+                  {String(row[col] ?? '')}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.length > 10 && (
+        <p className="text-xs text-slate-400 text-center mt-2">
+          Showing 10 of {data.length} rows
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
+  return (
+    <div className="h-full flex items-center justify-center p-4">
+      <div className="text-center">
+        <MapIcon className="w-16 h-16 text-slate-300 mx-auto mb-3" />
+        <p className="text-sm text-slate-600">Choropleth Map Preview</p>
+        <p className="text-xs text-slate-400 mt-1">
+          {config.geo?.mapKey || 'us_states'} - {data.length} regions
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FlowMapPreview({ data }: { data: any[] }) {
+  return (
+    <div className="h-full flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+            <MapIcon className="w-6 h-6 text-blue-500" />
+          </div>
+          <div className="text-2xl text-slate-300">→</div>
+          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+            <MapIcon className="w-6 h-6 text-orange-500" />
+          </div>
+        </div>
+        <p className="text-sm text-slate-600">Flow Map Preview</p>
+        <p className="text-xs text-slate-400 mt-1">
+          {data.length} origin-destination pairs
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function processDataForVisualization(rawData: any[], config: any, productFilters: string[]): any[] {
@@ -564,7 +684,7 @@ function processDataForVisualization(rawData: any[], config: any, productFilters
       .slice(0, 20);
   }
 
-  if (productFilters.length > 0 && rawData[0]?.description) {
+  if (productFilters.length > 0 && rawData.length > 0 && rawData[0]?.description) {
     const productGroups: Record<string, number[]> = {};
 
     for (const product of productFilters) {

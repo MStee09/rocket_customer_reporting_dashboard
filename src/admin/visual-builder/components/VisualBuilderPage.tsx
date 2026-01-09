@@ -20,10 +20,8 @@ import {
   Filter,
   Eye,
   Upload,
-  Save,
   RotateCcw,
   AlertCircle,
-  Users,
 } from 'lucide-react';
 import { BuilderProvider, useBuilder, loadDraftFromStorage, clearDraftFromStorage } from './BuilderContext';
 import { AISuggestionAssistant } from './AISuggestionAssistant';
@@ -32,7 +30,6 @@ import { FieldMappingPanel } from './panels/FieldMappingPanel';
 import { LogicPanel } from './panels/LogicPanel';
 import { PreviewPanel } from './panels/PreviewPanel';
 import { PublishPanel } from './panels/PublishPanel';
-import { useAuth } from '../../../contexts/AuthContext';
 import type { VisualBuilderSchema } from '../types/BuilderSchema';
 
 interface PreviewCustomerContextValue {
@@ -145,45 +142,6 @@ function HeaderActions() {
 }
 
 // =============================================================================
-// PREVIEW CUSTOMER SELECTOR
-// =============================================================================
-
-function PreviewCustomerSelector() {
-  const { customers, role } = useAuth();
-  const { previewCustomerId, setPreviewCustomerId } = usePreviewCustomer();
-
-  if (role !== 'admin') {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
-      <label className="text-xs text-slate-500 flex items-center gap-1">
-        <Users className="w-3.5 h-3.5" />
-        Preview Data:
-      </label>
-      <select
-        value={previewCustomerId ?? 'all'}
-        onChange={(e) => {
-          const value = e.target.value;
-          setPreviewCustomerId(value === 'all' ? null : parseInt(value, 10));
-        }}
-        className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 max-w-xs"
-      >
-        <option value="all">All Customers (Admin)</option>
-        <optgroup label="Individual Customers">
-          {customers.map((customer) => (
-            <option key={customer.customer_id} value={customer.customer_id}>
-              {customer.customer_name || `Customer ${customer.customer_id}`}
-            </option>
-          ))}
-        </optgroup>
-      </select>
-    </div>
-  );
-}
-
-// =============================================================================
 // BUILDER LAYOUT
 // =============================================================================
 
@@ -238,7 +196,6 @@ function BuilderLayout() {
       <div className="col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
         {/* Preview */}
         <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <PreviewCustomerSelector />
           <PreviewPanel />
         </div>
 

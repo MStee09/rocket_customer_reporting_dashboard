@@ -1,0 +1,62 @@
+// FIX FOR PreviewPanel.tsx - Line 81
+// 
+// PROBLEM: AI returns filter values like "%drawer%|%cargoglide%|%toolbox%"
+// The code splits by "|" but keeps the "%" wildcards, which then don't match
+// when doing includes() comparison.
+//
+// LOCATION: src/admin/visual-builder/components/panels/PreviewPanel.tsx
+// Find the extractProductFilters function (around line 73-92)
+//
+// REPLACE THIS:
+//
+//   const extractProductFilters = (): string[] => {
+//     const productFilters: string[] = [];
+// 
+//     for (const block of state.logicBlocks || []) {
+//       if (block.type === 'filter' && block.conditions) {
+//         for (const condition of block.conditions) {
+//           if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
+//             if (typeof condition.value === 'string') {
+//               const values = condition.value.split('|').map(v => v.trim()).filter(v => v);
+//               productFilters.push(...values);
+//             } else if (Array.isArray(condition.value)) {
+//               productFilters.push(...condition.value.filter(v => v));
+//             }
+//           }
+//         }
+//       }
+//     }
+// 
+//     return productFilters;
+//   };
+//
+// WITH THIS:
+
+  const extractProductFilters = (): string[] => {
+    const productFilters: string[] = [];
+
+    for (const block of state.logicBlocks || []) {
+      if (block.type === 'filter' && block.conditions) {
+        for (const condition of block.conditions) {
+          if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
+            if (typeof condition.value === 'string') {
+              // Split by pipe, trim, and STRIP SQL wildcards (%)
+              const values = condition.value
+                .split('|')
+                .map(v => v.trim().replace(/%/g, ''))  // <-- FIX: Remove % wildcards
+                .filter(v => v.length > 0);
+              productFilters.push(...values);
+            } else if (Array.isArray(condition.value)) {
+              productFilters.push(...condition.value.map(v => String(v).replace(/%/g, '')).filter(v => v.length > 0));
+            }
+          }
+        }
+      }
+    }
+
+    console.log('[PreviewPanel] Extracted product filters:', productFilters);
+    return productFilters;
+  };
+
+// That's it! The single line change: .replace(/%/g, '')
+// This strips the SQL-style wildcards so "drawer" matches "Drawer System"

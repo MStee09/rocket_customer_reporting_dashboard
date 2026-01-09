@@ -23,6 +23,7 @@ import {
   Save,
   RotateCcw,
   AlertCircle,
+  Users,
 } from 'lucide-react';
 import { BuilderProvider, useBuilder, loadDraftFromStorage, clearDraftFromStorage } from './BuilderContext';
 import { AISuggestionAssistant } from './AISuggestionAssistant';
@@ -31,7 +32,22 @@ import { FieldMappingPanel } from './panels/FieldMappingPanel';
 import { LogicPanel } from './panels/LogicPanel';
 import { PreviewPanel } from './panels/PreviewPanel';
 import { PublishPanel } from './panels/PublishPanel';
+import { useAuth } from '../../../contexts/AuthContext';
 import type { VisualBuilderSchema } from '../types/BuilderSchema';
+
+interface PreviewCustomerContextValue {
+  previewCustomerId: number | null;
+  setPreviewCustomerId: (id: number | null) => void;
+}
+
+const PreviewCustomerContext = React.createContext<PreviewCustomerContextValue>({
+  previewCustomerId: null,
+  setPreviewCustomerId: () => {},
+});
+
+export function usePreviewCustomer() {
+  return React.useContext(PreviewCustomerContext);
+}
 
 // =============================================================================
 // MAIN PAGE COMPONENT
@@ -41,8 +57,8 @@ export function VisualBuilderPage() {
   const navigate = useNavigate();
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [savedDraft, setSavedDraft] = useState<VisualBuilderSchema | null>(null);
+  const [previewCustomerId, setPreviewCustomerId] = useState<number | null>(null);
 
-  // Check for saved draft on mount
   useEffect(() => {
     const draft = loadDraftFromStorage();
     if (draft && draft.ui.isDirty) {
@@ -62,42 +78,44 @@ export function VisualBuilderPage() {
   };
 
   return (
-    <BuilderProvider initialSchema={showDraftModal ? undefined : savedDraft || undefined}>
-      <div className="min-h-screen bg-slate-100">
-        {/* Header */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-          <div className="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-lg font-semibold text-slate-900">Visual Widget Builder</h1>
-                <p className="text-xs text-slate-500">Create custom widgets without code</p>
+    <PreviewCustomerContext.Provider value={{ previewCustomerId, setPreviewCustomerId }}>
+      <BuilderProvider initialSchema={showDraftModal ? undefined : savedDraft || undefined}>
+        <div className="min-h-screen bg-slate-100">
+          {/* Header */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+            <div className="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h1 className="text-lg font-semibold text-slate-900">Visual Widget Builder</h1>
+                  <p className="text-xs text-slate-500">Create custom widgets without code</p>
+                </div>
               </div>
+              <HeaderActions />
             </div>
-            <HeaderActions />
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content */}
-        <main className="max-w-[1800px] mx-auto p-4">
-          <BuilderLayout />
-        </main>
+          {/* Main Content */}
+          <main className="max-w-[1800px] mx-auto p-4">
+            <BuilderLayout />
+          </main>
 
-        {/* Draft Recovery Modal */}
-        {showDraftModal && savedDraft && (
-          <DraftRecoveryModal
-            draft={savedDraft}
-            onRestore={handleRestoreDraft}
-            onDiscard={handleDiscardDraft}
-          />
-        )}
-      </div>
-    </BuilderProvider>
+          {/* Draft Recovery Modal */}
+          {showDraftModal && savedDraft && (
+            <DraftRecoveryModal
+              draft={savedDraft}
+              onRestore={handleRestoreDraft}
+              onDiscard={handleDiscardDraft}
+            />
+          )}
+        </div>
+      </BuilderProvider>
+    </PreviewCustomerContext.Provider>
   );
 }
 
@@ -122,6 +140,45 @@ function HeaderActions() {
         <RotateCcw className="w-4 h-4" />
         Reset
       </button>
+    </div>
+  );
+}
+
+// =============================================================================
+// PREVIEW CUSTOMER SELECTOR
+// =============================================================================
+
+function PreviewCustomerSelector() {
+  const { customers, role } = useAuth();
+  const { previewCustomerId, setPreviewCustomerId } = usePreviewCustomer();
+
+  if (role !== 'admin') {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
+      <label className="text-xs text-slate-500 flex items-center gap-1">
+        <Users className="w-3.5 h-3.5" />
+        Preview Data:
+      </label>
+      <select
+        value={previewCustomerId ?? 'all'}
+        onChange={(e) => {
+          const value = e.target.value;
+          setPreviewCustomerId(value === 'all' ? null : parseInt(value, 10));
+        }}
+        className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 max-w-xs"
+      >
+        <option value="all">All Customers (Admin)</option>
+        <optgroup label="Individual Customers">
+          {customers.map((customer) => (
+            <option key={customer.customer_id} value={customer.customer_id}>
+              {customer.customer_name || `Customer ${customer.customer_id}`}
+            </option>
+          ))}
+        </optgroup>
+      </select>
     </div>
   );
 }
@@ -181,6 +238,7 @@ function BuilderLayout() {
       <div className="col-span-12 lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
         {/* Preview */}
         <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <PreviewCustomerSelector />
           <PreviewPanel />
         </div>
 

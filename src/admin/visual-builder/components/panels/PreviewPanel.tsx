@@ -6,14 +6,11 @@ import {
   AlertCircle,
   Loader2,
   BarChart3,
-  LineChart,
-  PieChart,
-  Table2,
-  Map as MapIcon,
-  TrendingUp,
   Database,
+  Map as MapIcon,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
+import { usePreviewCustomer } from '../VisualBuilderPage';
 import { supabase } from '../../../../lib/supabase';
 import { useAuth } from '../../../../contexts/AuthContext';
 import {
@@ -37,15 +34,18 @@ import {
 
 export function PreviewPanel() {
   const { state } = useBuilder();
-  const { effectiveCustomerId, role } = useAuth();
+  const { previewCustomerId } = usePreviewCustomer();
+  const { role } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any[]>([]);
   const [rowCount, setRowCount] = useState<number | null>(null);
-  const [usingMCP, setUsingMCP] = useState(false);
+  const [usingJoin, setUsingJoin] = useState(false);
 
-  const needsMCPQuery = (): boolean => {
+  const isAllCustomers = previewCustomerId === null;
+
+  const needsJoinQuery = (): boolean => {
     if (!state.logicBlocks) return false;
 
     for (const block of state.logicBlocks) {
@@ -91,67 +91,77 @@ export function PreviewPanel() {
     return productFilters;
   };
 
-  const fetchPreviewDataWithMCP = async () => {
+  const fetchPreviewDataWithJoin = async () => {
     setLoading(true);
     setError(null);
-    setUsingMCP(true);
+    setUsingJoin(true);
 
     try {
       const productFilters = extractProductFilters();
-      const customerId = effectiveCustomerId;
-      const isAdmin = role === 'admin';
 
-      console.log('[PreviewPanel MCP] Starting query with:', {
-        customerId,
-        isAdmin,
+      console.log('[PreviewPanel] Join query with:', {
+        previewCustomerId,
+        isAllCustomers,
         productFilters,
       });
 
-      if (!customerId) {
-        throw new Error('No customer selected');
+      let query = supabase
+        .from('shipment')
+        .select(`
+          load_id,
+          retail,
+          customer_id,
+          shipment_item!inner (
+            description,
+            weight
+          )
+        `)
+        .limit(500);
+
+      if (!isAllCustomers && previewCustomerId) {
+        query = query.eq('customer_id', previewCustomerId);
       }
 
-      const { data: result, error: rpcError } = await supabase.rpc('mcp_query_with_join', {
-        p_base_table: 'shipment',
-        p_customer_id: customerId,
-        p_is_admin: isAdmin,
-        p_joins: [{ table: 'shipment_item' }],
-        p_select: ['shipment.load_id', 'shipment.retail', 'shipment_item.description', 'shipment_item.weight'],
-        p_filters: [],
-        p_group_by: null,
-        p_aggregations: null,
-        p_order_by: 'shipment.retail DESC',
-        p_limit: 1000,
+      const { data: joinedData, error: joinError } = await query;
+
+      console.log('[PreviewPanel] Join result:', {
+        count: joinedData?.length,
+        error: joinError,
+        sample: joinedData?.slice(0, 2)
       });
 
-      console.log('[PreviewPanel MCP] RPC response:', { result, error: rpcError });
+      if (joinError) throw joinError;
 
-      if (rpcError) {
-        throw new Error(rpcError.message);
-      }
+      let rawData = (joinedData || []).flatMap(ship => {
+        const items = Array.isArray(ship.shipment_item) ? ship.shipment_item : [ship.shipment_item];
+        return items.filter(Boolean).map((item: any) => ({
+          load_id: ship.load_id,
+          retail: ship.retail,
+          customer_id: ship.customer_id,
+          description: item.description,
+          weight: item.weight
+        }));
+      });
 
-      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-      let rawData = parsed?.data || [];
-
-      console.log('[PreviewPanel MCP] Raw data count:', rawData.length);
+      console.log('[PreviewPanel] Flattened data:', rawData.length, 'rows');
 
       if (productFilters.length > 0) {
         rawData = rawData.filter((row: any) => {
           const desc = (row.description || '').toLowerCase();
           return productFilters.some(term => desc.includes(term.toLowerCase()));
         });
-        console.log('[PreviewPanel MCP] After product filter:', rawData.length, 'rows');
+        console.log('[PreviewPanel] After product filter:', rawData.length, 'rows');
       }
 
       setRowCount(rawData.length);
 
       const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
-      console.log('[PreviewPanel MCP] Processed data:', processedData);
+      console.log('[PreviewPanel] Processed data:', processedData);
       setData(processedData);
 
     } catch (err) {
-      console.error('[PreviewPanel MCP] Error:', err);
-      setError(err instanceof Error ? err.message : 'MCP query failed');
+      console.error('[PreviewPanel] Join query error:', err);
+      setError(err instanceof Error ? err.message : 'Query failed');
     } finally {
       setLoading(false);
     }
@@ -160,13 +170,17 @@ export function PreviewPanel() {
   const fetchPreviewDataDirect = async () => {
     setLoading(true);
     setError(null);
-    setUsingMCP(false);
+    setUsingJoin(false);
 
     try {
       let query = supabase
         .from('shipment_report_view')
         .select('*', { count: 'exact' })
         .limit(1000);
+
+      if (!isAllCustomers && previewCustomerId) {
+        query = query.eq('customer_id', previewCustomerId);
+      }
 
       if (state.logicBlocks && state.logicBlocks.length > 0) {
         for (const block of state.logicBlocks) {
@@ -242,8 +256,8 @@ export function PreviewPanel() {
   };
 
   const fetchPreviewData = async () => {
-    if (needsMCPQuery()) {
-      await fetchPreviewDataWithMCP();
+    if (needsJoinQuery()) {
+      await fetchPreviewDataWithJoin();
     } else {
       await fetchPreviewDataDirect();
     }
@@ -261,7 +275,7 @@ export function PreviewPanel() {
     state.visualization.geo,
     state.visualization.flow,
     state.logicBlocks,
-    effectiveCustomerId,
+    previewCustomerId,
   ]);
 
   const containerClass = isFullscreen
@@ -273,17 +287,15 @@ export function PreviewPanel() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Preview</h3>
-          {rowCount !== null && (
-            <p className="text-xs text-slate-500 flex items-center gap-1">
-              <Database className="w-3 h-3" />
-              {rowCount.toLocaleString()} rows (sample)
-              {usingMCP && (
-                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
-                  MCP
-                </span>
-              )}
-            </p>
-          )}
+          <p className="text-xs text-slate-500 flex items-center gap-1">
+            <Database className="w-3 h-3" />
+            {rowCount !== null ? `${rowCount.toLocaleString()} rows` : 'Loading...'} (sample)
+            {usingJoin && (
+              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
+                JOIN
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -313,9 +325,9 @@ export function PreviewPanel() {
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
-              {usingMCP && (
-                <p className="text-xs text-slate-500 mt-2">Querying with MCP...</p>
-              )}
+              <p className="text-xs text-slate-500 mt-2">
+                {usingJoin ? 'Querying with join...' : 'Loading preview...'}
+              </p>
             </div>
           </div>
         ) : error ? (

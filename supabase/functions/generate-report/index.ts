@@ -211,132 +211,218 @@ async function getRelevantKnowledge(
 
 const AI_TOOLS: Anthropic.Tool[] = [
   {
+    name: "discover_tables",
+    description: "List available database tables. Call first to see what data exists.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        category: { type: "string", enum: ["core", "reference", "analytics"], description: "Filter by category" },
+        include_row_counts: { type: "boolean", description: "Include row counts (slower)" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "discover_fields",
+    description: "Get all fields for a table with types and AI instructions.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        table_name: { type: "string", description: "Table name (e.g., 'shipment', 'shipment_item')" },
+        include_samples: { type: "boolean", description: "Include sample values" }
+      },
+      required: ["table_name"]
+    }
+  },
+  {
+    name: "discover_joins",
+    description: "Get relationships between tables.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        table_name: { type: "string", description: "Table to find joins for" }
+      },
+      required: ["table_name"]
+    }
+  },
+  {
+    name: "query_table",
+    description: "Query any table with filters, grouping, aggregation. Customer filtering automatic.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        table_name: { type: "string", description: "Table to query" },
+        select: { type: "array", items: { type: "string" }, description: "Fields to select" },
+        filters: { type: "array", items: { type: "object", properties: {
+          field: { type: "string" }, operator: { type: "string", enum: ["eq","neq","gt","gte","lt","lte","ilike","like","in","not_in","between","is_null","is_not_null"] }, value: {}
+        }, required: ["field","operator","value"] }},
+        group_by: { type: "array", items: { type: "string" } },
+        aggregations: { type: "array", items: { type: "object", properties: {
+          field: { type: "string" }, function: { type: "string", enum: ["sum","avg","min","max","count"] }, alias: { type: "string" }
+        }, required: ["field","function"] }},
+        order_by: { type: "string" }, order_dir: { type: "string", enum: ["asc","desc"] }, limit: { type: "number" }
+      },
+      required: ["table_name"]
+    }
+  },
+  {
+    name: "search_text",
+    description: "Search for text across multiple tables. Returns where matches are found.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Text to search for" },
+        tables: { type: "array", items: { type: "string" }, description: "Limit to specific tables" },
+        fields: { type: "array", items: { type: "string" }, description: "Limit to specific fields" },
+        match_type: { type: "string", enum: ["contains","exact","starts_with","ends_with"] },
+        limit: { type: "number" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "query_with_join",
+    description: "Query across multiple tables with joins.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        base_table: { type: "string", description: "Primary table" },
+        joins: { type: "array", items: { type: "object", properties: {
+          table: { type: "string" }, type: { type: "string", enum: ["left","inner"] }, on: { type: "string", description: "Custom join condition" }
+        }, required: ["table"] }},
+        select: { type: "array", items: { type: "string" } },
+        filters: { type: "array" },
+        group_by: { type: "array", items: { type: "string" } },
+        aggregations: { type: "array" },
+        order_by: { type: "string" }, limit: { type: "number" }
+      },
+      required: ["base_table","joins"]
+    }
+  },
+  {
+    name: "aggregate",
+    description: "Simple group-by aggregation.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        table_name: { type: "string" }, group_by: { type: "string" }, metric: { type: "string" },
+        aggregation: { type: "string", enum: ["sum","avg","min","max","count"] },
+        filters: { type: "array" }, limit: { type: "number" }
+      },
+      required: ["table_name","group_by","metric","aggregation"]
+    }
+  },
+  {
     name: "explore_field",
-    description: `Explore a data field to understand its values, distribution, and quality.
-ALWAYS use this before referencing a field in reports.
-Returns: unique values, coverage %, top values with counts, data quality assessment.`,
+    description: "Get distinct values for a field with distribution and quality assessment.",
     input_schema: {
       type: "object" as const,
       properties: {
         field_name: { type: "string", description: "Field to explore (e.g., 'carrier_name', 'destination_state')" },
-        sample_size: { type: "number", description: "Number of top values to return (default: 15)" },
-        include_nulls: { type: "boolean", description: "Include null/empty analysis (default: true)" }
+        sample_size: { type: "number", description: "Number of top values to return (default: 15)" }
       },
       required: ["field_name"]
     }
   },
   {
     name: "preview_aggregation",
-    description: `Preview what an aggregation looks like with REAL DATA.
-Use this to validate groupings and see actual numbers before adding to report.
-Returns: actual aggregated values, group counts, visualization suggestions.`,
+    description: "Preview an aggregation with real data before adding to report.",
     input_schema: {
       type: "object" as const,
       properties: {
         group_by: { type: "string", description: "Field to group by" },
         metric: { type: "string", description: "Field to aggregate" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct", "min", "max"], description: "Aggregation type" },
-        secondary_group_by: { type: "string", description: "Optional second grouping field" },
-        limit: { type: "number", description: "Max groups to return (default: 15)" },
-        sort: { type: "string", enum: ["desc", "asc"], description: "Sort direction" }
+        aggregation: { type: "string", enum: ["sum", "avg", "count", "min", "max"], description: "Aggregation type" },
+        limit: { type: "number", description: "Max groups to return (default: 15)" }
       },
-      required: ["group_by", "metric", "aggregation"]
+      required: ["group_by", "metric"]
     }
   },
   {
     name: "compare_periods",
-    description: `Compare a metric across two time periods.
-Use for trend analysis, period-over-period comparisons.
-Returns: values for both periods, change %, significance assessment.`,
+    description: "Compare metrics between two time periods.",
     input_schema: {
       type: "object" as const,
       properties: {
         metric: { type: "string", description: "Metric to compare" },
-        aggregation: { type: "string", enum: ["sum", "avg", "count", "countDistinct"], description: "How to aggregate" },
-        period1: { type: "string", description: "First period (e.g., 'last30', 'last90')" },
-        period2: { type: "string", description: "Second period to compare against" },
-        group_by: { type: "string", description: "Optional grouping for breakdown" }
+        aggregation: { type: "string", enum: ["sum", "avg", "count"], description: "How to aggregate" },
+        period1: { type: "string", enum: ["last7", "last30", "last90", "last6months", "lastYear"], description: "First period" },
+        period2: { type: "string", enum: ["last7", "last30", "last90", "last6months", "lastYear"], description: "Second period" },
+        table_name: { type: "string", description: "Table to query (default: shipment)" }
       },
       required: ["metric", "aggregation", "period1", "period2"]
     }
   },
   {
     name: "detect_anomalies",
-    description: `Automatically detect anomalies in the data.
-Finds spikes, drops, outliers, and unusual patterns using statistical analysis.`,
+    description: "Detect statistical anomalies in metrics.",
     input_schema: {
       type: "object" as const,
       properties: {
         metric: { type: "string", description: "Metric to analyze for anomalies" },
         group_by: { type: "string", description: "Optional grouping (e.g., find anomalies per carrier)" },
-        sensitivity: { type: "string", enum: ["high", "medium", "low"], description: "Detection sensitivity (high = more anomalies detected)" },
-        baseline: { type: "string", enum: ["historical_avg", "previous_period", "peer_group"], description: "What to compare against" }
+        table_name: { type: "string", description: "Table to analyze" },
+        sensitivity: { type: "string", enum: ["high", "medium", "low"], description: "Detection sensitivity" }
       },
       required: ["metric"]
     }
   },
   {
     name: "investigate_cause",
-    description: `Perform root cause analysis for an observed issue.
-Drills down into data across multiple dimensions to find contributing factors.`,
+    description: "Perform root cause analysis across multiple dimensions.",
     input_schema: {
       type: "object" as const,
       properties: {
-        question: { type: "string", description: "The question to investigate (e.g., 'Why did costs increase?')" },
+        question: { type: "string", description: "The question to investigate" },
         metric: { type: "string", description: "Primary metric involved" },
-        context: { type: "object", description: "Additional context (filters, time range, etc.)" },
         max_depth: { type: "number", description: "How many dimensions to analyze (default: 3)" }
       },
-      required: ["question", "metric"]
+      required: ["metric"]
     }
   },
   {
     name: "create_report_draft",
-    description: `Start a new report draft with metadata.
-Call this first before adding sections. Sets up the report structure.`,
+    description: "Start a new report draft.",
     input_schema: {
       type: "object" as const,
       properties: {
         name: { type: "string", description: "Report title" },
         description: { type: "string", description: "Report description" },
-        theme: { type: "string", enum: ["blue", "green", "orange", "purple", "red", "teal", "slate"], description: "Color theme" },
-        date_range: { type: "string", enum: ["last7", "last30", "last90", "last6months", "ytd", "lastYear", "all"], description: "Date range preset" }
+        theme: { type: "string", enum: ["blue", "green", "purple", "orange"], description: "Color theme" },
+        date_range: { type: "string", enum: ["last7", "last30", "last90", "last6months", "lastYear", "custom"], description: "Date range preset" }
       },
       required: ["name"]
     }
   },
   {
     name: "add_section",
-    description: `Add a section to the report WITH IMMEDIATE DATA PREVIEW.
-The section is executed against real data and results are returned.`,
+    description: "Add a section to the report with immediate data preview.",
     input_schema: {
       type: "object" as const,
       properties: {
-        section_type: { type: "string", enum: ["hero", "stat-row", "chart", "table", "map", "header", "category-grid"], description: "Type of section" },
+        section_type: { type: "string", enum: ["hero", "stat-row", "chart", "table", "map", "category-grid"], description: "Type of section" },
         title: { type: "string", description: "Section title" },
         config: { type: "object", description: "Section configuration (groupBy, metric, chartType, etc.)" },
-        position: { type: "number", description: "Position in report (omit to append)" },
-        generate_insight: { type: "boolean", description: "Generate AI insight for this section (default: true)" }
+        position: { type: "number", description: "Position in report (omit to append)" }
       },
-      required: ["section_type", "config"]
+      required: ["section_type"]
     }
   },
   {
     name: "modify_section",
-    description: `Modify an existing section and re-preview the results.`,
+    description: "Modify an existing section.",
     input_schema: {
       type: "object" as const,
       properties: {
         section_index: { type: "number", description: "Index of section to modify (0-based)" },
-        updates: { type: "object", description: "Properties to update" },
-        regenerate_insight: { type: "boolean", description: "Regenerate insight after modification" }
+        updates: { type: "object", description: "Properties to update" }
       },
       required: ["section_index", "updates"]
     }
   },
   {
     name: "remove_section",
-    description: `Remove a section from the report.`,
+    description: "Remove a section from the report.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -347,7 +433,7 @@ The section is executed against real data and results are returned.`,
   },
   {
     name: "reorder_sections",
-    description: `Reorder sections in the report.`,
+    description: "Reorder sections in the report.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -358,8 +444,7 @@ The section is executed against real data and results are returned.`,
   },
   {
     name: "preview_report",
-    description: `Execute and preview the entire report with real data.
-Useful for validating the report before finalizing.`,
+    description: "Preview the entire report with real data.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -371,22 +456,18 @@ Useful for validating the report before finalizing.`,
   },
   {
     name: "finalize_report",
-    description: `Finalize the report and mark as ready to save.
-Call this when the report is complete and ready for the user.`,
+    description: "Finalize the report draft.",
     input_schema: {
       type: "object" as const,
       properties: {
-        report: { type: "object", description: "The complete report definition (optional if using draft)" },
-        summary: { type: "string", description: "Brief conversational summary for user" },
-        generate_narrative: { type: "boolean", description: "Include AI-generated narrative (default: true)" }
+        summary: { type: "string", description: "Brief conversational summary for user" }
       },
-      required: ["summary"]
+      required: []
     }
   },
   {
     name: "learn_terminology",
-    description: `Record customer-specific terminology for future conversations.
-Use when the customer uses terms, abbreviations, or names that have specific meanings.`,
+    description: "Learn customer terminology for future conversations.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -394,19 +475,18 @@ Use when the customer uses terms, abbreviations, or names that have specific mea
         meaning: { type: "string", description: "What it means" },
         maps_to_field: { type: "string", description: "Database field this relates to" },
         maps_to_filter: { type: "object", description: "Filter to apply when this term is used" },
-        confidence: { type: "string", enum: ["high", "medium", "low"], description: "How confident are you in this interpretation?" }
+        confidence: { type: "string", enum: ["low", "medium", "high"], description: "Confidence level" }
       },
-      required: ["term", "meaning", "confidence"]
+      required: ["term", "meaning"]
     }
   },
   {
     name: "learn_preference",
-    description: `Record a user preference for future use.
-Remember how the user likes things done.`,
+    description: "Learn customer preferences.",
     input_schema: {
       type: "object" as const,
       properties: {
-        preference_type: { type: "string", enum: ["chart_type", "sort_order", "grouping", "theme", "detail_level", "metric"], description: "Type of preference" },
+        preference_type: { type: "string", enum: ["grouping", "metric", "chart_type", "format"], description: "Type of preference" },
         key: { type: "string", description: "What the preference is about" },
         value: { type: "string", description: "The preferred value" },
         context: { type: "string", description: "When this preference applies" }
@@ -416,22 +496,20 @@ Remember how the user likes things done.`,
   },
   {
     name: "record_correction",
-    description: `Record when user corrects the AI to improve future responses.`,
+    description: "Record when user corrects the AI to improve future responses.",
     input_schema: {
       type: "object" as const,
       properties: {
         original: { type: "string", description: "What AI said/did" },
         corrected: { type: "string", description: "What user wanted" },
-        context: { type: "string", description: "Full context of the correction" },
-        apply_immediately: { type: "boolean", description: "Apply to current report? (default: true)" }
+        context: { type: "string", description: "Full context of the correction" }
       },
       required: ["original", "corrected", "context"]
     }
   },
   {
     name: "get_customer_memory",
-    description: `Retrieve what we've learned about this customer.
-Use at conversation start to personalize responses.`,
+    description: "Retrieve what we've learned about this customer.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -444,38 +522,33 @@ Use at conversation start to personalize responses.`,
   },
   {
     name: "generate_insight",
-    description: `Generate an insight about specific data.
-Creates a human-readable insight tailored to the audience.`,
+    description: "Generate an AI insight about specific data.",
     input_schema: {
       type: "object" as const,
       properties: {
         data: { type: "object", description: "The data to analyze" },
         context: { type: "string", description: "What question this answers" },
-        comparison_type: { type: "string", enum: ["period", "peer", "target", "trend", "benchmark"], description: "Type of comparison" },
-        audience: { type: "string", enum: ["executive", "analyst", "operations"], description: "Who is this for?" }
+        audience: { type: "string", enum: ["executive", "operations", "finance"], description: "Who is this for?" }
       },
       required: ["data", "context"]
     }
   },
   {
     name: "generate_recommendation",
-    description: `Generate actionable recommendation from data findings.
-Suggests specific actions based on analysis.`,
+    description: "Generate actionable recommendation from data findings.",
     input_schema: {
       type: "object" as const,
       properties: {
         finding: { type: "string", description: "The finding that prompts the recommendation" },
-        data_support: { type: "object", description: "Data supporting the recommendation" },
-        action_type: { type: "string", enum: ["negotiate", "investigate", "monitor", "change", "escalate"], description: "Type of action" },
-        urgency: { type: "string", enum: ["immediate", "this_week", "this_month", "next_quarter"], description: "How urgent" }
+        goal: { type: "string", description: "What goal this supports (e.g., cost optimization)" },
+        priority: { type: "string", enum: ["low", "medium", "high"], description: "Priority level" }
       },
-      required: ["finding", "data_support", "action_type"]
+      required: ["finding"]
     }
   },
   {
     name: "ask_clarification",
-    description: `Ask user for clarification when request is ambiguous.
-Don't guess - ask!`,
+    description: "Ask a clarifying question when request is ambiguous.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -489,8 +562,7 @@ Don't guess - ask!`,
   },
   {
     name: "confirm_understanding",
-    description: `Confirm your interpretation before proceeding with complex requests.
-Use for multi-step or ambiguous requests.`,
+    description: "Confirm interpretation before proceeding with complex requests.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -934,7 +1006,7 @@ Deno.serve(async (req: Request) => {
 
     const semanticKnowledge = await getRelevantKnowledge(supabase, prompt, customerId, 5);
 
-    const toolExecutor = new ToolExecutor(supabase, customerId, isAdmin, availableFieldNames);
+    const toolExecutor = new ToolExecutor(supabase, customerId, isAdmin);
 
     let modeSystemPrompt: string;
     switch (requestMode) {

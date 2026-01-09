@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
 import { supabase } from '../../../../lib/supabase';
+import { useAuth } from '../../../../contexts/AuthContext';
 import {
   BarChart,
   Bar,
@@ -29,7 +30,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ScatterChart,
   Scatter,
@@ -37,6 +37,7 @@ import {
 
 export function PreviewPanel() {
   const { state } = useBuilder();
+  const { selectedCustomer, role } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,27 +70,36 @@ export function PreviewPanel() {
     return false;
   };
 
+  const extractProductFilters = (): string[] => {
+    const productFilters: string[] = [];
+
+    for (const block of state.logicBlocks || []) {
+      if (block.type === 'filter' && block.conditions) {
+        for (const condition of block.conditions) {
+          if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
+            if (typeof condition.value === 'string') {
+              const values = condition.value.split('|').map(v => v.trim());
+              productFilters.push(...values);
+            } else if (Array.isArray(condition.value)) {
+              productFilters.push(...condition.value);
+            }
+          }
+        }
+      }
+    }
+
+    return productFilters;
+  };
+
   const fetchPreviewDataWithMCP = async () => {
     setLoading(true);
     setError(null);
     setUsingMCP(true);
 
     try {
-      let productFilters: string[] = [];
-
-      for (const block of state.logicBlocks || []) {
-        if (block.type === 'filter' && block.conditions) {
-          for (const condition of block.conditions) {
-            if (condition.field?.includes('description') || condition.field?.includes('shipment_item')) {
-              if (typeof condition.value === 'string') {
-                productFilters.push(condition.value);
-              } else if (Array.isArray(condition.value)) {
-                productFilters.push(...condition.value);
-              }
-            }
-          }
-        }
-      }
+      const productFilters = extractProductFilters();
+      const customerId = selectedCustomer || state.customerId;
+      const isAdmin = role === 'admin';
 
       const filters = productFilters.map(term => ({
         field: 'shipment_item.description',
@@ -97,45 +107,29 @@ export function PreviewPanel() {
         value: `%${term}%`,
       }));
 
-      const { data: response, error: funcError } = await supabase.functions.invoke('generate-report', {
-        body: {
-          prompt: 'Execute MCP query for widget preview',
-          customerId: state.customerId || '',
-          useTools: true,
-          mode: 'investigate',
-          directQuery: {
-            base_table: 'shipment',
-            joins: [{ table: 'shipment_item' }],
-            select: [
-              'shipment.load_id',
-              'shipment.retail',
-              'shipment_item.description',
-              'shipment_item.weight',
-            ],
-            filters,
-            limit: 500,
-          },
-        },
+      const { data: result, error: rpcError } = await supabase.rpc('mcp_query_with_join', {
+        p_base_table: 'shipment',
+        p_customer_id: parseInt(customerId || '0', 10),
+        p_is_admin: isAdmin,
+        p_joins: [{ table: 'shipment_item' }],
+        p_select: ['shipment.load_id', 'shipment.retail', 'shipment_item.description', 'shipment_item.weight'],
+        p_filters: filters,
+        p_group_by: null,
+        p_aggregations: null,
+        p_order_by: 'shipment.retail DESC',
+        p_limit: 500,
       });
 
-      if (funcError) throw funcError;
-
-      let rawData: any[] = [];
-
-      if (response?.toolExecutions) {
-        const queryResult = response.toolExecutions.find(
-          (t: any) => t.toolName === 'query_with_join' || t.toolName === 'query_table'
-        );
-        if (queryResult?.result?.data) {
-          rawData = queryResult.result.data;
-        }
-      } else if (response?.data) {
-        rawData = response.data;
+      if (rpcError) {
+        throw new Error(rpcError.message);
       }
+
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      const rawData = parsed?.data || [];
 
       setRowCount(rawData.length);
 
-      const processedData = processDataForVisualization(rawData, state.visualization);
+      const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
       setData(processedData);
 
     } catch (err) {
@@ -218,7 +212,8 @@ export function PreviewPanel() {
 
       const processedData = processDataForVisualization(
         rawData || [],
-        state.visualization
+        state.visualization,
+        []
       );
 
       setData(processedData);
@@ -249,6 +244,7 @@ export function PreviewPanel() {
     state.visualization.geo,
     state.visualization.flow,
     state.logicBlocks,
+    selectedCustomer,
   ]);
 
   const containerClass = isFullscreen
@@ -265,7 +261,7 @@ export function PreviewPanel() {
               <Database className="w-3 h-3" />
               {rowCount.toLocaleString()} rows (sample)
               {usingMCP && (
-                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px]">
+                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
                   MCP
                 </span>
               )}
@@ -360,11 +356,11 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
     case 'bar':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, left: 80, bottom: 20 }}>
+          <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, left: 100, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
             <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={70} />
-            <Tooltip formatter={(value: number) => value.toLocaleString()} />
+            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={90} />
+            <Tooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -418,7 +414,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
           </RechartsPieChart>
         </ResponsiveContainer>
       );
@@ -568,7 +564,7 @@ function FlowMapPreview({ data }: { data: any[] }) {
   );
 }
 
-function processDataForVisualization(rawData: any[], config: any): any[] {
+function processDataForVisualization(rawData: any[], config: any, productFilters: string[]): any[] {
   const { type, xField, yField, aggregation, geo, flow } = config;
 
   if (rawData.length === 0) return [];
@@ -615,12 +611,36 @@ function processDataForVisualization(rawData: any[], config: any): any[] {
       .slice(0, 20);
   }
 
-  if (xField) {
-    return groupAndAggregate(rawData, xField, yField, aggregation);
+  if (productFilters.length > 0 && rawData[0]?.description) {
+    const productGroups: Record<string, number[]> = {};
+
+    for (const product of productFilters) {
+      productGroups[product] = [];
+    }
+
+    for (const row of rawData) {
+      const desc = (row.description || '').toLowerCase();
+      for (const product of productFilters) {
+        if (desc.includes(product.toLowerCase())) {
+          const value = Number(row.retail) || 0;
+          productGroups[product].push(value);
+          break;
+        }
+      }
+    }
+
+    const results = Object.entries(productGroups).map(([name, values]) => ({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value: aggregateArray(values, aggregation || 'avg'),
+    }));
+
+    return results
+      .filter(r => r.value > 0)
+      .sort((a, b) => b.value - a.value);
   }
 
-  if (rawData[0]?.description) {
-    return groupAndAggregate(rawData, 'description', yField || 'retail', aggregation);
+  if (xField) {
+    return groupAndAggregate(rawData, xField, yField, aggregation);
   }
 
   return [];
@@ -637,9 +657,8 @@ function groupAndAggregate(
   for (const row of data) {
     let key = String(row[groupField] || 'Unknown');
 
-    if (groupField === 'description' && key.length > 30) {
-      const match = key.match(/^([^\/\-\d]+)/);
-      key = match ? match[1].trim() : key.substring(0, 25);
+    if (key.length > 30) {
+      key = key.substring(0, 27) + '...';
     }
 
     const value = valueField ? Number(row[valueField]) || 0 : 1;

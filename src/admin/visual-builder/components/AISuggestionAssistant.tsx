@@ -11,11 +11,15 @@ import {
   Lightbulb,
   CheckCircle2,
   ArrowRight,
-  Wand2,
   AlertTriangle,
   Info,
+  Brain,
+  Search,
+  Zap,
 } from 'lucide-react';
 import { useBuilder } from './BuilderContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { supabase } from '../../../lib/supabase';
 import type { VisualizationType, FilterCondition } from '../types/BuilderSchema';
 
 interface SuggestionStep {
@@ -29,6 +33,7 @@ interface SuggestionStep {
 }
 
 interface AISuggestion {
+  success: boolean;
   summary: string;
   visualizationType: VisualizationType;
   xField?: string;
@@ -39,24 +44,72 @@ interface AISuggestion {
   aiPrompt?: string;
   warning?: string;
   info?: string;
+  limitations?: string[];
   mcpQuery?: any;
+  reasoning?: string[];
 }
+
+type AnalysisPhase = 'idle' | 'discovering' | 'searching' | 'analyzing' | 'complete' | 'error';
 
 export function AISuggestionAssistant() {
   const { state, setVisualization, setActivePanel, addLogicBlock } = useBuilder();
+  const { user, selectedCustomerId } = useAuth();
   const [prompt, setPrompt] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [phase, setPhase] = useState<AnalysisPhase>('idle');
   const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showReasoning, setShowReasoning] = useState(false);
 
   const analyzePrompt = async () => {
     if (!prompt.trim()) return;
 
-    setIsAnalyzing(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const analysis = parseUserIntent(prompt);
-    setSuggestion(analysis);
-    setIsAnalyzing(false);
+    setPhase('discovering');
+    setError(null);
+    setSuggestion(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      setTimeout(() => setPhase('searching'), 800);
+      setTimeout(() => setPhase('analyzing'), 1600);
+
+      const response = await supabase.functions.invoke('widget-builder-ai', {
+        body: {
+          prompt: prompt.trim(),
+          customerId: selectedCustomerId?.toString(),
+          userId: user?.id,
+        },
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'AI analysis failed');
+      }
+
+      const result = response.data;
+
+      if (!result.success) {
+        throw new Error(result.error || 'AI returned unsuccessful response');
+      }
+
+      const steps = buildStepsFromAIResponse(result);
+
+      setSuggestion({
+        ...result,
+        steps,
+      });
+      setPhase('complete');
+
+    } catch (err) {
+      console.error('[AISuggestionAssistant] Error:', err);
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+      setPhase('error');
+
+      const fallback = buildFallbackSuggestion(prompt);
+      setSuggestion(fallback);
+    }
   };
 
   const applyStep = (step: SuggestionStep) => {
@@ -81,7 +134,6 @@ export function AISuggestionAssistant() {
           conditions: step.action.payload.conditions,
           enabled: true,
           label: step.action.payload.label,
-          mcpQuery: step.action.payload.mcpQuery,
         });
         setActivePanel('logic');
         break;
@@ -115,7 +167,6 @@ export function AISuggestionAssistant() {
         conditions: suggestion.filters,
         enabled: true,
         label: 'AI Suggested Filter',
-        mcpQuery: suggestion.mcpQuery,
       });
     }
 
@@ -132,6 +183,15 @@ export function AISuggestionAssistant() {
     setActivePanel('preview');
   };
 
+  const phaseLabels: Record<AnalysisPhase, string> = {
+    idle: '',
+    discovering: 'Discovering schema...',
+    searching: 'Searching for data...',
+    analyzing: 'Building configuration...',
+    complete: 'Ready',
+    error: 'Error',
+  };
+
   return (
     <div className="border-b border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50">
       <button
@@ -140,10 +200,13 @@ export function AISuggestionAssistant() {
       >
         <div className="flex items-center gap-2">
           <div className="p-1.5 bg-amber-100 rounded-lg">
-            <Wand2 className="w-4 h-4 text-amber-600" />
+            <Brain className="w-4 h-4 text-amber-600" />
           </div>
           <span className="text-sm font-medium text-slate-700">AI Assistant</span>
           <span className="text-xs text-slate-500">Describe what you want to see</span>
+          <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] font-medium rounded">
+            MCP-Powered
+          </span>
         </div>
         {expanded ? (
           <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -158,7 +221,7 @@ export function AISuggestionAssistant() {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Example: Show me average cost for drawer system, cargoglide, and toolbox"
+              placeholder="Example: Show me average cost for drawer system, cargoglide, and toolbox products"
               rows={3}
               className="w-full px-3 py-2 pr-12 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none bg-white"
               onKeyDown={(e) => {
@@ -167,13 +230,14 @@ export function AISuggestionAssistant() {
                   analyzePrompt();
                 }
               }}
+              disabled={phase !== 'idle' && phase !== 'complete' && phase !== 'error'}
             />
             <button
               onClick={analyzePrompt}
-              disabled={!prompt.trim() || isAnalyzing}
+              disabled={!prompt.trim() || (phase !== 'idle' && phase !== 'complete' && phase !== 'error')}
               className="absolute right-2 bottom-2 p-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white rounded-lg transition-colors"
             >
-              {isAnalyzing ? (
+              {phase !== 'idle' && phase !== 'complete' && phase !== 'error' ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Send className="w-4 h-4" />
@@ -181,14 +245,35 @@ export function AISuggestionAssistant() {
             </button>
           </div>
 
-          {!suggestion && (
+          {phase !== 'idle' && phase !== 'complete' && phase !== 'error' && (
+            <div className="flex items-center gap-2 text-sm text-amber-700">
+              <div className="flex items-center gap-1.5">
+                {phase === 'discovering' && <Database className="w-4 h-4 animate-pulse" />}
+                {phase === 'searching' && <Search className="w-4 h-4 animate-pulse" />}
+                {phase === 'analyzing' && <Zap className="w-4 h-4 animate-pulse" />}
+                <span>{phaseLabels[phase]}</span>
+              </div>
+              <div className="flex-1 h-1 bg-amber-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 transition-all duration-500"
+                  style={{
+                    width: phase === 'discovering' ? '33%' :
+                           phase === 'searching' ? '66%' :
+                           phase === 'analyzing' ? '90%' : '0%'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {!suggestion && phase === 'idle' && (
             <div className="flex flex-wrap gap-2">
               <span className="text-xs text-slate-500">Try:</span>
               {[
                 'Average cost by carrier',
                 'Cost breakdown for drawer system and cargoglide',
                 'Shipment volume by state',
-                'Top carriers for toolbox shipments',
+                'Top carriers by spend',
               ].map((example) => (
                 <button
                   key={example}
@@ -198,6 +283,19 @@ export function AISuggestionAssistant() {
                   {example}
                 </button>
               ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-700">Analysis failed</p>
+                  <p className="text-xs text-red-600 mt-0.5">{error}</p>
+                  <p className="text-xs text-red-500 mt-1">Using fallback suggestion instead.</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -234,6 +332,17 @@ export function AISuggestionAssistant() {
                 </div>
               )}
 
+              {suggestion.limitations && suggestion.limitations.length > 0 && (
+                <div className="p-3 bg-slate-50 border-b border-slate-100">
+                  <p className="text-xs font-medium text-slate-600 mb-1">Limitations:</p>
+                  <ul className="text-xs text-slate-500 list-disc list-inside">
+                    {suggestion.limitations.map((lim, i) => (
+                      <li key={i}>{lim}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="divide-y divide-slate-100">
                 {suggestion.steps.map((step, i) => (
                   <div key={i} className="p-3 flex items-start gap-3 hover:bg-slate-50">
@@ -259,6 +368,25 @@ export function AISuggestionAssistant() {
                   </div>
                 ))}
               </div>
+
+              {suggestion.reasoning && suggestion.reasoning.length > 0 && (
+                <div className="border-t border-slate-100">
+                  <button
+                    onClick={() => setShowReasoning(!showReasoning)}
+                    className="w-full p-2 text-xs text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1"
+                  >
+                    <Brain className="w-3 h-3" />
+                    {showReasoning ? 'Hide' : 'Show'} AI reasoning
+                  </button>
+                  {showReasoning && (
+                    <div className="p-3 bg-slate-50 text-xs font-mono text-slate-600 max-h-40 overflow-auto">
+                      {suggestion.reasoning.map((r, i) => (
+                        <div key={i} className="mb-1">- {r}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -278,165 +406,61 @@ function StepIcon({ panel }: { panel: string }) {
   return icons[panel] || null;
 }
 
-function parseUserIntent(prompt: string): AISuggestion {
-  const lower = prompt.toLowerCase();
+function buildStepsFromAIResponse(result: any): SuggestionStep[] {
+  const steps: SuggestionStep[] = [];
 
-  let visualizationType: VisualizationType = 'bar';
-  if (lower.includes('line') || lower.includes('trend') || lower.includes('over time')) {
-    visualizationType = 'line';
-  } else if (lower.includes('pie') || lower.includes('distribution') || lower.includes('breakdown')) {
-    visualizationType = 'pie';
-  } else if (lower.includes('map') || lower.includes('geographic')) {
-    visualizationType = 'choropleth';
-  } else if (lower.includes('table') || lower.includes('list')) {
-    visualizationType = 'table';
-  } else if (lower.includes('kpi') || lower.includes('metric') || lower.includes('total')) {
-    visualizationType = 'kpi';
-  }
-
-  let aggregation = 'sum';
-  if (lower.includes('average') || lower.includes('avg') || lower.includes('mean')) {
-    aggregation = 'avg';
-  } else if (lower.includes('count') || lower.includes('number of') || lower.includes('how many') || lower.includes('volume')) {
-    aggregation = 'count';
-  } else if (lower.includes('maximum') || lower.includes('max') || lower.includes('highest')) {
-    aggregation = 'max';
-  } else if (lower.includes('minimum') || lower.includes('min') || lower.includes('lowest')) {
-    aggregation = 'min';
-  }
-
-  let xField = '';
-  let yField = 'retail';
-  let warning = '';
-  let info = '';
-
-  if (lower.includes('carrier')) {
-    xField = 'carrier_name';
-  } else if (lower.includes('state') && !lower.includes('destination')) {
-    xField = 'origin_state';
-  } else if (lower.includes('destination state')) {
-    xField = 'destination_state';
-  } else if (lower.includes('customer')) {
-    xField = 'customer_name';
-  } else if (lower.includes('mode')) {
-    xField = 'mode_name';
-  } else if (lower.includes('status')) {
-    xField = 'status_name';
-  } else if (lower.includes('month') || lower.includes('date') || lower.includes('time') || lower.includes('trend')) {
-    xField = 'created_date';
-  } else if (lower.includes('lane')) {
-    xField = 'origin_state';
-  }
-
-  if (lower.includes('cost') || lower.includes('spend') || lower.includes('price') || lower.includes('retail')) {
-    yField = 'retail';
-  } else if (lower.includes('weight')) {
-    yField = 'weight';
-  } else if (lower.includes('miles') || lower.includes('distance')) {
-    yField = 'miles';
-  } else if (lower.includes('volume') || lower.includes('shipment') || lower.includes('count')) {
-    yField = '';
-    aggregation = 'count';
-  }
-
-  const productMatches = new Set<string>();
-
-  const quotedPattern = /["']([^"']+)["']/g;
-  let match;
-  while ((match = quotedPattern.exec(prompt)) !== null) {
-    productMatches.add(match[1].toLowerCase().trim());
-  }
-
-  const knownProducts = [
-    { pattern: 'drawer system', normalized: 'drawer system' },
-    { pattern: 'drawer systems', normalized: 'drawer system' },
-    { pattern: 'cargoglide', normalized: 'cargoglide' },
-    { pattern: 'cargo glide', normalized: 'cargoglide' },
-    { pattern: 'toolbox', normalized: 'tool box' },
-    { pattern: 'tool box', normalized: 'tool box' },
-    { pattern: 'tool boxes', normalized: 'tool box' },
-  ];
-
-  for (const product of knownProducts) {
-    if (lower.includes(product.pattern)) {
-      productMatches.add(product.normalized);
-    }
-  }
-
-  const uniqueProducts = Array.from(productMatches);
-
-  const filters: FilterCondition[] = [];
-  let mcpQuery: any = null;
-  let aiPrompt = '';
-
-  if (uniqueProducts.length > 0) {
-    info = `Product filtering will use MCP to search shipment_item.description for: ${uniqueProducts.join(', ')}`;
-
-    if (!xField) {
-      xField = 'description';
-    }
-
-    mcpQuery = {
-      base_table: 'shipment',
-      joins: [{ table: 'shipment_item' }],
-      select: ['shipment.load_id', 'shipment.retail', 'shipment_item.description', 'shipment_item.weight'],
-      filters: uniqueProducts.map(term => ({
-        field: 'shipment_item.description',
-        operator: 'ilike',
-        value: `%${term}%`,
-      })),
-      group_by: ['shipment_item.description'],
-      aggregations: [{
-        field: yField ? `shipment.${yField}` : 'shipment.load_id',
-        function: aggregation,
-        alias: `${aggregation}_value`,
-      }],
-    };
-
-    filters.push({
-      field: 'shipment_item.description',
-      operator: 'ilike' as any,
-      value: uniqueProducts,
-    });
-
-    aiPrompt = `Filter shipments containing products: ${uniqueProducts.join(', ')}`;
-  }
-
-  const steps: SuggestionStep[] = [
-    {
-      panel: 'visualization',
-      title: `Select ${visualizationType.charAt(0).toUpperCase() + visualizationType.slice(1)} Chart`,
-      description: `This visualization type will best show your ${aggregation} comparison`,
-      action: {
-        type: 'set_visualization',
-        payload: { type: visualizationType },
-      },
+  steps.push({
+    panel: 'visualization',
+    title: `Select ${capitalizeFirst(result.visualizationType)} Chart`,
+    description: `This visualization type will best show your data`,
+    action: {
+      type: 'set_visualization',
+      payload: { type: result.visualizationType },
     },
-    {
+  });
+
+  if (result.xField || result.yField) {
+    steps.push({
       panel: 'fields',
       title: 'Configure Data Fields',
-      description: xField
-        ? `Set X-axis to "${xField}" and Y-axis to "${yField || 'count'}" with ${aggregation} aggregation`
+      description: result.xField
+        ? `Set X-axis to "${result.xField}" and Y-axis to "${result.yField || 'count'}" with ${result.aggregation} aggregation`
         : 'Map your data fields to chart dimensions',
-      action: xField ? {
+      action: {
         type: 'set_field',
-        payload: { xField, yField: yField || undefined, aggregation },
-      } : undefined,
-    },
-  ];
+        payload: {
+          xField: result.xField,
+          yField: result.yField,
+          aggregation: result.aggregation,
+        },
+      },
+    });
+  }
 
-  if (uniqueProducts.length > 0) {
+  if (result.filters && result.filters.length > 0) {
+    const filterDesc = result.filters.map((f: any) => f.value).join(', ');
     steps.push({
       panel: 'logic',
-      title: 'Add Product Filter',
-      description: `Filter to include: ${uniqueProducts.join(', ')}`,
+      title: 'Add Data Filter',
+      description: `Filter to include: ${filterDesc}`,
       action: {
         type: 'add_filter',
         payload: {
-          label: `Products: ${uniqueProducts.join(', ')}`,
-          conditions: filters,
-          mcpQuery,
+          label: `Filter: ${filterDesc}`,
+          conditions: result.filters,
         },
+      },
+    });
+  }
+
+  if (result.aiPrompt) {
+    steps.push({
+      panel: 'logic',
+      title: 'Add AI Logic Block',
+      description: 'Uses MCP to search for matching data',
+      action: {
+        type: 'add_ai_block',
+        payload: { prompt: result.aiPrompt },
       },
     });
   }
@@ -447,19 +471,51 @@ function parseUserIntent(prompt: string): AISuggestion {
     description: 'Verify the data looks correct before publishing',
   });
 
+  return steps;
+}
+
+function buildFallbackSuggestion(prompt: string): AISuggestion {
+  const lower = prompt.toLowerCase();
+
+  let visualizationType: VisualizationType = 'bar';
+  if (lower.includes('line') || lower.includes('trend')) visualizationType = 'line';
+  else if (lower.includes('pie')) visualizationType = 'pie';
+  else if (lower.includes('map')) visualizationType = 'choropleth';
+  else if (lower.includes('kpi') || lower.includes('total')) visualizationType = 'kpi';
+
+  let aggregation = 'sum';
+  if (lower.includes('average') || lower.includes('avg')) aggregation = 'avg';
+  else if (lower.includes('count')) aggregation = 'count';
+
   return {
-    summary: `Create a ${visualizationType} chart showing ${aggregation} of ${yField || 'shipments'}${xField ? ` by ${xField}` : ''}${uniqueProducts.length > 0 ? ` for products: ${uniqueProducts.join(', ')}` : ''}.`,
+    success: false,
+    summary: `Create a ${visualizationType} chart (fallback - AI unavailable)`,
     visualizationType,
-    xField: xField || undefined,
-    yField: yField || undefined,
     aggregation,
-    filters: filters.length > 0 ? filters : undefined,
-    steps,
-    aiPrompt: aiPrompt || undefined,
-    warning: warning || undefined,
-    info: info || undefined,
-    mcpQuery,
+    warning: 'AI analysis failed. This is a basic suggestion that may need manual adjustment.',
+    steps: [
+      {
+        panel: 'visualization',
+        title: `Select ${capitalizeFirst(visualizationType)} Chart`,
+        description: 'Manually configure your visualization',
+        action: { type: 'set_visualization', payload: { type: visualizationType } },
+      },
+      {
+        panel: 'fields',
+        title: 'Configure Data Fields',
+        description: 'Select your X and Y axis fields manually',
+      },
+      {
+        panel: 'preview',
+        title: 'Preview Results',
+        description: 'Verify the data looks correct',
+      },
+    ],
   };
+}
+
+function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export default AISuggestionAssistant;

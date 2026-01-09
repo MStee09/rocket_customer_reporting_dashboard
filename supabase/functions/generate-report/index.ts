@@ -9,6 +9,7 @@ import { ContextService } from "./services/contextService.ts";
 import { ToolExecutor, LearningExtraction as ToolLearning } from "./services/toolExecutor.ts";
 import { maybeSummarizeConversation } from "./services/summarizationService.ts";
 import { processAIResponse } from "./services/outputValidation.ts";
+import { MCP_INVESTIGATE_PROMPT, MCP_BUILD_REPORT_PROMPT, MCP_ANALYZE_PROMPT, MCP_TOOL_BEHAVIOR, REPORT_STRUCTURE } from "./prompts/systemPrompts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1011,21 +1012,21 @@ Deno.serve(async (req: Request) => {
     let modeSystemPrompt: string;
     switch (requestMode) {
       case 'build':
-        modeSystemPrompt = BUILD_REPORT_SYSTEM_PROMPT;
+        modeSystemPrompt = MCP_BUILD_REPORT_PROMPT;
         break;
       case 'analyze':
-        modeSystemPrompt = ANALYZE_SYSTEM_PROMPT;
+        modeSystemPrompt = MCP_ANALYZE_PROMPT;
         break;
       case 'investigate':
       default:
-        modeSystemPrompt = INVESTIGATE_SYSTEM_PROMPT;
+        modeSystemPrompt = MCP_INVESTIGATE_PROMPT;
         break;
     }
 
     const availableTools = AI_TOOLS;
 
     const systemPromptParts = useTools
-      ? [modeSystemPrompt, TOOL_BEHAVIOR_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]
+      ? [modeSystemPrompt, MCP_TOOL_BEHAVIOR, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, REPORT_STRUCTURE]
       : [CORE_SYSTEM_PROMPT, accessPrompt, schemaPrompt, knowledgePrompt, profilePrompt, semanticKnowledge, LEGACY_LEARNING_BEHAVIOR, LEGACY_REPORT_STRUCTURE];
 
     let fullSystemPrompt = systemPromptParts.filter(Boolean).join("\n\n");

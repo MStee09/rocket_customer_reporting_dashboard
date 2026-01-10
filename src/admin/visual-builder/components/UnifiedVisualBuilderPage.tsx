@@ -34,6 +34,8 @@ import {
 } from './BuilderContext';
 import { PreviewPanel } from './panels/PreviewPanel';
 import { PublishPanel } from './panels/PublishPanel';
+import { CustomerScopeSelector } from './CustomerScopeSelector';
+import { DateRangeDisplay } from './DateRangeDisplay';
 
 import type {
   VisualBuilderSchema,
@@ -169,6 +171,13 @@ function BuilderInterface() {
     <div className="grid grid-cols-12 gap-4 min-h-[calc(100vh-100px)]">
       <div className="col-span-12 lg:col-span-5 space-y-4">
         <AIInputBar />
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4">
+          <CustomerScopeSelector />
+          <div className="border-t border-slate-200 pt-4">
+            <DateRangeDisplay />
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="flex border-b border-slate-200">
@@ -742,7 +751,9 @@ function FiltersPanel() {
     b => b.type === 'filter' && b.label === 'Product Filter'
   ) as FilterBlock | undefined;
 
-  const selectedProducts = productFilter?.conditions.find(c => c.field === 'description')?.value as string[] || [];
+  const selectedProducts = productFilter?.conditions.find(
+    c => c.field === 'item_descriptions' || c.field === 'description'
+  )?.value as string[] || [];
 
   const handleProductSearch = async () => {
     if (!productSearch.trim()) return;
@@ -750,17 +761,23 @@ function FiltersPanel() {
 
     try {
       const { data } = await supabase
-        .from('shipment_item')
-        .select('description')
-        .ilike('description', `%${productSearch}%`)
+        .from('shipment_report_view')
+        .select('item_descriptions')
+        .ilike('item_descriptions', `%${productSearch}%`)
+        .not('item_descriptions', 'is', null)
         .limit(100);
 
       if (data) {
         const counts = new Map<string, number>();
         for (const row of data) {
-          if (row.description) {
-            const upper = row.description.toUpperCase();
-            counts.set(upper, (counts.get(upper) || 0) + 1);
+          if (row.item_descriptions) {
+            const descriptions = row.item_descriptions.split(' | ');
+            for (const desc of descriptions) {
+              if (desc.toLowerCase().includes(productSearch.toLowerCase())) {
+                const upper = desc.trim().toUpperCase();
+                if (upper) counts.set(upper, (counts.get(upper) || 0) + 1);
+              }
+            }
           }
         }
 
@@ -789,7 +806,7 @@ function FiltersPanel() {
     }
 
     const condition: FilterCondition = {
-      field: 'description',
+      field: 'item_descriptions',
       operator: 'contains_any',
       value: newProducts,
     };

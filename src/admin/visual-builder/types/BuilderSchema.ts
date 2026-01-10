@@ -251,7 +251,7 @@ export type LogicBlock = FilterBlock | AILogicBlock;
 export interface PublishConfig {
   scope: 'system' | 'customer';
   customerId?: number;
-  placement: 'pulse' | 'hub' | 'dashboard' | 'report';
+  placement: 'pulse' | 'analytics_hub';
   sectionId?: string;
   displayOrder?: number;
   size: 1 | 2 | 3;
@@ -329,7 +329,7 @@ export function createDefaultBuilderSchema(): VisualBuilderSchema {
     logicBlocks: [],
     publish: {
       scope: 'system',
-      placement: 'hub',
+      placement: 'analytics_hub',
       size: 2,
     },
     ui: {

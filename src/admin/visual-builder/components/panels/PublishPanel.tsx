@@ -3,8 +3,8 @@ import {
   Upload,
   Globe,
   Building2,
-  LayoutDashboard,
-  FileText,
+  Activity,
+  BarChart3,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -82,6 +82,7 @@ export function PublishPanel() {
         executionParams: state.executionParams,
         logicBlocks: state.logicBlocks,
         dataSource: state.dataSource,
+        customerScope: state.customerScope,
       };
 
       const isUpdate = state.publish.isUpdate && state.publish.existingWidgetId;
@@ -226,14 +227,12 @@ export function PublishPanel() {
 
         <div className="grid grid-cols-2 gap-2">
           {[
-            { value: 'pulse', label: 'Pulse', icon: LayoutDashboard, desc: 'Customer overview' },
-            { value: 'hub', label: 'Hub', icon: LayoutDashboard, desc: 'Main dashboard' },
-            { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, desc: 'Analytics page' },
-            { value: 'report', label: 'Report', icon: FileText, desc: 'Report builder' },
+            { value: 'pulse', label: 'Pulse', icon: Activity, desc: 'Executive dashboard' },
+            { value: 'analytics_hub', label: 'Analytics Hub', icon: BarChart3, desc: 'Detailed analytics' },
           ].map(opt => (
             <button
               key={opt.value}
-              onClick={() => setPublishConfig({ placement: opt.value as any })}
+              onClick={() => setPublishConfig({ placement: opt.value as 'pulse' | 'analytics_hub' })}
               className={`
                 flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all
                 ${state.publish.placement === opt.value

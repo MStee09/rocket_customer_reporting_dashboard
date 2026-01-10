@@ -8,10 +8,8 @@ import {
   BarChart3,
   Database,
   Map as MapIcon,
-  Users,
 } from 'lucide-react';
 import { useBuilder } from '../BuilderContext';
-import { usePreviewCustomer } from '../VisualBuilderPage';
 import { supabase } from '../../../../lib/supabase';
 import { useAuth } from '../../../../contexts/AuthContext';
 import type { LogicBlock, AILogicBlock, FilterBlock } from '../../types/BuilderSchema';
@@ -29,15 +27,73 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   ScatterChart,
   Scatter,
 } from 'recharts';
 
+function formatFieldLabel(field: string | undefined): string {
+  if (!field) return '';
+
+  const labels: Record<string, string> = {
+    retail: 'Revenue',
+    cost: 'Cost',
+    weight: 'Weight (lbs)',
+    total_weight: 'Total Weight',
+    carrier_name: 'Carrier',
+    origin_state: 'Origin State',
+    destination_state: 'Destination State',
+    description: 'Product',
+    item_descriptions: 'Product',
+    load_id: 'Shipments',
+    customer_name: 'Customer',
+    service_type: 'Service Type',
+    pickup_date: 'Pickup Date',
+    delivery_date: 'Delivery Date',
+    primary_commodity: 'Commodity',
+    freight_classes: 'Freight Class',
+  };
+
+  return labels[field] || field
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatAggregation(agg: string | undefined): string {
+  const labels: Record<string, string> = {
+    sum: 'Total',
+    avg: 'Average',
+    count: 'Count of',
+    min: 'Minimum',
+    max: 'Maximum',
+  };
+  return labels[agg || 'sum'] || 'Total';
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(0)}K`;
+  }
+  return `$${value.toFixed(0)}`;
+}
+
+function formatNumber(value: number): string {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(0)}K`;
+  }
+  return value.toFixed(0);
+}
+
 export function PreviewPanel() {
   const { state } = useBuilder();
-  const { previewCustomerId, setPreviewCustomerId } = usePreviewCustomer();
-  const { role, customers } = useAuth();
+  const { role } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +101,7 @@ export function PreviewPanel() {
   const [rowCount, setRowCount] = useState<number | null>(null);
   const [usingJoin, setUsingJoin] = useState(false);
 
-  const isAdmin = role === 'admin';
-  const isAllCustomers = previewCustomerId === null;
+  const customerScope = state.customerScope || { mode: 'admin' };
 
   const needsJoinQuery = (): boolean => {
     if (!state.logicBlocks) return false;
@@ -61,10 +116,12 @@ export function PreviewPanel() {
           if (
             field.includes('shipment_item') ||
             field.includes('description') ||
+            field.includes('item_description') ||
             field.includes('shipment_description') ||
-            field.includes('item_')
+            field.includes('item_') ||
+            field.includes('commodity') ||
+            field.includes('freight_class')
           ) {
-            console.log('[PreviewPanel] needsJoin: true (filter block field:', field, ')');
             return true;
           }
         }
@@ -78,10 +135,12 @@ export function PreviewPanel() {
             if (
               field.includes('shipment_item') ||
               field.includes('description') ||
+              field.includes('item_description') ||
               field.includes('shipment_description') ||
-              field.includes('item_')
+              field.includes('item_') ||
+              field.includes('commodity') ||
+              field.includes('freight_class')
             ) {
-              console.log('[PreviewPanel] needsJoin: true (AI block field:', field, ')');
               return true;
             }
           }
@@ -102,7 +161,11 @@ export function PreviewPanel() {
         const filterBlock = block as FilterBlock;
         for (const condition of filterBlock.conditions || []) {
           const field = (condition.field || '').toLowerCase();
-          if (field.includes('description') || field.includes('shipment_item')) {
+          if (
+            field.includes('description') ||
+            field.includes('item_description') ||
+            field.includes('shipment_item')
+          ) {
             if (typeof condition.value === 'string') {
               const values = condition.value
                 .split('|')
@@ -110,7 +173,11 @@ export function PreviewPanel() {
                 .filter(v => v.length > 0);
               productFilters.push(...values);
             } else if (Array.isArray(condition.value)) {
-              productFilters.push(...condition.value.map(v => String(v).replace(/%/g, '')).filter(v => v.length > 0));
+              productFilters.push(
+                ...condition.value
+                  .map(v => String(v).replace(/%/g, ''))
+                  .filter(v => v.length > 0)
+              );
             }
           }
         }
@@ -121,7 +188,11 @@ export function PreviewPanel() {
         if (aiBlock.compiledRule?.filters) {
           for (const filter of aiBlock.compiledRule.filters) {
             const field = (filter.field || '').toLowerCase();
-            if (field.includes('description') || field.includes('shipment_item')) {
+            if (
+              field.includes('description') ||
+              field.includes('item_description') ||
+              field.includes('shipment_item')
+            ) {
               if (typeof filter.value === 'string') {
                 const values = filter.value
                   .split('|')
@@ -129,7 +200,11 @@ export function PreviewPanel() {
                   .filter(v => v.length > 0);
                 productFilters.push(...values);
               } else if (Array.isArray(filter.value)) {
-                productFilters.push(...filter.value.map(v => String(v).replace(/%/g, '')).filter(v => v.length > 0));
+                productFilters.push(
+                  ...filter.value
+                    .map(v => String(v).replace(/%/g, ''))
+                    .filter(v => v.length > 0)
+                );
               }
             }
           }
@@ -137,8 +212,7 @@ export function PreviewPanel() {
       }
     }
 
-    console.log('[PreviewPanel] Extracted product filters:', productFilters);
-    return productFilters;
+    return [...new Set(productFilters)];
   };
 
   const fetchPreviewDataWithJoin = async () => {
@@ -149,70 +223,37 @@ export function PreviewPanel() {
     try {
       const productFilters = extractProductFilters();
 
-      console.log('[PreviewPanel] Join query with:', {
-        previewCustomerId,
-        isAllCustomers,
-        productFilters,
-      });
-
       let query = supabase
-        .from('shipment')
-        .select(`
-          load_id,
-          retail,
-          customer_id,
-          shipment_item (
-            description,
-            weight
-          )
-        `)
+        .from('shipment_report_view')
+        .select('*', { count: 'exact' })
         .limit(500);
 
-      if (!isAllCustomers && previewCustomerId) {
-        query = query.eq('customer_id', previewCustomerId);
+      if (customerScope.mode === 'customer' && customerScope.customerId) {
+        query = query.eq('customer_id', customerScope.customerId);
       }
 
-      const { data: joinedData, error: joinError } = await query;
-
-      console.log('[PreviewPanel] Join result:', {
-        count: joinedData?.length,
-        error: joinError,
-        sample: joinedData?.slice(0, 2)
-      });
-
-      if (joinError) throw joinError;
-
-      let rawData = (joinedData || []).flatMap(ship => {
-        const items = Array.isArray(ship.shipment_item) ? ship.shipment_item :
-          ship.shipment_item ? [ship.shipment_item] : [];
-        return items.filter(Boolean).map((item: any) => ({
-          load_id: ship.load_id,
-          retail: ship.retail,
-          customer_id: ship.customer_id,
-          description: item.description,
-          weight: item.weight
-        }));
-      });
-
-      console.log('[PreviewPanel] Flattened data:', rawData.length, 'rows');
-
-      if (productFilters.length > 0 && rawData.length > 0) {
-        rawData = rawData.filter((row: any) => {
-          const desc = (row.description || '').toLowerCase();
-          return productFilters.some(term => desc.includes(term.toLowerCase()));
-        });
-        console.log('[PreviewPanel] After product filter:', rawData.length, 'rows');
+      if (state.executionParams?.dateRange) {
+        query = query
+          .gte('pickup_date', state.executionParams.dateRange.start)
+          .lte('pickup_date', state.executionParams.dateRange.end);
       }
 
-      setRowCount(rawData.length);
+      if (productFilters.length > 0) {
+        const orFilters = productFilters.map(p => `item_descriptions.ilike.%${p}%`).join(',');
+        query = query.or(orFilters);
+      }
 
-      const processedData = processDataForVisualization(rawData, state.visualization, productFilters);
-      console.log('[PreviewPanel] Processed data:', processedData);
-      setData(processedData);
+      const { data: rawData, count, error: queryError } = await query;
+
+      if (queryError) throw queryError;
+
+      setRowCount(count || rawData?.length || 0);
+      const aggregatedData = aggregateData(rawData || []);
+      setData(aggregatedData);
 
     } catch (err) {
       console.error('[PreviewPanel] Join query error:', err);
-      setError(err instanceof Error ? err.message : 'Query failed');
+      setError(err instanceof Error ? err.message : 'Failed to load preview');
     } finally {
       setLoading(false);
     }
@@ -227,76 +268,88 @@ export function PreviewPanel() {
       let query = supabase
         .from('shipment_report_view')
         .select('*', { count: 'exact' })
-        .limit(1000);
+        .limit(500);
 
-      if (!isAllCustomers && previewCustomerId) {
-        query = query.eq('customer_id', previewCustomerId);
+      if (customerScope.mode === 'customer' && customerScope.customerId) {
+        query = query.eq('customer_id', customerScope.customerId);
       }
 
-      for (const block of state.logicBlocks || []) {
-        if (!block.enabled) continue;
-
-        if (block.type === 'filter') {
-          const filterBlock = block as FilterBlock;
-          for (const condition of filterBlock.conditions || []) {
-            const { field, operator, value } = condition;
-            if (!field || value === undefined || value === '') continue;
-
-            if (field.includes('shipment_item') || field.includes('.')) continue;
-
-            const cleanField = field.replace('shipment_report_view.', '');
-
-            switch (operator) {
-              case 'eq':
-                query = query.eq(cleanField, value);
-                break;
-              case 'neq':
-                query = query.neq(cleanField, value);
-                break;
-              case 'gt':
-                query = query.gt(cleanField, value);
-                break;
-              case 'gte':
-                query = query.gte(cleanField, value);
-                break;
-              case 'lt':
-                query = query.lt(cleanField, value);
-                break;
-              case 'lte':
-                query = query.lte(cleanField, value);
-                break;
-              case 'contains':
-                query = query.ilike(cleanField, `%${value}%`);
-                break;
-              case 'in':
-                if (Array.isArray(value)) {
-                  query = query.in(cleanField, value);
-                }
-                break;
-            }
-          }
-        }
+      if (state.executionParams?.dateRange) {
+        query = query
+          .gte('pickup_date', state.executionParams.dateRange.start)
+          .lte('pickup_date', state.executionParams.dateRange.end);
       }
 
-      const { data: rawData, error: queryError, count } = await query;
+      const { data: rawData, count, error: queryError } = await query;
 
       if (queryError) throw queryError;
 
-      setRowCount(count);
-
-      const processedData = processDataForVisualization(rawData || [], state.visualization, []);
-      setData(processedData);
+      setRowCount(count || rawData?.length || 0);
+      const aggregatedData = aggregateData(rawData || []);
+      setData(aggregatedData);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch preview data');
+      console.error('[PreviewPanel] Direct query error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load preview');
     } finally {
       setLoading(false);
     }
   };
 
+  const aggregateData = (rawData: any[]): any[] => {
+    const { xField, yField, aggregation = 'sum' } = state.visualization;
+
+    if (!xField || !yField) {
+      if (state.visualization.type === 'kpi') {
+        const total = rawData.reduce((sum, row) => sum + (parseFloat(row[yField || 'retail']) || 0), 0);
+        return [{ name: 'Total', value: aggregation === 'avg' ? total / rawData.length : total }];
+      }
+      return rawData.slice(0, 20);
+    }
+
+    const groups = new Map<string, number[]>();
+
+    for (const row of rawData) {
+      const key = String(row[xField] || 'Unknown');
+      const value = parseFloat(row[yField]) || 0;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(value);
+    }
+
+    const result = Array.from(groups.entries()).map(([name, values]) => {
+      let value: number;
+      switch (aggregation) {
+        case 'sum':
+          value = values.reduce((a, b) => a + b, 0);
+          break;
+        case 'avg':
+          value = values.reduce((a, b) => a + b, 0) / values.length;
+          break;
+        case 'count':
+          value = values.length;
+          break;
+        case 'min':
+          value = Math.min(...values);
+          break;
+        case 'max':
+          value = Math.max(...values);
+          break;
+        default:
+          value = values.reduce((a, b) => a + b, 0);
+      }
+      return { name, value };
+    });
+
+    return result
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+  };
+
   const fetchPreviewData = async () => {
     const needsJoin = needsJoinQuery();
-    console.log('[PreviewPanel] Starting fetch - needsJoin:', needsJoin);
 
     if (needsJoin) {
       await fetchPreviewDataWithJoin();
@@ -315,78 +368,83 @@ export function PreviewPanel() {
     state.visualization.groupBy,
     state.visualization.aggregation,
     state.logicBlocks,
-    previewCustomerId,
+    state.customerScope,
+    state.executionParams?.dateRange,
   ]);
 
   const containerClass = isFullscreen ? 'fixed inset-0 z-50 bg-white p-6' : '';
 
   return (
     <div className={containerClass}>
-      {isAdmin && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
-          <label className="text-xs text-slate-500 flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" />
-            Preview Data:
-          </label>
-          <select
-            value={previewCustomerId ?? 'all'}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPreviewCustomerId(value === 'all' ? null : parseInt(value, 10));
-            }}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent flex-1 max-w-xs"
-          >
-            <option value="all">All Customers (Admin)</option>
-            <optgroup label="Individual Customers">
-              {customers.map((customer) => (
-                <option key={customer.customer_id} value={customer.customer_id}>
-                  {customer.customer_name || `Customer ${customer.customer_id}`}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+      <div className="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="w-5 h-5 text-orange-500" />
+          <div>
+            <h3 className="font-medium text-slate-900">
+              {state.title || 'Preview'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {formatAggregation(state.visualization.aggregation)} {formatFieldLabel(state.visualization.yField)}
+              {state.visualization.xField && ` by ${formatFieldLabel(state.visualization.xField)}`}
+            </p>
+          </div>
         </div>
-      )}
 
-      <div className="flex items-center justify-between p-4 pb-2">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Preview</h3>
-          <p className="text-xs text-slate-500 flex items-center gap-1">
-            <Database className="w-3 h-3" />
-            {rowCount !== null ? `${rowCount.toLocaleString()} rows` : 'Loading...'}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded text-xs text-slate-600">
+            <Database className="w-3.5 h-3.5" />
+            {loading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <span>{rowCount?.toLocaleString() || 0} rows</span>
+            )}
             {usingJoin && (
-              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">
-                JOIN
+              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium ml-1">
+                FILTERED
               </span>
             )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+          </div>
+
           <button
             onClick={fetchPreviewData}
             disabled={loading}
-            className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-            title="Refresh preview"
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      <div className={`mx-4 bg-slate-50 rounded-lg ${isFullscreen ? 'h-[calc(100vh-180px)]' : 'h-80'}`}>
+      <div className="px-3 py-2 bg-blue-50 border-b border-blue-100 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-blue-700">
+            <strong>Preview:</strong> {state.executionParams?.dateRange?.start} to {state.executionParams?.dateRange?.end}
+            {customerScope.mode === 'customer' && customerScope.customerName && (
+              <span className="ml-2 px-1.5 py-0.5 bg-blue-100 rounded">
+                {customerScope.customerName}
+              </span>
+            )}
+          </span>
+          <span className="text-blue-600">
+            Published widget uses page date selector
+          </span>
+        </div>
+      </div>
+
+      <div className={`mx-4 my-4 bg-slate-50 rounded-lg ${isFullscreen ? 'h-[calc(100vh-180px)]' : 'h-80'}`}>
         {loading ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="w-8 h-8 text-slate-400 animate-spin mx-auto" />
               <p className="text-xs text-slate-500 mt-2">
-                {usingJoin ? 'Querying with join...' : 'Loading preview...'}
+                {usingJoin ? 'Filtering by products...' : 'Loading preview...'}
               </p>
             </div>
           </div>
@@ -420,17 +478,17 @@ export function PreviewPanel() {
         )}
       </div>
 
-      <div className="px-4 py-2 flex items-center justify-between text-xs text-slate-400">
+      <div className="px-4 py-2 flex items-center justify-between text-xs text-slate-400 border-t border-slate-100">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-3 h-3" />
           <span>{state.visualization.type}</span>
           {state.visualization.aggregation && (
             <span className="px-1.5 py-0.5 bg-slate-100 rounded">
-              Agg: {state.visualization.aggregation}
+              {state.visualization.aggregation.toUpperCase()}
             </span>
           )}
         </div>
-        <span>Preview shows sample data. Published widget will use Analytics Hub date range.</span>
+        <span>Preview shows sample data</span>
       </div>
     </div>
   );
@@ -440,6 +498,21 @@ const COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#14b8a6'
 
 function VisualizationRenderer({ type, data, config }: { type: string; data: any[]; config: any }) {
   const colors = config.colors || COLORS;
+  const isCurrency = config.yField === 'retail' || config.yField === 'cost';
+
+  const formatValue = (value: number) => {
+    if (isCurrency) {
+      return formatCurrency(value);
+    }
+    return formatNumber(value);
+  };
+
+  const formatTooltip = (value: number) => {
+    if (isCurrency) {
+      return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return value.toLocaleString();
+  };
 
   switch (type) {
     case 'bar':
@@ -447,10 +520,32 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 20, right: 30, left: 100, bottom: 20 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `$${v.toLocaleString()}`} />
-            <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={90} />
-            <Tooltip formatter={(value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              tickFormatter={formatValue}
+            />
+            <YAxis
+              dataKey="name"
+              type="category"
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              width={90}
+            />
+            <Tooltip
+              formatter={(value: number) => [formatTooltip(value), formatFieldLabel(config.yField)]}
+              contentStyle={{
+                backgroundColor: 'white',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+            />
+            <Legend />
+            <Bar
+              dataKey="value"
+              name={formatFieldLabel(config.yField)}
+              radius={[0, 4, 4, 0]}
+            >
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
@@ -462,12 +557,31 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
     case 'line':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsLineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <RechartsLineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-            <Tooltip />
-            <Line type="monotone" dataKey="value" stroke={colors[0]} strokeWidth={2} dot={{ r: 4 }} />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              tickFormatter={formatValue}
+            />
+            <Tooltip
+              formatter={(value: number) => [formatTooltip(value), formatFieldLabel(config.yField)]}
+            />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="value"
+              name={formatFieldLabel(config.yField)}
+              stroke={colors[0]}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+            />
           </RechartsLineChart>
         </ResponsiveContainer>
       );
@@ -475,12 +589,31 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
     case 'area':
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             {config.showGrid !== false && <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />}
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
-            <Tooltip />
-            <Area type="monotone" dataKey="value" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              tickFormatter={formatValue}
+            />
+            <Tooltip
+              formatter={(value: number) => [formatTooltip(value), formatFieldLabel(config.yField)]}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="value"
+              name={formatFieldLabel(config.yField)}
+              stroke={colors[0]}
+              fill={colors[0]}
+              fillOpacity={0.3}
+            />
           </AreaChart>
         </ResponsiveContainer>
       );
@@ -503,7 +636,8 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+            <Tooltip formatter={(value: number) => formatTooltip(value)} />
+            <Legend />
           </RechartsPieChart>
         </ResponsiveContainer>
       );
@@ -530,8 +664,8 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
     case 'choropleth':
       return <ChoroplethPreview data={data} config={config} />;
 
-    case 'flow':
-      return <FlowMapPreview data={data} />;
+    case 'treemap':
+      return <TreemapPreview data={data} colors={colors} />;
 
     default:
       return (
@@ -547,7 +681,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
 
 function KPIPreview({ data, config }: { data: any[]; config: any }) {
   const value = data[0]?.value || 0;
-  const format = config.kpi?.format || 'number';
+  const format = config.kpi?.format || (config.yField === 'retail' || config.yField === 'cost' ? 'currency' : 'number');
 
   let formatted: string;
   if (format === 'currency') {
@@ -564,6 +698,9 @@ function KPIPreview({ data, config }: { data: any[]; config: any }) {
         <div className="text-4xl font-bold text-slate-900">
           {config.kpi?.prefix}{formatted}{config.kpi?.suffix}
         </div>
+        <div className="text-sm text-slate-500 mt-2">
+          {formatFieldLabel(config.yField)}
+        </div>
       </div>
     </div>
   );
@@ -572,216 +709,80 @@ function KPIPreview({ data, config }: { data: any[]; config: any }) {
 function TablePreview({ data }: { data: any[] }) {
   if (data.length === 0) return null;
 
-  const columns = Object.keys(data[0]);
-
   return (
     <div className="h-full overflow-auto p-2">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-slate-100">
-            {columns.map(col => (
-              <th key={col} className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                {col}
-              </th>
-            ))}
+            <th className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+              Category
+            </th>
+            <th className="px-3 py-2 text-right text-xs font-medium text-slate-500 uppercase">
+              Value
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {data.slice(0, 10).map((row, i) => (
+          {data.slice(0, 15).map((row, i) => (
             <tr key={i} className="hover:bg-slate-50">
-              {columns.map(col => (
-                <td key={col} className="px-3 py-2 text-slate-700">
-                  {String(row[col] ?? '')}
-                </td>
-              ))}
+              <td className="px-3 py-2 text-slate-700">{row.name}</td>
+              <td className="px-3 py-2 text-right text-slate-900 font-medium">
+                {typeof row.value === 'number'
+                  ? row.value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                  : row.value
+                }
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {data.length > 10 && (
-        <p className="text-xs text-slate-400 text-center mt-2">
-          Showing 10 of {data.length} rows
-        </p>
-      )}
     </div>
   );
 }
 
 function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
   return (
-    <div className="h-full flex items-center justify-center p-4">
-      <div className="text-center">
-        <MapIcon className="w-16 h-16 text-slate-300 mx-auto mb-3" />
-        <p className="text-sm text-slate-600">Choropleth Map Preview</p>
-        <p className="text-xs text-slate-400 mt-1">
-          {config.geo?.mapKey || 'us_states'} - {data.length} regions
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FlowMapPreview({ data }: { data: any[] }) {
-  return (
-    <div className="h-full flex items-center justify-center p-4">
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <MapIcon className="w-6 h-6 text-blue-500" />
-          </div>
-          <div className="text-2xl text-slate-300">→</div>
-          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-            <MapIcon className="w-6 h-6 text-orange-500" />
-          </div>
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center text-slate-400">
+        <MapIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <p className="text-sm font-medium">Map Preview</p>
+        <p className="text-xs mt-1">{data.length} regions with data</p>
+        <div className="mt-4 text-xs">
+          {data.slice(0, 5).map((d, i) => (
+            <div key={i} className="flex justify-between gap-4">
+              <span>{d.name}</span>
+              <span className="font-medium">{formatCurrency(d.value)}</span>
+            </div>
+          ))}
         </div>
-        <p className="text-sm text-slate-600">Flow Map Preview</p>
-        <p className="text-xs text-slate-400 mt-1">
-          {data.length} origin-destination pairs
-        </p>
       </div>
     </div>
   );
 }
 
-function processDataForVisualization(rawData: any[], config: any, productFilters: string[]): any[] {
-  const { type, xField, yField, aggregation, geo, flow } = config;
+function TreemapPreview({ data, colors }: { data: any[]; colors: string[] }) {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
 
-  if (rawData.length === 0) return [];
-
-  if (type === 'kpi') {
-    const value = aggregateValues(rawData, yField, aggregation);
-    return [{ value }];
-  }
-
-  if (type === 'table') {
-    return rawData.slice(0, 100);
-  }
-
-  if (type === 'scatter') {
-    return rawData.slice(0, 200).map(row => ({
-      x: row[xField] || 0,
-      y: row[yField] || 0,
-    }));
-  }
-
-  if (type === 'choropleth' && geo?.regionField && geo?.valueField) {
-    return groupAndAggregate(rawData, geo.regionField, geo.valueField, aggregation);
-  }
-
-  if (type === 'flow' && flow?.originField && flow?.destinationField) {
-    const grouped: Record<string, { origin: string; destination: string; value: number }> = {};
-
-    for (const row of rawData) {
-      const key = `${row[flow.originField]}-${row[flow.destinationField]}`;
-
-      if (grouped[key]) {
-        grouped[key].value += Number(row[flow.valueField]) || 0;
-      } else {
-        grouped[key] = {
-          origin: row[flow.originField],
-          destination: row[flow.destinationField],
-          value: Number(row[flow.valueField]) || 0,
-        };
-      }
-    }
-
-    return Object.values(grouped)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 20);
-  }
-
-  if (productFilters.length > 0 && rawData.length > 0 && rawData[0]?.description) {
-    const productGroups: Record<string, number[]> = {};
-
-    for (const product of productFilters) {
-      productGroups[product] = [];
-    }
-
-    for (const row of rawData) {
-      const desc = (row.description || '').toLowerCase();
-      for (const product of productFilters) {
-        if (desc.includes(product.toLowerCase())) {
-          const value = Number(row.retail) || 0;
-          productGroups[product].push(value);
-          break;
-        }
-      }
-    }
-
-    const results = Object.entries(productGroups).map(([name, values]) => ({
-      name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-      value: aggregateArray(values, aggregation || 'avg'),
-    }));
-
-    return results
-      .filter(r => r.value > 0)
-      .sort((a, b) => b.value - a.value);
-  }
-
-  if (xField) {
-    return groupAndAggregate(rawData, xField, yField, aggregation);
-  }
-
-  return [];
-}
-
-function groupAndAggregate(
-  data: any[],
-  groupField: string,
-  valueField: string | undefined,
-  aggregation: string = 'sum'
-): { name: string; value: number }[] {
-  const groups: Record<string, number[]> = {};
-
-  for (const row of data) {
-    let key = String(row[groupField] || 'Unknown');
-
-    if (key.length > 30) {
-      key = key.substring(0, 27) + '...';
-    }
-
-    const value = valueField ? Number(row[valueField]) || 0 : 1;
-
-    if (!groups[key]) {
-      groups[key] = [];
-    }
-    groups[key].push(value);
-  }
-
-  const results = Object.entries(groups).map(([name, values]) => ({
-    name,
-    value: aggregateArray(values, aggregation),
-  }));
-
-  return results
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 20);
-}
-
-function aggregateValues(data: any[], field: string | undefined, aggregation: string): number {
-  if (!field) return data.length;
-
-  const values = data.map(r => Number(r[field])).filter(v => !isNaN(v));
-  return aggregateArray(values, aggregation);
-}
-
-function aggregateArray(values: number[], aggregation: string): number {
-  if (values.length === 0) return 0;
-
-  switch (aggregation) {
-    case 'sum':
-      return values.reduce((a, b) => a + b, 0);
-    case 'avg':
-      return values.reduce((a, b) => a + b, 0) / values.length;
-    case 'count':
-      return values.length;
-    case 'min':
-      return Math.min(...values);
-    case 'max':
-      return Math.max(...values);
-    default:
-      return values.reduce((a, b) => a + b, 0);
-  }
+  return (
+    <div className="h-full p-4 grid grid-cols-4 gap-2">
+      {data.slice(0, 8).map((d, i) => {
+        const percent = ((d.value / total) * 100).toFixed(0);
+        return (
+          <div
+            key={i}
+            className="rounded-lg p-3 flex flex-col justify-end"
+            style={{
+              backgroundColor: colors[i % colors.length],
+              opacity: 0.8 + (0.2 * (1 - i / data.length))
+            }}
+          >
+            <div className="text-white text-xs font-medium truncate">{d.name}</div>
+            <div className="text-white text-lg font-bold">{percent}%</div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export default PreviewPanel;

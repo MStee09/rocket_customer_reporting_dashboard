@@ -45,6 +45,9 @@ export {
 
 export { UnifiedVisualBuilderPage as VisualBuilderPage } from './components/UnifiedVisualBuilderPage';
 export { CustomerScopeSelector } from './components/CustomerScopeSelector';
+export { ChartTypeSelector } from './components/ChartTypeSelector';
+export { DateRangeDisplay } from './components/DateRangeDisplay';
+export { ProductTagInput } from './components/ProductTagInput';
 
 export { VisualizationPanel } from './components/panels/VisualizationPanel';
 export { FieldMappingPanel } from './components/panels/FieldMappingPanel';

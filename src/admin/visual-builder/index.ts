@@ -42,6 +42,7 @@ export {
 
 export { VisualBuilderPage } from './components/VisualBuilderPage';
 export { EnhancedVisualBuilderPage } from './components/EnhancedVisualBuilderPage';
+export { UnifiedVisualBuilderPage } from './components/UnifiedVisualBuilderPage';
 export { VisualizationPanel } from './components/panels/VisualizationPanel';
 export { FieldMappingPanel } from './components/panels/FieldMappingPanel';
 export { LogicPanel } from './components/panels/LogicPanel';

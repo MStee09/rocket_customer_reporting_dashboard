@@ -29,7 +29,7 @@ import { DebugPage } from './pages/DebugPage';
 import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
 import { WidgetRawDataPage } from './pages/WidgetRawDataPage';
 import { ReportViewPage } from './pages/ReportViewPage';
-import { EnhancedVisualBuilderPage } from './admin/visual-builder';
+import { UnifiedVisualBuilderPage } from './admin/visual-builder';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
@@ -186,7 +186,7 @@ function App() {
                 path="admin/visual-builder"
                 element={
                   <ProtectedRoute requireAdmin>
-                    <EnhancedVisualBuilderPage />
+                    <UnifiedVisualBuilderPage />
                   </ProtectedRoute>
                 }
               />

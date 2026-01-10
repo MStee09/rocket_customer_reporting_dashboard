@@ -36,6 +36,7 @@ import { PreviewPanel } from './panels/PreviewPanel';
 import { PublishPanel } from './panels/PublishPanel';
 import { CustomerScopeSelector } from './CustomerScopeSelector';
 import { DateRangeDisplay } from './DateRangeDisplay';
+import { ProductTagInput } from './ProductTagInput';
 
 import type {
   VisualBuilderSchema,
@@ -61,12 +62,6 @@ interface FilterValueOption {
   value: string;
   label: string;
   count: number;
-}
-
-interface ProductSearchResult {
-  value: string;
-  count: number;
-  sample: string;
 }
 
 const CHART_TYPES: { id: VisualizationType; label: string; icon: React.ReactNode; desc: string }[] = [
@@ -742,182 +737,11 @@ function BreakdownValuePicker({ field }: { field: string }) {
 
 function FiltersPanel() {
   const { state, addLogicBlock, updateLogicBlock, removeLogicBlock } = useBuilder();
-  const [productSearch, setProductSearch] = useState('');
-  const [productResults, setProductResults] = useState<ProductSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const allFields = useMemo(() => getAllBuilderFields(true), []);
-
-  const productFilter = state.logicBlocks.find(
-    b => b.type === 'filter' && b.label === 'Product Filter'
-  ) as FilterBlock | undefined;
-
-  const selectedProducts = productFilter?.conditions.find(
-    c => c.field === 'item_descriptions' || c.field === 'description'
-  )?.value as string[] || [];
-
-  const handleProductSearch = async () => {
-    if (!productSearch.trim()) return;
-    setIsSearching(true);
-
-    try {
-      const { data } = await supabase
-        .from('shipment_report_view')
-        .select('item_descriptions')
-        .ilike('item_descriptions', `%${productSearch}%`)
-        .not('item_descriptions', 'is', null)
-        .limit(100);
-
-      if (data) {
-        const counts = new Map<string, number>();
-        for (const row of data) {
-          if (row.item_descriptions) {
-            const descriptions = row.item_descriptions.split(' | ');
-            for (const desc of descriptions) {
-              if (desc.toLowerCase().includes(productSearch.toLowerCase())) {
-                const upper = desc.trim().toUpperCase();
-                if (upper) counts.set(upper, (counts.get(upper) || 0) + 1);
-              }
-            }
-          }
-        }
-
-        setProductResults(
-          Array.from(counts.entries())
-            .map(([value, count]) => ({ value, count, sample: value }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 15)
-        );
-      }
-    } catch (err) {
-      console.error('Product search error:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const toggleProduct = (value: string) => {
-    const newProducts = selectedProducts.includes(value)
-      ? selectedProducts.filter(p => p !== value)
-      : [...selectedProducts, value];
-
-    if (newProducts.length === 0) {
-      if (productFilter) removeLogicBlock(productFilter.id);
-      return;
-    }
-
-    const condition: FilterCondition = {
-      field: 'item_descriptions',
-      operator: 'contains_any',
-      value: newProducts,
-    };
-
-    if (productFilter) {
-      updateLogicBlock(productFilter.id, { conditions: [condition] });
-    } else {
-      addLogicBlock({
-        id: crypto.randomUUID(),
-        type: 'filter',
-        conditions: [condition],
-        enabled: true,
-        label: 'Product Filter',
-      });
-    }
-  };
 
   return (
     <div className="p-4 space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Filter by Product
-        </label>
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleProductSearch()}
-              placeholder="Search products (e.g., drawer, cargoglide)"
-              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-          <button
-            onClick={handleProductSearch}
-            disabled={isSearching}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:bg-slate-400 text-sm"
-          >
-            {isSearching ? '...' : 'Search'}
-          </button>
-        </div>
-
-        <div className="flex gap-1 mt-2">
-          {['drawer', 'cargoglide', 'toolbox'].map(term => (
-            <button
-              key={term}
-              onClick={() => setProductSearch(term)}
-              className="text-xs px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded text-slate-600"
-            >
-              {term}
-            </button>
-          ))}
-        </div>
-
-        {productResults.length > 0 && (
-          <div className="mt-3 max-h-48 overflow-y-auto space-y-1">
-            {productResults.map((result, i) => {
-              const isSelected = selectedProducts.includes(result.value);
-              return (
-                <button
-                  key={i}
-                  onClick={() => toggleProduct(result.value)}
-                  className={`
-                    w-full flex items-center justify-between p-2 rounded-lg text-sm
-                    ${isSelected ? 'bg-orange-100 border border-orange-300' : 'bg-slate-50 hover:bg-slate-100'}
-                  `}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-orange-500 border-orange-500 text-white' : 'border-slate-300'}`}>
-                      {isSelected && <Check className="w-3 h-3" />}
-                    </div>
-                    <span className="truncate">{result.value}</span>
-                  </div>
-                  <span className="text-xs text-slate-500">{result.count}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {selectedProducts.length > 0 && (
-          <div className="mt-3 p-3 bg-orange-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-orange-700">
-                {selectedProducts.length} products selected
-              </span>
-              <button
-                onClick={() => productFilter && removeLogicBlock(productFilter.id)}
-                className="text-xs text-red-500 hover:text-red-600"
-              >
-                Clear
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {selectedProducts.map(product => (
-                <span
-                  key={product}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-orange-200 rounded text-xs text-orange-700"
-                >
-                  {product.length > 20 ? product.slice(0, 20) + '...' : product}
-                  <button onClick={() => toggleProduct(product)}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <ProductTagInput />
 
       <div>
         <div className="flex items-center justify-between mb-2">

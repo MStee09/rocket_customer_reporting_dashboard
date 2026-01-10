@@ -40,9 +40,8 @@ export {
   clearDraftFromStorage,
 } from './components/BuilderContext';
 
-export { VisualBuilderPage } from './components/VisualBuilderPage';
-export { EnhancedVisualBuilderPage } from './components/EnhancedVisualBuilderPage';
-export { UnifiedVisualBuilderPage } from './components/UnifiedVisualBuilderPage';
+export { UnifiedVisualBuilderPage as VisualBuilderPage } from './components/UnifiedVisualBuilderPage';
+
 export { VisualizationPanel } from './components/panels/VisualizationPanel';
 export { FieldMappingPanel } from './components/panels/FieldMappingPanel';
 export { LogicPanel } from './components/panels/LogicPanel';

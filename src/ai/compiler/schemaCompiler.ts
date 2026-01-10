@@ -3,28 +3,153 @@ import { SchemaContext, SchemaField, DataProfile } from '../types';
 import { isRestrictedField } from '../../security/restrictedFields';
 
 export async function compileSchemaContext(customerId: string): Promise<SchemaContext> {
-  // Get schema columns from metadata table
-  const { data: columns, error: columnsError } = await supabase
-    .from('schema_columns')
-    .select('*')
-    .eq('view_name', 'shipment_report_view')
-    .order('ordinal_position');
+  const fields = await fetchSchemaFields();
+  const dataProfile = await fetchDataProfile(customerId);
 
-  if (columnsError) {
-    console.error('Failed to fetch schema columns:', columnsError);
+  return { fields, dataProfile };
+}
+
+async function fetchSchemaFields(): Promise<SchemaField[]> {
+  try {
+    const { data, error } = await supabase
+      .from('schema_columns_metadata')
+      .select('column_name, data_type, is_groupable, is_aggregatable, business_context, ai_instructions, category')
+      .eq('view_name', 'shipment_report_view')
+      .order('ordinal_position');
+
+    if (!error && data && data.length > 0) {
+      console.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns_metadata`);
+      return data.map(col => ({
+        name: col.column_name,
+        type: col.data_type,
+        isGroupable: col.is_groupable ?? true,
+        isAggregatable: col.is_aggregatable ?? false,
+        businessContext: col.business_context,
+        aiInstructions: col.ai_instructions,
+        adminOnly: isRestrictedField(col.column_name),
+        category: col.category
+      }));
+    }
+  } catch (e) {
+    console.warn('[SchemaCompiler] Dynamic view failed:', e);
   }
 
-  // Get field business context
-  const { data: fieldContext, error: contextError } = await supabase
-    .from('field_business_context')
-    .select('*');
+  try {
+    const { data, error } = await supabase
+      .from('schema_columns')
+      .select('column_name, data_type, is_groupable, is_aggregatable')
+      .eq('view_name', 'shipment_report_view')
+      .order('ordinal_position');
 
-  if (contextError) {
-    console.error('Failed to fetch field context:', contextError);
+    if (!error && data && data.length > 0) {
+      console.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns table`);
+
+      const { data: contextData } = await supabase
+        .from('field_business_context')
+        .select('field_name, business_description, ai_instructions');
+
+      const contextMap = new Map(
+        (contextData || []).map(c => [c.field_name, c])
+      );
+
+      return data.map(col => {
+        const ctx = contextMap.get(col.column_name);
+        return {
+          name: col.column_name,
+          type: col.data_type,
+          isGroupable: col.is_groupable ?? true,
+          isAggregatable: col.is_aggregatable ?? false,
+          businessContext: ctx?.business_description,
+          aiInstructions: ctx?.ai_instructions,
+          adminOnly: isRestrictedField(col.column_name)
+        };
+      });
+    }
+  } catch (e) {
+    console.warn('[SchemaCompiler] Table fallback failed:', e);
   }
 
-  // Get customer data profile
-  let dataProfile: DataProfile = {
+  try {
+    const { data, error } = await supabase.rpc('get_available_fields', { p_include_context: true });
+
+    if (!error && data && data.length > 0) {
+      console.log(`[SchemaCompiler] Loaded ${data.length} fields from RPC`);
+      return data.map((col: Record<string, unknown>) => ({
+        name: col.column_name as string,
+        type: col.data_type as string,
+        isGroupable: (col.is_groupable as boolean) ?? true,
+        isAggregatable: (col.is_aggregatable as boolean) ?? false,
+        businessContext: col.business_context as string | undefined,
+        aiInstructions: col.ai_instructions as string | undefined,
+        adminOnly: isRestrictedField(col.column_name as string),
+        category: col.category as string | undefined
+      }));
+    }
+  } catch (e) {
+    console.warn('[SchemaCompiler] RPC fallback failed:', e);
+  }
+
+  console.error('[SchemaCompiler] All sources failed, using hardcoded defaults');
+  return getDefaultSchema();
+}
+
+function getDefaultSchema(): SchemaField[] {
+  return [
+    { name: 'load_id', type: 'text', isGroupable: false, isAggregatable: false },
+    { name: 'customer_id', type: 'integer', isGroupable: true, isAggregatable: false },
+    { name: 'reference_number', type: 'text', isGroupable: false, isAggregatable: false },
+
+    { name: 'pickup_date', type: 'date', isGroupable: true, isAggregatable: false },
+    { name: 'delivery_date', type: 'date', isGroupable: true, isAggregatable: false },
+    { name: 'expected_delivery_date', type: 'date', isGroupable: true, isAggregatable: false },
+
+    { name: 'retail', type: 'numeric', isGroupable: false, isAggregatable: true,
+      businessContext: 'Customer freight cost' },
+    { name: 'miles', type: 'numeric', isGroupable: false, isAggregatable: true },
+
+    { name: 'carrier_name', type: 'text', isGroupable: true, isAggregatable: false,
+      businessContext: 'Carrier company name' },
+    { name: 'carrier_scac', type: 'text', isGroupable: true, isAggregatable: false },
+
+    { name: 'status_name', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'is_completed', type: 'boolean', isGroupable: true, isAggregatable: false },
+    { name: 'is_cancelled', type: 'boolean', isGroupable: true, isAggregatable: false },
+    { name: 'is_late', type: 'boolean', isGroupable: true, isAggregatable: false,
+      businessContext: 'Delivery was/is late' },
+
+    { name: 'mode_name', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'equipment_name', type: 'text', isGroupable: true, isAggregatable: false },
+
+    { name: 'origin_company', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'origin_city', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'origin_state', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'origin_zip', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'origin_country', type: 'text', isGroupable: true, isAggregatable: false },
+
+    { name: 'destination_company', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'destination_city', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'destination_state', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'destination_zip', type: 'text', isGroupable: true, isAggregatable: false },
+    { name: 'destination_country', type: 'text', isGroupable: true, isAggregatable: false },
+
+    { name: 'item_descriptions', type: 'text', isGroupable: false, isAggregatable: false,
+      businessContext: 'Searchable text of all item descriptions',
+      aiInstructions: 'Use ILIKE for product keyword search' },
+    { name: 'primary_commodity', type: 'text', isGroupable: true, isAggregatable: false,
+      businessContext: 'Most common commodity type' },
+    { name: 'total_weight', type: 'numeric', isGroupable: false, isAggregatable: true,
+      businessContext: 'Combined weight of all items (lbs)' },
+    { name: 'item_count', type: 'integer', isGroupable: false, isAggregatable: true,
+      businessContext: 'Number of line items' },
+    { name: 'freight_classes', type: 'text', isGroupable: true, isAggregatable: false,
+      businessContext: 'LTL freight classifications' },
+    { name: 'has_hazmat', type: 'boolean', isGroupable: true, isAggregatable: false,
+      businessContext: 'Contains hazardous materials' }
+  ];
+}
+
+async function fetchDataProfile(customerId: string): Promise<DataProfile> {
+  const defaultProfile: DataProfile = {
     totalShipments: 0,
     stateCount: 0,
     carrierCount: 0,
@@ -35,46 +160,28 @@ export async function compileSchemaContext(customerId: string): Promise<SchemaCo
   };
 
   try {
-    const { data: profileData, error: profileError } = await supabase
-      .rpc('get_customer_data_profile', { p_customer_id: customerId });
+    const { data, error } = await supabase
+      .rpc('get_customer_data_profile', { p_customer_id: parseInt(customerId, 10) });
 
-    if (!profileError && profileData) {
-      dataProfile = {
-        totalShipments: profileData.totalShipments || 0,
-        stateCount: profileData.stateCount || 0,
-        carrierCount: profileData.carrierCount || 0,
-        monthsOfData: profileData.monthsOfData || 0,
-        topStates: profileData.topStates || [],
-        topCarriers: profileData.topCarriers || [],
-        avgShipmentsPerDay: profileData.avgShipmentsPerDay || 0,
-        hasCanadaData: profileData.hasCanadaData,
-      };
+    if (error || !data) {
+      console.error('[SchemaCompiler] Data profile error:', error);
+      return defaultProfile;
     }
-  } catch (e) {
-    console.error('Error fetching data profile:', e);
-  }
 
-  // Build context map
-  const contextMap = new Map<string, any>();
-  (fieldContext || []).forEach(fc => {
-    contextMap.set(fc.field_name, fc);
-  });
-
-  // Merge columns with context
-  const fields: SchemaField[] = (columns || []).map(col => {
-    const context = contextMap.get(col.column_name);
     return {
-      name: col.column_name,
-      type: col.data_type,
-      isGroupable: col.is_groupable ?? true,
-      isAggregatable: col.is_aggregatable ?? false,
-      businessContext: context?.business_description,
-      aiInstructions: context?.ai_instructions,
-      adminOnly: isRestrictedField(col.column_name) || context?.admin_only,
+      totalShipments: data.total_shipments || 0,
+      stateCount: data.state_count || 0,
+      carrierCount: data.carrier_count || 0,
+      monthsOfData: data.months_of_data || 0,
+      topStates: data.top_states || [],
+      topCarriers: data.top_carriers || [],
+      avgShipmentsPerDay: data.avg_shipments_per_day || 0,
+      hasCanadaData: data.has_canada_data || false,
     };
-  });
-
-  return { fields, dataProfile };
+  } catch (e) {
+    console.error('[SchemaCompiler] Data profile exception:', e);
+    return defaultProfile;
+  }
 }
 
 export function formatSchemaForPrompt(schema: SchemaContext, isAdmin: boolean): string {
@@ -86,7 +193,7 @@ export function formatSchemaForPrompt(schema: SchemaContext, isAdmin: boolean): 
   for (const field of schema.fields) {
     if (!isAdmin && field.adminOnly) continue;
 
-    const groupable = field.isGroupable ? '✓' : '';
+    const groupable = field.isGroupable ? 'Y' : '';
     const aggregatable = field.isAggregatable ? 'SUM/AVG' : 'COUNT';
     const description = field.businessContext || '';
     const adminNote = field.adminOnly ? ' (ADMIN)' : '';
@@ -112,20 +219,27 @@ export function formatSchemaForPrompt(schema: SchemaContext, isAdmin: boolean): 
 
   output += '\n### CRITICAL RULES\n';
   output += '1. **Only use fields listed above** - anything else will cause errors\n';
-  output += '2. **Respect Group By column** - only fields marked ✓ can be grouped\n';
+  output += '2. **Respect Group By column** - only fields marked Y can be grouped\n';
   output += '3. **Respect Aggregate column** - numeric fields support SUM/AVG, others only COUNT\n';
   if (!isAdmin) {
     output += '4. **Financial data note**: Use `retail` for customer spend/cost analysis.\n';
     output += '   The fields `cost`, `margin`, `carrier_cost` are internal Go Rocket data and not available.\n';
   }
 
+  output += '\n### PRODUCT SEARCH\n';
+  output += 'To find shipments by product/commodity:\n';
+  output += '- Use `item_descriptions ILIKE \'%keyword%\'` for text search\n';
+  output += '- Group by `primary_commodity` for category breakdown\n';
+  output += '- Use `total_weight`, `item_count` for volume analysis\n';
+
   output += '\n### COMMON MAPPINGS\n';
   output += 'When customers use these terms, map them to the correct fields:\n';
-  output += '- "cost", "spend", "freight cost", "shipping cost" → use `retail` field\n';
-  output += '- "expensive", "most costly" → sort by `retail` descending\n';
-  output += '- "cost per shipment" → avg(retail)\n';
-  output += '- "total spend" → sum(retail)\n';
-  output += '- "cheapest carriers" → carrier_name grouped by avg(retail) ascending\n';
+  output += '- "cost", "spend", "freight cost", "shipping cost" -> use `retail` field\n';
+  output += '- "expensive", "most costly" -> sort by `retail` descending\n';
+  output += '- "cost per shipment" -> avg(retail)\n';
+  output += '- "total spend" -> sum(retail)\n';
+  output += '- "cheapest carriers" -> carrier_name grouped by avg(retail) ascending\n';
+  output += '- "drawer system", "cargoglide", product names -> search `item_descriptions`\n';
 
   return output;
 }

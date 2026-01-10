@@ -30,6 +30,7 @@ export interface SchemaField {
   businessContext?: string;
   aiInstructions?: string;
   adminOnly?: boolean;
+  category?: string;
 }
 
 export interface DataProfile {

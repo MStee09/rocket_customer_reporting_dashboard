@@ -80,3 +80,11 @@ export {
 } from './types/BuilderSchemaV3';
 
 export { BuilderProviderV3, useBuilderV3 } from './components/BuilderContextV3';
+
+export type {
+  ReasoningStep,
+  AIWidgetSuggestion,
+  AIInvestigationResult,
+} from './hooks/useVisualBuilderAI';
+
+export { useVisualBuilderAI } from './hooks/useVisualBuilderAI';

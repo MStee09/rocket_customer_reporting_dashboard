@@ -3,7 +3,8 @@ import type {
   VisualBuilderSchema,
   LogicBlock,
   VisualizationConfig,
-  PublishConfig
+  PublishConfig,
+  CustomerScope,
 } from '../types/BuilderSchema';
 import { createDefaultBuilderSchema, validateBuilderSchema } from '../types/BuilderSchema';
 import { compileLogicBlocks } from '../logic/compileLogic';
@@ -23,6 +24,7 @@ type BuilderAction =
   | { type: 'SET_ACTIVE_PANEL'; payload: VisualBuilderSchema['ui']['activePanel'] }
   | { type: 'SET_PREVIEW_LOADING'; payload: boolean }
   | { type: 'SET_PREVIEW_ERROR'; payload: string | undefined }
+  | { type: 'SET_CUSTOMER_SCOPE'; payload: CustomerScope }
   | { type: 'MARK_DIRTY' }
   | { type: 'MARK_CLEAN' }
   | { type: 'LOAD_SCHEMA'; payload: VisualBuilderSchema }
@@ -104,6 +106,16 @@ function builderReducer(
     case 'SET_PREVIEW_ERROR':
       return { ...state, ui: { ...state.ui, previewError: action.payload } };
 
+    case 'SET_CUSTOMER_SCOPE':
+      return {
+        ...state,
+        customerScope: action.payload,
+        publish: action.payload.mode === 'customer' && action.payload.customerId
+          ? { ...state.publish, scope: 'customer', customerId: action.payload.customerId }
+          : state.publish,
+        ui: { ...state.ui, isDirty: true },
+      };
+
     case 'MARK_DIRTY':
       return { ...state, ui: { ...state.ui, isDirty: true } };
 
@@ -135,6 +147,7 @@ interface BuilderContextValue {
   removeLogicBlock: (id: string) => void;
   setPublishConfig: (config: Partial<PublishConfig>) => void;
   setActivePanel: (panel: VisualBuilderSchema['ui']['activePanel']) => void;
+  setCustomerScope: (scope: CustomerScope) => void;
   reset: () => void;
   loadSchema: (schema: VisualBuilderSchema) => void;
 }
@@ -198,6 +211,10 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     dispatch({ type: 'SET_ACTIVE_PANEL', payload: panel });
   }, []);
 
+  const setCustomerScope = useCallback((scope: CustomerScope) => {
+    dispatch({ type: 'SET_CUSTOMER_SCOPE', payload: scope });
+  }, []);
+
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
   }, []);
@@ -233,6 +250,7 @@ export function BuilderProvider({ children, initialSchema }: BuilderProviderProp
     removeLogicBlock,
     setPublishConfig,
     setActivePanel,
+    setCustomerScope,
     reset,
     loadSchema,
   };

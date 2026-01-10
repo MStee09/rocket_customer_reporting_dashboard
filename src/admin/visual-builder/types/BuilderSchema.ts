@@ -6,7 +6,9 @@
  *
  * LOCATION: /src/admin/visual-builder/types/BuilderSchema.ts
  *
- * v2.0 Updates:
+ * v2.1 Updates:
+ * - Added CustomerScope (optional, backwards compatible)
+ * - Added getChartTypeAvailability helper
  * - Compound filter support (multiple conditions on same field)
  * - Version tracking for widget publishes
  * - Drill-down configuration
@@ -37,6 +39,86 @@ export type VisualizationType =
   | 'sparkline';
 
 export type GeoMapKey = 'us_states' | 'ca_provinces' | 'us_ca_combined' | 'world_countries';
+
+// =============================================================================
+// CUSTOMER SCOPE
+// =============================================================================
+
+export interface CustomerScope {
+  mode: 'admin' | 'customer';
+  customerId?: number;
+  customerName?: string;
+}
+
+// =============================================================================
+// CHART TYPE AVAILABILITY
+// =============================================================================
+
+export interface ChartTypeAvailability {
+  type: VisualizationType;
+  available: boolean;
+  reason?: string;
+}
+
+export function getChartTypeAvailability(
+  xField?: string,
+  yField?: string,
+  groupBy?: string
+): ChartTypeAvailability[] {
+  const hasXField = !!xField;
+  const hasYField = !!yField;
+  const hasGeoField = xField === 'origin_state' || xField === 'destination_state';
+  const hasGroupBy = !!groupBy;
+
+  return [
+    { type: 'bar', available: true },
+    { type: 'line', available: true },
+    { type: 'area', available: true },
+    { type: 'pie', available: true },
+    { type: 'table', available: true },
+    {
+      type: 'kpi',
+      available: hasYField,
+      reason: !hasYField ? 'Select a value field (Y-axis)' : undefined
+    },
+    {
+      type: 'scatter',
+      available: hasXField && hasYField,
+      reason: !hasXField || !hasYField ? 'Select both X and Y fields' : undefined
+    },
+    {
+      type: 'choropleth',
+      available: hasGeoField,
+      reason: !hasGeoField ? 'Select origin_state or destination_state as X-axis' : undefined
+    },
+    {
+      type: 'flow',
+      available: false,
+      reason: 'Configure origin and destination fields in Visualization settings'
+    },
+    {
+      type: 'heatmap',
+      available: hasXField && hasYField && hasGroupBy,
+      reason: !hasXField || !hasYField || !hasGroupBy ? 'Select X, Y, and Group By fields' : undefined
+    },
+    {
+      type: 'histogram',
+      available: hasXField,
+      reason: !hasXField ? 'Select a numeric field for X-axis' : undefined
+    },
+    {
+      type: 'treemap',
+      available: hasXField && hasYField,
+      reason: !hasXField || !hasYField ? 'Select category and value fields' : undefined
+    },
+    {
+      type: 'funnel',
+      available: hasXField && hasYField,
+      reason: !hasXField || !hasYField ? 'Select stage and value fields' : undefined
+    },
+    { type: 'sparkline', available: true },
+  ];
+}
 
 // =============================================================================
 // FIELD DEFINITION FOR BUILDER (derived from schema)
@@ -189,6 +271,8 @@ export interface VisualBuilderSchema {
   title: string;
   description: string;
 
+  customerScope?: CustomerScope;
+
   dataSource: {
     table: string;
     columns: string[];
@@ -222,6 +306,9 @@ export function createDefaultBuilderSchema(): VisualBuilderSchema {
     id: crypto.randomUUID(),
     title: 'New Widget',
     description: '',
+    customerScope: {
+      mode: 'admin',
+    },
     dataSource: {
       table: 'shipment_report_view',
       columns: [],
@@ -270,6 +357,9 @@ export function createFromExistingWidget(widget: {
     visualization: config.visualization || base.visualization,
     executionParams: config.executionParams || base.executionParams,
     logicBlocks: config.logicBlocks || [],
+    customerScope: widget.customer_id
+      ? { mode: 'customer', customerId: widget.customer_id }
+      : { mode: 'admin' },
     publish: {
       ...base.publish,
       scope: widget.customer_id ? 'customer' : 'system',

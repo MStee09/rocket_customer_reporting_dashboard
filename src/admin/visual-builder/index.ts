@@ -10,11 +10,14 @@ export type {
   PublishConfig,
   VisualBuilderSchema,
   ValidationResult,
+  CustomerScope,
+  ChartTypeAvailability,
 } from './types/BuilderSchema';
 
 export {
   createDefaultBuilderSchema,
   validateBuilderSchema,
+  getChartTypeAvailability,
 } from './types/BuilderSchema';
 
 export {
@@ -41,6 +44,7 @@ export {
 } from './components/BuilderContext';
 
 export { UnifiedVisualBuilderPage as VisualBuilderPage } from './components/UnifiedVisualBuilderPage';
+export { CustomerScopeSelector } from './components/CustomerScopeSelector';
 
 export { VisualizationPanel } from './components/panels/VisualizationPanel';
 export { FieldMappingPanel } from './components/panels/FieldMappingPanel';

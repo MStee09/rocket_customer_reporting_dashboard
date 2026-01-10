@@ -54,3 +54,29 @@ export { FieldMappingPanel } from './components/panels/FieldMappingPanel';
 export { LogicPanel } from './components/panels/LogicPanel';
 export { PreviewPanel } from './components/panels/PreviewPanel';
 export { PublishPanel } from './components/panels/PublishPanel';
+
+export type {
+  WidgetQueryFilter,
+  WidgetQueryAggregation,
+  WidgetQueryJoin,
+  WidgetQueryConfig,
+  ChartType,
+  VisualizationConfig as VisualizationConfigV3,
+  WidgetVisibility,
+  WidgetPlacement,
+  WidgetDefinitionV3,
+  BuilderMode,
+  BuilderStep,
+  AIResult,
+  BuilderState,
+  BuilderAction,
+} from './types/BuilderSchemaV3';
+
+export {
+  initialBuilderState,
+  builderReducer,
+  buildQueryConfig,
+  buildWidgetDefinition,
+} from './types/BuilderSchemaV3';
+
+export { BuilderProviderV3, useBuilderV3 } from './components/BuilderContextV3';

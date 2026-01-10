@@ -88,3 +88,11 @@ export type {
 } from './hooks/useVisualBuilderAI';
 
 export { useVisualBuilderAI } from './hooks/useVisualBuilderAI';
+
+export type {
+  TableInfo,
+  FieldInfo,
+  JoinInfo,
+} from './hooks/useDynamicSchema';
+
+export { useDynamicSchema } from './hooks/useDynamicSchema';

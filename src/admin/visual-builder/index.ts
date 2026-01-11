@@ -96,3 +96,11 @@ export type {
 } from './hooks/useDynamicSchema';
 
 export { useDynamicSchema } from './hooks/useDynamicSchema';
+
+export type {
+  DateRange,
+  QueryExecutionContext,
+  QueryResult,
+} from './hooks/useWidgetQuery';
+
+export { useWidgetQuery, executeWidgetQuery } from './hooks/useWidgetQuery';

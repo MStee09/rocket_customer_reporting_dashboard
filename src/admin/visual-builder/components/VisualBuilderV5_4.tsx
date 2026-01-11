@@ -1016,6 +1016,10 @@ Return a clear visualization with properly aggregated data.`;
                 showRawData={showRawData}
                 setShowRawData={setShowRawData}
                 availableColumns={availableColumns}
+                onRerunWithFilters={() => {
+                  showToast('Re-running query with updated filters...', 'info');
+                  handleAISubmit();
+                }}
               />
             ) : (
               <ManualSection
@@ -1025,6 +1029,8 @@ Return a clear visualization with properly aggregated data.`;
                 onRunQuery={handleRunQuery}
                 previewLoading={previewLoading}
                 canSeeAdminColumns={canSeeAdminColumns}
+                barOrientation={barOrientation}
+                setBarOrientation={setBarOrientation}
               />
             )}
 
@@ -1264,6 +1270,7 @@ function AISection({
   showRawData,
   setShowRawData,
   availableColumns,
+  onRerunWithFilters,
 }: {
   prompt: string;
   setPrompt: (p: string) => void;
@@ -1282,6 +1289,7 @@ function AISection({
   showRawData: boolean;
   setShowRawData: (show: boolean) => void;
   availableColumns: Column[];
+  onRerunWithFilters: () => void;
 }) {
   const [showReasoning, setShowReasoning] = useState(false);
   const hasData = config.data && config.data.length > 0;
@@ -1515,12 +1523,9 @@ function AISection({
             )}
             
             {/* Re-run with Filters Button - Always visible when we have filters and AI results */}
-            {hasResults && editableFilters.length > 0 && (
+            {hasData && editableFilters.length > 0 && (
               <button
-                onClick={() => {
-                  showToast('Re-running query with updated filters...', 'info');
-                  handleAISubmit();
-                }}
+                onClick={onRerunWithFilters}
                 className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -1621,6 +1626,8 @@ function ManualSection({
   onRunQuery,
   previewLoading,
   canSeeAdminColumns,
+  barOrientation,
+  setBarOrientation,
 }: {
   config: WidgetConfig;
   setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
@@ -1628,6 +1635,8 @@ function ManualSection({
   onRunQuery: () => void;
   previewLoading: boolean;
   canSeeAdminColumns: boolean;
+  barOrientation: 'horizontal' | 'vertical';
+  setBarOrientation: (orientation: 'horizontal' | 'vertical') => void;
 }) {
   return (
     <div className="space-y-4">

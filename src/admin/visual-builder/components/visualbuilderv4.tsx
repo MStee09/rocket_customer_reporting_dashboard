@@ -65,8 +65,8 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
+import { supabase } from '../../../lib/supabase';
 import {
   REPORT_COLUMNS,
   COLUMN_CATEGORIES,
@@ -75,7 +75,7 @@ import {
   getAggregatableColumns,
   getGroupableColumns,
   ReportColumn,
-} from '../config/reportColumns';
+} from '../../../config/reportColumns';
 
 // =============================================================================
 // TYPES

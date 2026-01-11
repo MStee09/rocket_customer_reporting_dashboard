@@ -29,7 +29,7 @@ import { DebugPage } from './pages/DebugPage';
 import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
 import { WidgetRawDataPage } from './pages/WidgetRawDataPage';
 import { ReportViewPage } from './pages/ReportViewPage';
-import { VisualBuilderPage, VisualBuilderPageV3 } from './admin/visual-builder';
+import { VisualBuilderPage, VisualBuilderPageV3, VisualBuilderV4 } from './admin/visual-builder';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
@@ -191,6 +191,14 @@ function App() {
                 }
               />
               <Route path="admin/visual-builder-v3" element={<VisualBuilderPageV3 />} />
+              <Route
+                path="admin/visual-builder-v4"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <VisualBuilderV4 />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="settings/how-to" element={<HowToPage />} />
               <Route path="debug" element={<DebugPage />} />

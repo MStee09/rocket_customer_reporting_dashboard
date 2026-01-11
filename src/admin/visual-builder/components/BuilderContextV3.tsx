@@ -55,6 +55,7 @@ interface BuilderContextValue {
   reset: () => void;
   canProceed: () => boolean;
   canPublish: () => boolean;
+  canProceedToPreview: () => boolean;
   getValidationErrors: () => string[];
   buildQueryConfig: () => WidgetQueryConfig;
   buildWidgetDefinition: () => WidgetDefinitionV3;
@@ -217,6 +218,10 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     return !!state.name && state.previewData !== null && state.previewData.length > 0;
   }, [state.name, state.previewData]);
 
+  const canProceedToPreview = useCallback((): boolean => {
+    return !!state.name && !!state.chartType && !!state.yField && (!!state.xField || state.chartType === 'kpi');
+  }, [state.name, state.chartType, state.xField, state.yField]);
+
   const getValidationErrors = useCallback((): string[] => {
     const errors: string[] = [];
     if (!state.name) errors.push('Name is required');
@@ -273,6 +278,7 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     reset,
     canProceed,
     canPublish,
+    canProceedToPreview,
     getValidationErrors,
     buildQueryConfig,
     buildWidgetDefinition,

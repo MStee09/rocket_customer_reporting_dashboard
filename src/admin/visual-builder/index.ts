@@ -104,3 +104,6 @@ export type {
 } from './hooks/useWidgetQuery';
 
 export { useWidgetQuery, executeWidgetQuery } from './hooks/useWidgetQuery';
+
+export { PublishPanelV3 } from './components/PublishPanelV3';
+export { VisualBuilderPageV3 } from './components/VisualBuilderPageV3';

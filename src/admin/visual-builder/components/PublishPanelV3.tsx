@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { Rocket, Lock, Users, Shield, Activity, BarChart3, Loader2, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Rocket, Lock, Users, Shield, Activity, BarChart3, Loader2, CheckCircle, AlertCircle, Info, Building2 } from 'lucide-react';
 import { useBuilderV3 } from './BuilderContextV3';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
 import { WidgetVisibility, WidgetPlacement } from '../types/BuilderSchemaV3';
 
-const VISIBILITY_OPTIONS = [
+const BASE_VISIBILITY_OPTIONS = [
   { type: 'admin_only' as const, label: 'Admin Only', description: 'Only admins can see this widget', icon: Shield },
   { type: 'all_customers' as const, label: 'All Customers', description: 'All customers can add this widget', icon: Users },
   { type: 'private' as const, label: 'Private', description: 'Only you can see this widget', icon: Lock },
@@ -22,6 +22,47 @@ export function PublishPanelV3() {
   const { user, isAdmin, effectiveCustomerId } = useAuth();
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ success: boolean; message: string; widgetId?: string } | null>(null);
+  const [targetCustomerName, setTargetCustomerName] = useState<string | null>(null);
+
+  const isCustomerSpecificMode = state.customerScope === 'specific' && state.selectedCustomerId;
+
+  useEffect(() => {
+    if (isCustomerSpecificMode) {
+      supabase
+        .from('customer')
+        .select('company_name')
+        .eq('customer_id', state.selectedCustomerId)
+        .maybeSingle()
+        .then(({ data }) => {
+          setTargetCustomerName(data?.company_name || `Customer ${state.selectedCustomerId}`);
+        });
+    } else {
+      setTargetCustomerName(null);
+    }
+  }, [isCustomerSpecificMode, state.selectedCustomerId]);
+
+  const VISIBILITY_OPTIONS = isCustomerSpecificMode
+    ? [
+        {
+          type: 'customer_specific' as const,
+          label: `${targetCustomerName || 'Selected Customer'} Only`,
+          description: `Only ${targetCustomerName || 'the selected customer'} can see this widget`,
+          icon: Building2,
+        },
+        ...BASE_VISIBILITY_OPTIONS,
+      ]
+    : BASE_VISIBILITY_OPTIONS;
+
+  useEffect(() => {
+    if (isCustomerSpecificMode && state.visibility.type !== 'customer_specific') {
+      const visibility: WidgetVisibility = {
+        type: 'customer_specific',
+        targetCustomerId: state.selectedCustomerId!,
+        targetCustomerName: targetCustomerName || undefined,
+      };
+      dispatch({ type: 'SET_VISIBILITY', visibility });
+    }
+  }, [isCustomerSpecificMode, state.selectedCustomerId, targetCustomerName, state.visibility.type, dispatch]);
 
   const handlePublish = useCallback(async () => {
     if (!canPublish()) return;
@@ -30,8 +71,20 @@ export function PublishPanelV3() {
 
     try {
       const widgetDefinition = buildWidgetDefinition();
+
+      if (state.visibility.type === 'customer_specific' && state.selectedCustomerId) {
+        widgetDefinition.visibility = {
+          type: 'customer_specific',
+          targetCustomerId: state.selectedCustomerId,
+          targetCustomerName: targetCustomerName || undefined,
+        };
+      }
+
       let storagePath: string;
-      if (state.visibility.type === 'admin_only' || (isAdmin() && state.visibility.type !== 'private')) {
+
+      if (state.visibility.type === 'customer_specific' && state.selectedCustomerId) {
+        storagePath = `customer/${state.selectedCustomerId}/${widgetDefinition.id}.json`;
+      } else if (state.visibility.type === 'admin_only' || (isAdmin() && state.visibility.type !== 'private')) {
         storagePath = `admin/${widgetDefinition.id}.json`;
       } else {
         storagePath = `customer/${effectiveCustomerId || 'unknown'}/${widgetDefinition.id}.json`;
@@ -46,9 +99,13 @@ export function PublishPanelV3() {
 
       if (error) throw error;
 
+      const successMessage = state.visibility.type === 'customer_specific'
+        ? `Widget published for ${targetCustomerName}!`
+        : 'Widget published successfully!';
+
       setPublishResult({
         success: true,
-        message: 'Widget published successfully!',
+        message: successMessage,
         widgetId: widgetDefinition.id,
       });
       setTimeout(() => dispatch({ type: 'RESET' }), 3000);
@@ -60,7 +117,7 @@ export function PublishPanelV3() {
     } finally {
       setIsPublishing(false);
     }
-  }, [canPublish, buildWidgetDefinition, state.visibility, isAdmin, effectiveCustomerId, dispatch]);
+  }, [canPublish, buildWidgetDefinition, state.visibility, state.selectedCustomerId, targetCustomerName, isAdmin, effectiveCustomerId, dispatch]);
 
   return (
     <div className="space-y-6">
@@ -100,10 +157,18 @@ export function PublishPanelV3() {
               <button
                 key={option.type}
                 onClick={() => {
-                  const visibility: WidgetVisibility =
-                    option.type === 'private'
-                      ? { type: 'private', ownerId: user?.id || '' }
-                      : { type: option.type };
+                  let visibility: WidgetVisibility;
+                  if (option.type === 'private') {
+                    visibility = { type: 'private', ownerId: user?.id || '' };
+                  } else if (option.type === 'customer_specific' && state.selectedCustomerId) {
+                    visibility = {
+                      type: 'customer_specific',
+                      targetCustomerId: state.selectedCustomerId,
+                      targetCustomerName: targetCustomerName || undefined,
+                    };
+                  } else {
+                    visibility = { type: option.type } as WidgetVisibility;
+                  }
                   dispatch({ type: 'SET_VISIBILITY', visibility });
                 }}
                 className={`w-full flex items-start gap-3 p-3 rounded-lg border-2 text-left ${
@@ -130,6 +195,14 @@ export function PublishPanelV3() {
             <Info className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <p className="text-sm text-amber-800">
               Admin-only widgets are perfect for internal metrics and cost analysis.
+            </p>
+          </div>
+        )}
+        {state.visibility.type === 'customer_specific' && targetCustomerName && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
+            <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm text-blue-800">
+              This widget will be saved to <strong>{targetCustomerName}'s</strong> widget library and only they will be able to see it.
             </p>
           </div>
         )}

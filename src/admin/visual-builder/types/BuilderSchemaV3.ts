@@ -40,7 +40,8 @@ export interface VisualizationConfig {
 export type WidgetVisibility =
   | { type: 'private'; ownerId: string }
   | { type: 'all_customers' }
-  | { type: 'admin_only' };
+  | { type: 'admin_only' }
+  | { type: 'customer_specific'; targetCustomerId: number; targetCustomerName?: string };
 
 export type WidgetPlacement = 'pulse' | 'analytics_hub' | 'both';
 

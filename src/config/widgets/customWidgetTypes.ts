@@ -7,6 +7,7 @@ export type WidgetVisibility =
   | { type: 'all_customers' }
   | { type: 'specific_customers'; customerIds: number[] }
   | { type: 'admin_only' }
+  | { type: 'customer_specific'; targetCustomerId: number; targetCustomerName?: string }
   | {
       type: 'system';
       promotedFrom?: {

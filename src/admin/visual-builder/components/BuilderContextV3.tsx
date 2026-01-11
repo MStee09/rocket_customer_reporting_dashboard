@@ -6,13 +6,18 @@ import {
   builderReducer,
   WidgetQueryFilter,
   WidgetQueryJoin,
+  WidgetQueryConfig,
+  WidgetDefinitionV3,
   WidgetVisibility,
   WidgetPlacement,
   AIResult,
   BuilderStep,
   BuilderMode,
   ChartType,
+  buildQueryConfig as buildQueryConfigFromState,
+  buildWidgetDefinition as buildWidgetDefinitionFromState,
 } from '../types/BuilderSchemaV3';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface BuilderContextValue {
   state: BuilderState;
@@ -50,6 +55,8 @@ interface BuilderContextValue {
   reset: () => void;
   canProceed: () => boolean;
   getValidationErrors: () => string[];
+  buildQueryConfig: () => WidgetQueryConfig;
+  buildWidgetDefinition: () => WidgetDefinitionV3;
 }
 
 const BuilderContext = createContext<BuilderContextValue | null>(null);
@@ -60,6 +67,7 @@ interface BuilderProviderProps {
 }
 
 export function BuilderProviderV3({ children, initialState }: BuilderProviderProps) {
+  const { user, isAdmin } = useAuth();
   const [state, dispatch] = useReducer(
     builderReducer,
     initialState ? { ...initialBuilderState, ...initialState } : initialBuilderState
@@ -216,6 +224,14 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     return errors;
   }, [state]);
 
+  const buildQueryConfig = useCallback((): WidgetQueryConfig => {
+    return buildQueryConfigFromState(state);
+  }, [state]);
+
+  const buildWidgetDefinition = useCallback((): WidgetDefinitionV3 => {
+    return buildWidgetDefinitionFromState(state, user?.id || '', user?.email || '', isAdmin());
+  }, [state, user, isAdmin]);
+
   const value: BuilderContextValue = {
     state,
     dispatch,
@@ -252,6 +268,8 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     reset,
     canProceed,
     getValidationErrors,
+    buildQueryConfig,
+    buildWidgetDefinition,
   };
 
   return <BuilderContext.Provider value={value}>{children}</BuilderContext.Provider>;

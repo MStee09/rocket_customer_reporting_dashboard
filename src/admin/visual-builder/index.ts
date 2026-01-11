@@ -109,3 +109,4 @@ export { PublishPanelV3 } from './components/PublishPanelV3';
 export { VisualBuilderPageV3 } from './components/VisualBuilderPageV3';
 export { VisualBuilderV4 } from './components/visualbuilderv4';
 export { VisualBuilderV5 } from './components/VisualBuilderV5';
+export { VisualBuilderV6 } from './components/VisualBuilderV6';

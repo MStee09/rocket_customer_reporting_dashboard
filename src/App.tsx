@@ -29,7 +29,7 @@ import { DebugPage } from './pages/DebugPage';
 import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
 import { WidgetRawDataPage } from './pages/WidgetRawDataPage';
 import { ReportViewPage } from './pages/ReportViewPage';
-import { VisualBuilderPage, VisualBuilderPageV3, VisualBuilderV4, VisualBuilderV5 } from './admin/visual-builder';
+import { VisualBuilderPage, VisualBuilderPageV3, VisualBuilderV4, VisualBuilderV5, VisualBuilderV6 } from './admin/visual-builder';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MetricProtectedRoute } from './components/MetricProtectedRoute';
@@ -204,6 +204,14 @@ function App() {
                 element={
                   <ProtectedRoute requireAdmin>
                     <VisualBuilderV5 />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/visual-builder-v6"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <VisualBuilderV6 />
                   </ProtectedRoute>
                 }
               />

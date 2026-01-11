@@ -8,6 +8,7 @@ export { useAsync } from './useAsync';
 
 export { useSupabase } from './useSupabase';
 export { useDashboardLayout } from './useDashboardLayout';
+export { usePulseWidgetLayout } from './usePulseWidgetLayout';
 export { useDashboardWidgets } from './useDashboardWidgets';
 export { useDashboardData } from './useDashboardData';
 export { useWidgetData } from './useWidgetData';

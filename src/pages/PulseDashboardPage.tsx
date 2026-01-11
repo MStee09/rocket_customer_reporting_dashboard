@@ -9,6 +9,7 @@ import {
   SpendTrendChart,
   TopCarriersCompact,
   RecentActivityFeed,
+  PulseWidgetSection,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
 import { QuickActions } from '../components/dashboard/QuickActions';
@@ -131,6 +132,15 @@ export function PulseDashboardPage() {
                   endDate={endDate}
                 />
               </div>
+            )}
+
+            {customerId && (
+              <PulseWidgetSection
+                customerId={customerId}
+                startDate={startDate}
+                endDate={endDate}
+                isAdmin={isAdmin()}
+              />
             )}
 
             {customerId && (

@@ -823,6 +823,13 @@ Return a clear visualization with properly aggregated data.`;
                 onSubmit={handleAISubmit}
                 onEdit={() => setMode('manual')}
                 canSeeAdminColumns={canSeeAdminColumns}
+                editableFilters={editableFilters}
+                addFilter={addFilter}
+                updateFilter={updateFilter}
+                removeFilter={removeFilter}
+                exportToCSV={exportToCSV}
+                showRawData={showRawData}
+                setShowRawData={setShowRawData}
               />
             ) : (
               <ManualSection
@@ -1062,6 +1069,13 @@ function AISection({
   onSubmit,
   onEdit,
   canSeeAdminColumns,
+  editableFilters,
+  addFilter,
+  updateFilter,
+  removeFilter,
+  exportToCSV,
+  showRawData,
+  setShowRawData,
 }: {
   prompt: string;
   setPrompt: (p: string) => void;
@@ -1072,6 +1086,13 @@ function AISection({
   onSubmit: () => void;
   onEdit: () => void;
   canSeeAdminColumns: boolean;
+  editableFilters: EditableFilter[];
+  addFilter: () => void;
+  updateFilter: (id: string, updates: Partial<EditableFilter>) => void;
+  removeFilter: (id: string) => void;
+  exportToCSV: () => void;
+  showRawData: boolean;
+  setShowRawData: (show: boolean) => void;
 }) {
   const [showReasoning, setShowReasoning] = useState(false);
   const hasData = config.data && config.data.length > 0;
@@ -1905,6 +1926,3 @@ function formatValue(value: number): string {
   }
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 }
-
-export default VisualBuilderV5_1;
-export { VisualBuilderV5_1 };

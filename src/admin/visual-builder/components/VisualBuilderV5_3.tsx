@@ -955,6 +955,7 @@ Return a clear visualization with properly aggregated data.`;
                 exportToCSV={exportToCSV}
                 showRawData={showRawData}
                 setShowRawData={setShowRawData}
+                availableColumns={availableColumns}
               />
             ) : (
               <ManualSection
@@ -1202,6 +1203,7 @@ function AISection({
   exportToCSV,
   showRawData,
   setShowRawData,
+  availableColumns,
 }: {
   prompt: string;
   setPrompt: (p: string) => void;
@@ -1219,6 +1221,7 @@ function AISection({
   exportToCSV: () => void;
   showRawData: boolean;
   setShowRawData: (show: boolean) => void;
+  availableColumns: Column[];
 }) {
   const [showReasoning, setShowReasoning] = useState(false);
   const hasData = config.data && config.data.length > 0;

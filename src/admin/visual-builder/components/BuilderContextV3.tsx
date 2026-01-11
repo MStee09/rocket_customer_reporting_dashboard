@@ -54,6 +54,7 @@ interface BuilderContextValue {
   applyAISuggestion: (suggestion: AIResult['suggestedWidget']) => void;
   reset: () => void;
   canProceed: () => boolean;
+  canPublish: () => boolean;
   getValidationErrors: () => string[];
   buildQueryConfig: () => WidgetQueryConfig;
   buildWidgetDefinition: () => WidgetDefinitionV3;
@@ -212,6 +213,10 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     }
   }, [state]);
 
+  const canPublish = useCallback((): boolean => {
+    return !!state.name && state.previewData !== null && state.previewData.length > 0;
+  }, [state.name, state.previewData]);
+
   const getValidationErrors = useCallback((): string[] => {
     const errors: string[] = [];
     if (!state.name) errors.push('Name is required');
@@ -267,6 +272,7 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     applyAISuggestion,
     reset,
     canProceed,
+    canPublish,
     getValidationErrors,
     buildQueryConfig,
     buildWidgetDefinition,

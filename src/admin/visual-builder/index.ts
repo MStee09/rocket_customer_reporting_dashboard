@@ -43,7 +43,7 @@ export {
   clearDraftFromStorage,
 } from './components/BuilderContext';
 
-export { VisualBuilderV5 as VisualBuilderPage } from './components/VisualBuilderV5';
+export { VisualBuilderV6 as VisualBuilderPage } from './components/VisualBuilderV6';
 export { CustomerScopeSelector } from './components/CustomerScopeSelector';
 export { ChartTypeSelector } from './components/ChartTypeSelector';
 export { DateRangeDisplay } from './components/DateRangeDisplay';

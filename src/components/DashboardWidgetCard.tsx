@@ -216,11 +216,24 @@ export function DashboardWidgetCard({
           }
 
           console.log('[DashboardWidgetCard] Query result:', result);
+          console.log('[DashboardWidgetCard] Result type:', typeof result);
+          console.log('[DashboardWidgetCard] Result keys:', result ? Object.keys(result) : 'null');
 
-          const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-          const rows = parsed?.data || parsed || [];
+          let rows: any[] = [];
+          if (typeof result === 'string') {
+            const parsed = JSON.parse(result);
+            rows = parsed?.data || [];
+          } else if (result?.data) {
+            rows = Array.isArray(result.data) ? result.data : [];
+          } else if (Array.isArray(result)) {
+            rows = result;
+          } else if (result && typeof result === 'object') {
+            console.log('[DashboardWidgetCard] Result object structure:', JSON.stringify(result).substring(0, 500));
+            rows = result?.data || [];
+          }
 
           console.log('[DashboardWidgetCard] Parsed rows:', rows);
+          console.log('[DashboardWidgetCard] Rows length:', rows.length);
 
           const chartData = rows.map((row: any) => ({
             name: String(row.label || row.name || 'Unknown'),

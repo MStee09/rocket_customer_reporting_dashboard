@@ -218,18 +218,30 @@ export function DashboardWidgetCard({
           console.log('[DashboardWidgetCard] Query result:', result);
           console.log('[DashboardWidgetCard] Result type:', typeof result);
           console.log('[DashboardWidgetCard] Result keys:', result ? Object.keys(result) : 'null');
+          console.log('[DashboardWidgetCard] Result stringified:', JSON.stringify(result).substring(0, 1000));
 
           let rows: any[] = [];
+
           if (typeof result === 'string') {
             const parsed = JSON.parse(result);
             rows = parsed?.data || [];
-          } else if (result?.data) {
-            rows = Array.isArray(result.data) ? result.data : [];
+          } else if (result?.data?.data && Array.isArray(result.data.data)) {
+            console.log('[DashboardWidgetCard] Found nested data.data structure');
+            rows = result.data.data;
+          } else if (result?.data && Array.isArray(result.data)) {
+            console.log('[DashboardWidgetCard] Found direct data array');
+            rows = result.data;
           } else if (Array.isArray(result)) {
+            console.log('[DashboardWidgetCard] Result is array');
             rows = result;
           } else if (result && typeof result === 'object') {
-            console.log('[DashboardWidgetCard] Result object structure:', JSON.stringify(result).substring(0, 500));
-            rows = result?.data || [];
+            console.log('[DashboardWidgetCard] Searching for data in object');
+            const firstKey = Object.keys(result)[0];
+            if (firstKey && result[firstKey]?.data) {
+              rows = Array.isArray(result[firstKey].data) ? result[firstKey].data : [];
+            } else if (firstKey && Array.isArray(result[firstKey])) {
+              rows = result[firstKey];
+            }
           }
 
           console.log('[DashboardWidgetCard] Parsed rows:', rows);

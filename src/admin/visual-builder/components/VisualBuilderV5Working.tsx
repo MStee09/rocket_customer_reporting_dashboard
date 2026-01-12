@@ -1238,17 +1238,19 @@ Return a clear visualization with properly grouped data.`;
         createdAt: new Date().toISOString(),
       };
 
-      // Storage path based on destination and visibility
-      const basePath = publishDestination === 'pulse' ? 'pulse-widgets' : 'analytics-widgets';
-      let visPath: string;
+      // Storage path - use same structure as customWidgetStorage.ts
+      // admin widgets go to admin/, customer widgets go to customer/{id}/
+      let storagePath: string;
       if (visibility === 'admin_only') {
-        visPath = 'admin';
-      } else if (visibility === 'private') {
-        visPath = `customer/${targetCustomer}`;
+        storagePath = `admin/${widgetId}.json`;
+      } else if (visibility === 'private' && targetCustomer) {
+        storagePath = `customer/${targetCustomer}/${widgetId}.json`;
       } else {
-        visPath = 'shared';
+        // all_customers = system-wide
+        storagePath = `system/${widgetId}.json`;
       }
-      const storagePath = `${basePath}/${visPath}/${widgetId}.json`;
+
+      console.log('[VisualBuilder] Publishing widget to:', storagePath);
 
       const { error } = await supabase.storage
         .from('custom-widgets')
@@ -1259,6 +1261,24 @@ Return a clear visualization with properly grouped data.`;
 
       if (error) throw error;
 
+      // Also add to dashboard_widgets table so it shows up immediately
+      const dashboardCustomerId = visibility === 'private' ? targetCustomer : null;
+      const { error: dbError } = await supabase
+        .from('dashboard_widgets')
+        .insert({
+          widget_id: widgetId,
+          customer_id: dashboardCustomerId,
+          position: 999, // Add to end
+          is_visible: true,
+          size: { w: 2, h: 1 },
+          section: publishDestination === 'pulse' ? pulseSection : analyticsSection,
+        });
+
+      if (dbError) {
+        console.warn('[VisualBuilder] Could not add to dashboard_widgets:', dbError);
+        // Don't fail the whole publish for this
+      }
+
       setPublishResult({ success: true, message: `Widget "${config.name}" published to ${publishDestination === 'pulse' ? 'Pulse Dashboard' : 'Analytics Hub'}!` });
       setShowPublishModal(false);
     } catch (err) {
@@ -1266,7 +1286,7 @@ Return a clear visualization with properly grouped data.`;
     } finally {
       setIsPublishing(false);
     }
-  }, [config, mode, visibility, user, isAdmin, effectiveCustomerId, publishDestination, pulseSection, analyticsSection, editableFilters, datePreset]);
+  }, [config, mode, visibility, user, isAdmin, effectiveCustomerId, targetCustomerId, publishDestination, pulseSection, analyticsSection, editableFilters, datePreset]);
 
   // =============================================================================
   // RENDER

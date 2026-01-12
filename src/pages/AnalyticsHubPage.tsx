@@ -95,7 +95,15 @@ export function AnalyticsHubPage() {
   const { widgets: dashboardWidgets, loading: widgetsLoading } = useDashboardWidgets('overview');
   const editMode = useDashboardEditMode();
 
-  const [localLayout, setLocalLayout] = useState<string[]>(layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT);
+  // Combine stored layout with any widgets from dashboard_widgets that aren't in the layout yet
+  const combinedLayout = useMemo(() => {
+    const baseLayout = layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT;
+    const dbWidgetIds = dashboardWidgets.map(dw => dw.widget_id);
+    const newWidgets = dbWidgetIds.filter(id => !baseLayout.includes(id));
+    return [...baseLayout, ...newWidgets];
+  }, [layout, dashboardWidgets]);
+
+  const [localLayout, setLocalLayout] = useState<string[]>(combinedLayout);
   const [localSizes, setLocalSizes] = useState<Record<string, WidgetSizeValue>>({});
   const [customWidgets, setCustomWidgets] = useState<Record<string, unknown>>({});
 
@@ -131,11 +139,10 @@ export function AnalyticsHubPage() {
 
   useEffect(() => {
     if (!editMode.state.isEditing) {
-      const effectiveLayout = layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT;
-      setLocalLayout(effectiveLayout);
-      setLocalSizes(convertSizes(storedWidgetSizes, effectiveLayout));
+      setLocalLayout(combinedLayout);
+      setLocalSizes(convertSizes(storedWidgetSizes, combinedLayout));
     }
-  }, [layout, storedWidgetSizes, editMode.state.isEditing, convertSizes]);
+  }, [combinedLayout, storedWidgetSizes, editMode.state.isEditing, convertSizes]);
 
   useEffect(() => {
     const loadCustomWidgetsFromStorage = async () => {

@@ -272,9 +272,13 @@ export function VisualBuilderV5Working() {
   // Initialize targetCustomerId from effectiveCustomerId so dropdown matches
   const [targetCustomerId, setTargetCustomerId] = useState<number | null>(effectiveCustomerId);
 
+  // Log what customer is being used
+  console.log('[VisualBuilder] Customer IDs - target:', targetCustomerId, 'effective:', effectiveCustomerId);
+
   // Sync targetCustomerId when effectiveCustomerId changes (e.g., user switches customer in header)
   useEffect(() => {
     if (effectiveCustomerId && !targetCustomerId) {
+      console.log('[VisualBuilder] Syncing targetCustomerId from effectiveCustomerId:', effectiveCustomerId);
       setTargetCustomerId(effectiveCustomerId);
     }
   }, [effectiveCustomerId, targetCustomerId]);
@@ -385,11 +389,15 @@ export function VisualBuilderV5Working() {
           { type: 'thinking', content: 'Using direct database queries for accurate category comparison' }
         ]);
         
+        // Determine which customer ID to use
+        const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
+        console.log('[VisualBuilder] Product query using customer ID:', queryCustomerId, '(target:', targetCustomerId, 'effective:', effectiveCustomerId, 'scope:', targetScope, ')');
+        
         const results = await queryProductCategories(
           productTerms,
           canSeeAdminColumns ? 'cost' : 'retail',
           'avg',
-          targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId),
+          queryCustomerId,
           dateRange  // Pass date range for filtering
         );
         

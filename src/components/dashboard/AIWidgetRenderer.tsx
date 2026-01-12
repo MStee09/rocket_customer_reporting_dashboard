@@ -29,23 +29,27 @@ export function AIWidgetRenderer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const config = widget.config as {
-    reportDefinition: AIReportDefinition;
-    sectionIndices: number[];
+  const hasValidConfig = widget && widget.config;
+
+  const config = (widget?.config || {}) as {
+    reportDefinition?: AIReportDefinition;
+    sectionIndices?: number[];
     sourceReportId?: string;
     compact?: boolean;
   };
 
   const miniReport: AIReportDefinition | null = config.reportDefinition ? {
     ...config.reportDefinition,
-    sections: config.sectionIndices
-      .map(idx => config.reportDefinition.sections[idx])
+    sections: (config.sectionIndices || [])
+      .map(idx => config.reportDefinition!.sections[idx])
       .filter(Boolean),
   } : null;
 
   useEffect(() => {
-    loadWidgetData();
-  }, [widget.id, effectiveCustomerId]);
+    if (hasValidConfig) {
+      loadWidgetData();
+    }
+  }, [widget?.id, effectiveCustomerId, hasValidConfig]);
 
   const loadWidgetData = async () => {
     if (!effectiveCustomerId) return;
@@ -105,6 +109,17 @@ export function AIWidgetRenderer({
       navigate(`/ai-studio?reportId=${config.sourceReportId}&mode=edit`);
     }
   };
+
+  if (!hasValidConfig) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6 h-full">
+        <div className="flex flex-col items-center justify-center h-full min-h-[200px]">
+          <AlertCircle className="w-8 h-8 text-amber-500 mb-2" />
+          <p className="text-gray-600 text-center">Widget configuration not found</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -1196,6 +1196,9 @@ Return a clear visualization with properly grouped data.`;
     try {
       const widgetId = `widget_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+      // For private widgets, we need to know which customer they're for
+      const targetCustomer = targetCustomerId || effectiveCustomerId;
+      
       const widgetDefinition = {
         id: widgetId,
         name: config.name,
@@ -1211,7 +1214,13 @@ Return a clear visualization with properly grouped data.`;
         // NEW: Publish destination
         destination: publishDestination,
         section: publishDestination === 'pulse' ? pulseSection : analyticsSection,
-        visibility: { type: visibility },
+        // Include customer ID for private widgets
+        visibility: { 
+          type: visibility,
+          customerId: visibility === 'private' ? targetCustomer : null
+        },
+        // For private widgets, store which customer this is for
+        customerId: visibility === 'private' ? targetCustomer : null,
         // SECURITY: Mark if widget contains admin-only data
         containsAdminData: config.metricColumn ? ADMIN_ONLY_COLUMNS.has(config.metricColumn) : false,
         dataSource: {
@@ -1229,9 +1238,16 @@ Return a clear visualization with properly grouped data.`;
         createdAt: new Date().toISOString(),
       };
 
-      // NEW: Storage path based on destination
+      // Storage path based on destination and visibility
       const basePath = publishDestination === 'pulse' ? 'pulse-widgets' : 'analytics-widgets';
-      const visPath = visibility === 'admin_only' ? 'admin' : 'shared';
+      let visPath: string;
+      if (visibility === 'admin_only') {
+        visPath = 'admin';
+      } else if (visibility === 'private') {
+        visPath = `customer/${targetCustomer}`;
+      } else {
+        visPath = 'shared';
+      }
       const storagePath = `${basePath}/${visPath}/${widgetId}.json`;
 
       const { error } = await supabase.storage
@@ -1475,30 +1491,35 @@ Return a clear visualization with properly grouped data.`;
                 <div className="flex gap-2">
                   <button
                     onClick={() => setVisibility('admin_only')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg border text-sm ${
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg border text-sm ${
                       visibility === 'admin_only' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200'
                     }`}
                   >
                     <Shield className="w-4 h-4" />
-                    Admin Only
+                    <span className="font-medium">Admin Only</span>
+                    <span className="text-xs text-slate-500">Only you and other admins</span>
                   </button>
                   <button
                     onClick={() => setVisibility('all_customers')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg border text-sm ${
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg border text-sm ${
                       visibility === 'all_customers' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200'
                     }`}
                   >
                     <Users className="w-4 h-4" />
-                    All Customers
+                    <span className="font-medium">All Customers</span>
+                    <span className="text-xs text-slate-500">System-wide widget</span>
                   </button>
                   <button
                     onClick={() => setVisibility('private')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg border text-sm ${
+                    className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg border text-sm ${
                       visibility === 'private' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200'
                     }`}
                   >
                     <Lock className="w-4 h-4" />
-                    Private
+                    <span className="font-medium">This Customer</span>
+                    <span className="text-xs text-slate-500">
+                      {customers?.find((c: any) => c.customer_id === (targetCustomerId || effectiveCustomerId))?.customer_name || 'Selected customer'} only
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1744,53 +1765,64 @@ function AISection({
             <div className="p-4 border-b border-slate-100 text-sm">
               <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">Configuration</h5>
               <div className="space-y-1.5">
-                {/* Show X-Axis - prioritize manual config, then AI config, then parse from title */}
-                <div className="flex gap-2">
+                {/* X-Axis shows the metric (horizontal axis = values) */}
+                <div className="flex gap-2 items-center">
                   <span className="text-slate-500 w-16">X-Axis:</span>
-                  <span className="font-medium text-slate-900">
-                    {config.groupByColumn 
-                      ? availableColumns.find(c => c.id === config.groupByColumn)?.label || formatFieldName(config.groupByColumn)
-                      : config.aiConfig?.xAxis && config.aiConfig.xAxis !== ''
-                        ? formatFieldName(config.aiConfig.xAxis)
-                        : config.aiConfig?.groupingLogic
-                          ? 'Product Category (grouped by filter terms)'
-                          : config.name?.includes('by ')
-                            ? config.name.split('by ').pop()?.split(' ')[0] || 'Category'
-                            : 'Category'
-                    }
-                  </span>
-                </div>
-                {/* Show Y-Axis - prioritize manual config, then AI config, then parse from title */}
-                <div className="flex gap-2">
-                  <span className="text-slate-500 w-16">Y-Axis:</span>
-                  <span className="font-medium text-slate-900">
-                    {config.aggregation?.toUpperCase() || config.aiConfig?.aggregation || 'AVG'} of{' '}
-                    {config.metricColumn 
-                      ? availableColumns.find(c => c.id === config.metricColumn)?.label || formatFieldName(config.metricColumn)
-                      : config.aiConfig?.yAxis && config.aiConfig.yAxis !== ''
-                        ? formatFieldName(config.aiConfig.yAxis)
-                        : config.name?.toLowerCase().includes('cost')
-                          ? 'Cost'
-                          : config.name?.toLowerCase().includes('retail')
-                            ? 'Retail'
-                            : config.name?.toLowerCase().includes('margin')
-                              ? 'Margin'
-                              : 'Value'
-                    }
-                  </span>
-                </div>
-                {config.aiConfig?.searchTerms && config.aiConfig.searchTerms.length > 0 && (
-                  <div className="flex gap-2">
-                    <span className="text-slate-500 w-16">Filters:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {config.aiConfig.searchTerms.map((term, i) => (
-                        <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                          {term}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={config.aggregation || 'avg'}
+                      onChange={(e) => setConfig(prev => ({ ...prev, aggregation: e.target.value as any }))}
+                      className="text-xs px-2 py-1 border border-slate-200 rounded bg-white font-medium text-slate-900"
+                    >
+                      <option value="avg">AVG</option>
+                      <option value="sum">SUM</option>
+                      <option value="count">COUNT</option>
+                      <option value="min">MIN</option>
+                      <option value="max">MAX</option>
+                    </select>
+                    <span className="font-medium text-slate-900">
+                      of {config.metricColumn 
+                        ? availableColumns.find(c => c.id === config.metricColumn)?.label || formatFieldName(config.metricColumn)
+                        : config.aiConfig?.yAxis && config.aiConfig.yAxis !== ''
+                          ? formatFieldName(config.aiConfig.yAxis)
+                          : config.name?.toLowerCase().includes('cost')
+                            ? 'Cost'
+                            : config.name?.toLowerCase().includes('retail')
+                              ? 'Retail'
+                              : config.name?.toLowerCase().includes('margin')
+                                ? 'Margin'
+                                : 'Value'
+                      }
+                    </span>
                   </div>
-                )}
+                </div>
+                {/* Y-Axis shows the grouping with filters (vertical axis = categories) */}
+                <div className="flex gap-2 items-start">
+                  <span className="text-slate-500 w-16 pt-0.5">Y-Axis:</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-slate-900">
+                      {config.groupByColumn 
+                        ? availableColumns.find(c => c.id === config.groupByColumn)?.label || formatFieldName(config.groupByColumn)
+                        : config.aiConfig?.xAxis && config.aiConfig.xAxis !== ''
+                          ? formatFieldName(config.aiConfig.xAxis)
+                          : config.aiConfig?.groupingLogic
+                            ? 'Product Category'
+                            : config.name?.includes('by ')
+                              ? config.name.split('by ').pop()?.split(' ')[0] || 'Category'
+                              : 'Category'
+                      }
+                    </span>
+                    {config.aiConfig?.searchTerms && config.aiConfig.searchTerms.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {config.aiConfig.searchTerms.map((term, i) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                            {term}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
                 {config.aiConfig?.groupingLogic && (
                   <div className="text-xs text-slate-500 italic mt-2">{config.aiConfig.groupingLogic}</div>
                 )}

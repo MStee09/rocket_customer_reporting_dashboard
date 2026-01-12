@@ -913,26 +913,45 @@ export async function executeWidget(
       const parsed = typeof aggResult === 'string' ? JSON.parse(aggResult) : aggResult;
       const aggRows = parsed?.data || parsed || [];
 
-      let detailQuery = supabase
-        .from(isProductQuery ? 'shipment_item' : 'shipment')
-        .select(isProductQuery
-          ? 'load_id, description, quantity, weight, retail, cost'
-          : 'load_id, reference_number, pickup_date, delivery_date, retail, cost'
-        )
-        .gte('pickup_date', dateRange.start)
-        .lte('pickup_date', dateRange.end)
-        .limit(500);
+      let detailRows: Record<string, unknown>[] = [];
 
-      if (customerIdNum) {
-        detailQuery = detailQuery.eq('customer_id', customerIdNum);
+      if (isProductQuery) {
+        // For shipment_item, we need to join with shipment to get pickup_date
+        const { data: itemData, error: itemError } = await supabase
+          .rpc('get_shipment_items_with_dates', {
+            p_customer_id: customerIdNum || 0,
+            p_start_date: dateRange.start,
+            p_end_date: dateRange.end,
+            p_search_terms: aiConfig?.searchTerms || [],
+            p_limit: 500
+          });
+
+        if (itemError) {
+          console.error('[widgetdataservice] shipment_item query error:', itemError);
+          // Fallback: try querying without date filter
+          const { data: fallbackData } = await supabase
+            .from('shipment_item')
+            .select('load_id, description, quantity, weight, retail, cost')
+            .limit(500);
+          detailRows = fallbackData || [];
+        } else {
+          detailRows = itemData || [];
+        }
+      } else {
+        let detailQuery = supabase
+          .from('shipment')
+          .select('load_id, reference_number, pickup_date, delivery_date, retail, cost')
+          .gte('pickup_date', dateRange.start)
+          .lte('pickup_date', dateRange.end)
+          .limit(500);
+
+        if (customerIdNum) {
+          detailQuery = detailQuery.eq('customer_id', customerIdNum);
+        }
+
+        const { data } = await detailQuery;
+        detailRows = data || [];
       }
-
-      if (aiConfig?.searchTerms && aiConfig.searchTerms.length > 0 && isProductQuery) {
-        const searchPattern = aiConfig.searchTerms.map((t: string) => `%${t}%`);
-        detailQuery = detailQuery.or(searchPattern.map((p: string) => `description.ilike.${p}`).join(','));
-      }
-
-      const { data: detailRows } = await detailQuery;
 
       const rows = detailRows || [];
       const columns = isProductQuery

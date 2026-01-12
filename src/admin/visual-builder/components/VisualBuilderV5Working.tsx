@@ -77,7 +77,7 @@ import { supabase } from '../../../lib/supabase';
 // TYPES
 // =============================================================================
 
-type ChartType = 'bar' | 'line' | 'pie' | 'kpi' | 'table' | 'area';
+type ChartType = 'bar' | 'line' | 'pie' | 'kpi' | 'table' | 'area' | 'grouped_bar';
 type BuilderMode = 'ai' | 'manual';
 type Aggregation = 'sum' | 'avg' | 'count' | 'min' | 'max';
 type DateRangePreset = 'last7' | 'last30' | 'last90' | 'thisMonth' | 'lastMonth';
@@ -119,6 +119,18 @@ interface EditableFilter {
   value: string;
 }
 
+interface MultiDimensionData {
+  primary_group: string;
+  secondary_group: string;
+  value: number;
+  count: number;
+}
+
+interface GroupedChartData {
+  primaryGroup: string;
+  [secondaryGroup: string]: string | number;
+}
+
 interface WidgetConfig {
   name: string;
   description: string;
@@ -127,8 +139,12 @@ interface WidgetConfig {
   metricColumn: string | null;
   aggregation: Aggregation;
   filters: Array<{ field: string; operator: string; value: string }>;
-  data: Array<{ label: string; value: number }> | null;
+  data: Array<{ label: string; value: number }> | GroupedChartData[] | null;
   aiConfig?: AIConfig;
+  secondaryGroupBy?: string;
+  secondaryGroups?: string[];
+  isMultiDimension?: boolean;
+  rawMultiDimData?: MultiDimensionData[];
 }
 
 // =============================================================================
@@ -253,6 +269,7 @@ const AGGREGATIONS: Array<{ value: Aggregation; label: string; description: stri
 ];
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#64748b', '#0891b2'];
+const GROUPED_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'];
 
 // =============================================================================
 // MAIN COMPONENT
@@ -378,9 +395,69 @@ export function VisualBuilderV5Working() {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
+      // STEP 0: Check if this is a multi-dimension query
+      const multiDimConfig = detectMultiDimensionQuery(aiPrompt);
+
+      if (multiDimConfig) {
+        console.log('[VisualBuilder] Multi-dimension query detected:', multiDimConfig);
+        setAiReasoning([
+          { type: 'routing', content: `Multi-dimension analysis: ${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}` },
+          { type: 'thinking', content: 'Using grouped aggregation for dual-dimension breakdown' }
+        ]);
+
+        try {
+          const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
+          const productTerms = extractProductTerms(aiPrompt);
+
+          const { raw, grouped, secondaryGroups } = await queryMultiDimension(
+            multiDimConfig,
+            queryCustomerId,
+            dateRange,
+            productTerms.length > 0 ? productTerms : undefined
+          );
+
+          if (grouped.length > 0) {
+            setConfig(prev => ({
+              ...prev,
+              name: `${multiDimConfig.aggregation.toUpperCase()} ${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
+              description: `Shows ${multiDimConfig.aggregation} ${multiDimConfig.metric} broken down by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
+              chartType: 'grouped_bar',
+              groupByColumn: multiDimConfig.primaryGroupBy,
+              secondaryGroupBy: multiDimConfig.secondaryGroupBy,
+              metricColumn: multiDimConfig.metric,
+              aggregation: multiDimConfig.aggregation as Aggregation,
+              data: grouped,
+              rawMultiDimData: raw,
+              secondaryGroups: secondaryGroups,
+              isMultiDimension: true,
+              aiConfig: {
+                title: `${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
+                xAxis: multiDimConfig.primaryGroupBy,
+                yAxis: multiDimConfig.metric,
+                aggregation: multiDimConfig.aggregation.toUpperCase(),
+                filters: [],
+                searchTerms: productTerms
+              }
+            }));
+
+            setHasResults(true);
+            setAiReasoning(prev => [...prev,
+              { type: 'tool_result', content: `Found ${grouped.length} primary groups x ${secondaryGroups.length} secondary groups` }
+            ]);
+            setAiLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('[VisualBuilder] Multi-dimension query failed:', err);
+          setAiError(`Multi-dimension query failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          setAiLoading(false);
+          return;
+        }
+      }
+
       // STEP 1: Check if this is a product comparison query we can handle directly
       const productTerms = extractProductTerms(aiPrompt);
-      
+
       if (productTerms.length >= 2) {
         // DIRECT QUERY PATH - bypass AI entirely for product comparisons
         console.log('[VisualBuilder] Product comparison detected:', productTerms);
@@ -637,6 +714,161 @@ export function VisualBuilderV5Working() {
     
     console.log('[VisualBuilder] Final results:', results);
     return results;
+  };
+
+  interface MultiDimensionConfig {
+    primaryGroupBy: string;
+    secondaryGroupBy: string;
+    metric: string;
+    aggregation: string;
+    isMultiDimension: true;
+  }
+
+  const detectMultiDimensionQuery = (prompt: string): MultiDimensionConfig | null => {
+    const lowerPrompt = prompt.toLowerCase();
+
+    const patterns = [
+      /(?:average|avg|total|sum|count)\s+(\w+)\s+(?:by|per|for)\s+(\w+)\s+(?:by|per|grouped by|for each)\s+(\w+)/i,
+      /(\w+)\s+(?:per|by|for)\s+(\w+)\s+(?:category\s+)?(?:by|per|grouped by)\s+(\w+)/i,
+      /breakdown\s+of\s+(\w+)\s+by\s+(\w+)\s+(?:and|&)\s+(\w+)/i,
+      /(\w+)\s+(\w+)\s+grouped\s+by\s+(\w+)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = lowerPrompt.match(pattern);
+      if (match) {
+        const [, metric, primaryDim, secondaryDim] = match;
+
+        const columnMap: Record<string, string> = {
+          'product': 'description',
+          'products': 'description',
+          'item': 'description',
+          'items': 'description',
+          'description': 'description',
+          'state': 'origin_state',
+          'origin': 'origin_state',
+          'destination': 'destination_state',
+          'dest': 'destination_state',
+          'carrier': 'carrier_name',
+          'mode': 'mode_name',
+          'location': 'origin_state',
+        };
+
+        const metricMap: Record<string, string> = {
+          'cost': 'cost',
+          'costs': 'cost',
+          'price': 'retail',
+          'prices': 'retail',
+          'retail': 'retail',
+          'revenue': 'retail',
+          'weight': 'weight',
+          'miles': 'miles',
+          'shipments': 'load_id',
+          'count': 'load_id',
+        };
+
+        const resolvedPrimary = columnMap[primaryDim] || primaryDim;
+        const resolvedSecondary = columnMap[secondaryDim] || secondaryDim;
+        const resolvedMetric = metricMap[metric] || 'retail';
+
+        let aggregation = 'avg';
+        if (lowerPrompt.includes('total') || lowerPrompt.includes('sum')) {
+          aggregation = 'sum';
+        } else if (lowerPrompt.includes('count') || resolvedMetric === 'load_id') {
+          aggregation = 'count';
+        }
+
+        console.log('[VisualBuilder] Detected multi-dimension query:', {
+          metric: resolvedMetric,
+          primaryGroupBy: resolvedPrimary,
+          secondaryGroupBy: resolvedSecondary,
+          aggregation
+        });
+
+        return {
+          primaryGroupBy: resolvedPrimary,
+          secondaryGroupBy: resolvedSecondary,
+          metric: resolvedMetric,
+          aggregation,
+          isMultiDimension: true
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const queryMultiDimension = async (
+    config: MultiDimensionConfig,
+    customerId: number | null,
+    dateFilter?: { start: string; end: string },
+    productFilters?: string[]
+  ): Promise<{ raw: MultiDimensionData[]; grouped: GroupedChartData[]; secondaryGroups: string[] }> => {
+    console.log('[VisualBuilder] Multi-dimension query:', config);
+
+    const filters: Array<{ field: string; operator: string; value: string }> = [];
+
+    if (dateFilter?.start && dateFilter?.end) {
+      filters.push({ field: 'pickup_date', operator: 'gte', value: dateFilter.start });
+      filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
+    }
+
+    if (productFilters && productFilters.length > 0) {
+      productFilters.forEach(term => {
+        filters.push({ field: 'description', operator: 'ilike', value: term });
+      });
+    }
+
+    const needsShipmentItem = config.primaryGroupBy === 'description' ||
+                              (productFilters && productFilters.length > 0);
+    const tableName = needsShipmentItem ? 'shipment_item' : 'shipment';
+
+    const groupBy = `${config.primaryGroupBy},${config.secondaryGroupBy}`;
+
+    const { data, error } = await supabase.rpc('mcp_aggregate', {
+      p_table_name: tableName,
+      p_customer_id: customerId || 0,
+      p_is_admin: customerId === null || customerId === 0,
+      p_group_by: groupBy,
+      p_metric: config.metric,
+      p_aggregation: config.aggregation,
+      p_filters: filters,
+      p_limit: 200
+    });
+
+    if (error) {
+      console.error('[VisualBuilder] Multi-dimension RPC error:', error);
+      throw error;
+    }
+
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+    if (parsed?.error) {
+      console.error('[VisualBuilder] Multi-dimension query error:', parsed.error);
+      throw new Error(parsed.error);
+    }
+
+    const rawData: MultiDimensionData[] = parsed?.data || [];
+    console.log('[VisualBuilder] Multi-dimension raw results:', rawData.length, 'rows');
+
+    const secondaryGroups = [...new Set(rawData.map(d => d.secondary_group))].filter(Boolean).sort();
+    const groupedMap = new Map<string, GroupedChartData>();
+
+    for (const row of rawData) {
+      if (!row.primary_group) continue;
+
+      if (!groupedMap.has(row.primary_group)) {
+        groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
+      }
+
+      const entry = groupedMap.get(row.primary_group)!;
+      entry[row.secondary_group] = Math.round(row.value * 100) / 100;
+    }
+
+    const grouped = Array.from(groupedMap.values());
+    console.log('[VisualBuilder] Transformed:', grouped.length, 'primary groups,', secondaryGroups.length, 'secondary groups');
+
+    return { raw: rawData, grouped, secondaryGroups };
   };
 
   // Generate a meaningful description based on the query
@@ -2381,7 +2613,13 @@ function PreviewSection({
           </div>
         ) : (
           <div className="w-full h-[280px]">
-            <ChartRenderer type={config.chartType} data={config.data} barOrientation={barOrientation} />
+            <ChartRenderer
+              type={config.chartType}
+              data={config.data}
+              barOrientation={barOrientation}
+              secondaryGroups={config.secondaryGroups}
+              metricColumn={config.metricColumn || undefined}
+            />
           </div>
         )}
       </div>
@@ -2399,35 +2637,89 @@ function PreviewSection({
 // CHART RENDERER
 // =============================================================================
 
-function ChartRenderer({ 
-  type, 
-  data, 
-  barOrientation = 'horizontal' 
-}: { 
-  type: ChartType; 
-  data: Array<{ label: string; value: number }>; 
+function ChartRenderer({
+  type,
+  data,
+  barOrientation = 'horizontal',
+  secondaryGroups,
+  metricColumn,
+}: {
+  type: ChartType;
+  data: Array<{ label: string; value: number }> | GroupedChartData[];
   barOrientation?: 'horizontal' | 'vertical';
+  secondaryGroups?: string[];
+  metricColumn?: string;
 }) {
   switch (type) {
-    case 'bar':
-      // Horizontal = bars go left to right (layout="vertical" in Recharts)
-      // Vertical = bars go up and down (layout="horizontal" / default in Recharts)
+    case 'grouped_bar':
+      if (!secondaryGroups || secondaryGroups.length === 0) {
+        return <div className="text-slate-500 text-sm">No secondary groups for grouped chart</div>;
+      }
+      const groupedData = data as GroupedChartData[];
+      const isCurrencyMetric = metricColumn === 'retail' || metricColumn === 'cost';
+      return (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={groupedData} margin={{ top: 10, right: 10, left: 10, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+            <XAxis
+              dataKey="primaryGroup"
+              tick={{ fontSize: 9 }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={0}
+            />
+            <YAxis
+              tick={{ fontSize: 10 }}
+              tickFormatter={(val) => {
+                if (isCurrencyMetric) {
+                  if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
+                  return `$${val}`;
+                }
+                return val.toLocaleString();
+              }}
+              width={50}
+            />
+            <Tooltip
+              formatter={(value: number, name: string) => [
+                isCurrencyMetric
+                  ? `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : value.toLocaleString(),
+                name
+              ]}
+              contentStyle={{ fontSize: 11 }}
+            />
+            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 5 }} iconSize={8} />
+            {secondaryGroups.map((group, index) => (
+              <Bar
+                key={group}
+                dataKey={group}
+                name={group}
+                fill={GROUPED_COLORS[index % GROUPED_COLORS.length]}
+                radius={[2, 2, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    case 'bar': {
+      const barData = data as Array<{ label: string; value: number }>;
       if (barOrientation === 'vertical') {
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ left: 20, right: 20, bottom: 60 }}>
+            <BarChart data={barData} margin={{ left: 20, right: 20, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="label" 
-                tick={{ fontSize: 9 }} 
-                angle={-45} 
-                textAnchor="end" 
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9 }}
+                angle={-45}
+                textAnchor="end"
                 height={60}
               />
               <YAxis tickFormatter={formatValue} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v: number) => formatValue(v)} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                {barData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -2435,21 +2727,23 @@ function ChartRenderer({
       }
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 80, right: 20 }}>
+          <BarChart data={barData} layout="vertical" margin={{ left: 80, right: 20 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" tickFormatter={formatValue} tick={{ fontSize: 10 }} />
             <YAxis type="category" dataKey="label" width={80} tick={{ fontSize: 10 }} />
             <Tooltip formatter={(v: number) => formatValue(v)} />
             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-              {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              {barData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       );
-    case 'line':
+    }
+    case 'line': {
+      const lineData = data as Array<{ label: string; value: number }>;
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <RechartsLine data={data}>
+          <RechartsLine data={lineData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" tick={{ fontSize: 9 }} />
             <YAxis tickFormatter={formatValue} tick={{ fontSize: 10 }} />
@@ -2458,10 +2752,12 @@ function ChartRenderer({
           </RechartsLine>
         </ResponsiveContainer>
       );
-    case 'area':
+    }
+    case 'area': {
+      const areaData = data as Array<{ label: string; value: number }>;
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+          <AreaChart data={areaData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" tick={{ fontSize: 9 }} />
             <YAxis tickFormatter={formatValue} tick={{ fontSize: 10 }} />
@@ -2470,12 +2766,14 @@ function ChartRenderer({
           </AreaChart>
         </ResponsiveContainer>
       );
-    case 'pie':
+    }
+    case 'pie': {
+      const pieData = data as Array<{ label: string; value: number }>;
       return (
         <ResponsiveContainer width="100%" height="100%">
           <RechartsPie>
             <Pie
-              data={data}
+              data={pieData}
               dataKey="value"
               nameKey="label"
               cx="50%"
@@ -2484,21 +2782,25 @@ function ChartRenderer({
               label={({ label, percent }) => `${label}: ${(percent * 100).toFixed(0)}%`}
               labelLine={{ strokeWidth: 1 }}
             >
-              {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
             </Pie>
             <Tooltip formatter={(v: number) => formatValue(v)} />
           </RechartsPie>
         </ResponsiveContainer>
       );
-    case 'kpi':
-      const total = data.reduce((s, r) => s + r.value, 0);
+    }
+    case 'kpi': {
+      const kpiData = data as Array<{ label: string; value: number }>;
+      const total = kpiData.reduce((s, r) => s + r.value, 0);
       return (
         <div className="flex flex-col items-center justify-center h-full">
           <div className="text-4xl font-bold text-slate-900">{formatValue(total)}</div>
-          <div className="text-sm text-slate-500 mt-2">Total ({data.length} items)</div>
+          <div className="text-sm text-slate-500 mt-2">Total ({kpiData.length} items)</div>
         </div>
       );
-    case 'table':
+    }
+    case 'table': {
+      const tableData = data as Array<{ label: string; value: number }>;
       return (
         <div className="overflow-auto max-h-full w-full">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -2509,7 +2811,7 @@ function ChartRenderer({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {data.map((row, i) => (
+              {tableData.map((row, i) => (
                 <tr key={i}>
                   <td className="px-3 py-2 text-slate-900">{row.label}</td>
                   <td className="px-3 py-2 text-slate-900 text-right font-medium">{formatValue(row.value)}</td>
@@ -2519,6 +2821,7 @@ function ChartRenderer({
           </table>
         </div>
       );
+    }
     default:
       return <div>Unknown chart type</div>;
   }

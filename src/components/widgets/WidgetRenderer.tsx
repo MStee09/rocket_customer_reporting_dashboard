@@ -13,9 +13,14 @@ export interface WidgetData {
   [key: string]: any;
 }
 
+export interface GroupedWidgetData {
+  primaryGroup: string;
+  [secondaryGroup: string]: string | number;
+}
+
 export interface WidgetRenderProps {
   type: string;
-  data: WidgetData[];
+  data: WidgetData[] | GroupedWidgetData[];
   title?: string;
   height?: number | string;
   showLegend?: boolean;
@@ -29,6 +34,7 @@ export interface WidgetRenderProps {
   error?: string | null;
   emptyMessage?: string;
   className?: string;
+  secondaryGroups?: string[];
 }
 
 import { chartColors } from '../../config/chartTheme';
@@ -235,6 +241,56 @@ export const WidgetRenderer: React.FC<WidgetRenderProps> = ({
           </ResponsiveContainer>
         </div>
       );
+
+    case 'groupedbar':
+    case 'grouped_bar':
+    case 'stackedbar':
+    case 'stacked_bar': {
+      const groupedData = data as GroupedWidgetData[];
+      const groups = secondaryGroups || [];
+      const GROUPED_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+      return (
+        <div className={className} style={{ height }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={groupedData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis
+                dataKey="primaryGroup"
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: '#E5E7EB' }}
+                interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={{ stroke: '#E5E7EB' }}
+                tickFormatter={(v) => formatValue(v)}
+              />
+              {showTooltip && (
+                <Tooltip
+                  formatter={(value: number) => formatValue(value)}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                />
+              )}
+              {showLegend && <Legend />}
+              {groups.map((group, index) => (
+                <Bar
+                  key={group}
+                  dataKey={group}
+                  fill={GROUPED_COLORS[index % GROUPED_COLORS.length]}
+                  radius={[4, 4, 0, 0]}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
 
     case 'kpi':
     case 'metric':

@@ -523,8 +523,9 @@ export function DashboardWidgetCard({
           data={data.data}
           valuePrefix={isCurrency ? '$' : ''}
           height={240 * scaleFactor}
-          showLegend={widgetType === 'pie' || widgetType === 'pie_chart'}
+          showLegend={widgetType === 'pie' || widgetType === 'pie_chart' || widgetType === 'grouped_bar'}
           loading={false}
+          secondaryGroups={data.secondaryGroups}
         />
       );
     }

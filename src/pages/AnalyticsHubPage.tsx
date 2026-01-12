@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { Plus, Search, Truck, MapPin, DollarSign, Layers, Star, ChevronDown, ChevronRight, Calendar, Sparkles, ArrowLeft, Globe, BarChart3, Clock, Building2 } from 'lucide-react';
+import { Search, ChevronDown, Calendar, ArrowLeft, Plus, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
-import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal, CarrierAnalyticsSection } from '../components/dashboard';
+import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal } from '../components/dashboard';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
@@ -15,37 +15,6 @@ import { loadCustomWidget } from '../config/widgets/customWidgetStorage';
 import { supabase } from '../lib/supabase';
 
 type WidgetSizeValue = 1 | 2 | 3 | 4;
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  globe: Globe,
-  truck: Truck,
-  map: MapPin,
-  dollar: DollarSign,
-  layers: Layers,
-  star: Star,
-  chart: BarChart3,
-  clock: Clock,
-  building: Building2,
-};
-
-const WIDGET_SECTIONS: Record<string, string[]> = {
-  'geographic': ['flow_map', 'cost_by_state'],
-  'volume': ['total_shipments', 'in_transit', 'delivered_month'],
-  'financial': ['total_cost', 'avg_cost_shipment', 'monthly_spend'],
-  'carrier-analytics': ['carrier_performance', 'carrier_mix', 'spend_by_carrier'],
-  'performance': ['on_time_pct', 'avg_transit_days'],
-  'breakdown': ['mode_breakdown', 'top_lanes'],
-};
-
-const DEFAULT_SECTIONS = [
-  { id: 'geographic', title: 'Geographic Analysis', description: 'Flow maps and regional cost analysis', icon: 'globe', order: 1 },
-  { id: 'volume', title: 'Volume Metrics', description: 'Shipment counts and delivery tracking', icon: 'truck', order: 2 },
-  { id: 'financial', title: 'Financial Analytics', description: 'Spend tracking and cost analysis', icon: 'dollar', order: 3 },
-  { id: 'carrier-analytics', title: 'Carrier Analytics', description: 'Carrier performance, spend distribution, and comparisons', icon: 'building', order: 4 },
-  { id: 'performance', title: 'Performance Metrics', description: 'On-time delivery and transit times', icon: 'clock', order: 5 },
-  { id: 'breakdown', title: 'Breakdowns', description: 'Mode and lane analysis', icon: 'chart', order: 6 },
-  { id: 'custom', title: 'My Analytics', description: 'Your pinned reports and custom widgets', icon: 'star', order: 7 },
-];
 
 const DATE_RANGE_OPTIONS = [
   { value: 'last7', label: 'Last 7 Days' },
@@ -57,17 +26,17 @@ const DATE_RANGE_OPTIONS = [
 
 const DEFAULT_WIDGET_LAYOUT = [
   'flow_map',
-  'cost_by_state',
   'total_shipments',
+  'total_cost',
+  'on_time_pct',
+  'monthly_spend',
+  'carrier_mix',
+  'cost_by_state',
+  'avg_cost_shipment',
   'in_transit',
   'delivered_month',
-  'total_cost',
-  'avg_cost_shipment',
-  'monthly_spend',
   'carrier_performance',
-  'carrier_mix',
   'spend_by_carrier',
-  'on_time_pct',
   'avg_transit_days',
   'mode_breakdown',
   'top_lanes',
@@ -77,7 +46,6 @@ export function AnalyticsHubPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('last30');
   const [searchQuery, setSearchQuery] = useState('');
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [saveNotification, setSaveNotification] = useState(false);
@@ -95,7 +63,6 @@ export function AnalyticsHubPage() {
   const { widgets: dashboardWidgets, loading: widgetsLoading } = useDashboardWidgets('overview');
   const editMode = useDashboardEditMode();
 
-  // Combine stored layout with any widgets from dashboard_widgets that aren't in the layout yet
   const combinedLayout = useMemo(() => {
     const baseLayout = layout.length > 0 ? layout : DEFAULT_WIDGET_LAYOUT;
     const dbWidgetIds = dashboardWidgets.map(dw => dw.widget_id);
@@ -119,6 +86,7 @@ export function AnalyticsHubPage() {
       if (value === 'default' || value === '1') converted[key] = 1;
       else if (value === 'large' || value === 'expanded' || value === '2') converted[key] = 2;
       else if (value === 'xlarge' || value === 'full' || value === '3') converted[key] = 3;
+      else if (value === '4') converted[key] = 4;
       else converted[key] = 1;
     });
 
@@ -173,10 +141,6 @@ export function AnalyticsHubPage() {
     }
   }, [dashboardWidgets, localLayout, effectiveCustomerId, isAdmin]);
 
-  const allSectionWidgetIds = useMemo(() => {
-    return new Set(Object.values(WIDGET_SECTIONS).flat());
-  }, []);
-
   const { startDate, endDate } = useMemo(() => {
     const now = new Date();
     let start: Date;
@@ -197,40 +161,26 @@ export function AnalyticsHubPage() {
     };
   }, [dateRange]);
 
-  const getWidgetsForSection = (sectionId: string) => {
-    if (sectionId === 'custom') {
-      return localLayout
-        .filter(id => !allSectionWidgetIds.has(id))
-        .map(id => ({ id, source: 'layout' as const }));
-    }
+  const filteredWidgets = useMemo(() => {
+    if (!searchQuery.trim()) return localLayout;
 
-    const sectionWidgetIds = WIDGET_SECTIONS[sectionId] || [];
-    return localLayout
-      .filter(id => sectionWidgetIds.includes(id))
-      .map(id => ({ id, source: 'layout' as const }));
-  };
+    const query = searchQuery.toLowerCase();
+    return localLayout.filter(widgetId => {
+      const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
+      if (!widget) return false;
 
-  const handleAskAI = useCallback((sectionId: string) => {
-    const section = DEFAULT_SECTIONS.find(s => s.id === sectionId);
-    const query = `Help me analyze my ${section?.title.toLowerCase() || 'data'}. What insights can you find?`;
-    navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
-  }, [navigate]);
+      const widgetDef = widget as { name?: string; description?: string; category?: string };
+      return (
+        widgetDef.name?.toLowerCase().includes(query) ||
+        widgetDef.description?.toLowerCase().includes(query) ||
+        widgetDef.category?.toLowerCase().includes(query)
+      );
+    });
+  }, [localLayout, searchQuery, customWidgets]);
 
   const handleBackToPulse = useCallback(() => {
     navigate('/dashboard');
   }, [navigate]);
-
-  const toggleSection = (sectionId: string) => {
-    setCollapsedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(sectionId)) {
-        next.delete(sectionId);
-      } else {
-        next.add(sectionId);
-      }
-      return next;
-    });
-  };
 
   const handleWidgetRemove = useCallback((widgetId: string) => {
     setLocalLayout(prev => prev.filter(id => id !== widgetId));
@@ -287,17 +237,17 @@ export function AnalyticsHubPage() {
     editMode.exitEditMode();
   }, [handleResetChanges, editMode]);
 
-  const filteredSections = searchQuery
-    ? DEFAULT_SECTIONS.filter(s =>
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : DEFAULT_SECTIONS;
+  const handleAskAI = useCallback(() => {
+    navigate('/ai-studio?query=' + encodeURIComponent('Help me analyze my logistics data'));
+  }, [navigate]);
 
   if (isLoading || widgetsLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-600">Loading analytics...</div>
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-slate-600">Loading your analytics...</span>
+        </div>
       </div>
     );
   }
@@ -306,21 +256,33 @@ export function AnalyticsHubPage() {
     <DashboardAlertProvider customerId={customerId}>
       <div className="min-h-screen bg-slate-50">
         <div className="max-w-[1600px] mx-auto px-6 py-6">
+
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <button
                 onClick={handleBackToPulse}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Back to Pulse"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Analytics Hub</h1>
-                <p className="text-slate-500 mt-1">Deep dive into your logistics data</p>
+                <p className="text-slate-500 mt-0.5">
+                  {localLayout.length} widget{localLayout.length !== 1 ? 's' : ''} - Drag to reorder, resize as needed
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={handleAskAI}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">Ask AI</span>
+              </button>
+
               <InlineEditToolbar
                 isEditing={editMode.state.isEditing}
                 hasChanges={editMode.state.pendingChanges}
@@ -334,7 +296,7 @@ export function AnalyticsHubPage() {
               <div className="relative">
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-all shadow-sm"
                 >
                   <Calendar className="w-4 h-4 text-slate-500" />
                   <span className="text-sm font-medium text-slate-700">{currentDateOption?.label}</span>
@@ -369,7 +331,7 @@ export function AnalyticsHubPage() {
           </div>
 
           {saveNotification && (
-            <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2">
+            <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-slide-in">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -377,116 +339,108 @@ export function AnalyticsHubPage() {
             </div>
           )}
 
-          <div className="relative max-w-md mb-8">
+          <div className="relative max-w-md mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search sections and widgets..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+              placeholder="Search widgets..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 shadow-sm"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          <div className="space-y-6">
-            {filteredSections.map((section) => {
-              const Icon = ICON_MAP[section.icon] || Star;
-              const isCollapsed = collapsedSections.has(section.id);
-              const sectionWidgets = getWidgetsForSection(section.id);
-              const hasWidgets = sectionWidgets.length > 0;
+          {searchQuery && (
+            <div className="mb-4 text-sm text-slate-500">
+              {filteredWidgets.length === 0 ? (
+                <span>No widgets match "{searchQuery}"</span>
+              ) : (
+                <span>
+                  Showing {filteredWidgets.length} of {localLayout.length} widgets
+                </span>
+              )}
+            </div>
+          )}
 
-              return (
-                <div key={section.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className="w-full px-5 py-4 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-slate-600" />
-                      </div>
-                      <div className="text-left">
-                        <h2 className="font-semibold text-slate-900">{section.title}</h2>
-                        <p className="text-sm text-slate-500">{section.description}</p>
-                      </div>
-                      {hasWidgets && section.id !== 'carrier-analytics' && (
-                        <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">
-                          {sectionWidgets.length} widget{sectionWidgets.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {section.id !== 'carrier-analytics' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAskAI(section.id);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          Ask AI
-                        </button>
-                      )}
-                      {isCollapsed ? (
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                  </button>
-
-                  {!isCollapsed && (
-                    <div className="p-5">
-                      {section.id === 'carrier-analytics' ? (
-                        <CarrierAnalyticsSection
-                          customerId={customerId}
-                          startDate={startDate}
-                          endDate={endDate}
-                          onAskAI={(context) => navigate(`/ai-studio?query=${encodeURIComponent(context)}`)}
-                        />
-                      ) : hasWidgets ? (
-                        <WidgetGrid
-                          widgets={sectionWidgets}
-                          customWidgets={customWidgets}
-                          widgetSizes={localSizes}
-                          customerId={customerId?.toString()}
-                          startDate={startDate}
-                          endDate={endDate}
-                          comparisonDates={null}
-                          isEditMode={editMode.state.isEditing}
-                          selectedWidgetId={editMode.state.selectedWidgetId}
-                          onWidgetSelect={editMode.selectWidget}
-                          onWidgetRemove={handleWidgetRemove}
-                          onWidgetSizeChange={handleWidgetSizeChange}
-                          onReorder={handleReorder}
-                          allowHoverDrag={true}
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-                            <Plus className="w-8 h-8 text-slate-400" />
-                          </div>
-                          <p className="text-slate-600 font-medium mb-1">No widgets yet</p>
-                          <p className="text-sm text-slate-400 mb-4">Add widgets or pin reports to see them here</p>
-                          <button
-                            onClick={() => setShowGallery(true)}
-                            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                          >
-                            + Add your first widget
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+          {filteredWidgets.length > 0 ? (
+            <WidgetGrid
+              widgets={filteredWidgets.map(id => ({ id, source: 'layout' as const }))}
+              customWidgets={customWidgets}
+              widgetSizes={localSizes}
+              customerId={customerId?.toString()}
+              startDate={startDate}
+              endDate={endDate}
+              comparisonDates={null}
+              isEditMode={editMode.state.isEditing}
+              selectedWidgetId={editMode.state.selectedWidgetId}
+              onWidgetSelect={editMode.selectWidget}
+              onWidgetRemove={handleWidgetRemove}
+              onWidgetSizeChange={handleWidgetSizeChange}
+              onReorder={handleReorder}
+              allowHoverDrag={true}
+            />
+          ) : (
+            <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Plus className="w-10 h-10 text-slate-400" />
                 </div>
-              );
-            })}
-          </div>
+                {searchQuery ? (
+                  <>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                      No widgets match your search
+                    </h3>
+                    <p className="text-slate-500 mb-6">
+                      Try a different search term or clear the filter
+                    </p>
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors"
+                    >
+                      Clear Search
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                      Build Your Analytics Dashboard
+                    </h3>
+                    <p className="text-slate-500 mb-6 max-w-md mx-auto">
+                      Add widgets to create your personalized analytics view.
+                      Drag to reorder, resize to fit your needs.
+                    </p>
+                    <button
+                      onClick={() => setShowGallery(true)}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-colors"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Your First Widget
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-          {filteredSections.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-slate-500">No sections match your search</p>
+          {filteredWidgets.length > 0 && !editMode.state.isEditing && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowGallery(true)}
+                className="flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">Add more widgets</span>
+              </button>
             </div>
           )}
         </div>
@@ -501,6 +455,22 @@ export function AnalyticsHubPage() {
       </div>
 
       <AlertInspectorPanel />
+
+      <style>{`
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.2s ease-out;
+        }
+      `}</style>
     </DashboardAlertProvider>
   );
 }

@@ -173,6 +173,10 @@ export function AnalyticsHubPage() {
     }
   }, [dashboardWidgets, localLayout, effectiveCustomerId, isAdmin]);
 
+  const allSectionWidgetIds = useMemo(() => {
+    return new Set(Object.values(WIDGET_SECTIONS).flat());
+  }, []);
+
   const { startDate, endDate } = useMemo(() => {
     const now = new Date();
     let start: Date;
@@ -194,6 +198,12 @@ export function AnalyticsHubPage() {
   }, [dateRange]);
 
   const getWidgetsForSection = (sectionId: string) => {
+    if (sectionId === 'custom') {
+      return localLayout
+        .filter(id => !allSectionWidgetIds.has(id))
+        .map(id => ({ id, source: 'layout' as const }));
+    }
+
     const sectionWidgetIds = WIDGET_SECTIONS[sectionId] || [];
     return localLayout
       .filter(id => sectionWidgetIds.includes(id))

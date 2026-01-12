@@ -517,7 +517,7 @@ export function VisualBuilderV5Working() {
     return found;
   };
 
-  // Query product categories directly via RPC
+  // Query product categories using mcp_aggregate with shipment_item table
   const queryProductCategories = async (
     terms: string[],
     metric: string,
@@ -528,17 +528,22 @@ export function VisualBuilderV5Working() {
     
     for (const term of terms) {
       try {
-        // Use mcp_aggregate RPC to get data for each product term
+        console.log(`[VisualBuilder] Querying category: ${term}`);
+        
+        // Use mcp_aggregate with shipment_item table
+        // This requires the fixed mcp_aggregate function that supports multiple tables
         const { data, error } = await supabase.rpc('mcp_aggregate', {
-          p_table_name: 'shipment',
+          p_table_name: 'shipment_item',  // Query shipment_item, not shipment_report_view
           p_customer_id: customerId || 0,
-          p_is_admin: customerId === null,
-          p_group_by: 'item_description',
-          p_metric: metric,
+          p_is_admin: customerId === null || customerId === 0,
+          p_group_by: 'description',  // Group by item description
+          p_metric: metric,  // cost or retail (from joined shipment table)
           p_aggregation: aggregation,
-          p_filters: [{ field: 'item_description', operator: 'ilike', value: term }],
+          p_filters: [{ field: 'description', operator: 'ilike', value: term }],
           p_limit: 100
         });
+        
+        console.log(`[VisualBuilder] Result for ${term}:`, { data, error });
         
         if (error) {
           console.error(`Error querying ${term}:`, error);
@@ -546,10 +551,16 @@ export function VisualBuilderV5Working() {
         }
         
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        
+        if (parsed?.error) {
+          console.error(`RPC error for ${term}:`, parsed.error);
+          continue;
+        }
+        
         const rows = parsed?.data || [];
         
         if (rows.length > 0) {
-          // Sum up all matching rows to get the category total
+          // Calculate aggregate across all matching descriptions
           let totalValue = 0;
           let count = 0;
           for (const row of rows) {
@@ -557,7 +568,8 @@ export function VisualBuilderV5Working() {
             count++;
           }
           
-          // For AVG, divide by count
+          // For AVG, we average the already-averaged values (approximate)
+          // For SUM, we sum them
           const finalValue = aggregation === 'avg' && count > 0 
             ? totalValue / count 
             : totalValue;
@@ -566,12 +578,17 @@ export function VisualBuilderV5Working() {
             label: term,
             value: Math.round(finalValue * 100) / 100
           });
+          
+          console.log(`[VisualBuilder] Added result for ${term}: ${finalValue}`);
+        } else {
+          console.log(`[VisualBuilder] No data found for ${term}`);
         }
       } catch (err) {
         console.error(`Error querying category ${term}:`, err);
       }
     }
     
+    console.log(`[VisualBuilder] Final results:`, results);
     return results;
   };
 

@@ -269,7 +269,15 @@ export function VisualBuilderV5Working() {
   const [targetScope, setTargetScope] = useState<'admin' | 'customer'>(
     isUserAdmin ? 'admin' : 'customer'
   );
-  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(null);
+  // Initialize targetCustomerId from effectiveCustomerId so dropdown matches
+  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(effectiveCustomerId);
+
+  // Sync targetCustomerId when effectiveCustomerId changes (e.g., user switches customer in header)
+  useEffect(() => {
+    if (effectiveCustomerId && !targetCustomerId) {
+      setTargetCustomerId(effectiveCustomerId);
+    }
+  }, [effectiveCustomerId, targetCustomerId]);
 
   // SECURITY: Can see admin columns ONLY if user is admin AND building for admin scope
   // Even if you're an admin, building for a customer means NO admin columns
@@ -571,15 +579,20 @@ export function VisualBuilderV5Working() {
           continue;
         }
         
-        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        console.log(`[VisualBuilder] Result for "${term}":`, parsed);
+        // Parse response - handle both string and object responses
+        let parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        console.log(`[VisualBuilder] Raw result for "${term}":`, parsed);
         
+        // Supabase RPC returns the result directly, not wrapped
+        // But the function returns {data: [...]} or {error: ...}
         if (parsed?.error) {
           console.error(`[VisualBuilder] Query error for "${term}":`, parsed.error);
           continue;
         }
         
+        // Get rows from the data array
         const rows = parsed?.data || [];
+        console.log(`[VisualBuilder] Rows for "${term}":`, rows.length, rows);
         
         if (rows.length > 0) {
           // Sum up all matching rows for this term

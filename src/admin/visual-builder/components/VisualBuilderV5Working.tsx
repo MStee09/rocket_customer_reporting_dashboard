@@ -1291,7 +1291,7 @@ Return a clear visualization with properly grouped data.`;
 
       <main className="max-w-7xl mx-auto px-6 py-6">
         {/* Scope Selector - Only show for admins */}
-        {canSeeAdminColumns && (
+        {isUserAdmin && (
           <ScopeSelector
             targetScope={targetScope}
             setTargetScope={setTargetScope}

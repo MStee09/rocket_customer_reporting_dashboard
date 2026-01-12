@@ -925,6 +925,90 @@ export function VisualBuilderV5Working() {
   ): Promise<{ raw: MultiDimensionData[]; grouped: GroupedChartData[]; secondaryGroups: string[] }> => {
     console.log('[VisualBuilder] Multi-dimension query:', config);
 
+    const needsShipmentItem = config.primaryGroupBy === 'description' ||
+                              (productFilters && productFilters.length > 0);
+    const tableName = needsShipmentItem ? 'shipment_item' : 'shipment';
+    const groupBy = `${config.primaryGroupBy},${config.secondaryGroupBy}`;
+
+    // If there are multiple product filters, we need to query each separately and combine
+    // because the MCP ANDs filters together
+    if (productFilters && productFilters.length > 1) {
+      console.log('[VisualBuilder] Multiple product filters - running separate queries');
+
+      const allRawData: MultiDimensionData[] = [];
+
+      for (const term of productFilters) {
+        const filters: Array<{ field: string; operator: string; value: string }> = [];
+
+        if (dateFilter?.start && dateFilter?.end) {
+          filters.push({ field: 'pickup_date', operator: 'gte', value: dateFilter.start });
+          filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
+        }
+
+        // Single product filter for this query
+        filters.push({ field: 'description', operator: 'ilike', value: term });
+
+        console.log(`[VisualBuilder] Querying multi-dim for "${term}" with filters:`, filters);
+
+        const { data, error } = await supabase.rpc('mcp_aggregate', {
+          p_table_name: tableName,
+          p_customer_id: customerId || 0,
+          p_is_admin: customerId === null || customerId === 0,
+          p_group_by: groupBy,
+          p_metric: config.metric,
+          p_aggregation: config.aggregation,
+          p_filters: filters,
+          p_limit: 100
+        });
+
+        if (error) {
+          console.error(`[VisualBuilder] Multi-dimension RPC error for "${term}":`, error);
+          continue;
+        }
+
+        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+        if (parsed?.error) {
+          console.error(`[VisualBuilder] Multi-dimension query error for "${term}":`, parsed.error);
+          continue;
+        }
+
+        const rows = parsed?.data || [];
+        console.log(`[VisualBuilder] Multi-dim results for "${term}":`, rows.length, 'rows');
+
+        // Add results to combined data
+        for (const row of rows) {
+          allRawData.push({
+            ...row,
+            primary_group: row.primary_group
+          });
+        }
+      }
+
+      console.log('[VisualBuilder] Combined multi-dim results:', allRawData.length, 'rows');
+
+      // Transform to grouped format
+      const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
+      const groupedMap = new Map<string, GroupedChartData>();
+
+      for (const row of allRawData) {
+        if (!row.primary_group) continue;
+
+        if (!groupedMap.has(row.primary_group)) {
+          groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
+        }
+
+        const entry = groupedMap.get(row.primary_group)!;
+        entry[row.secondary_group] = Math.round(row.value * 100) / 100;
+      }
+
+      const grouped = Array.from(groupedMap.values());
+      console.log('[VisualBuilder] Transformed:', grouped.length, 'primary groups,', secondaryGroups.length, 'secondary groups');
+
+      return { raw: allRawData, grouped, secondaryGroups };
+    }
+
+    // Single filter or no product filters - original logic
     const filters: Array<{ field: string; operator: string; value: string }> = [];
 
     if (dateFilter?.start && dateFilter?.end) {
@@ -932,17 +1016,9 @@ export function VisualBuilderV5Working() {
       filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
     }
 
-    if (productFilters && productFilters.length > 0) {
-      productFilters.forEach(term => {
-        filters.push({ field: 'description', operator: 'ilike', value: term });
-      });
+    if (productFilters && productFilters.length === 1) {
+      filters.push({ field: 'description', operator: 'ilike', value: productFilters[0] });
     }
-
-    const needsShipmentItem = config.primaryGroupBy === 'description' ||
-                              (productFilters && productFilters.length > 0);
-    const tableName = needsShipmentItem ? 'shipment_item' : 'shipment';
-
-    const groupBy = `${config.primaryGroupBy},${config.secondaryGroupBy}`;
 
     const { data, error } = await supabase.rpc('mcp_aggregate', {
       p_table_name: tableName,

@@ -2037,21 +2037,21 @@ function ManualSection({
         )}
       </div>
 
-      {/* Group By */}
+      {/* Group By - Only text/category fields (things you can group by) */}
       <ColumnPicker
         title="Group By (X-Axis)"
         subtitle="What do you want to compare?"
-        columns={columns}
+        columns={columns.filter(c => c.type === 'string' || c.type === 'date')}
         selectedColumn={config.groupByColumn}
         onSelect={(col) => setConfig(prev => ({ ...prev, groupByColumn: col }))}
         highlightColor="blue"
       />
 
-      {/* Metric */}
+      {/* Metric - Only numeric fields (things you can measure) */}
       <ColumnPicker
         title="Metric (Y-Axis)"
         subtitle="What do you want to measure?"
-        columns={columns}
+        columns={columns.filter(c => c.type === 'number')}
         selectedColumn={config.metricColumn}
         onSelect={(col) => setConfig(prev => ({ ...prev, metricColumn: col }))}
         highlightColor="green"

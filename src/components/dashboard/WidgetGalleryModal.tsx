@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect, createElement } from 'react';
 import {
   X, Search, Plus, Star, TrendingUp,
   Package, DollarSign, PieChart, BarChart3, Map, Table, Globe,
-  ChevronRight, ChevronDown, Sparkles, Lock
+  ChevronRight, ChevronDown, Sparkles, Lock, Paintbrush
 } from 'lucide-react';
-import { widgetLibrary, WidgetDefinition } from '../../config/widgetLibrary';
+import { widgetLibrary, WidgetDefinition, WidgetCategory, WidgetScope, WidgetType, WidgetSize } from '../../config/widgetLibrary';
 import { WidgetSkeleton } from './WidgetSkeleton';
 import {
   getWidgetConstraints,
@@ -12,6 +12,8 @@ import {
   getSizeLabel,
   WidgetSizeConstraint
 } from '../../config/widgetConstraints';
+import { loadAllCustomWidgets } from '../../config/widgets/customWidgetStorage';
+import { supabase } from '../../lib/supabase';
 
 interface WidgetGalleryModalProps {
   isOpen: boolean;
@@ -19,11 +21,13 @@ interface WidgetGalleryModalProps {
   onAddWidget: (widgetId: string, size: WidgetSizeConstraint) => void;
   currentWidgets: string[];
   isAdmin: boolean;
+  customerId?: number;
 }
 
 interface WidgetWithMeta extends WidgetDefinition {
   isNew?: boolean;
   isRecommended?: boolean;
+  isCustom?: boolean;
 }
 
 const typeIcons: Record<string, typeof Star> = {
@@ -34,6 +38,7 @@ const typeIcons: Record<string, typeof Star> = {
   pie_chart: PieChart,
   table: Table,
   map: Map,
+  custom: Paintbrush,
 };
 
 const NEW_WIDGET_IDS = ['carrier_performance', 'cost_by_state'];
@@ -45,13 +50,18 @@ export function WidgetGalleryModal({
   onAddWidget,
   currentWidgets,
   isAdmin,
+  customerId,
 }: WidgetGalleryModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWidget, setSelectedWidget] = useState<WidgetDefinition | null>(null);
   const [selectedSize, setSelectedSize] = useState<WidgetSizeConstraint>(1);
   const [expandedRecommended, setExpandedRecommended] = useState(true);
   const [expandedNew, setExpandedNew] = useState(true);
+  const [expandedCustom, setExpandedCustom] = useState(true);
   const [showAllWidgets, setShowAllWidgets] = useState(false);
+
+  const [customWidgetDefs, setCustomWidgetDefs] = useState<WidgetWithMeta[]>([]);
+  const [loadingCustomWidgets, setLoadingCustomWidgets] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -60,9 +70,64 @@ export function WidgetGalleryModal({
       setSelectedSize(1);
       setExpandedRecommended(true);
       setExpandedNew(true);
+      setExpandedCustom(true);
       setShowAllWidgets(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    const loadCustomWidgetsForGallery = async () => {
+      if (!isOpen) return;
+
+      setLoadingCustomWidgets(true);
+      try {
+        const customWidgets = await loadAllCustomWidgets(
+          supabase,
+          isAdmin,
+          customerId
+        );
+
+        console.log('[WidgetGallery] Loaded custom widgets:', customWidgets.length);
+
+        const widgetDefs: WidgetWithMeta[] = customWidgets.map(cw => ({
+          id: cw.id,
+          name: cw.name || 'Custom Widget',
+          description: cw.description || 'Custom widget created in Visual Builder',
+          category: 'breakdown' as WidgetCategory,
+          scope: cw.createdBy?.customerName ? 'customer' : 'global' as WidgetScope,
+          type: mapChartTypeToWidgetType(cw.chartType),
+          size: 'medium' as WidgetSize,
+          icon: 'Paintbrush',
+          iconColor: 'bg-purple-500',
+          adminOnly: false,
+          isCustom: true,
+          isNew: false,
+          isRecommended: false,
+          calculate: async () => null,
+        }));
+
+        setCustomWidgetDefs(widgetDefs);
+      } catch (error) {
+        console.error('[WidgetGallery] Error loading custom widgets:', error);
+      } finally {
+        setLoadingCustomWidgets(false);
+      }
+    };
+
+    loadCustomWidgetsForGallery();
+  }, [isOpen, isAdmin, customerId]);
+
+  const mapChartTypeToWidgetType = (chartType?: string): WidgetType => {
+    const mapping: Record<string, WidgetType> = {
+      'bar': 'bar_chart',
+      'line': 'line_chart',
+      'pie': 'pie_chart',
+      'kpi': 'kpi',
+      'table': 'table',
+      'grouped_bar': 'bar_chart',
+    };
+    return mapping[chartType || ''] || 'bar_chart';
+  };
 
   useEffect(() => {
     if (selectedWidget) {
@@ -72,14 +137,17 @@ export function WidgetGalleryModal({
   }, [selectedWidget]);
 
   const allWidgets = useMemo((): WidgetWithMeta[] => {
-    return Object.values(widgetLibrary)
+    const libraryWidgets = Object.values(widgetLibrary)
       .filter(w => !(w.adminOnly && !isAdmin))
       .map(w => ({
         ...w,
         isNew: NEW_WIDGET_IDS.includes(w.id),
         isRecommended: RECOMMENDED_WIDGET_IDS.includes(w.id),
+        isCustom: false,
       }));
-  }, [isAdmin]);
+
+    return [...libraryWidgets, ...customWidgetDefs];
+  }, [isAdmin, customWidgetDefs]);
 
   const searchFilteredWidgets = useMemo(() => {
     if (!searchQuery) return allWidgets;
@@ -97,8 +165,18 @@ export function WidgetGalleryModal({
   );
 
   const newWidgets = useMemo(() =>
-    searchFilteredWidgets.filter(w => w.isNew && !currentWidgets.includes(w.id)),
+    searchFilteredWidgets.filter(w => w.isNew && !w.isCustom && !currentWidgets.includes(w.id)),
     [searchFilteredWidgets, currentWidgets]
+  );
+
+  const customWidgets = useMemo(() =>
+    searchFilteredWidgets.filter(w => w.isCustom && !currentWidgets.includes(w.id)),
+    [searchFilteredWidgets, currentWidgets]
+  );
+
+  const standardWidgets = useMemo(() =>
+    searchFilteredWidgets.filter(w => !w.isCustom),
+    [searchFilteredWidgets]
   );
 
   const handleAdd = () => {
@@ -109,7 +187,7 @@ export function WidgetGalleryModal({
   };
 
   const renderWidgetCard = (widget: WidgetWithMeta) => {
-    const Icon = typeIcons[widget.type] || Package;
+    const Icon = widget.isCustom ? Paintbrush : (typeIcons[widget.type] || Package);
     const isOnDashboard = currentWidgets.includes(widget.id);
     const isSelected = selectedWidget?.id === widget.id;
 
@@ -124,21 +202,28 @@ export function WidgetGalleryModal({
             ? 'border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed'
             : isSelected
               ? 'border-orange-500 bg-orange-50'
-              : widget.isNew
-                ? 'border-teal-200 bg-teal-50 hover:border-teal-300'
-                : widget.isRecommended
-                  ? 'border-amber-200 bg-amber-50 hover:border-amber-300'
-                  : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'
+              : widget.isCustom
+                ? 'border-purple-200 bg-purple-50 hover:border-purple-300'
+                : widget.isNew
+                  ? 'border-teal-200 bg-teal-50 hover:border-teal-300'
+                  : widget.isRecommended
+                    ? 'border-amber-200 bg-amber-50 hover:border-amber-300'
+                    : 'border-slate-200 hover:border-orange-300 hover:bg-slate-50'
           }
         `}
       >
-        {widget.isNew && !isOnDashboard && (
+        {widget.isNew && !isOnDashboard && !widget.isCustom && (
           <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-teal-500 text-white text-xs font-bold">
             NEW
           </span>
         )}
+        {widget.isCustom && !isOnDashboard && (
+          <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-purple-500 text-white text-xs font-bold">
+            CUSTOM
+          </span>
+        )}
         <div className="flex items-start gap-3">
-          <div className={`w-10 h-10 ${widget.iconColor} rounded-xl flex items-center justify-center flex-shrink-0`}>
+          <div className={`w-10 h-10 ${widget.isCustom ? 'bg-purple-500' : widget.iconColor} rounded-xl flex items-center justify-center flex-shrink-0`}>
             <Icon className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
@@ -194,6 +279,34 @@ export function WidgetGalleryModal({
 
             <div className="flex-1 overflow-auto p-4 space-y-6">
 
+              {customWidgets.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setExpandedCustom(!expandedCustom)}
+                    className="flex items-center gap-2 mb-3 w-full text-left"
+                  >
+                    <Paintbrush className="w-4 h-4 text-purple-500" />
+                    <h3 className="text-sm font-semibold text-slate-700">My Custom Widgets</h3>
+                    <span className="px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 text-xs font-semibold">
+                      {customWidgets.length}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${expandedCustom ? '' : '-rotate-90'}`} />
+                  </button>
+                  {expandedCustom && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {customWidgets.map(renderWidgetCard)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {loadingCustomWidgets && (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  Loading custom widgets...
+                </div>
+              )}
+
               {recommendedWidgets.length > 0 && (
                 <div>
                   <button
@@ -240,13 +353,13 @@ export function WidgetGalleryModal({
                   className="flex items-center gap-2 mb-3 w-full text-left pt-4 border-t border-slate-200"
                 >
                   <Package className="w-4 h-4 text-slate-400" />
-                  <h3 className="text-sm font-semibold text-slate-700">All Widgets</h3>
-                  <span className="text-xs text-slate-400">({searchFilteredWidgets.length})</span>
+                  <h3 className="text-sm font-semibold text-slate-700">All Standard Widgets</h3>
+                  <span className="text-xs text-slate-400">({standardWidgets.length})</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${showAllWidgets ? '' : '-rotate-90'}`} />
                 </button>
                 {showAllWidgets && (
                   <div className="grid grid-cols-2 gap-3">
-                    {searchFilteredWidgets.map(renderWidgetCard)}
+                    {standardWidgets.map(renderWidgetCard)}
                   </div>
                 )}
               </div>
@@ -266,10 +379,13 @@ export function WidgetGalleryModal({
                 <div className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Preview</div>
                 <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
                   <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-2">
-                    <div className={`w-6 h-6 ${selectedWidget.iconColor} rounded-lg flex items-center justify-center`}>
-                      {createElement(typeIcons[selectedWidget.type] || Package, { className: 'w-3 h-3 text-white' })}
+                    <div className={`w-6 h-6 ${(selectedWidget as WidgetWithMeta).isCustom ? 'bg-purple-500' : selectedWidget.iconColor} rounded-lg flex items-center justify-center`}>
+                      {createElement((selectedWidget as WidgetWithMeta).isCustom ? Paintbrush : (typeIcons[selectedWidget.type] || Package), { className: 'w-3 h-3 text-white' })}
                     </div>
                     <span className="text-sm font-medium text-slate-900">{selectedWidget.name}</span>
+                    {(selectedWidget as WidgetWithMeta).isCustom && (
+                      <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 text-xs">Custom</span>
+                    )}
                   </div>
                   <div className="p-3">
                     <WidgetSkeleton widgetType={selectedWidget.type} size={selectedSize} showHeader={false} />

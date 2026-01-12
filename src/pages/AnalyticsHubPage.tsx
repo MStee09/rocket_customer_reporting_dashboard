@@ -451,6 +451,7 @@ export function AnalyticsHubPage() {
           onAddWidget={handleAddWidget}
           currentWidgets={localLayout}
           isAdmin={isAdmin()}
+          customerId={customerId}
         />
       </div>
 

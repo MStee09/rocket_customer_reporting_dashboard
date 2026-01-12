@@ -86,6 +86,19 @@ export function DashboardWidgetCard({
 
   const isVisualBuilderWidget = isCustomWidget && widget.dataSource?.groupByColumn && widget.dataSource?.metricColumn;
 
+  if (isCustomWidget) {
+    console.log('[DashboardWidgetCard] Custom widget check:', {
+      widgetId: widget.id,
+      widgetName: widget.name,
+      isCustomWidget,
+      hasDataSource: !!widget.dataSource,
+      groupByColumn: widget.dataSource?.groupByColumn,
+      metricColumn: widget.dataSource?.metricColumn,
+      isVisualBuilderWidget,
+      dataMode: widget.dataMode,
+    });
+  }
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['widget', widget.id, effectiveCustomerIds, dateRange.start, dateRange.end, isViewingAsCustomer, isCustomWidget],
     queryFn: async () => {
@@ -137,6 +150,16 @@ export function DashboardWidgetCard({
         if (isVisualBuilderWidget) {
           const { groupByColumn, metricColumn, aggregation, filters, aiConfig } = widget.dataSource;
 
+          console.log('[DashboardWidgetCard] Visual Builder query config:', {
+            groupByColumn,
+            metricColumn,
+            aggregation,
+            filters,
+            aiConfig,
+            dateRange,
+            customerId,
+          });
+
           const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
           const tableName = isProductQuery ? 'shipment_item' : 'shipment';
           const groupByField = isProductQuery ? 'description' : groupByColumn;
@@ -151,7 +174,7 @@ export function DashboardWidgetCard({
               queryFilters.push({
                 field: isProductQuery ? 'description' : 'item_description',
                 operator: 'ilike',
-                value: term
+                value: `%${term}%`
               });
             });
           }
@@ -168,6 +191,14 @@ export function DashboardWidgetCard({
             });
           }
 
+          console.log('[DashboardWidgetCard] Query params:', {
+            tableName,
+            groupByField,
+            metricColumn,
+            aggregation: aggregation || 'avg',
+            queryFilters,
+          });
+
           const { data: result, error: queryError } = await supabase.rpc('mcp_aggregate', {
             p_table_name: tableName,
             p_customer_id: customerId ? parseInt(customerId) : 0,
@@ -180,16 +211,23 @@ export function DashboardWidgetCard({
           });
 
           if (queryError) {
+            console.error('[DashboardWidgetCard] Query error:', queryError);
             throw new Error(queryError.message);
           }
 
+          console.log('[DashboardWidgetCard] Query result:', result);
+
           const parsed = typeof result === 'string' ? JSON.parse(result) : result;
           const rows = parsed?.data || parsed || [];
+
+          console.log('[DashboardWidgetCard] Parsed rows:', rows);
 
           const chartData = rows.map((row: any) => ({
             name: String(row.label || row.name || 'Unknown'),
             value: Number(row.value || 0),
           }));
+
+          console.log('[DashboardWidgetCard] Chart data:', chartData);
 
           return { data: chartData, type: 'chart', rawData: rows };
         }

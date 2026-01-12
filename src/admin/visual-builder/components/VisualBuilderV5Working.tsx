@@ -262,23 +262,27 @@ export function VisualBuilderV5Working() {
   const navigate = useNavigate();
   const { user, isAdmin, isViewingAsCustomer, effectiveCustomerId, customers } = useAuth();
 
-  // SECURITY: Determine if user can see admin-only columns
-  const canSeeAdminColumns = isAdmin() && !isViewingAsCustomer;
+  // SECURITY: Base admin check - is user an admin not viewing as customer?
+  const isUserAdmin = isAdmin() && !isViewingAsCustomer;
 
-  // Get filtered columns based on user permissions
+  // Target scope - who are we building this widget FOR?
+  const [targetScope, setTargetScope] = useState<'admin' | 'customer'>(
+    isUserAdmin ? 'admin' : 'customer'
+  );
+  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(null);
+
+  // SECURITY: Can see admin columns ONLY if user is admin AND building for admin scope
+  // Even if you're an admin, building for a customer means NO admin columns
+  const canSeeAdminColumns = isUserAdmin && targetScope === 'admin';
+
+  // Get filtered columns based on TARGET scope, not user permissions
   const availableColumns = useMemo(() => {
     if (canSeeAdminColumns) {
       return ALL_COLUMNS;
     }
-    // Filter out admin-only columns for customers
+    // Filter out admin-only columns when building for customers
     return ALL_COLUMNS.filter(col => !col.adminOnly);
   }, [canSeeAdminColumns]);
-
-  // Target scope
-  const [targetScope, setTargetScope] = useState<'admin' | 'customer'>(
-    canSeeAdminColumns ? 'admin' : 'customer'
-  );
-  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(null);
 
   // Mode
   const [mode, setMode] = useState<BuilderMode>('ai');
@@ -377,7 +381,8 @@ export function VisualBuilderV5Working() {
           productTerms,
           canSeeAdminColumns ? 'cost' : 'retail',
           'avg',
-          targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId)
+          targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId),
+          dateRange  // Pass date range for filtering
         );
         
         if (results.length > 0) {
@@ -405,6 +410,7 @@ export function VisualBuilderV5Working() {
           }));
           
           setHasResults(true);
+          setIsProductQuery(true);  // Mark this as a product query for refresh handling
           setAiReasoning(prev => [...prev, 
             { type: 'tool_result', content: `Found ${results.length} categories with data` }
           ]);
@@ -501,19 +507,24 @@ export function VisualBuilderV5Working() {
   // Extract product terms from user prompt
   const extractProductTerms = (prompt: string): string[] => {
     const promptLower = prompt.toLowerCase();
-    const knownProducts = [
-      { pattern: /drawer\s*system/i, label: 'Drawer System' },
-      { pattern: /cargoglide|cargo\s*glide/i, label: 'CargoGlide' },
-      { pattern: /toolbox|tool\s*box/i, label: 'Tool Box' },
-      { pattern: /drawer/i, label: 'Drawer' },
-    ];
-    
     const found: string[] = [];
-    for (const prod of knownProducts) {
-      if (prod.pattern.test(promptLower) && !found.includes(prod.label)) {
-        found.push(prod.label);
-      }
+    
+    // Check for "drawer system" first (more specific) before "drawer" (less specific)
+    if (/drawer\s*system/i.test(promptLower)) {
+      found.push('Drawer System');
+    } else if (/drawer/i.test(promptLower)) {
+      // Only add "Drawer" if "Drawer System" wasn't already found
+      found.push('Drawer');
     }
+    
+    if (/cargoglide|cargo\s*glide/i.test(promptLower)) {
+      found.push('CargoGlide');
+    }
+    
+    if (/toolbox|tool\s*box/i.test(promptLower)) {
+      found.push('Tool Box');
+    }
+    
     return found;
   };
 
@@ -522,13 +533,25 @@ export function VisualBuilderV5Working() {
     terms: string[],
     metric: string,
     aggregation: string,
-    customerId: number | null
+    customerId: number | null,
+    dateFilter?: { start: string; end: string }
   ): Promise<Array<{ label: string; value: number }>> => {
     const results: Array<{ label: string; value: number }> = [];
     
     for (const term of terms) {
       try {
-        console.log(`[VisualBuilder] Querying category: ${term}`);
+        console.log(`[VisualBuilder] Querying category: ${term}`, dateFilter ? `(${dateFilter.start} to ${dateFilter.end})` : '');
+        
+        // Build filters array - description filter plus date filters
+        const filters: Array<{ field: string; operator: string; value: string }> = [
+          { field: 'description', operator: 'ilike', value: term }
+        ];
+        
+        // Add date filters if provided
+        if (dateFilter) {
+          filters.push({ field: 'pickup_date', operator: 'gte', value: dateFilter.start });
+          filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
+        }
         
         // Use mcp_aggregate with shipment_item table
         // This requires the fixed mcp_aggregate function that supports multiple tables
@@ -539,7 +562,7 @@ export function VisualBuilderV5Working() {
           p_group_by: 'description',  // Group by item description
           p_metric: metric,  // cost or retail (from joined shipment table)
           p_aggregation: aggregation,
-          p_filters: [{ field: 'description', operator: 'ilike', value: term }],
+          p_filters: filters,
           p_limit: 100
         });
         
@@ -876,25 +899,141 @@ Return a clear visualization with properly grouped data.`;
     setEditableFilters(newFilters);
   }, []);
 
-  // Auto-refresh when filters are deleted - FIXED: works even without manual fields set
+  // Track if current results are from a product query (need special refresh handling)
+  const [isProductQuery, setIsProductQuery] = useState(false);
+
+  // Unified refresh function that works for both product queries and regular queries
+  const refreshData = useCallback(async () => {
+    if (!hasResults) return;
+    
+    setPreviewLoading(true);
+    setPreviewError(null);
+    
+    try {
+      // Get current filter terms from editable filters
+      const filterTerms = editableFilters
+        .filter(f => f.field === 'item_description' && f.value.trim())
+        .map(f => f.value.trim());
+      
+      // Determine if we should use product query or regular query
+      // Use product query if:
+      // 1. groupByColumn is item_description AND we have filter terms
+      // 2. OR this was originally a product query and we still have product filters
+      const shouldUseProductQuery = 
+        (config.groupByColumn === 'item_description' && filterTerms.length > 0) ||
+        (isProductQuery && filterTerms.length > 0 && config.groupByColumn === 'item_description');
+      
+      if (shouldUseProductQuery) {
+        console.log('[VisualBuilder] Refreshing product query with terms:', filterTerms);
+        
+        const results = await queryProductCategories(
+          filterTerms,
+          config.metricColumn || (canSeeAdminColumns ? 'cost' : 'retail'),
+          config.aggregation || 'avg',
+          targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId),
+          dateRange
+        );
+        
+        setConfig(prev => ({
+          ...prev,
+          data: results,
+          aiConfig: prev.aiConfig ? {
+            ...prev.aiConfig,
+            searchTerms: filterTerms,
+          } : undefined,
+        }));
+        
+        showToast(`Updated: ${results.length} categories`, 'success');
+      } else if (config.groupByColumn && config.metricColumn) {
+        // Regular query using handleRunQuery
+        console.log('[VisualBuilder] Refreshing regular query:', config.groupByColumn, config.metricColumn);
+        // Mark this as not a product query anymore
+        setIsProductQuery(false);
+        
+        // Build filters from date range AND editable filters
+        const queryFilters = [
+          { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+          { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+          ...editableFilters.filter(f => f.value.trim()).map(f => ({
+            field: f.field,
+            operator: f.operator === 'contains' ? 'ilike' : f.operator,
+            value: f.operator === 'contains' ? `%${f.value}%` : f.value,
+          })),
+        ];
+
+        const { data, error } = await supabase.rpc('mcp_aggregate', {
+          p_table_name: 'shipment',
+          p_customer_id: targetScope === 'admin' ? 0 : (targetCustomerId || effectiveCustomerId || 0),
+          p_is_admin: targetScope === 'admin' && canSeeAdminColumns,
+          p_group_by: config.groupByColumn,
+          p_metric: config.metricColumn,
+          p_aggregation: config.aggregation,
+          p_filters: queryFilters,
+          p_limit: 20,
+        });
+
+        if (error) throw error;
+
+        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+        const rows = parsed?.data || parsed || [];
+
+        const chartData = rows.map((row: any) => ({
+          label: String(row.label || 'Unknown'),
+          value: Number(row.value || 0),
+        }));
+
+        setConfig(prev => ({ ...prev, data: chartData }));
+        showToast(`Updated: ${chartData.length} data points`, 'success');
+      } else {
+        showToast('Select both X and Y axis to refresh', 'info');
+      }
+    } catch (err) {
+      console.error('[VisualBuilder] Refresh error:', err);
+      setPreviewError(err instanceof Error ? err.message : 'Refresh failed');
+      showToast('Refresh failed', 'error');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [hasResults, isProductQuery, editableFilters, config.groupByColumn, config.metricColumn, config.aggregation, canSeeAdminColumns, targetScope, targetCustomerId, effectiveCustomerId, dateRange, showToast, queryProductCategories]);
+
+  // Auto-refresh when filters are deleted
   useEffect(() => {
     if (needsRefresh && hasResults) {
       setNeedsRefresh(false);
-      showToast('Refreshing preview...', 'info');
-      
-      // If manual fields are set, use them
-      if (config.groupByColumn && config.metricColumn) {
-        const timer = setTimeout(() => {
-          handleRunQuery();
-        }, 100);
-        return () => clearTimeout(timer);
-      } else {
-        // Otherwise, re-run AI with the original prompt but it will use current filters
-        // For now, just show a message that manual refresh is needed
-        showToast('Click refresh to update with new filters', 'info');
-      }
+      const timer = setTimeout(() => {
+        refreshData();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [needsRefresh, hasResults, config.groupByColumn, config.metricColumn, showToast]);
+  }, [needsRefresh, hasResults, refreshData]);
+
+  // Track previous column values to detect changes
+  const prevGroupByRef = React.useRef(config.groupByColumn);
+  const prevMetricRef = React.useRef(config.metricColumn);
+  const prevAggregationRef = React.useRef(config.aggregation);
+
+  // Auto-refresh when X/Y axis or aggregation changes (but not on initial load)
+  useEffect(() => {
+    const groupByChanged = prevGroupByRef.current !== config.groupByColumn && prevGroupByRef.current !== null;
+    const metricChanged = prevMetricRef.current !== config.metricColumn && prevMetricRef.current !== null;
+    const aggregationChanged = prevAggregationRef.current !== config.aggregation;
+    
+    // Update refs
+    prevGroupByRef.current = config.groupByColumn;
+    prevMetricRef.current = config.metricColumn;
+    prevAggregationRef.current = config.aggregation;
+    
+    // If either axis changed and we have both columns set, refresh
+    if ((groupByChanged || metricChanged || aggregationChanged) && 
+        config.groupByColumn && config.metricColumn && hasResults) {
+      console.log('[VisualBuilder] Column/aggregation changed, triggering refresh');
+      showToast('Updating preview...', 'info');
+      const timer = setTimeout(() => {
+        refreshData();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [config.groupByColumn, config.metricColumn, config.aggregation, hasResults, refreshData, showToast]);
 
   // =============================================================================
   // CSV EXPORT
@@ -1005,30 +1144,9 @@ Return a clear visualization with properly grouped data.`;
   // =============================================================================
 
   const handleRefreshData = useCallback(() => {
-    // If we have groupBy and metric columns set (either from AI or manual), re-query
-    if (config.groupByColumn && config.metricColumn) {
-      handleRunQuery();
-    } else if (mode === 'ai' && !hasResults) {
-      // Only re-run AI if we haven't gotten results yet
-      handleAISubmit();
-    } else {
-      // Fallback - try to run query if we have AI config
-      if (config.aiConfig?.xAxis || config.aiConfig?.yAxis) {
-        // Try to map AI config and run
-        const xCol = mapAIFieldToColumn(config.aiConfig.xAxis, availableColumns);
-        const yCol = mapAIFieldToColumn(config.aiConfig.yAxis, availableColumns);
-        if (xCol && yCol) {
-          setConfig(prev => ({
-            ...prev,
-            groupByColumn: xCol,
-            metricColumn: yCol,
-          }));
-          // Query will run on next render due to state change
-          setTimeout(() => handleRunQuery(), 100);
-        }
-      }
-    }
-  }, [config.groupByColumn, config.metricColumn, config.aiConfig, mode, hasResults, handleRunQuery, handleAISubmit, availableColumns]);
+    // Use the unified refresh function that handles both product queries and regular queries
+    refreshData();
+  }, [refreshData]);
 
   // =============================================================================
   // PUBLISH

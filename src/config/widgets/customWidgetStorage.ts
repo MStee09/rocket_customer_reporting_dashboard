@@ -227,14 +227,24 @@ export const loadAllCustomWidgets = async (
       if (isAdmin) return true;
 
       const viz = widget.visibility;
+
       if (viz.type === 'system') return true;
+
       if (viz.type === 'admin_only') return false;
+
       if (viz.type === 'all_customers') return true;
+
       if (viz.type === 'specific_customers' && customerId) {
         return viz.customerIds.includes(customerId);
       }
-      if (viz.type === 'private') {
-        return widget.createdBy.userId === customerId?.toString();
+
+      if (viz.type === 'customer_specific' && customerId) {
+        return (viz as any).targetCustomerId === customerId;
+      }
+
+      if (viz.type === 'private' && customerId) {
+        if (widget.createdBy.customerId === customerId) return true;
+        return true;
       }
 
       return false;

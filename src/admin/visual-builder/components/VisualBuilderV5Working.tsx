@@ -431,6 +431,12 @@ export function VisualBuilderV5Working() {
             { type: 'tool_result', content: `Found ${results.length} categories with data` }
           ]);
           return;
+        } else {
+          // Product query returned no results - give helpful feedback
+          const dateRangeStr = `${dateRange.start} to ${dateRange.end}`;
+          setAiError(`No product data found for "${productTerms.join(', ')}" in the selected date range (${dateRangeStr}). Try expanding the date range or check if this customer has shipments with these products.`);
+          setAiLoading(false);
+          return;
         }
       }
 
@@ -1108,23 +1114,31 @@ Return a clear visualization with properly grouped data.`;
         throw new Error('Invalid column selection');
       }
 
+      // Determine which table to query based on columns
+      // If grouping by item_description, use shipment_item table
+      const isProductQuery = config.groupByColumn === 'item_description' || config.groupByColumn === 'description';
+      const tableName = isProductQuery ? 'shipment_item' : 'shipment';
+      const groupByField = isProductQuery ? 'description' : config.groupByColumn;
+
       // Build filters from date range AND editable filters
       const queryFilters = [
         { field: 'pickup_date', operator: 'gte', value: dateRange.start },
         { field: 'pickup_date', operator: 'lte', value: dateRange.end },
         // Add editable filters
         ...editableFilters.filter(f => f.value.trim()).map(f => ({
-          field: f.field,
+          field: f.field === 'item_description' ? 'description' : f.field,
           operator: f.operator === 'contains' ? 'ilike' : f.operator,
           value: f.operator === 'contains' ? `%${f.value}%` : f.value,
         })),
       ];
 
+      console.log('[VisualBuilder] Manual query - table:', tableName, 'groupBy:', groupByField, 'metric:', config.metricColumn);
+
       const { data, error } = await supabase.rpc('mcp_aggregate', {
-        p_table_name: 'shipment',
+        p_table_name: tableName,
         p_customer_id: targetScope === 'admin' ? 0 : (targetCustomerId || effectiveCustomerId || 0),
         p_is_admin: targetScope === 'admin' && canSeeAdminColumns,
-        p_group_by: config.groupByColumn,
+        p_group_by: groupByField,
         p_metric: config.metricColumn,
         p_aggregation: config.aggregation,
         p_filters: queryFilters,

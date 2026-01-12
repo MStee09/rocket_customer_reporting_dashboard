@@ -150,15 +150,24 @@ export function PulseWidgetSection({
     );
   }
 
+  // Filter out widgets that don't have valid definitions
+  const validWidgets = widgets.filter(widgetId => {
+    const isValid = widgetLibrary[widgetId] || customWidgets[widgetId];
+    if (!isValid) {
+      console.warn(`Widget ${widgetId} not found in library or custom widgets, skipping`);
+    }
+    return isValid;
+  });
+
   return (
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-slate-900">My Widgets</h2>
-            {widgets.length > 0 && (
+            {validWidgets.length > 0 && (
               <span className="text-sm text-slate-500">
-                {widgets.length} widget{widgets.length !== 1 ? 's' : ''}
+                {validWidgets.length} widget{validWidgets.length !== 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -183,7 +192,7 @@ export function PulseWidgetSection({
           </button>
         </div>
 
-        {widgets.length === 0 ? (
+        {validWidgets.length === 0 ? (
           <div className="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-12">
             <div className="text-center">
               <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -206,7 +215,7 @@ export function PulseWidgetSection({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
-            {widgets.map((widgetId) => {
+            {validWidgets.map((widgetId) => {
               const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
               const widgetType = widget ? ('type' in widget ? widget.type : 'kpi') : 'kpi';
               const isCustom = !widgetLibrary[widgetId];
@@ -272,12 +281,12 @@ export function PulseWidgetSection({
         isOpen={showGallery}
         onClose={() => {
           setShowGallery(false);
-          if (widgets.length > 0) {
+          if (validWidgets.length > 0) {
             setIsEditMode(true);
           }
         }}
         onAddWidget={handleAddWidget}
-        currentWidgets={widgets}
+        currentWidgets={validWidgets}
         customerId={customerId}
         isAdmin={isAdmin}
       />

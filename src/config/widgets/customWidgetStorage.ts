@@ -170,23 +170,30 @@ export const loadAllCustomWidgets = async (
       for (const file of customerFiles || []) {
         if (file.name.endsWith('.json')) {
           console.log('Loading file:', file.name);
-          const { data, error: downloadError } = await supabase.storage
-            .from(BUCKET)
-            .download(`${folderPath}/${file.name}`);
+          try {
+            const { data, error: downloadError } = await supabase.storage
+              .from(BUCKET)
+              .download(`${folderPath}/${file.name}`);
 
-          if (downloadError) {
-            console.error('Download error for', file.name, downloadError);
-          } else if (data) {
-            const widget = JSON.parse(await data.text());
-
-            // Override customer name with fresh data from database
-            if (widget.createdBy) {
-              widget.createdBy.customerName = customerName;
-              widget.createdBy.customerId = customerId;
+            if (downloadError) {
+              console.warn(`Skipping ${file.name}: ${downloadError.message}`);
+              continue;
             }
 
-            console.log('Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
-            widgets.push(widget);
+            if (data) {
+              const widget = JSON.parse(await data.text());
+
+              // Override customer name with fresh data from database
+              if (widget.createdBy) {
+                widget.createdBy.customerName = customerName;
+                widget.createdBy.customerId = customerId;
+              }
+
+              console.log('Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
+              widgets.push(widget);
+            }
+          } catch (error) {
+            console.warn(`Failed to load widget file ${file.name}:`, error);
           }
         }
       }

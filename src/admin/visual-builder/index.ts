@@ -119,3 +119,4 @@ export { VisualBuilderV7 } from './components/VisualBuilderV7';
 export { VisualBuilderV5Clean } from './components/VisualBuilderV5Clean';
 export { VisualBuilderV5Final } from './components/VisualBuilderV5Final';
 export { VisualBuilderV5Debug } from './components/VisualBuilderV5Debug';
+export { VisualBuilderV5Working } from './components/VisualBuilderV5Working';

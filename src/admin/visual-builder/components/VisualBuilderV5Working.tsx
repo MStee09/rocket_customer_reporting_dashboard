@@ -735,22 +735,23 @@ export function VisualBuilderV5Working() {
       'items': 'description',
       'description': 'description',
       'category': 'description',
+      'categories': 'description',
       'state': 'origin_state',
+      'states': 'origin_state',
       'origin': 'origin_state',
-      'origin state': 'origin_state',
-      'from': 'origin_state',
+      'origins': 'origin_state',
       'destination': 'dest_state',
       'dest': 'dest_state',
-      'dest state': 'dest_state',
-      'to': 'dest_state',
       'carrier': 'carrier_name',
+      'carriers': 'carrier_name',
       'mode': 'mode_name',
+      'modes': 'mode_name',
       'location': 'origin_state',
     };
 
-    // Metric mapping
+    // Metric mapping - note: 'cost' maps to 'retail' for customer-facing queries
     const metricMap: Record<string, string> = {
-      'cost': 'retail',      // Use retail for customer-facing "cost"
+      'cost': 'retail',
       'costs': 'retail',
       'price': 'retail',
       'prices': 'retail',
@@ -759,117 +760,157 @@ export function VisualBuilderV5Working() {
       'charge': 'retail',
       'charges': 'retail',
       'weight': 'weight',
+      'weights': 'weight',
       'miles': 'miles',
       'mileage': 'miles',
+      'distance': 'miles',
       'shipments': 'load_id',
+      'shipment': 'load_id',
       'count': 'load_id',
       'volume': 'load_id',
     };
 
-    // APPROACH 1: Traditional regex patterns
+    // Helper to resolve column names
+    const resolveColumn = (dim: string): string => {
+      const cleaned = dim.replace(/[^a-z]/g, '');
+      return columnMap[cleaned] || cleaned;
+    };
+
+    // Helper to resolve metric names
+    const resolveMetric = (met: string): string => {
+      const cleaned = met.replace(/[^a-z]/g, '');
+      return metricMap[cleaned] || 'retail';
+    };
+
+    // Helper to determine aggregation
+    const determineAggregation = (p: string): string => {
+      if (p.includes('total') || p.includes('sum')) return 'sum';
+      if (p.includes('count') || p.includes('how many') || p.includes('number of')) return 'count';
+      if (p.includes('min') || p.includes('minimum') || p.includes('lowest')) return 'min';
+      if (p.includes('max') || p.includes('maximum') || p.includes('highest')) return 'max';
+      return 'avg';
+    };
+
+    // APPROACH 1: Traditional regex patterns for structured queries
     const patterns = [
-      /(?:average|avg|total|sum|count)\s+(\w+)\s+(?:by|per|for)\s+(\w+)\s+(?:by|per|grouped by|for each)\s+(\w+)/i,
-      /(\w+)\s+(?:per|by|for)\s+(\w+)\s+(?:category\s+)?(?:by|per|grouped by)\s+(\w+)/i,
-      /breakdown\s+of\s+(\w+)\s+by\s+(\w+)\s+(?:and|&)\s+(\w+)/i,
-      /(\w+)\s+(\w+)\s+grouped\s+by\s+(\w+)/i,
+      // "average cost by product by origin"
+      /(?:average|avg|total|sum|count|show|get)\s+(\w+)\s+(?:by|per|for)\s+(\w+)\s+(?:by|and|per|grouped by|for each|&)\s+(\w+)/i,
+      // "cost per product by origin"
+      /(\w+)\s+(?:per|by|for)\s+(\w+)\s+(?:by|and|per|grouped by|&)\s+(\w+)/i,
+      // "breakdown of cost by product and origin"
+      /breakdown\s+of\s+(\w+)\s+by\s+(\w+)\s+(?:and|&|by)\s+(\w+)/i,
+      // "cost by product grouped by origin"
+      /(\w+)\s+by\s+(\w+)\s+grouped\s+by\s+(\w+)/i,
     ];
 
     for (const pattern of patterns) {
       const match = lowerPrompt.match(pattern);
       if (match) {
         const [, metric, primaryDim, secondaryDim] = match;
-        const resolvedPrimary = columnMap[primaryDim] || primaryDim;
-        const resolvedSecondary = columnMap[secondaryDim] || secondaryDim;
-        const resolvedMetric = metricMap[metric] || 'retail';
 
-        let aggregation = 'avg';
-        if (lowerPrompt.includes('total') || lowerPrompt.includes('sum')) {
-          aggregation = 'sum';
-        } else if (lowerPrompt.includes('count') || resolvedMetric === 'load_id') {
-          aggregation = 'count';
+        const resolvedPrimary = resolveColumn(primaryDim);
+        const resolvedSecondary = resolveColumn(secondaryDim);
+        const resolvedMetric = resolveMetric(metric);
+
+        // Skip if we accidentally captured non-dimension words
+        if (!columnMap[primaryDim.toLowerCase()] && !['cost', 'price', 'retail', 'weight', 'miles'].includes(primaryDim.toLowerCase())) {
+          continue;
         }
 
         console.log('[VisualBuilder] Detected multi-dimension query (regex):', {
+          pattern: pattern.toString(),
           metric: resolvedMetric,
           primaryGroupBy: resolvedPrimary,
           secondaryGroupBy: resolvedSecondary,
-          aggregation
         });
 
         return {
           primaryGroupBy: resolvedPrimary,
           secondaryGroupBy: resolvedSecondary,
           metric: resolvedMetric,
-          aggregation,
+          aggregation: determineAggregation(lowerPrompt),
           isMultiDimension: true
         };
       }
     }
 
-    // APPROACH 2: Keyword-based detection for natural language
-    // Detect secondary dimension phrases like "split up by origin", "by state as well", "also by carrier"
-    const secondaryDimPatterns = [
-      /(?:split\s*up|broken\s*down|grouped|also|as\s*well)\s*(?:by|per)\s*(\w+)/i,
-      /(?:by|per)\s+(\w+)\s+(?:as\s*well|too|also)/i,
-      /(?:for\s+each|per)\s+(\w+)\s*(?:state|location|region)?/i,
+    // APPROACH 2: Keyword-based detection for more natural language
+    // Detect if there's a secondary dimension mentioned anywhere
+    const secondaryDimKeywords = [
+      { pattern: /(?:by|per|split\s*(?:up|out)?\s*by|broken?\s*(?:down|out)\s*by|grouped\s*by|also\s*by|and\s*(?:by|per)|as\s*well\s*(?:as|by)?)\s*(origin|state|destination|carrier|mode)/i, dim: 1 },
+      { pattern: /(origin|state|destination|carrier|mode)\s*(?:as\s*well|too|also)/i, dim: 1 },
+      { pattern: /for\s*each\s*(origin|state|destination|carrier|mode)/i, dim: 1 },
     ];
 
-    // Check if it's a product-based query (has product terms)
-    const hasProductTerms =
-      lowerPrompt.includes('drawer') ||
-      lowerPrompt.includes('cargoglide') ||
-      lowerPrompt.includes('cargo glide') ||
-      lowerPrompt.includes('toolbox') ||
-      lowerPrompt.includes('tool box') ||
-      lowerPrompt.includes('product') ||
-      lowerPrompt.includes('item');
+    // Check if this is a product-based query
+    const productTerms = ['drawer', 'cargoglide', 'cargo glide', 'toolbox', 'tool box', 'product', 'item', 'category'];
+    const hasProductTerms = productTerms.some(term => lowerPrompt.includes(term));
 
-    // Check if it has a metric
-    const hasAverage = lowerPrompt.includes('average') || lowerPrompt.includes('avg');
-    const hasTotal = lowerPrompt.includes('total') || lowerPrompt.includes('sum');
-    const hasCount = lowerPrompt.includes('count') || lowerPrompt.includes('how many');
+    // Check if it has a metric keyword
+    const hasMetricKeyword = ['cost', 'price', 'retail', 'average', 'avg', 'total', 'sum', 'count', 'charge'].some(
+      term => lowerPrompt.includes(term)
+    );
 
-    // Check for cost/price metric
-    const hasCostMetric =
-      lowerPrompt.includes('cost') ||
-      lowerPrompt.includes('price') ||
-      lowerPrompt.includes('retail') ||
-      lowerPrompt.includes('charge');
-
-    // If it's a product query with a metric and has a secondary dimension phrase
-    if (hasProductTerms && (hasAverage || hasTotal || hasCount || hasCostMetric)) {
-      for (const pattern of secondaryDimPatterns) {
+    if (hasProductTerms && hasMetricKeyword) {
+      // Look for secondary dimension
+      for (const { pattern, dim } of secondaryDimKeywords) {
         const match = lowerPrompt.match(pattern);
-        if (match) {
-          const secondaryDim = match[1].toLowerCase();
-          const resolvedSecondary = columnMap[secondaryDim] || secondaryDim;
+        if (match && match[dim]) {
+          const secondaryDim = match[dim].toLowerCase();
+          const resolvedSecondary = resolveColumn(secondaryDim);
 
-          // Only proceed if we recognize the secondary dimension
-          if (columnMap[secondaryDim]) {
-            let aggregation = 'avg';
-            if (hasTotal) aggregation = 'sum';
-            if (hasCount) aggregation = 'count';
+          // Determine metric
+          let metric = 'retail';
+          if (lowerPrompt.includes('weight')) metric = 'weight';
+          if (lowerPrompt.includes('miles') || lowerPrompt.includes('mileage')) metric = 'miles';
+          if (lowerPrompt.includes('count') || lowerPrompt.includes('how many')) metric = 'load_id';
 
-            let metric = 'retail';
-            if (lowerPrompt.includes('weight')) metric = 'weight';
-            if (lowerPrompt.includes('miles')) metric = 'miles';
+          console.log('[VisualBuilder] Detected multi-dimension query (keyword):', {
+            secondaryMatch: match[0],
+            metric,
+            primaryGroupBy: 'description',
+            secondaryGroupBy: resolvedSecondary,
+          });
 
-            console.log('[VisualBuilder] Detected multi-dimension query (keyword):', {
-              metric,
-              primaryGroupBy: 'description',
-              secondaryGroupBy: resolvedSecondary,
-              aggregation
-            });
-
-            return {
-              primaryGroupBy: 'description',
-              secondaryGroupBy: resolvedSecondary,
-              metric,
-              aggregation,
-              isMultiDimension: true
-            };
-          }
+          return {
+            primaryGroupBy: 'description',
+            secondaryGroupBy: resolvedSecondary,
+            metric,
+            aggregation: determineAggregation(lowerPrompt),
+            isMultiDimension: true
+          };
         }
+      }
+    }
+
+    // APPROACH 3: Check for explicit "and" or "&" between two dimension words
+    const andPattern = /by\s+(\w+)\s+(?:and|&)\s+(\w+)/i;
+    const andMatch = lowerPrompt.match(andPattern);
+    if (andMatch) {
+      const [, dim1, dim2] = andMatch;
+      const resolved1 = resolveColumn(dim1);
+      const resolved2 = resolveColumn(dim2);
+
+      // Only proceed if both are valid dimensions
+      if (columnMap[dim1.toLowerCase()] || columnMap[dim2.toLowerCase()]) {
+        let metric = 'retail';
+        if (lowerPrompt.includes('weight')) metric = 'weight';
+        if (lowerPrompt.includes('miles')) metric = 'miles';
+        if (lowerPrompt.includes('count')) metric = 'load_id';
+
+        console.log('[VisualBuilder] Detected multi-dimension query (and-pattern):', {
+          metric,
+          primaryGroupBy: resolved1,
+          secondaryGroupBy: resolved2,
+        });
+
+        return {
+          primaryGroupBy: resolved1,
+          secondaryGroupBy: resolved2,
+          metric,
+          aggregation: determineAggregation(lowerPrompt),
+          isMultiDimension: true
+        };
       }
     }
 

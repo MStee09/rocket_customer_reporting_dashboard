@@ -145,7 +145,7 @@ export function CloneToSystemModal({ widget, onClose, onSuccess }: CloneToSystem
 
             <div className="space-y-3">
               <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                <WidgetIcon icon={widget.display.icon} className="w-8 h-8 flex-shrink-0" />
+                <WidgetIcon icon={widget.display?.icon} className="w-8 h-8 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-slate-900">{widget.name}</div>
                   <div className="text-sm text-slate-600 mt-1">{widget.description}</div>

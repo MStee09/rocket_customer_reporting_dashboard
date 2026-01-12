@@ -156,7 +156,7 @@ export function PulseWidgetGalleryModal({
 
   const getWidgetIconColor = (widget: AnyWidget) => {
     if (isCustomWidgetType(widget)) {
-      return widget.display.iconColor || 'bg-slate-500';
+      return widget.display?.iconColor || 'bg-slate-500';
     }
     return widget.iconColor || 'bg-slate-500';
   };

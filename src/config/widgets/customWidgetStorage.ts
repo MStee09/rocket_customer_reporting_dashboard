@@ -124,7 +124,8 @@ export const loadAllCustomWidgets = async (
 
     const systemWidgets = await loadSystemWidgets(supabase);
     console.log('System widgets loaded:', systemWidgets.length);
-    widgets.push(...systemWidgets);
+    // Validate system widgets before adding
+    widgets.push(...systemWidgets.filter(w => w && w.id && w.name && w.type));
 
     if (isAdmin) {
       const { data: adminFiles, error: adminError } = await supabase.storage
@@ -135,12 +136,27 @@ export const loadAllCustomWidgets = async (
 
       for (const file of adminFiles || []) {
         if (file.name.endsWith('.json')) {
-          const { data } = await supabase.storage
-            .from(BUCKET)
-            .download(`admin/${file.name}`);
+          try {
+            const { data, error: downloadError } = await supabase.storage
+              .from(BUCKET)
+              .download(`admin/${file.name}`);
 
-          if (data) {
-            widgets.push(JSON.parse(await data.text()));
+            if (downloadError) {
+              console.warn(`Skipping admin widget ${file.name}: ${downloadError.message}`);
+              continue;
+            }
+
+            if (data) {
+              const widget = JSON.parse(await data.text());
+              // Validate widget has required properties
+              if (!widget || !widget.id || !widget.name || !widget.type) {
+                console.warn(`Invalid widget structure in admin/${file.name}, skipping`);
+                continue;
+              }
+              widgets.push(widget);
+            }
+          } catch (error) {
+            console.warn(`Failed to load admin widget ${file.name}:`, error);
           }
         }
       }
@@ -182,6 +198,12 @@ export const loadAllCustomWidgets = async (
 
             if (data) {
               const widget = JSON.parse(await data.text());
+
+              // Validate widget has required properties
+              if (!widget || !widget.id || !widget.name || !widget.type) {
+                console.warn(`Invalid widget structure in ${file.name}, skipping`);
+                continue;
+              }
 
               // Override customer name with fresh data from database
               if (widget.createdBy) {

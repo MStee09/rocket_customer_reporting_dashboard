@@ -12,6 +12,36 @@ export interface WidgetExecutionResult {
   executedAt: string;
 }
 
+async function loadVisualBuilderWidget(widgetId: string, customerId?: number): Promise<any | null> {
+  if (customerId) {
+    const { data, error } = await supabase.storage
+      .from('custom-widgets')
+      .download(`customer/${customerId}/${widgetId}.json`);
+
+    if (!error && data) {
+      return JSON.parse(await data.text());
+    }
+  }
+
+  const { data: adminData, error: adminError } = await supabase.storage
+    .from('custom-widgets')
+    .download(`admin/${widgetId}.json`);
+
+  if (!adminError && adminData) {
+    return JSON.parse(await adminData.text());
+  }
+
+  const { data: systemData, error: systemError } = await supabase.storage
+    .from('custom-widgets')
+    .download(`system/${widgetId}.json`);
+
+  if (!systemError && systemData) {
+    return JSON.parse(await systemData.text());
+  }
+
+  return null;
+}
+
 export class WidgetNotFoundError extends Error {
   constructor(widgetId: string) {
     super(`Widget not found: ${widgetId}`);
@@ -819,15 +849,142 @@ export async function executeWidget(
 ): Promise<WidgetExecutionResult> {
   console.log('[widgetdataservice] executeWidget called', { widgetId, customerId, params });
 
+  const dateRange = params.dateRange || getDefaultDateRange();
+  const customerIdNum = customerId ? Number(customerId) : undefined;
+
   const widgetDef = getWidgetById(widgetId);
 
   if (!widgetDef) {
+    console.log('[widgetdataservice] Widget not in registry, checking for Visual Builder widget:', widgetId);
+
+    const customWidget = await loadVisualBuilderWidget(widgetId, customerIdNum);
+
+    if (customWidget && customWidget.dataSource?.groupByColumn) {
+      console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
+
+      const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig } = customWidget.dataSource;
+
+      const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
+      const tableName = isProductQuery ? 'shipment_item' : 'shipment';
+      const groupByField = isProductQuery ? 'description' : groupByColumn;
+
+      const queryFilters: Array<{ field: string; operator: string; value: string }> = [
+        { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+        { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+      ];
+
+      if (aiConfig?.searchTerms && aiConfig.searchTerms.length > 0) {
+        aiConfig.searchTerms.forEach((term: string) => {
+          queryFilters.push({
+            field: isProductQuery ? 'description' : 'item_description',
+            operator: 'ilike',
+            value: `%${term}%`,
+          });
+        });
+      }
+
+      if (savedFilters && Array.isArray(savedFilters)) {
+        savedFilters.forEach((f: { field: string; operator: string; value: string }) => {
+          if (f.value) {
+            queryFilters.push({
+              field: f.field === 'item_description' ? 'description' : f.field,
+              operator: f.operator === 'contains' ? 'ilike' : f.operator,
+              value: f.operator === 'contains' ? `%${f.value}%` : f.value,
+            });
+          }
+        });
+      }
+
+      const { data: aggResult, error: aggError } = await supabase.rpc('mcp_aggregate', {
+        p_table_name: tableName,
+        p_customer_id: customerIdNum || 0,
+        p_is_admin: false,
+        p_group_by: groupByField,
+        p_metric: metricColumn,
+        p_aggregation: aggregation || 'avg',
+        p_filters: queryFilters,
+        p_limit: 100,
+      });
+
+      if (aggError) {
+        throw new Error(`Query failed: ${aggError.message}`);
+      }
+
+      const parsed = typeof aggResult === 'string' ? JSON.parse(aggResult) : aggResult;
+      const aggRows = parsed?.data || parsed || [];
+
+      let detailQuery = supabase
+        .from(isProductQuery ? 'shipment_item' : 'shipment')
+        .select(isProductQuery
+          ? 'load_id, description, quantity, weight, retail, cost'
+          : 'load_id, reference_number, pickup_date, delivery_date, retail, cost'
+        )
+        .gte('pickup_date', dateRange.start)
+        .lte('pickup_date', dateRange.end)
+        .limit(500);
+
+      if (customerIdNum) {
+        detailQuery = detailQuery.eq('customer_id', customerIdNum);
+      }
+
+      if (aiConfig?.searchTerms && aiConfig.searchTerms.length > 0 && isProductQuery) {
+        const searchPattern = aiConfig.searchTerms.map((t: string) => `%${t}%`);
+        detailQuery = detailQuery.or(searchPattern.map((p: string) => `description.ilike.${p}`).join(','));
+      }
+
+      const { data: detailRows } = await detailQuery;
+
+      const rows = detailRows || [];
+      const columns = isProductQuery
+        ? [
+            { key: 'load_id', label: 'Load ID', type: 'string' },
+            { key: 'description', label: 'Product', type: 'string' },
+            { key: 'quantity', label: 'Quantity', type: 'number' },
+            { key: 'weight', label: 'Weight', type: 'number' },
+            { key: 'retail', label: 'Retail', type: 'currency' },
+          ]
+        : [
+            { key: 'load_id', label: 'Load ID', type: 'string' },
+            { key: 'reference_number', label: 'Reference', type: 'string' },
+            { key: 'pickup_date', label: 'Pickup Date', type: 'date' },
+            { key: 'delivery_date', label: 'Delivery Date', type: 'date' },
+            { key: 'retail', label: 'Cost', type: 'currency' },
+          ];
+
+      const tableData: TableData = {
+        columns: columns.map(col => ({
+          key: col.key,
+          label: col.label,
+          type: col.type as 'string' | 'number' | 'date' | 'currency' | 'percent',
+        })),
+        rows: rows,
+        metadata: {
+          rowCount: rows.length,
+          generatedAt: new Date().toISOString(),
+        }
+      };
+
+      return {
+        widgetId,
+        widgetName: customWidget.name,
+        widgetData: {
+          type: customWidget.type || 'bar',
+          data: aggRows.map((row: Record<string, unknown>) => {
+            const labelKey = Object.keys(row).find(k => typeof row[k] === 'string') || groupByField;
+            const valueKey = Object.keys(row).find(k =>
+              (k as string).includes(aggregation || 'avg') || k === 'value' || typeof row[k] === 'number'
+            );
+            return { name: row[labelKey as keyof typeof row], value: row[valueKey as keyof typeof row] || row.value };
+          }),
+        },
+        tableData,
+        executedAt: new Date().toISOString(),
+      };
+    }
+
     console.error('[widgetdataservice] Widget not found:', widgetId);
     throw new WidgetNotFoundError(widgetId);
   }
-
-  const dateRange = params.dateRange || getDefaultDateRange();
-  const customerIdNum = customerId ? Number(customerId) : undefined;
 
   console.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum, filters: params.filters });
 

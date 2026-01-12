@@ -126,6 +126,8 @@ function SortableWidgetWrapper({
   };
 
   const isClickableForNavigation = !isEditMode && !isCustomWidget && widgetType !== 'ai_report';
+  const isVisualBuilderWidget = id.startsWith('widget_');
+  const shouldNavigateOnClick = isClickableForNavigation || (!isEditMode && isVisualBuilderWidget);
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -141,7 +143,7 @@ function SortableWidgetWrapper({
 
     if (isEditMode) {
       onSelect();
-    } else if (isClickableForNavigation) {
+    } else if (shouldNavigateOnClick) {
       onWidgetClick();
     }
   };
@@ -269,14 +271,14 @@ function SortableWidgetWrapper({
               ? 'ring-2 ring-orange-500 border-orange-500'
               : 'border-slate-200 hover:border-orange-300'
             : getAlertStyles()
-        } ${isDragging ? 'opacity-50 scale-[0.98] shadow-2xl' : ''} ${isClickableForNavigation ? 'cursor-pointer' : ''}`}
+        } ${isDragging ? 'opacity-50 scale-[0.98] shadow-2xl' : ''} ${shouldNavigateOnClick ? 'cursor-pointer' : ''}`}
         style={{
           animation: isEditMode && !isDragging ? 'wiggle 0.3s ease-in-out infinite' : undefined,
         }}
         onClick={handleClick}
-        role={isClickableForNavigation ? 'button' : undefined}
-        tabIndex={isClickableForNavigation ? 0 : undefined}
-        onKeyDown={isClickableForNavigation ? (e) => {
+        role={shouldNavigateOnClick ? 'button' : undefined}
+        tabIndex={shouldNavigateOnClick ? 0 : undefined}
+        onKeyDown={shouldNavigateOnClick ? (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onWidgetClick();
@@ -456,7 +458,8 @@ export function WidgetGrid({
         const widget = widgetLibrary[item.id] || customWidgets[item.id] as { type: string } | undefined;
         const widgetType = widget?.type || 'kpi';
         const isCustom = !widgetLibrary[item.id];
-        const isClickable = !isCustom && widgetType !== 'ai_report';
+        const isVisualBuilder = item.id.startsWith('widget_');
+        const isClickable = (!isCustom && widgetType !== 'ai_report') || isVisualBuilder;
 
         return (
           <div

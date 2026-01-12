@@ -928,13 +928,15 @@ export function VisualBuilderV5Working() {
     const needsShipmentItem = config.primaryGroupBy === 'description' ||
                               (productFilters && productFilters.length > 0);
     const tableName = needsShipmentItem ? 'shipment_item' : 'shipment';
-    const groupBy = `${config.primaryGroupBy},${config.secondaryGroupBy}`;
 
-    // If there are multiple product filters, we need to query each separately and combine
-    // because the MCP ANDs filters together
-    if (productFilters && productFilters.length > 1) {
-      console.log('[VisualBuilder] Multiple product filters - running separate queries');
+    // For product category queries, we want to aggregate BY CATEGORY, not by individual product
+    // So we query each category separately and combine the results
+    if (productFilters && productFilters.length > 0 && config.primaryGroupBy === 'description') {
+      console.log('[VisualBuilder] Product category query - aggregating by category');
 
+      // Map to store: categoryName -> { state1: value, state2: value, ... }
+      const categoryData = new Map<string, Map<string, { total: number; count: number }>>();
+      const allSecondaryGroups = new Set<string>();
       const allRawData: MultiDimensionData[] = [];
 
       for (const term of productFilters) {
@@ -948,13 +950,13 @@ export function VisualBuilderV5Working() {
         // Single product filter for this query
         filters.push({ field: 'description', operator: 'ilike', value: term });
 
-        console.log(`[VisualBuilder] Querying multi-dim for "${term}" with filters:`, filters);
+        console.log(`[VisualBuilder] Querying multi-dim for category "${term}"`);
 
         const { data, error } = await supabase.rpc('mcp_aggregate', {
           p_table_name: tableName,
           p_customer_id: customerId || 0,
           p_is_admin: customerId === null || customerId === 0,
-          p_group_by: groupBy,
+          p_group_by: `description,${config.secondaryGroupBy}`,
           p_metric: config.metric,
           p_aggregation: config.aggregation,
           p_filters: filters,
@@ -974,41 +976,78 @@ export function VisualBuilderV5Working() {
         }
 
         const rows = parsed?.data || [];
-        console.log(`[VisualBuilder] Multi-dim results for "${term}":`, rows.length, 'rows');
+        console.log(`[VisualBuilder] Results for "${term}":`, rows.length, 'rows');
 
-        // Add results to combined data
+        // Initialize category map if needed
+        if (!categoryData.has(term)) {
+          categoryData.set(term, new Map());
+        }
+        const categoryStates = categoryData.get(term)!;
+
+        // Aggregate all results for this category by secondary group (state)
         for (const row of rows) {
+          const state = row.secondary_group || 'Unknown';
+          allSecondaryGroups.add(state);
+
+          if (!categoryStates.has(state)) {
+            categoryStates.set(state, { total: 0, count: 0 });
+          }
+
+          const stateData = categoryStates.get(state)!;
+          // For AVG, we need to track total and count to compute weighted average
+          // For SUM, just add the values
+          // For COUNT, add the counts
+          if (config.aggregation === 'avg') {
+            stateData.total += row.value * row.count; // weighted
+            stateData.count += row.count;
+          } else if (config.aggregation === 'sum') {
+            stateData.total += row.value;
+            stateData.count += row.count;
+          } else if (config.aggregation === 'count') {
+            stateData.total += row.count;
+            stateData.count += 1;
+          } else {
+            stateData.total += row.value;
+            stateData.count += 1;
+          }
+
+          // Also keep raw data for reference
           allRawData.push({
-            ...row,
-            primary_group: row.primary_group
+            primary_group: term, // Use category name, not individual product
+            secondary_group: state,
+            value: row.value,
+            count: row.count
           });
         }
       }
 
-      console.log('[VisualBuilder] Combined multi-dim results:', allRawData.length, 'rows');
+      // Convert aggregated data to grouped format
+      const secondaryGroups = Array.from(allSecondaryGroups).sort();
+      const grouped: GroupedChartData[] = [];
 
-      // Transform to grouped format
-      const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
-      const groupedMap = new Map<string, GroupedChartData>();
+      for (const [category, stateMap] of categoryData) {
+        const entry: GroupedChartData = { primaryGroup: category };
 
-      for (const row of allRawData) {
-        if (!row.primary_group) continue;
-
-        if (!groupedMap.has(row.primary_group)) {
-          groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
+        for (const [state, data] of stateMap) {
+          let value: number;
+          if (config.aggregation === 'avg') {
+            value = data.count > 0 ? data.total / data.count : 0;
+          } else {
+            value = data.total;
+          }
+          entry[state] = Math.round(value * 100) / 100;
         }
 
-        const entry = groupedMap.get(row.primary_group)!;
-        entry[row.secondary_group] = Math.round(row.value * 100) / 100;
+        grouped.push(entry);
       }
 
-      const grouped = Array.from(groupedMap.values());
-      console.log('[VisualBuilder] Transformed:', grouped.length, 'primary groups,', secondaryGroups.length, 'secondary groups');
+      console.log('[VisualBuilder] Category aggregation complete:', grouped.length, 'categories,', secondaryGroups.length, 'states');
+      console.log('[VisualBuilder] Grouped data:', grouped);
 
       return { raw: allRawData, grouped, secondaryGroups };
     }
 
-    // Single filter or no product filters - original logic
+    // Non-product queries - use original single-query logic
     const filters: Array<{ field: string; operator: string; value: string }> = [];
 
     if (dateFilter?.start && dateFilter?.end) {
@@ -1016,9 +1055,7 @@ export function VisualBuilderV5Working() {
       filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
     }
 
-    if (productFilters && productFilters.length === 1) {
-      filters.push({ field: 'description', operator: 'ilike', value: productFilters[0] });
-    }
+    const groupBy = `${config.primaryGroupBy},${config.secondaryGroupBy}`;
 
     const { data, error } = await supabase.rpc('mcp_aggregate', {
       p_table_name: tableName,

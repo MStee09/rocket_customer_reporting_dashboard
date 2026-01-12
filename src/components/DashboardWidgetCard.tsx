@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, Package, Truck, CheckCircle, DollarSign, TrendingUp, LineChart as LineChartIcon, PieChart as PieChartIcon, Map, Clock, Calendar, BarChart3, BarChart, Globe, Route, Navigation, Receipt, Award, Percent, Camera, RefreshCw, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { AlertCircle, Loader2, Package, Truck, CheckCircle, DollarSign, TrendingUp, LineChart as LineChartIcon, PieChart as PieChartIcon, Map, Clock, Calendar, BarChart3, BarChart, Globe, Route, Navigation, Receipt, Award, Percent, Camera, RefreshCw, FileText, Table2 } from 'lucide-react';
 import { WidgetDefinition, DateRange, WidgetSizeLevel } from '../types/widgets';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,6 +72,7 @@ export function DashboardWidgetCard({
   const navigate = useNavigate();
   const { isAdmin, effectiveCustomerIds, isViewingAsCustomer } = useAuth();
   const { lookups } = useLookupTables();
+  const [showTableView, setShowTableView] = useState(false);
 
   const sourceReport = widget.sourceReport;
   const hasSourceReport = isCustomWidget && !!sourceReport?.id;
@@ -81,6 +83,8 @@ export function DashboardWidgetCard({
       navigate(`/custom-reports/${sourceReport.id}`);
     }
   };
+
+  const isVisualBuilderWidget = isCustomWidget && widget.dataSource?.groupByColumn && widget.dataSource?.metricColumn;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['widget', widget.id, effectiveCustomerIds, dateRange.start, dateRange.end, isViewingAsCustomer, isCustomWidget],
@@ -128,6 +132,66 @@ export function DashboardWidgetCard({
           }
           const dataArray = snapshot.data || [];
           return { data: normalizeChartData(dataArray), type: snapshot.type || 'chart' };
+        }
+
+        if (isVisualBuilderWidget) {
+          const { groupByColumn, metricColumn, aggregation, filters, aiConfig } = widget.dataSource;
+
+          const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
+          const tableName = isProductQuery ? 'shipment_item' : 'shipment';
+          const groupByField = isProductQuery ? 'description' : groupByColumn;
+
+          const queryFilters: Array<{ field: string; operator: string; value: string }> = [
+            { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+            { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+          ];
+
+          if (aiConfig?.searchTerms && aiConfig.searchTerms.length > 0) {
+            aiConfig.searchTerms.forEach((term: string) => {
+              queryFilters.push({
+                field: isProductQuery ? 'description' : 'item_description',
+                operator: 'ilike',
+                value: term
+              });
+            });
+          }
+
+          if (filters && Array.isArray(filters)) {
+            filters.forEach((f: any) => {
+              if (f.value) {
+                queryFilters.push({
+                  field: f.field === 'item_description' ? 'description' : f.field,
+                  operator: f.operator === 'contains' ? 'ilike' : f.operator,
+                  value: f.operator === 'contains' ? `%${f.value}%` : f.value,
+                });
+              }
+            });
+          }
+
+          const { data: result, error: queryError } = await supabase.rpc('mcp_aggregate', {
+            p_table_name: tableName,
+            p_customer_id: customerId ? parseInt(customerId) : 0,
+            p_is_admin: isAdmin(),
+            p_group_by: groupByField,
+            p_metric: metricColumn,
+            p_aggregation: aggregation || 'avg',
+            p_filters: queryFilters,
+            p_limit: 20,
+          });
+
+          if (queryError) {
+            throw new Error(queryError.message);
+          }
+
+          const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+          const rows = parsed?.data || parsed || [];
+
+          const chartData = rows.map((row: any) => ({
+            name: String(row.label || row.name || 'Unknown'),
+            value: Number(row.value || 0),
+          }));
+
+          return { data: chartData, type: 'chart', rawData: rows };
         }
 
         if (widget.dataSource?.query) {
@@ -196,7 +260,47 @@ export function DashboardWidgetCard({
       const isCurrency = widget.visualization?.format === 'currency' ||
                          widget.dataSource?.query?.columns?.some((c: any) =>
                            c.field?.includes('retail') || c.field?.includes('cost') || c.field?.includes('margin')
-                         );
+                         ) ||
+                         widget.dataSource?.metricColumn?.includes('cost') ||
+                         widget.dataSource?.metricColumn?.includes('retail');
+
+      if (isVisualBuilderWidget && showTableView && data.data.length > 0) {
+        const metricLabel = widget.dataSource?.metricColumn || 'Value';
+        const groupLabel = widget.dataSource?.groupByColumn || 'Category';
+
+        return (
+          <div className="overflow-auto" style={{ maxHeight: `${300 * scaleFactor}px` }}>
+            <table className="w-full" style={{ fontSize: `${14 * scaleFactor}px` }}>
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="px-4 text-left text-slate-700 font-semibold border-b capitalize" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
+                    {groupLabel.replace(/_/g, ' ')}
+                  </th>
+                  <th className="px-4 text-right text-slate-700 font-semibold border-b capitalize" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
+                    {metricLabel.replace(/_/g, ' ')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.data.map((row: any, idx: number) => (
+                  <tr key={idx} className="border-b hover:bg-slate-50">
+                    <td className="px-4 text-slate-700" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
+                      {row.name || row.label || 'Unknown'}
+                    </td>
+                    <td className="px-4 text-right text-slate-700 font-medium" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
+                      {isCurrency
+                        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.value)
+                        : typeof row.value === 'number'
+                        ? row.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : row.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
 
       if ((widgetType === 'table' || data.type === 'table') && data.columns) {
         const columns = data.columns;
@@ -578,6 +682,19 @@ export function DashboardWidgetCard({
           {isHeroWidget && <p className="text-xs text-slate-500 truncate">{widget.description}</p>}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {isVisualBuilderWidget && !isLoading && data && (
+            <button
+              onClick={() => setShowTableView(!showTableView)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                showTableView
+                  ? 'bg-blue-100 text-blue-600'
+                  : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'
+              }`}
+              title={showTableView ? 'Show chart view' : 'Show table view'}
+            >
+              <Table2 className="w-4 h-4" />
+            </button>
+          )}
           {!isLoading && !error && data && customerId && (
             <AskAIButton
               context={{

@@ -12,7 +12,6 @@ import {
   PulseWidgetSection,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
-import { QuickActions } from '../components/dashboard/QuickActions';
 import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
@@ -98,10 +97,6 @@ export function PulseDashboardPage() {
                   end: new Date(endDate),
                 }}
               />
-            )}
-
-            {customerId && (
-              <QuickActions customerId={customerId.toString()} />
             )}
 
             {effectiveCustomerId && (

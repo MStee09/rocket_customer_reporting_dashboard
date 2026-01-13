@@ -164,34 +164,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[AuthContext] useEffect mounting');
     let isMounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-      console.log('[AuthContext] getSession result:', { hasUser: !!session?.user, userId: session?.user?.id });
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadUserRole(session.user.id);
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
+        if (error) {
+          console.error('[AuthContext] Error getting session:', error);
+          localStorage.clear();
+          sessionStorage.clear();
+          setUser(null);
+          setRole(null);
+          setCustomers([]);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('[AuthContext] getSession result:', {
+          hasUser: !!session?.user,
+          userId: session?.user?.id
+        });
+
+        if (session?.user) {
+          setUser(session.user);
+          await loadUserRole(session.user.id);
+        } else {
+          setUser(null);
+          setRole(null);
+          setCustomers([]);
+        }
+
+        if (isMounted) {
+          console.log('[AuthContext] Setting isLoading to false');
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error initializing auth:', error);
+        if (isMounted) {
+          setUser(null);
+          setRole(null);
+          setCustomers([]);
+          setIsLoading(false);
+        }
       }
-      if (isMounted) {
-        console.log('[AuthContext] Setting isLoading to false');
-        setIsLoading(false);
-      }
-    });
+    };
+
+    initializeAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       if (event === 'INITIAL_SESSION') return;
+
+      console.log('[AuthContext] Auth state changed:', event);
+
       (async () => {
-        setUser(session?.user ?? null);
         if (session?.user) {
+          setUser(session.user);
           await loadUserRole(session.user.id);
         } else {
           loadingUserIdRef.current = null;
+          setUser(null);
           setRole(null);
           setCustomers([]);
           setSelectedCustomerIdState(null);
+          setViewingAsCustomerIdState(null);
+          setImpersonatingCustomerIdState(null);
           localStorage.removeItem(SELECTED_CUSTOMER_KEY);
+          sessionStorage.removeItem(VIEWING_AS_CUSTOMER_KEY);
+          sessionStorage.removeItem(IMPERSONATING_CUSTOMER_KEY);
         }
       })();
     });
@@ -215,15 +258,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setRole(null);
-    setCustomers([]);
-    setSelectedCustomerIdState(null);
-    setViewingAsCustomerIdState(null);
-    setImpersonatingCustomerIdState(null);
-    localStorage.removeItem(SELECTED_CUSTOMER_KEY);
-    sessionStorage.removeItem(VIEWING_AS_CUSTOMER_KEY);
-    sessionStorage.removeItem(IMPERSONATING_CUSTOMER_KEY);
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('[AuthContext] Error during sign out:', error);
+    } finally {
+      setUser(null);
+      setRole(null);
+      setCustomers([]);
+      setSelectedCustomerIdState(null);
+      setViewingAsCustomerIdState(null);
+      setImpersonatingCustomerIdState(null);
+      localStorage.clear();
+      sessionStorage.clear();
+    }
   };
 
   const setSelectedCustomerId = (customerId: number | null) => {

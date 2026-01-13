@@ -52,7 +52,9 @@ const queryClient = new QueryClient({
 });
 
 function LoginRedirect() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  console.log('[LoginRedirect]', { isAuthenticated, isLoading, hasUser: !!user });
 
   if (isLoading) {
     return (
@@ -66,9 +68,11 @@ function LoginRedirect() {
   }
 
   if (isAuthenticated) {
+    console.log('[LoginRedirect] User is authenticated, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
+  console.log('[LoginRedirect] User not authenticated, showing login page');
   return <LoginPage />;
 }
 

@@ -1689,6 +1689,8 @@ Return a clear visualization with properly grouped data.`;
         containsAdminData: config.metricColumn ? ADMIN_ONLY_COLUMNS.has(config.metricColumn) : false,
         dataSource: {
           groupByColumn: config.groupByColumn,
+          secondaryGroupBy: config.secondaryGroupBy,
+          isMultiDimension: config.isMultiDimension,
           metricColumn: config.metricColumn,
           aggregation: config.aggregation,
           filters: editableFilters,
@@ -1698,6 +1700,7 @@ Return a clear visualization with properly grouped data.`;
         visualization: {
           type: config.chartType,
           data: config.data,
+          secondaryGroups: config.secondaryGroups,
         },
         createdAt: new Date().toISOString(),
       };

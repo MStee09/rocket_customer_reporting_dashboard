@@ -1735,9 +1735,8 @@ Return a clear visualization with properly grouped data.`;
         .insert({
           widget_id: widgetId,
           customer_id: dashboardCustomerId,
-          position: 999, // Add to end
-          is_visible: true,
-          size: { w: 2, h: 1 },
+          position: 999,
+          size: 'medium',
           tab: 'overview',
         });
 

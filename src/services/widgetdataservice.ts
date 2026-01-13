@@ -884,71 +884,6 @@ export async function executeWidget(
       if (isMultiDimension) {
         console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', actualSecondaryGroupBy);
 
-        const allChartData: Array<{
-          primary_group: string;
-          secondary_group: string;
-          value: number;
-          count: number;
-        }> = [];
-
-        for (const term of searchTerms) {
-          const termFilters: Array<{ field: string; operator: string; value: string }> = isProductQuery
-            ? [
-                { field: 'description', operator: 'ilike', value: `%${term}%` },
-              ]
-            : [
-                { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-                { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-                { field: 'item_description', operator: 'ilike', value: `%${term}%` },
-              ];
-
-          if (savedFilters && Array.isArray(savedFilters)) {
-            savedFilters.forEach((f: { field: string; operator: string; value: string }) => {
-              if (f.value) {
-                termFilters.push({
-                  field: f.field === 'item_description' ? 'description' : f.field,
-                  operator: f.operator === 'contains' ? 'ilike' : f.operator,
-                  value: f.operator === 'contains' ? `%${f.value}%` : f.value,
-                });
-              }
-            });
-          }
-
-          const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
-            p_table_name: tableName,
-            p_customer_id: customerIdNum || 0,
-            p_is_admin: false,
-            p_group_by: `${groupByField},${actualSecondaryGroupBy}`,
-            p_metric: metricColumn,
-            p_aggregation: aggregation || 'avg',
-            p_filters: termFilters,
-            p_limit: 100,
-          });
-
-          if (termError) {
-            console.error('[widgetdataservice] Multi-dim term query error:', termError);
-            continue;
-          }
-
-          const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
-          const chartRows = parsed?.data || parsed || [];
-
-          for (const row of chartRows) {
-            const state = row[actualSecondaryGroupBy] || row.secondary_group;
-            const total = parseFloat(row.total || row.value || 0);
-            const count = parseInt(row.count || 1, 10);
-
-            if (state) {
-              allChartData.push({
-                primary_group: term,
-                secondary_group: state,
-                value: aggregation === 'avg' && count > 0 ? Math.round((total / count) * 100) / 100 : total,
-                count
-              });
-            }
-          }
-        }
-
         let detailRows: Record<string, unknown>[] = [];
 
         if (isProductQuery) {
@@ -1051,6 +986,51 @@ export async function executeWidget(
           }
         }
 
+        const allChartData: Array<{
+          primary_group: string;
+          secondary_group: string;
+          value: number;
+          count: number;
+        }> = [];
+
+        const aggregationMap = new Map<string, { total: number; count: number }>();
+
+        for (const row of detailRows) {
+          const description = row.description as string || '';
+          const secondaryValue = row[actualSecondaryGroupBy] as string || '';
+          const metricValue = parseFloat(row[metricColumn] as string || '0') || 0;
+
+          for (const term of searchTerms) {
+            if (description.toLowerCase().includes(term.toLowerCase())) {
+              const key = `${term}|||${secondaryValue}`;
+              if (!aggregationMap.has(key)) {
+                aggregationMap.set(key, { total: 0, count: 0 });
+              }
+              const agg = aggregationMap.get(key)!;
+              agg.total += metricValue;
+              agg.count += 1;
+              break;
+            }
+          }
+        }
+
+        for (const [key, agg] of aggregationMap) {
+          const [term, secondary] = key.split('|||');
+          if (secondary) {
+            const value = aggregation === 'avg' && agg.count > 0
+              ? Math.round((agg.total / agg.count) * 100) / 100
+              : aggregation === 'sum' ? agg.total : agg.total;
+            allChartData.push({
+              primary_group: term,
+              secondary_group: secondary,
+              value,
+              count: agg.count
+            });
+          }
+        }
+
+        console.log('[widgetdataservice] Multi-dim chartData computed:', allChartData.length, 'entries from', detailRows.length, 'detail rows');
+
         const columns = isProductQuery
           ? [
               { key: 'load_id', label: 'Load ID', type: 'string' as const },
@@ -1133,6 +1113,15 @@ export async function executeWidget(
         });
       }
 
+      console.log('[widgetdataservice] Single-dimension mcp_aggregate call:', {
+        tableName,
+        customerId: customerIdNum,
+        groupByField,
+        metricColumn,
+        aggregation,
+        filters: queryFilters
+      });
+
       const { data: aggResult, error: aggError } = await supabase.rpc('mcp_aggregate', {
         p_table_name: tableName,
         p_customer_id: customerIdNum || 0,
@@ -1154,6 +1143,7 @@ export async function executeWidget(
       let detailRows: Record<string, unknown>[] = [];
 
       if (isProductQuery) {
+        console.log('[widgetdataservice] Single-dimension fetching product detail rows via get_shipment_items_with_dates');
         const { data: itemData, error: itemError } = await supabase
           .rpc('get_shipment_items_with_dates', {
             p_customer_id: customerIdNum || 0,
@@ -1171,6 +1161,7 @@ export async function executeWidget(
             .limit(500);
           detailRows = fallbackData || [];
         } else {
+          console.log('[widgetdataservice] Single-dimension got', (itemData || []).length, 'detail rows');
           detailRows = itemData || [];
         }
       } else {

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { AlertCircle, Loader2, Package, Truck, CheckCircle, DollarSign, TrendingUp, LineChart as LineChartIcon, PieChart as PieChartIcon, Map, Clock, Calendar, BarChart3, BarChart, Globe, Route, Navigation, Receipt, Award, Percent, Camera, RefreshCw, FileText, Table2 } from 'lucide-react';
+import { AlertCircle, Loader2, Package, Truck, CheckCircle, DollarSign, TrendingUp, LineChart as LineChartIcon, PieChart as PieChartIcon, Map as MapIcon, Clock, Calendar, BarChart3, BarChart, Globe, Route, Navigation, Receipt, Award, Percent, Camera, RefreshCw, FileText, Table2 } from 'lucide-react';
 import { WidgetDefinition, DateRange, WidgetSizeLevel } from '../types/widgets';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,7 +40,7 @@ const iconMap: Record<string, React.ElementType> = {
   TrendingUp,
   LineChart: LineChartIcon,
   PieChart: PieChartIcon,
-  Map,
+  Map: MapIcon,
   Clock,
   Calendar,
   BarChart3,

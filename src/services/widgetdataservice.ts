@@ -957,15 +957,23 @@ export async function executeWidget(
           }
 
           if (actualSecondaryGroupBy === 'origin_state' || actualSecondaryGroupBy === 'destination_state') {
-            const loadIds = [...new Set((detailRows || []).map((r: Record<string, unknown>) => r.load_id as string))];
+            // Convert string load_ids to integers for shipment_address query
+            const loadIds = [...new Set((detailRows || []).map((r: Record<string, unknown>) => parseInt(r.load_id as string, 10)))].filter(id => !isNaN(id));
 
             if (loadIds.length > 0) {
-              const { data: addresses } = await supabase
+              console.log('[widgetdataservice] Fetching addresses for', loadIds.length, 'load_ids');
+              const { data: addresses, error: addrError } = await supabase
                 .from('shipment_address')
                 .select('load_id, city, state, address_type')
                 .in('load_id', loadIds);
 
-              const addressMap = new Map<string, { origin_state?: string; destination_state?: string }>();
+              if (addrError) {
+                console.error('[widgetdataservice] Address lookup error:', addrError);
+              } else {
+                console.log('[widgetdataservice] Found', (addresses || []).length, 'address records');
+              }
+
+              const addressMap = new Map<number, { origin_state?: string; destination_state?: string }>();
               for (const addr of addresses || []) {
                 if (!addressMap.has(addr.load_id)) {
                   addressMap.set(addr.load_id, {});
@@ -978,7 +986,8 @@ export async function executeWidget(
               }
 
               detailRows = (detailRows || []).map((row: Record<string, unknown>) => {
-                const addrs = addressMap.get(row.load_id as string) || {};
+                const loadIdNum = parseInt(row.load_id as string, 10);
+                const addrs = addressMap.get(loadIdNum) || {};
                 return {
                   ...row,
                   origin_state: addrs.origin_state || '',

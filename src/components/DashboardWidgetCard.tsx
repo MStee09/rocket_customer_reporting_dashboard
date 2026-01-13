@@ -712,6 +712,45 @@ export function DashboardWidgetCard({
           </div>
         );
 
+      case 'grouped_bar':
+        if (!data.data || data.data.length === 0) {
+          return (
+            <div className="flex items-center justify-center" style={{ minHeight: `${240 * scaleFactor}px` }}>
+              <span className="text-slate-500" style={{ fontSize: `${14 * scaleFactor}px` }}>No data for this period</span>
+            </div>
+          );
+        }
+        const groupedBarColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+        const secondaryKeys = data.secondaryGroups || Object.keys(data.data[0]).filter(k => k !== 'name');
+        return (
+          <div className="w-full" style={{ height: `${280 * scaleFactor}px` }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={data.data} barCategoryGap="20%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={12 * scaleFactor} />
+                <YAxis stroke="#64748b" fontSize={12 * scaleFactor} tickFormatter={(v) => `$${v}`} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                />
+                <Legend />
+                {secondaryKeys.map((key: string, index: number) => (
+                  <Bar
+                    key={key}
+                    dataKey={key}
+                    fill={groupedBarColors[index % groupedBarColors.length]}
+                    radius={[4, 4, 0, 0]}
+                  />
+                ))}
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+
       case 'pie_chart':
         if (!data.data || data.data.length === 0) {
           return (

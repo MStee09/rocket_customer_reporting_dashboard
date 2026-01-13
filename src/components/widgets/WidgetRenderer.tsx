@@ -69,6 +69,7 @@ export const WidgetRenderer: React.FC<WidgetRenderProps> = ({
   error = null,
   emptyMessage = 'No data available',
   className = '',
+  secondaryGroups = [],
 }) => {
   const formatValue = valueFormatter || ((v: number) => defaultValueFormatter(v, valuePrefix, valueSuffix));
 

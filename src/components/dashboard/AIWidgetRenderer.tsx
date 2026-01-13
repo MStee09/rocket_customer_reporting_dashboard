@@ -29,14 +29,14 @@ export function AIWidgetRenderer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const hasValidConfig = widget && widget.config;
-
   const config = (widget?.config || {}) as {
     reportDefinition?: AIReportDefinition;
     sectionIndices?: number[];
     sourceReportId?: string;
     compact?: boolean;
   };
+
+  const hasValidConfig = widget && widget.config && config.reportDefinition;
 
   const miniReport: AIReportDefinition | null = config.reportDefinition ? {
     ...config.reportDefinition,

@@ -113,9 +113,11 @@ export function PulseWidgetSection({
       );
     }
 
-    const isAIWidget = widget.type === 'ai_report' || (widget as { source?: string }).source === 'ai';
+    const widgetWithConfig = widget as { type?: string; source?: string; config?: { reportDefinition?: unknown } };
+    const isAIWidget = widgetWithConfig.type === 'ai_report' || widgetWithConfig.source === 'ai';
+    const hasValidAIConfig = isAIWidget && widgetWithConfig.config?.reportDefinition;
 
-    if (isAIWidget) {
+    if (hasValidAIConfig) {
       return (
         <AIWidgetRenderer
           widget={widget}

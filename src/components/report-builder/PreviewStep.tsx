@@ -132,9 +132,9 @@ export function PreviewStep({ state }: PreviewStepProps) {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <Calculator className="w-4 h-4 text-slate-600" />
             <h4 className="font-semibold text-slate-800">Calculation</h4>

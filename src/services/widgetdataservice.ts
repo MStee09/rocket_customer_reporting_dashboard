@@ -1197,7 +1197,7 @@ export async function executeWidget(
       }
 
       const parsed = typeof aggResult === 'string' ? JSON.parse(aggResult) : aggResult;
-      const aggRows = parsed?.data || parsed || [];
+      const aggRows = Array.isArray(parsed?.data) ? parsed.data : (Array.isArray(parsed) ? parsed : []);
 
       let detailRows: Record<string, unknown>[] = [];
 

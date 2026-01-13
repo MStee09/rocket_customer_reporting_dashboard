@@ -1738,7 +1738,7 @@ Return a clear visualization with properly grouped data.`;
           position: 999, // Add to end
           is_visible: true,
           size: { w: 2, h: 1 },
-          section: publishDestination === 'pulse' ? pulseSection : analyticsSection,
+          tab: 'overview',
         });
 
       if (dbError) {

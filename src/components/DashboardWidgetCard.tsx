@@ -264,57 +264,43 @@ export function DashboardWidgetCard({
           const hasMultipleSearchTerms = aiConfig?.searchTerms && aiConfig.searchTerms.length > 1;
 
           if (hasMultipleSearchTerms && isProductQuery) {
-            console.log('[DashboardWidgetCard] Multi-product query - querying each term separately');
+            console.log('[DashboardWidgetCard] Multi-product query - using get_shipment_items_with_dates');
+
+            const { data: itemData, error: itemError } = await supabase.rpc('get_shipment_items_with_dates', {
+              p_customer_id: customerId ? parseInt(customerId) : 0,
+              p_start_date: dateRange.start,
+              p_end_date: dateRange.end,
+              p_search_terms: aiConfig.searchTerms,
+              p_limit: 500
+            });
+
+            console.log('[DashboardWidgetCard] Multi-product RPC result:', { rowCount: itemData?.length || 0, error: itemError });
+
+            if (itemError) {
+              console.error('[DashboardWidgetCard] Multi-product RPC error:', itemError);
+              throw itemError;
+            }
+
+            const detailRows = itemData || [];
             const allResults: Array<{ name: string; value: number }> = [];
 
             for (const term of aiConfig.searchTerms) {
-              const termFilters: Array<{ field: string; operator: string; value: string }> = [
-                { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-                { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-                { field: 'description', operator: 'ilike', value: term }
-              ];
-
-              const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
-                p_table_name: tableName,
-                p_customer_id: customerId ? parseInt(customerId) : 0,
-                p_is_admin: isAdmin(),
-                p_group_by: groupByField,
-                p_metric: metricColumn,
-                p_aggregation: aggregation || 'avg',
-                p_filters: termFilters,
-                p_limit: 100,
-              });
-
-              if (termError) {
-                console.error(`[DashboardWidgetCard] Error querying "${term}":`, termError);
-                continue;
-              }
-
-              let termRows: any[] = [];
-              if (typeof termResult === 'string') {
-                const parsed = JSON.parse(termResult);
-                termRows = parsed?.data || [];
-              } else if (termResult?.data && Array.isArray(termResult.data)) {
-                termRows = termResult.data;
-              }
-
-              console.log(`[DashboardWidgetCard] "${term}" returned ${termRows.length} rows`);
+              const termRows = detailRows.filter((row: any) => row.description?.toLowerCase().includes(term.toLowerCase()));
+              console.log(`[DashboardWidgetCard] "${term}" matched ${termRows.length} rows`);
 
               if (termRows.length > 0) {
                 let totalValue = 0;
                 let count = 0;
                 for (const row of termRows) {
-                  if (row.value !== null && row.value !== undefined) {
-                    totalValue += Number(row.value);
+                  const metricValue = Number(row[metricColumn]);
+                  if (!isNaN(metricValue)) {
+                    totalValue += metricValue;
                     count++;
                   }
                 }
                 if (count > 0) {
                   const finalValue = (aggregation || 'avg') === 'avg' ? totalValue / count : totalValue;
-                  allResults.push({
-                    name: term,
-                    value: Math.round(finalValue * 100) / 100
-                  });
+                  allResults.push({ name: term, value: Math.round(finalValue * 100) / 100 });
                   console.log(`[DashboardWidgetCard] ${term}: ${finalValue.toFixed(2)}`);
                 }
               }

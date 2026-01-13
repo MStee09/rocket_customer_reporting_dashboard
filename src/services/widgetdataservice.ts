@@ -12,14 +12,21 @@ export interface WidgetExecutionResult {
   executedAt: string;
 }
 
-async function loadVisualBuilderWidget(widgetId: string, customerId?: number): Promise<any | null> {
+interface LoadedWidget {
+  widget: any;
+  ownerCustomerId?: number;
+}
+
+async function loadVisualBuilderWidget(widgetId: string, customerId?: number): Promise<LoadedWidget | null> {
   if (customerId) {
     const { data, error } = await supabase.storage
       .from('custom-widgets')
       .download(`customer/${customerId}/${widgetId}.json`);
 
     if (!error && data) {
-      return JSON.parse(await data.text());
+      const widget = JSON.parse(await data.text());
+      console.log('[widgetdataservice] Widget found at customer path:', customerId);
+      return { widget, ownerCustomerId: customerId };
     }
   }
 
@@ -28,7 +35,9 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
     .download(`admin/${widgetId}.json`);
 
   if (!adminError && adminData) {
-    return JSON.parse(await adminData.text());
+    const widget = JSON.parse(await adminData.text());
+    console.log('[widgetdataservice] Widget found in admin folder');
+    return { widget, ownerCustomerId: undefined };
   }
 
   const { data: systemData, error: systemError } = await supabase.storage
@@ -36,9 +45,37 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
     .download(`system/${widgetId}.json`);
 
   if (!systemError && systemData) {
-    return JSON.parse(await systemData.text());
+    const widget = JSON.parse(await systemData.text());
+    console.log('[widgetdataservice] Widget found in system folder');
+    return { widget, ownerCustomerId: undefined };
   }
 
+  console.log('[widgetdataservice] Widget not found at provided paths, searching all customer folders for:', widgetId);
+
+  const { data: customerFolders, error: listError } = await supabase.storage
+    .from('custom-widgets')
+    .list('customer');
+
+  if (!listError && customerFolders) {
+    for (const folder of customerFolders) {
+      if (folder.name) {
+        const folderCustomerId = parseInt(folder.name, 10);
+        if (!isNaN(folderCustomerId)) {
+          const { data: widgetData, error: widgetError } = await supabase.storage
+            .from('custom-widgets')
+            .download(`customer/${folderCustomerId}/${widgetId}.json`);
+
+          if (!widgetError && widgetData) {
+            const widget = JSON.parse(await widgetData.text());
+            console.log('[widgetdataservice] Widget found in customer folder:', folderCustomerId);
+            return { widget, ownerCustomerId: folderCustomerId };
+          }
+        }
+      }
+    }
+  }
+
+  console.log('[widgetdataservice] Widget not found in any location');
   return null;
 }
 
@@ -847,20 +884,30 @@ export async function executeWidget(
   params: ReportExecutionParams,
   customerId: string
 ): Promise<WidgetExecutionResult> {
-  console.log('[widgetdataservice] executeWidget called', { widgetId, customerId, params });
+  console.log('[widgetdataservice] executeWidget called widgetId:', widgetId);
+  console.log('[widgetdataservice] executeWidget customerId:', customerId);
+  console.log('[widgetdataservice] executeWidget params.dateRange:', params.dateRange);
 
   const dateRange = params.dateRange || getDefaultDateRange();
   const customerIdNum = customerId ? Number(customerId) : undefined;
+
+  console.log('[widgetdataservice] Using dateRange:', dateRange.start, 'to', dateRange.end);
+  console.log('[widgetdataservice] Using customerIdNum:', customerIdNum);
 
   const widgetDef = getWidgetById(widgetId);
 
   if (!widgetDef) {
     console.log('[widgetdataservice] Widget not in registry, checking for Visual Builder widget:', widgetId);
 
-    const customWidget = await loadVisualBuilderWidget(widgetId, customerIdNum);
+    const loadedWidgetResult = await loadVisualBuilderWidget(widgetId, customerIdNum);
 
-    if (customWidget && customWidget.dataSource?.groupByColumn) {
+    if (loadedWidgetResult && loadedWidgetResult.widget?.dataSource?.groupByColumn) {
+      const customWidget = loadedWidgetResult.widget;
+      const effectiveCustomerIdNum = loadedWidgetResult.ownerCustomerId || customerIdNum;
+
       console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
+      console.log('[widgetdataservice] Widget owner customer ID:', loadedWidgetResult.ownerCustomerId);
+      console.log('[widgetdataservice] Effective customer ID for query:', effectiveCustomerIdNum);
       console.log('[widgetdataservice] Widget dataSource:', JSON.stringify(customWidget.dataSource, null, 2));
 
       const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn, secondaryGroupBy } = customWidget.dataSource;
@@ -887,14 +934,18 @@ export async function executeWidget(
         let detailRows: Record<string, unknown>[] = [];
 
         if (isProductQuery) {
+          console.log('[widgetdataservice] Multi-dim querying shipment table with:');
+          console.log('[widgetdataservice]   - customer_id:', effectiveCustomerIdNum);
+          console.log('[widgetdataservice]   - date range:', dateRange.start, 'to', dateRange.end);
+
           let shipmentQuery = supabase
             .from('shipment')
             .select('load_id')
             .gte('pickup_date', dateRange.start)
             .lte('pickup_date', dateRange.end);
 
-          if (customerIdNum) {
-            shipmentQuery = shipmentQuery.eq('customer_id', customerIdNum);
+          if (effectiveCustomerIdNum) {
+            shipmentQuery = shipmentQuery.eq('customer_id', effectiveCustomerIdNum);
           }
 
           const { data: validShipments, error: shipmentError } = await shipmentQuery.limit(1000);
@@ -972,8 +1023,8 @@ export async function executeWidget(
             .lte('pickup_date', dateRange.end)
             .limit(500);
 
-          if (customerIdNum) {
-            detailQuery = detailQuery.eq('customer_id', customerIdNum);
+          if (effectiveCustomerIdNum) {
+            detailQuery = detailQuery.eq('customer_id', effectiveCustomerIdNum);
           }
 
           const { data } = await detailQuery;

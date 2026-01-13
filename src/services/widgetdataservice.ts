@@ -887,24 +887,50 @@ export async function executeWidget(
         let detailRows: Record<string, unknown>[] = [];
 
         if (isProductQuery) {
-          const { data: itemData, error: itemError } = await supabase
-            .rpc('get_shipment_items_with_dates', {
-              p_customer_id: customerIdNum || 0,
-              p_start_date: dateRange.start,
-              p_end_date: dateRange.end,
-              p_search_terms: searchTerms,
-              p_limit: 500
-            });
+          let shipmentQuery = supabase
+            .from('shipment')
+            .select('load_id')
+            .gte('pickup_date', dateRange.start)
+            .lte('pickup_date', dateRange.end);
 
-          if (itemError) {
-            console.error('[widgetdataservice] Multi-dim detail query error:', itemError);
-            const { data: fallbackData } = await supabase
+          if (customerIdNum) {
+            shipmentQuery = shipmentQuery.eq('customer_id', customerIdNum);
+          }
+
+          const { data: validShipments, error: shipmentError } = await shipmentQuery.limit(1000);
+
+          if (shipmentError) {
+            console.error('[widgetdataservice] Error fetching valid shipments:', shipmentError);
+          }
+
+          const validLoadIds = (validShipments || []).map(s => s.load_id);
+          console.log('[widgetdataservice] Multi-dim found', validLoadIds.length, 'valid shipments for customer in date range');
+
+          if (validLoadIds.length === 0) {
+            console.log('[widgetdataservice] No shipments found for customer in date range');
+            detailRows = [];
+          } else {
+            const searchTermsFilter = searchTerms.map(term => `description.ilike.%${term}%`).join(',');
+
+            console.log('[widgetdataservice] Multi-dim fetching shipment_item with searchTerms filter:', searchTermsFilter);
+            console.log('[widgetdataservice] Multi-dim validLoadIds count:', validLoadIds.length);
+
+            const { data: itemData, error: itemError } = await supabase
               .from('shipment_item')
               .select('load_id, description, quantity, weight, retail, cost')
+              .in('load_id', validLoadIds)
+              .or(searchTermsFilter)
               .limit(500);
-            detailRows = fallbackData || [];
-          } else {
-            detailRows = itemData || [];
+
+            console.log('[widgetdataservice] Multi-dim query result:', itemData?.length || 0, 'rows, error:', itemError);
+
+            if (itemError) {
+              console.error('[widgetdataservice] Multi-dim detail query error:', itemError);
+              detailRows = [];
+            } else {
+              detailRows = itemData || [];
+              console.log('[widgetdataservice] Multi-dim fetched', detailRows.length, 'shipment_item rows');
+            }
           }
 
           if (actualSecondaryGroupBy === 'origin_state' || actualSecondaryGroupBy === 'destination_state') {

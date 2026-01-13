@@ -169,83 +169,94 @@ export function DashboardWidgetCard({
 
           if (isMultiDim && secondaryGroupBy && aiConfig?.searchTerms && aiConfig.searchTerms.length > 0) {
             console.log('[DashboardWidgetCard] Multi-dimension query - grouping by', groupByField, 'and', secondaryGroupBy);
+            console.log('[DashboardWidgetCard] Search terms:', aiConfig.searchTerms);
 
-            const allRawData: Array<{ primary_group: string; secondary_group: string; value: number; count: number }> = [];
+            try {
+              const allRawData: Array<{ primary_group: string; secondary_group: string; value: number; count: number }> = [];
 
-            for (const term of aiConfig.searchTerms) {
-              const termFilters: Array<{ field: string; operator: string; value: string }> = [
-                { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-                { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-                { field: 'description', operator: 'ilike', value: term }
-              ];
+              for (const term of aiConfig.searchTerms) {
+                console.log(`[DashboardWidgetCard] Multi-dim querying: "${term}"`);
+                const termFilters: Array<{ field: string; operator: string; value: string }> = [
+                  { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+                  { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+                  { field: 'description', operator: 'ilike', value: term }
+                ];
 
-              const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
-                p_table_name: tableName,
-                p_customer_id: customerId ? parseInt(customerId) : 0,
-                p_is_admin: isAdmin(),
-                p_group_by: `${groupByField},${secondaryGroupBy}`,
-                p_metric: metricColumn,
-                p_aggregation: aggregation || 'avg',
-                p_filters: termFilters,
-                p_limit: 100,
-              });
-
-              if (termError) {
-                console.error(`[DashboardWidgetCard] Multi-dim error for "${term}":`, termError);
-                continue;
-              }
-
-              const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
-              const rows = parsed?.data || [];
-
-              const categoryStates = new Map<string, { total: number; count: number }>();
-              for (const row of rows) {
-                const state = row.secondary_group || 'Unknown';
-                if (!categoryStates.has(state)) {
-                  categoryStates.set(state, { total: 0, count: 0 });
-                }
-                const stateData = categoryStates.get(state)!;
-                if ((aggregation || 'avg') === 'avg') {
-                  stateData.total += row.value * (row.count || 1);
-                  stateData.count += (row.count || 1);
-                } else {
-                  stateData.total += row.value;
-                  stateData.count += (row.count || 1);
-                }
-              }
-
-              for (const [state, data] of categoryStates) {
-                const value = (aggregation || 'avg') === 'avg' && data.count > 0
-                  ? data.total / data.count
-                  : data.total;
-                allRawData.push({
-                  primary_group: term,
-                  secondary_group: state,
-                  value: Math.round(value * 100) / 100,
-                  count: data.count
+                const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
+                  p_table_name: tableName,
+                  p_customer_id: customerId ? parseInt(customerId) : 0,
+                  p_is_admin: isAdmin(),
+                  p_group_by: `${groupByField},${secondaryGroupBy}`,
+                  p_metric: metricColumn,
+                  p_aggregation: aggregation || 'avg',
+                  p_filters: termFilters,
+                  p_limit: 100,
                 });
+
+                console.log(`[DashboardWidgetCard] Multi-dim "${term}" response:`, { termResult, termError });
+
+                if (termError) {
+                  console.error(`[DashboardWidgetCard] Multi-dim error for "${term}":`, termError);
+                  continue;
+                }
+
+                const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
+                const rows = parsed?.data || [];
+                console.log(`[DashboardWidgetCard] Multi-dim "${term}" parsed rows:`, rows.length);
+
+                const categoryStates = new Map<string, { total: number; count: number }>();
+                for (const row of rows) {
+                  const state = row.secondary_group || 'Unknown';
+                  if (!categoryStates.has(state)) {
+                    categoryStates.set(state, { total: 0, count: 0 });
+                  }
+                  const stateData = categoryStates.get(state)!;
+                  if ((aggregation || 'avg') === 'avg') {
+                    stateData.total += row.value * (row.count || 1);
+                    stateData.count += (row.count || 1);
+                  } else {
+                    stateData.total += row.value;
+                    stateData.count += (row.count || 1);
+                  }
+                }
+
+                for (const [state, data] of categoryStates) {
+                  const value = (aggregation || 'avg') === 'avg' && data.count > 0
+                    ? data.total / data.count
+                    : data.total;
+                  allRawData.push({
+                    primary_group: term,
+                    secondary_group: state,
+                    value: Math.round(value * 100) / 100,
+                    count: data.count
+                  });
+                }
               }
-            }
 
-            const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
-            const groupedMap = new Map<string, Record<string, number | string>>();
+              const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
+              const groupedMap = new Map<string, Record<string, number | string>>();
 
-            for (const row of allRawData) {
-              if (!groupedMap.has(row.primary_group)) {
-                groupedMap.set(row.primary_group, { name: row.primary_group });
+              for (const row of allRawData) {
+                if (!groupedMap.has(row.primary_group)) {
+                  groupedMap.set(row.primary_group, { name: row.primary_group });
+                }
+                groupedMap.get(row.primary_group)![row.secondary_group] = row.value;
               }
-              groupedMap.get(row.primary_group)![row.secondary_group] = row.value;
+
+              const chartData = Array.from(groupedMap.values());
+              console.log('[DashboardWidgetCard] Multi-dim result:', chartData.length, 'categories,', secondaryGroups.length, 'states');
+              console.log('[DashboardWidgetCard] Multi-dim chartData:', chartData);
+
+              return {
+                data: chartData,
+                type: 'grouped_bar',
+                secondaryGroups,
+                isMultiDimension: true
+              };
+            } catch (err) {
+              console.error('[DashboardWidgetCard] Multi-dim block exception:', err);
+              throw err;
             }
-
-            const chartData = Array.from(groupedMap.values());
-            console.log('[DashboardWidgetCard] Multi-dim result:', chartData.length, 'categories,', secondaryGroups.length, 'states');
-
-            return {
-              data: chartData,
-              type: 'grouped_bar',
-              secondaryGroups,
-              isMultiDimension: true
-            };
           }
 
           const hasMultipleSearchTerms = aiConfig?.searchTerms && aiConfig.searchTerms.length > 1;

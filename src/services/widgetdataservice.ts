@@ -861,8 +861,14 @@ export async function executeWidget(
 
     if (customWidget && customWidget.dataSource?.groupByColumn) {
       console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
+      console.log('[widgetdataservice] Widget dataSource:', JSON.stringify(customWidget.dataSource, null, 2));
 
       const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn } = customWidget.dataSource;
+
+      console.log('[widgetdataservice] groupByColumn:', groupByColumn);
+      console.log('[widgetdataservice] secondaryGroupByColumn:', secondaryGroupByColumn);
+      console.log('[widgetdataservice] aiConfig:', JSON.stringify(aiConfig));
+      console.log('[widgetdataservice] searchTerms:', aiConfig?.searchTerms);
 
       const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
       const tableName = isProductQuery ? 'shipment_item' : 'shipment';
@@ -870,6 +876,8 @@ export async function executeWidget(
 
       const searchTerms = aiConfig?.searchTerms || [];
       const isMultiDimension = secondaryGroupByColumn && searchTerms.length > 0;
+
+      console.log('[widgetdataservice] isMultiDimension:', isMultiDimension, 'searchTerms.length:', searchTerms.length);
 
       if (isMultiDimension) {
         console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', secondaryGroupByColumn);

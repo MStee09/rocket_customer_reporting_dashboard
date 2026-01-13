@@ -238,7 +238,7 @@ export function DashboardWidgetCard({
 
               for (const row of allRawData) {
                 if (!groupedMap.has(row.primary_group)) {
-                  groupedMap.set(row.primary_group, { name: row.primary_group });
+                  groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
                 }
                 groupedMap.get(row.primary_group)![row.secondary_group] = row.value;
               }
@@ -723,13 +723,13 @@ export function DashboardWidgetCard({
           );
         }
         const groupedBarColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-        const secondaryKeys = data.secondaryGroups || Object.keys(data.data[0]).filter(k => k !== 'name');
+        const secondaryKeys = data.secondaryGroups || Object.keys(data.data[0]).filter(k => k !== 'primaryGroup');
         return (
           <div className="w-full" style={{ height: `${280 * scaleFactor}px` }}>
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={data.data} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12 * scaleFactor} />
+                <XAxis dataKey="primaryGroup" stroke="#64748b" fontSize={12 * scaleFactor} />
                 <YAxis stroke="#64748b" fontSize={12 * scaleFactor} tickFormatter={(v) => `$${v}`} />
                 <Tooltip
                   contentStyle={{

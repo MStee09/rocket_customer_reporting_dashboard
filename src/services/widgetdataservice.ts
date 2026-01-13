@@ -884,7 +884,7 @@ export async function executeWidget(
       if (isMultiDimension) {
         console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', actualSecondaryGroupBy);
 
-        const allRawData: Array<{
+        const allChartData: Array<{
           primary_group: string;
           secondary_group: string;
           value: number;
@@ -931,15 +931,15 @@ export async function executeWidget(
           }
 
           const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
-          const rows = parsed?.data || parsed || [];
+          const chartRows = parsed?.data || parsed || [];
 
-          for (const row of rows) {
+          for (const row of chartRows) {
             const state = row[actualSecondaryGroupBy] || row.secondary_group;
             const total = parseFloat(row.total || row.value || 0);
             const count = parseInt(row.count || 1, 10);
 
             if (state) {
-              allRawData.push({
+              allChartData.push({
                 primary_group: term,
                 secondary_group: state,
                 value: aggregation === 'avg' && count > 0 ? Math.round((total / count) * 100) / 100 : total,
@@ -949,19 +949,125 @@ export async function executeWidget(
           }
         }
 
-        const rows = allRawData.map(d => ({
-          product: d.primary_group,
-          [actualSecondaryGroupBy]: d.secondary_group,
-          [metricColumn]: d.value,
-          count: d.count
-        }));
+        let detailRows: Record<string, unknown>[] = [];
 
-        const columns = [
-          { key: 'product', label: 'Product', type: 'string' as const },
-          { key: actualSecondaryGroupBy, label: actualSecondaryGroupBy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
-          { key: metricColumn, label: metricColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'currency' as const },
-          { key: 'count', label: 'Count', type: 'number' as const },
-        ];
+        if (isProductQuery) {
+          const { data: itemData, error: itemError } = await supabase
+            .rpc('get_shipment_items_with_dates', {
+              p_customer_id: customerIdNum || 0,
+              p_start_date: dateRange.start,
+              p_end_date: dateRange.end,
+              p_search_terms: searchTerms,
+              p_limit: 500
+            });
+
+          if (itemError) {
+            console.error('[widgetdataservice] Multi-dim detail query error:', itemError);
+            const { data: fallbackData } = await supabase
+              .from('shipment_item')
+              .select('load_id, description, quantity, weight, retail, cost')
+              .limit(500);
+            detailRows = fallbackData || [];
+          } else {
+            detailRows = itemData || [];
+          }
+
+          if (actualSecondaryGroupBy === 'origin_state' || actualSecondaryGroupBy === 'destination_state') {
+            const loadIds = [...new Set((detailRows || []).map((r: Record<string, unknown>) => r.load_id as string))];
+
+            if (loadIds.length > 0) {
+              const { data: addresses } = await supabase
+                .from('shipment_address')
+                .select('load_id, city, state, address_type')
+                .in('load_id', loadIds);
+
+              const addressMap = new Map<string, { origin_state?: string; destination_state?: string }>();
+              for (const addr of addresses || []) {
+                if (!addressMap.has(addr.load_id)) {
+                  addressMap.set(addr.load_id, {});
+                }
+                if (addr.address_type === 'origin') {
+                  addressMap.get(addr.load_id)!.origin_state = addr.state;
+                } else if (addr.address_type === 'destination') {
+                  addressMap.get(addr.load_id)!.destination_state = addr.state;
+                }
+              }
+
+              detailRows = (detailRows || []).map((row: Record<string, unknown>) => {
+                const addrs = addressMap.get(row.load_id as string) || {};
+                return {
+                  ...row,
+                  origin_state: addrs.origin_state || '',
+                  destination_state: addrs.destination_state || ''
+                };
+              });
+            }
+          }
+        } else {
+          let detailQuery = supabase
+            .from('shipment')
+            .select('load_id, reference_number, pickup_date, delivery_date, retail, cost')
+            .gte('pickup_date', dateRange.start)
+            .lte('pickup_date', dateRange.end)
+            .limit(500);
+
+          if (customerIdNum) {
+            detailQuery = detailQuery.eq('customer_id', customerIdNum);
+          }
+
+          const { data } = await detailQuery;
+          detailRows = data || [];
+
+          if (actualSecondaryGroupBy === 'origin_state' || actualSecondaryGroupBy === 'destination_state') {
+            const loadIds = (detailRows || []).map((r: Record<string, unknown>) => r.load_id as string);
+
+            if (loadIds.length > 0) {
+              const { data: addresses } = await supabase
+                .from('shipment_address')
+                .select('load_id, city, state, address_type')
+                .in('load_id', loadIds);
+
+              const addressMap = new Map<string, { origin_state?: string; destination_state?: string }>();
+              for (const addr of addresses || []) {
+                if (!addressMap.has(addr.load_id)) {
+                  addressMap.set(addr.load_id, {});
+                }
+                if (addr.address_type === 'origin') {
+                  addressMap.get(addr.load_id)!.origin_state = addr.state;
+                } else if (addr.address_type === 'destination') {
+                  addressMap.get(addr.load_id)!.destination_state = addr.state;
+                }
+              }
+
+              detailRows = (detailRows || []).map((row: Record<string, unknown>) => {
+                const addrs = addressMap.get(row.load_id as string) || {};
+                return {
+                  ...row,
+                  origin_state: addrs.origin_state || '',
+                  destination_state: addrs.destination_state || ''
+                };
+              });
+            }
+          }
+        }
+
+        const columns = isProductQuery
+          ? [
+              { key: 'load_id', label: 'Load ID', type: 'string' as const },
+              { key: 'description', label: 'Product', type: 'string' as const },
+              { key: actualSecondaryGroupBy, label: actualSecondaryGroupBy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
+              { key: metricColumn, label: metricColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'currency' as const },
+              { key: 'quantity', label: 'Quantity', type: 'number' as const },
+            ]
+          : [
+              { key: 'load_id', label: 'Load ID', type: 'string' as const },
+              { key: 'reference_number', label: 'Reference', type: 'string' as const },
+              { key: actualSecondaryGroupBy, label: actualSecondaryGroupBy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
+              { key: metricColumn, label: metricColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'currency' as const },
+              { key: 'pickup_date', label: 'Pickup Date', type: 'date' as const },
+            ];
+
+        const rows = detailRows;
 
         const tableData: TableData = {
           columns,
@@ -972,10 +1078,10 @@ export async function executeWidget(
           }
         };
 
-        const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
+        const secondaryGroups = [...new Set(allChartData.map(d => d.secondary_group))].filter(Boolean).sort();
         const groupedMap = new Map<string, Record<string, number | string>>();
 
-        for (const row of allRawData) {
+        for (const row of allChartData) {
           if (!groupedMap.has(row.primary_group)) {
             groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
           }
@@ -998,10 +1104,12 @@ export async function executeWidget(
         };
       }
 
-      const queryFilters: Array<{ field: string; operator: string; value: string }> = [
-        { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-        { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-      ];
+      const queryFilters: Array<{ field: string; operator: string; value: string }> = isProductQuery
+        ? []
+        : [
+            { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+            { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+          ];
 
       if (aiConfig?.searchTerms && aiConfig.searchTerms.length > 0) {
         aiConfig.searchTerms.forEach((term: string) => {

@@ -612,13 +612,15 @@ export function DashboardWidgetCard({
         );
       }
 
+      const effectiveType = data.type === 'grouped_bar' ? 'grouped_bar' : widgetType;
+
       return (
         <WidgetRenderer
-          type={widgetType}
+          type={effectiveType}
           data={data.data}
           valuePrefix={isCurrency ? '$' : ''}
           height={240 * scaleFactor}
-          showLegend={widgetType === 'pie' || widgetType === 'pie_chart' || widgetType === 'grouped_bar'}
+          showLegend={effectiveType === 'pie' || effectiveType === 'pie_chart' || effectiveType === 'grouped_bar'}
           loading={false}
           secondaryGroups={data.secondaryGroups}
         />

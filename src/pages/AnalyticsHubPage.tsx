@@ -162,10 +162,16 @@ export function AnalyticsHubPage() {
   }, [dateRange]);
 
   const filteredWidgets = useMemo(() => {
-    if (!searchQuery.trim()) return localLayout;
+    const validWidgets = localLayout.filter(widgetId => {
+      if (widgetLibrary[widgetId]) return true;
+      if (customWidgets[widgetId]) return true;
+      return false;
+    });
+
+    if (!searchQuery.trim()) return validWidgets;
 
     const query = searchQuery.toLowerCase();
-    return localLayout.filter(widgetId => {
+    return validWidgets.filter(widgetId => {
       const widget = widgetLibrary[widgetId] || customWidgets[widgetId];
       if (!widget) return false;
 

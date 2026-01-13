@@ -934,87 +934,57 @@ export async function executeWidget(
         let detailRows: Record<string, unknown>[] = [];
 
         if (isProductQuery) {
-          console.log('[widgetdataservice] Multi-dim querying shipment table with:');
+          console.log('[widgetdataservice] Multi-dim product query using mcp_aggregate');
           console.log('[widgetdataservice]   - customer_id:', effectiveCustomerIdNum);
           console.log('[widgetdataservice]   - date range:', dateRange.start, 'to', dateRange.end);
+          console.log('[widgetdataservice]   - search terms:', searchTerms);
 
-          let shipmentQuery = supabase
-            .from('shipment')
-            .select('load_id')
-            .gte('pickup_date', dateRange.start)
-            .lte('pickup_date', dateRange.end);
+          const allItemData: Record<string, unknown>[] = [];
 
-          if (effectiveCustomerIdNum) {
-            shipmentQuery = shipmentQuery.eq('customer_id', effectiveCustomerIdNum);
-          }
+          for (const term of searchTerms) {
+            const termFilters = [
+              { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+              { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+              { field: 'description', operator: 'ilike', value: term }
+            ];
 
-          const { data: validShipments, error: shipmentError } = await shipmentQuery.limit(1000);
+            console.log(`[widgetdataservice] Multi-dim querying term: "${term}"`);
 
-          if (shipmentError) {
-            console.error('[widgetdataservice] Error fetching valid shipments:', shipmentError);
-          }
+            const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
+              p_table_name: tableName,
+              p_customer_id: effectiveCustomerIdNum || 0,
+              p_is_admin: false,
+              p_group_by: `${groupByField},${actualSecondaryGroupBy}`,
+              p_metric: metricColumn,
+              p_aggregation: aggregation || 'avg',
+              p_filters: termFilters,
+              p_limit: 100,
+            });
 
-          const validLoadIds = (validShipments || []).map(s => s.load_id);
-          console.log('[widgetdataservice] Multi-dim found', validLoadIds.length, 'valid shipments for customer in date range');
-
-          if (validLoadIds.length === 0) {
-            console.log('[widgetdataservice] No shipments found for customer in date range');
-            detailRows = [];
-          } else {
-            const searchTermsFilter = searchTerms.map(term => `description.ilike.%${term}%`).join(',');
-
-            console.log('[widgetdataservice] Multi-dim fetching shipment_item with searchTerms filter:', searchTermsFilter);
-            console.log('[widgetdataservice] Multi-dim validLoadIds count:', validLoadIds.length);
-
-            const { data: itemData, error: itemError } = await supabase
-              .from('shipment_item')
-              .select('load_id, description, quantity, weight, retail, cost')
-              .in('load_id', validLoadIds)
-              .or(searchTermsFilter)
-              .limit(500);
-
-            console.log('[widgetdataservice] Multi-dim query result:', itemData?.length || 0, 'rows, error:', itemError);
-
-            if (itemError) {
-              console.error('[widgetdataservice] Multi-dim detail query error:', itemError);
-              detailRows = [];
-            } else {
-              detailRows = itemData || [];
-              console.log('[widgetdataservice] Multi-dim fetched', detailRows.length, 'shipment_item rows');
+            if (termError) {
+              console.error(`[widgetdataservice] Multi-dim mcp_aggregate error for "${term}":`, termError);
+              continue;
             }
-          }
 
-          if (actualSecondaryGroupBy === 'origin_state' || actualSecondaryGroupBy === 'destination_state') {
-            const loadIds = [...new Set((detailRows || []).map((r: Record<string, unknown>) => r.load_id as string))];
+            const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
+            const rows = parsed?.data || [];
+            console.log(`[widgetdataservice] Multi-dim "${term}" returned ${rows.length} aggregated rows`);
 
-            if (loadIds.length > 0) {
-              const { data: addresses } = await supabase
-                .from('shipment_address')
-                .select('load_id, city, state, address_type')
-                .in('load_id', loadIds);
-
-              const addressMap = new Map<string, { origin_state?: string; destination_state?: string }>();
-              for (const addr of addresses || []) {
-                if (!addressMap.has(addr.load_id)) {
-                  addressMap.set(addr.load_id, {});
-                }
-                if (addr.address_type === 'origin') {
-                  addressMap.get(addr.load_id)!.origin_state = addr.state;
-                } else if (addr.address_type === 'destination') {
-                  addressMap.get(addr.load_id)!.destination_state = addr.state;
-                }
-              }
-
-              detailRows = (detailRows || []).map((row: Record<string, unknown>) => {
-                const addrs = addressMap.get(row.load_id as string) || {};
-                return {
-                  ...row,
-                  origin_state: addrs.origin_state || '',
-                  destination_state: addrs.destination_state || ''
-                };
+            for (const row of rows) {
+              allItemData.push({
+                load_id: `aggregated_${term}`,
+                description: term,
+                [actualSecondaryGroupBy]: row.secondary_group || row[actualSecondaryGroupBy] || '',
+                [metricColumn]: row.value,
+                quantity: row.count || 1,
+                origin_state: row.secondary_group || '',
+                destination_state: row.secondary_group || '',
               });
             }
           }
+
+          detailRows = allItemData;
+          console.log('[widgetdataservice] Multi-dim total aggregated rows:', detailRows.length);
         } else {
           let detailQuery = supabase
             .from('shipment')

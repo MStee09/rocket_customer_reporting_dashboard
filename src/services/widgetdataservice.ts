@@ -882,11 +882,15 @@ export async function executeWidget(
         }> = [];
 
         for (const term of searchTerms) {
-          const termFilters: Array<{ field: string; operator: string; value: string }> = [
-            { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-            { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-            { field: isProductQuery ? 'description' : 'item_description', operator: 'ilike', value: `%${term}%` },
-          ];
+          const termFilters: Array<{ field: string; operator: string; value: string }> = isProductQuery
+            ? [
+                { field: 'description', operator: 'ilike', value: `%${term}%` },
+              ]
+            : [
+                { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+                { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+                { field: 'item_description', operator: 'ilike', value: `%${term}%` },
+              ];
 
           if (savedFilters && Array.isArray(savedFilters)) {
             savedFilters.forEach((f: { field: string; operator: string; value: string }) => {

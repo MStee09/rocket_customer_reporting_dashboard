@@ -863,10 +863,12 @@ export async function executeWidget(
       console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
       console.log('[widgetdataservice] Widget dataSource:', JSON.stringify(customWidget.dataSource, null, 2));
 
-      const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn } = customWidget.dataSource;
+      const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn, secondaryGroupBy } = customWidget.dataSource;
+
+      const actualSecondaryGroupBy = secondaryGroupByColumn || secondaryGroupBy;
 
       console.log('[widgetdataservice] groupByColumn:', groupByColumn);
-      console.log('[widgetdataservice] secondaryGroupByColumn:', secondaryGroupByColumn);
+      console.log('[widgetdataservice] secondaryGroupBy (actual):', actualSecondaryGroupBy);
       console.log('[widgetdataservice] aiConfig:', JSON.stringify(aiConfig));
       console.log('[widgetdataservice] searchTerms:', aiConfig?.searchTerms);
 
@@ -875,12 +877,12 @@ export async function executeWidget(
       const groupByField = isProductQuery ? 'description' : groupByColumn;
 
       const searchTerms = aiConfig?.searchTerms || [];
-      const isMultiDimension = secondaryGroupByColumn && searchTerms.length > 0;
+      const isMultiDimension = actualSecondaryGroupBy && searchTerms.length > 0;
 
       console.log('[widgetdataservice] isMultiDimension:', isMultiDimension, 'searchTerms.length:', searchTerms.length);
 
       if (isMultiDimension) {
-        console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', secondaryGroupByColumn);
+        console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', actualSecondaryGroupBy);
 
         const allRawData: Array<{
           primary_group: string;
@@ -916,7 +918,7 @@ export async function executeWidget(
             p_table_name: tableName,
             p_customer_id: customerIdNum || 0,
             p_is_admin: false,
-            p_group_by: `${groupByField},${secondaryGroupByColumn}`,
+            p_group_by: `${groupByField},${actualSecondaryGroupBy}`,
             p_metric: metricColumn,
             p_aggregation: aggregation || 'avg',
             p_filters: termFilters,
@@ -932,7 +934,7 @@ export async function executeWidget(
           const rows = parsed?.data || parsed || [];
 
           for (const row of rows) {
-            const state = row[secondaryGroupByColumn] || row.secondary_group;
+            const state = row[actualSecondaryGroupBy] || row.secondary_group;
             const total = parseFloat(row.total || row.value || 0);
             const count = parseInt(row.count || 1, 10);
 
@@ -949,14 +951,14 @@ export async function executeWidget(
 
         const rows = allRawData.map(d => ({
           product: d.primary_group,
-          [secondaryGroupByColumn]: d.secondary_group,
+          [actualSecondaryGroupBy]: d.secondary_group,
           [metricColumn]: d.value,
           count: d.count
         }));
 
         const columns = [
           { key: 'product', label: 'Product', type: 'string' as const },
-          { key: secondaryGroupByColumn, label: secondaryGroupByColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
+          { key: actualSecondaryGroupBy, label: actualSecondaryGroupBy.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
           { key: metricColumn, label: metricColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'currency' as const },
           { key: 'count', label: 'Count', type: 'number' as const },
         ];

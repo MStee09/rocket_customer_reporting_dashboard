@@ -862,11 +862,127 @@ export async function executeWidget(
     if (customWidget && customWidget.dataSource?.groupByColumn) {
       console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
 
-      const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig } = customWidget.dataSource;
+      const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn } = customWidget.dataSource;
 
       const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
       const tableName = isProductQuery ? 'shipment_item' : 'shipment';
       const groupByField = isProductQuery ? 'description' : groupByColumn;
+
+      const searchTerms = aiConfig?.searchTerms || [];
+      const isMultiDimension = secondaryGroupByColumn && searchTerms.length > 0;
+
+      if (isMultiDimension) {
+        console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', secondaryGroupByColumn);
+
+        const allRawData: Array<{
+          primary_group: string;
+          secondary_group: string;
+          value: number;
+          count: number;
+        }> = [];
+
+        for (const term of searchTerms) {
+          const termFilters: Array<{ field: string; operator: string; value: string }> = [
+            { field: 'pickup_date', operator: 'gte', value: dateRange.start },
+            { field: 'pickup_date', operator: 'lte', value: dateRange.end },
+            { field: isProductQuery ? 'description' : 'item_description', operator: 'ilike', value: `%${term}%` },
+          ];
+
+          if (savedFilters && Array.isArray(savedFilters)) {
+            savedFilters.forEach((f: { field: string; operator: string; value: string }) => {
+              if (f.value) {
+                termFilters.push({
+                  field: f.field === 'item_description' ? 'description' : f.field,
+                  operator: f.operator === 'contains' ? 'ilike' : f.operator,
+                  value: f.operator === 'contains' ? `%${f.value}%` : f.value,
+                });
+              }
+            });
+          }
+
+          const { data: termResult, error: termError } = await supabase.rpc('mcp_aggregate', {
+            p_table_name: tableName,
+            p_customer_id: customerIdNum || 0,
+            p_is_admin: false,
+            p_group_by: `${groupByField},${secondaryGroupByColumn}`,
+            p_metric: metricColumn,
+            p_aggregation: aggregation || 'avg',
+            p_filters: termFilters,
+            p_limit: 100,
+          });
+
+          if (termError) {
+            console.error('[widgetdataservice] Multi-dim term query error:', termError);
+            continue;
+          }
+
+          const parsed = typeof termResult === 'string' ? JSON.parse(termResult) : termResult;
+          const rows = parsed?.data || parsed || [];
+
+          for (const row of rows) {
+            const state = row[secondaryGroupByColumn] || row.secondary_group;
+            const total = parseFloat(row.total || row.value || 0);
+            const count = parseInt(row.count || 1, 10);
+
+            if (state) {
+              allRawData.push({
+                primary_group: term,
+                secondary_group: state,
+                value: aggregation === 'avg' && count > 0 ? Math.round((total / count) * 100) / 100 : total,
+                count
+              });
+            }
+          }
+        }
+
+        const rows = allRawData.map(d => ({
+          product: d.primary_group,
+          [secondaryGroupByColumn]: d.secondary_group,
+          [metricColumn]: d.value,
+          count: d.count
+        }));
+
+        const columns = [
+          { key: 'product', label: 'Product', type: 'string' as const },
+          { key: secondaryGroupByColumn, label: secondaryGroupByColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'string' as const },
+          { key: metricColumn, label: metricColumn.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()), type: 'currency' as const },
+          { key: 'count', label: 'Count', type: 'number' as const },
+        ];
+
+        const tableData: TableData = {
+          columns,
+          rows,
+          metadata: {
+            rowCount: rows.length,
+            generatedAt: new Date().toISOString(),
+          }
+        };
+
+        const secondaryGroups = [...new Set(allRawData.map(d => d.secondary_group))].filter(Boolean).sort();
+        const groupedMap = new Map<string, Record<string, number | string>>();
+
+        for (const row of allRawData) {
+          if (!groupedMap.has(row.primary_group)) {
+            groupedMap.set(row.primary_group, { primaryGroup: row.primary_group });
+          }
+          groupedMap.get(row.primary_group)![row.secondary_group] = row.value;
+        }
+
+        const chartData = Array.from(groupedMap.values());
+
+        return {
+          widgetId,
+          widgetName: customWidget.name,
+          widgetData: {
+            type: 'grouped_bar',
+            data: chartData,
+            secondaryGroups,
+            isMultiDimension: true,
+          },
+          tableData,
+          executedAt: new Date().toISOString(),
+        };
+      }
 
       const queryFilters: Array<{ field: string; operator: string; value: string }> = [
         { field: 'pickup_date', operator: 'gte', value: dateRange.start },
@@ -916,7 +1032,6 @@ export async function executeWidget(
       let detailRows: Record<string, unknown>[] = [];
 
       if (isProductQuery) {
-        // For shipment_item, we need to join with shipment to get pickup_date
         const { data: itemData, error: itemError } = await supabase
           .rpc('get_shipment_items_with_dates', {
             p_customer_id: customerIdNum || 0,
@@ -928,7 +1043,6 @@ export async function executeWidget(
 
         if (itemError) {
           console.error('[widgetdataservice] shipment_item query error:', itemError);
-          // Fallback: try querying without date filter
           const { data: fallbackData } = await supabase
             .from('shipment_item')
             .select('load_id, description, quantity, weight, retail, cost')

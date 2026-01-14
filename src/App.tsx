@@ -194,7 +194,14 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="admin/visual-builder-v3" element={<VisualBuilderPageV3 />} />
+              <Route
+                path="admin/visual-builder-v3"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <VisualBuilderPageV3 />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="admin/visual-builder-v4"
                 element={

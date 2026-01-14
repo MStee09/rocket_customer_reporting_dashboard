@@ -247,16 +247,24 @@ function AlertBadge({ alert, onInvestigate }: { alert: Alert; onInvestigate: (qu
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-medium truncate">{alert.title}</p>
             {alert.methodology && (
-              <button
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowTooltip(!showTooltip);
                 }}
-                className="opacity-60 hover:opacity-100 transition-opacity"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                    setShowTooltip(!showTooltip);
+                  }
+                }}
+                className="opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
                 title="How was this calculated?"
               >
                 <Info className="w-3.5 h-3.5" />
-              </button>
+              </span>
             )}
           </div>
           <p className="text-xs opacity-80 truncate">{alert.description}</p>

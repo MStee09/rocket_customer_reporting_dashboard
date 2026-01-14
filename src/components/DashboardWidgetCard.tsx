@@ -419,6 +419,17 @@ export function DashboardWidgetCard({
         }
       }
 
+      console.log('[DashboardWidgetCard] Calling widget.calculate() for:', widget.id, {
+        customerId,
+        effectiveCustomerIds,
+        isAdmin: isAdmin(),
+        isViewingAsCustomer,
+        dateRange: {
+          start: dateRange.start,
+          end: dateRange.end,
+        },
+      });
+
       return widget.calculate({
         supabase,
         customerId,

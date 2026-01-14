@@ -105,18 +105,3 @@ export type {
 
 export { useWidgetQuery, executeWidgetQuery } from './hooks/useWidgetQuery';
 
-export { PublishPanelV3 } from './components/PublishPanelV3';
-export { VisualBuilderPageV3 } from './components/VisualBuilderPageV3';
-export { VisualBuilderV4 } from './components/visualbuilderv4';
-export { VisualBuilderV5 } from './components/VisualBuilderV5';
-export { VisualBuilderV5_1 } from './components/VisualBuilderV5_1';
-export { VisualBuilderV5_2 } from './components/VisualBuilderV5_2';
-export { VisualBuilderV5_3 } from './components/VisualBuilderV5_3';
-export { VisualBuilderV5_4 } from './components/VisualBuilderV5_4';
-export { VisualBuilderV5_5 } from './components/VisualBuilderV5_5';
-export { VisualBuilderV6 } from './components/VisualBuilderV6';
-export { VisualBuilderV7 } from './components/VisualBuilderV7';
-export { VisualBuilderV5Clean } from './components/VisualBuilderV5Clean';
-export { VisualBuilderV5Final } from './components/VisualBuilderV5Final';
-export { VisualBuilderV5Debug } from './components/VisualBuilderV5Debug';
-export { VisualBuilderV5Working } from './components/VisualBuilderV5Working';

@@ -127,7 +127,7 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
     const emptyKpis: { icon: typeof Package; label: string; iconBg: string; iconColor: string; metricId: MetricId }[] = [
       { icon: Package, label: 'Total Shipments', iconBg: 'bg-blue-100', iconColor: 'text-blue-600', metricId: 'total_shipments' },
       { icon: DollarSign, label: 'Total Spend', iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', metricId: 'total_spend' },
-      { icon: Clock, label: 'On-Time %', iconBg: 'bg-teal-100', iconColor: 'text-teal-600', metricId: 'on_time_percentage' },
+      { icon: DollarSign, label: 'Avg Cost/Shipment', iconBg: 'bg-amber-100', iconColor: 'text-amber-600', metricId: 'avg_cost_per_shipment' },
       { icon: Truck, label: 'Active Carriers', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-600', metricId: 'active_carriers' },
     ];
 
@@ -196,16 +196,16 @@ export function ExecutiveMetricsRow({ customerId, startDate, endDate }: Executiv
       recordCount: metrics.totalShipments,
     },
     {
-      label: 'On-Time %',
-      value: `${metrics.onTimePercentage.toFixed(1)}%`,
-      icon: Clock,
-      iconBg: 'bg-teal-100',
-      iconColor: 'text-teal-600',
-      trend: metrics.onTimeChange,
-      inverse: false,
-      statusThreshold: 90,
-      metricId: 'on_time_percentage',
+      label: 'Avg Cost/Shipment',
+      value: formatCurrency(metrics.avgCostPerShipment),
+      icon: DollarSign,
+      iconBg: 'bg-amber-100',
+      iconColor: 'text-amber-600',
+      trend: 0,
+      inverse: true,
+      metricId: 'avg_cost_per_shipment',
       recordCount: metrics.totalShipments,
+      showStable: true,
     },
     {
       label: 'Active Carriers',

@@ -8,7 +8,6 @@ import {
   ExecutiveMetricsRow,
   SpendTrendChart,
   TopCarriersCompact,
-  RecentActivityFeed,
   PulseWidgetSection,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
@@ -16,20 +15,6 @@ import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
 import type { Anomaly } from '../hooks/useAnomalies';
-
-interface ActivityItem {
-  id: string;
-  type: 'shipment' | 'delivery' | 'pickup' | 'alert';
-  title: string;
-  description: string;
-  timestamp: Date;
-  icon: 'package' | 'truck' | 'check' | 'alert';
-  metadata?: {
-    loadId?: string;
-    carrierName?: string;
-    status?: string;
-  };
-}
 
 export function PulseDashboardPage() {
   const navigate = useNavigate();
@@ -62,14 +47,6 @@ export function PulseDashboardPage() {
   const handleInvestigateAnomaly = useCallback((anomaly: Anomaly) => {
     const query = `Investigate this anomaly: ${anomaly.title}. ${anomaly.description}. Why did ${anomaly.metric} change by ${anomaly.change_percent}%?`;
     navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
-  }, [navigate]);
-
-  const handleActivityClick = useCallback((item: ActivityItem) => {
-    if (item.metadata?.loadId) {
-      navigate(`/shipments/${item.metadata.loadId}`);
-    } else if (item.type === 'alert') {
-      navigate('/ai-studio?query=' + encodeURIComponent(`Investigate alert: ${item.title}`));
-    }
   }, [navigate]);
 
   if (showAdminDashboard) {
@@ -135,14 +112,6 @@ export function PulseDashboardPage() {
                 startDate={startDate}
                 endDate={endDate}
                 isAdmin={isAdmin()}
-              />
-            )}
-
-            {customerId && (
-              <RecentActivityFeed
-                customerId={customerId.toString()}
-                maxItems={5}
-                onViewDetails={handleActivityClick}
               />
             )}
           </div>

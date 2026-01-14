@@ -179,9 +179,9 @@ export function CustomerProfileHistoryPage() {
         const customerIdNum = parseInt(customerId, 10);
 
         const { data: customerData } = await supabase
-          .from('customers')
-          .select('id, customer_name')
-          .eq('id', customerIdNum)
+          .from('customer')
+          .select('customer_id, company_name')
+          .eq('customer_id', customerIdNum)
           .maybeSingle();
 
         if (customerData) {
@@ -248,7 +248,7 @@ export function CustomerProfileHistoryPage() {
 
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
-            {customer?.customer_name || 'Customer'} - Change History
+            {customer?.company_name || 'Customer'} - Change History
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {history.length} change{history.length !== 1 ? 's' : ''} recorded

@@ -319,9 +319,9 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
 
     try {
       const { data: customerData } = await supabase
-        .from('customers')
-        .select('name')
-        .eq('id', customerId)
+        .from('customer')
+        .select('company_name')
+        .eq('customer_id', customerId)
         .single();
 
       const [insightsResult, alertsResult] = await Promise.all([
@@ -331,7 +331,7 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
             dateRange: { start: startDateStr, end: endDateStr },
             userId: user?.id,
             userEmail: user?.email,
-            customerName: customerData?.name,
+            customerName: customerData?.company_name,
           },
         }),
         detectAlerts(customerId, startDateStr, endDateStr),

@@ -123,7 +123,7 @@ export function TreemapChart({
           dataKey="value"
           aspectRatio={4 / 3}
           stroke="#fff"
-          content={(props: any) => (
+          content={(props: TreemapContentProps & { depth: number }) => (
             <TreemapContent
               {...props}
               colors={colorScale}

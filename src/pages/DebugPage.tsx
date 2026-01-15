@@ -167,9 +167,9 @@ export function DebugPage() {
       }
 
       setSeedMessage('✅ Successfully seeded DECKED report! Navigate to Custom Reports to view it.');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error seeding report:', error);
-      setSeedMessage(`❌ Error: ${error.message || 'Failed to seed report'}`);
+      setSeedMessage(`❌ Error: ${error instanceof Error ? error.message : 'Failed to seed report'}`);
     } finally {
       setSeedingReport(false);
     }

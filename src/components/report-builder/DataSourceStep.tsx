@@ -10,7 +10,7 @@ interface DataSourceStepProps {
 export function DataSourceStep({ state, updateState }: DataSourceStepProps) {
   const availableJoins = getAvailableJoins(state.primaryTable);
 
-  const addJoin = (relationship: any) => {
+  const addJoin = (relationship: { toTable: string; joinKey: string; displayLabel: string }) => {
     const newJoin: ReportJoin = {
       table: relationship.toTable,
       on: relationship.joinKey,

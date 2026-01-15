@@ -69,7 +69,7 @@ export interface WidgetData {
   value?: number | string;
   label?: string;
   trend?: { value: number; direction: 'up' | 'down' | 'flat' };
-  data?: any[];
+  data?: Record<string, unknown>[];
   columns?: TableColumn[];
   format?: 'number' | 'currency' | 'percent';
 }

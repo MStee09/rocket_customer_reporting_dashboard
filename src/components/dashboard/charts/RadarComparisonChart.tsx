@@ -92,7 +92,7 @@ export function RadarComparisonChart({
               return (
                 <div className="bg-white px-3 py-2 rounded-lg shadow-xl border border-slate-200 text-xs">
                   <div className="font-medium text-slate-800 mb-1">{label}</div>
-                  {payload.map((entry: any) => (
+                  {payload.map((entry: { name: string; value: number; color: string }) => (
                     <div key={entry.name} className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                       <span className="text-slate-600">{entry.name}:</span>

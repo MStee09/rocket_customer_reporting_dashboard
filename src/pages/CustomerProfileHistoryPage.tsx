@@ -56,7 +56,14 @@ function formatFieldName(field: string): string {
   return names[field] || field;
 }
 
-function getValueDisplay(value: any): string {
+interface ProfileValue {
+  name?: string;
+  term?: string;
+  region?: string;
+  created?: boolean;
+}
+
+function getValueDisplay(value: string | ProfileValue | null | undefined): string {
   if (!value) return '';
   if (typeof value === 'string') return value;
   if (value.name) return value.name;

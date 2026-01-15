@@ -1,7 +1,26 @@
 import { supabase } from '../lib/supabase';
 import type { AILearningNotification } from '../types/customerIntelligence';
 
-function dbToNotification(row: any): AILearningNotification {
+interface LearningNotificationRow {
+  id: string;
+  customer_id: number;
+  customer_name?: string;
+  created_at: string;
+  conversation_id?: string;
+  user_query: string;
+  unknown_term: string;
+  ai_response?: string;
+  suggested_field?: string;
+  suggested_keywords?: string[];
+  confidence: 'high' | 'medium' | 'low';
+  status: 'pending' | 'resolved' | 'dismissed';
+  resolved_by?: string;
+  resolved_at?: string;
+  resolution_type?: string;
+  resolution_notes?: string;
+}
+
+function dbToNotification(row: LearningNotificationRow): AILearningNotification {
   return {
     id: row.id,
     customerId: row.customer_id,

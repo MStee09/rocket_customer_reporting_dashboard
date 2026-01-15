@@ -121,7 +121,7 @@ export function useInvestigatorV3(options: UseInvestigatorV3Options = {}): UseIn
         throw new Error(data.error || 'Investigation failed');
       }
 
-      const reasoning: ReasoningStepV3[] = (data.reasoning || []).map((r: any) => ({
+      const reasoning: ReasoningStepV3[] = (data.reasoning || []).map((r: Omit<ReasoningStepV3, 'timestamp'>) => ({
         ...r,
         timestamp: new Date(),
       }));

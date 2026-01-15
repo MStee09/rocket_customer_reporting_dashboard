@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { X, AlertTriangle, Trash2 } from 'lucide-react';
 
+interface WidgetForDeletion {
+  name: string;
+  description?: string;
+}
+
 interface DeleteWidgetModalProps {
-  widget: any;
+  widget: WidgetForDeletion;
   onClose: () => void;
   onConfirm: () => void;
 }

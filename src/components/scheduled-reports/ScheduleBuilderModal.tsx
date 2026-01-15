@@ -22,7 +22,7 @@ interface ScheduleBuilderModalProps {
     id: string;
     name: string;
     type: 'ai_report' | 'custom_report';
-    simpleReport?: any;
+    simpleReport?: Record<string, unknown>;
   };
   existingSchedule?: ScheduledReport;
 }

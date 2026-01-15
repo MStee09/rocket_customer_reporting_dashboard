@@ -14,7 +14,7 @@ export function CalculationStep({ state, updateState }: CalculationStepProps) {
   const numericFields = allFields.filter(f => f.dataType === 'number' && f.aggregations && f.aggregations.length > 0);
 
   const handleCalculationTypeChange = (type: CalculationType) => {
-    let newCalculation: any = { type };
+    let newCalculation: ReportBuilderState['calculation'] = { type };
 
     switch (type) {
       case 'count':

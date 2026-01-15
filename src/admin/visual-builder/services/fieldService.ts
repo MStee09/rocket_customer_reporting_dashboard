@@ -128,7 +128,7 @@ export function getFieldByName(name: string): BuilderFieldDefinition | undefined
 
 interface FilterCountParams {
   dateRange: { start: string; end: string };
-  filters: Array<{ field: string; operator: string; value: any }>;
+  filters: Array<{ field: string; operator: string; value: string | number | boolean | string[] }>;
 }
 
 export async function getFilteredRowCount(params: FilterCountParams): Promise<number | null> {

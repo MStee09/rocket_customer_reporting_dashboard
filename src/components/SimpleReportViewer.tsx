@@ -66,9 +66,9 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
       const result = await executeSimpleReport(filteredConfig, customerId);
       setData(result);
       onDataLoad?.(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Error loading report data:', err);
-      setError(err.message || 'Failed to load report data');
+      setError(err instanceof Error ? err.message : 'Failed to load report data');
     } finally {
       setIsLoading(false);
     }

@@ -437,7 +437,7 @@ function TreemapViz({ viz }: { viz: Visualization }) {
           dataKey="value"
           aspectRatio={4 / 3}
           stroke="#fff"
-          content={({ x, y, width, height, name, value, depth }: any) => {
+          content={({ x, y, width, height, name, value, depth }: { x: number; y: number; width: number; height: number; name: string; value: number; depth: number }) => {
             if (width < 35 || height < 35 || name === 'root') return null;
             const color = CHART_COLORS[depth % CHART_COLORS.length];
             return (

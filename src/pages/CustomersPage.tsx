@@ -118,7 +118,7 @@ export function CustomersPage() {
 
     if (customersData) {
       const enrichedCustomers = await Promise.all(
-        customersData.map(async (customer: any) => {
+        customersData.map(async (customer: Customer) => {
           const { data: shipments } = await supabase
             .from('shipment')
             .select('retail')

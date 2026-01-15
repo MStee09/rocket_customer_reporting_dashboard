@@ -340,9 +340,17 @@ export function createDefaultBuilderSchema(): VisualBuilderSchema {
   };
 }
 
+interface ExistingWidgetConfig {
+  title?: string;
+  description?: string;
+  visualization?: VisualizationConfig;
+  executionParams?: ExecutionParams;
+  logicBlocks?: LogicBlock[];
+}
+
 export function createFromExistingWidget(widget: {
   widget_id: string;
-  config: any;
+  config: ExistingWidgetConfig;
   customer_id?: number;
 }): VisualBuilderSchema {
   const base = createDefaultBuilderSchema();

@@ -302,7 +302,7 @@ export function ReportChart({
             dataKey="value"
             aspectRatio={4 / 3}
             stroke="#fff"
-            content={({ x, y, width, height, name, value, index }: any) => (
+            content={({ x, y, width, height, name, value, index }: TreemapContentProps) => (
               <TreemapContent
                 x={x}
                 y={y}

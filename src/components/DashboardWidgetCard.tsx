@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AlertCircle, Loader2, Package, Truck, CheckCircle, DollarSign, TrendingUp, LineChart as LineChartIcon, PieChart as PieChartIcon, Map as MapIcon, Clock, Calendar, BarChart3, BarChart, Globe, Route, Navigation, Receipt, Award, Percent, Camera, RefreshCw, FileText, Table2 } from 'lucide-react';
+import { logger } from '../utils/logger';
 import { WidgetDefinition, DateRange, WidgetSizeLevel } from '../types/widgets';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -88,7 +89,7 @@ export function DashboardWidgetCard({
   const isMultiDimensionWidget = isVisualBuilderWidget && widget.dataSource?.isMultiDimension && widget.dataSource?.secondaryGroupBy;
 
   if (isCustomWidget) {
-    console.log('[DashboardWidgetCard] Custom widget check:', {
+    logger.log('[DashboardWidgetCard] Custom widget check:', {
       widgetId: widget.id,
       widgetName: widget.name,
       isCustomWidget,
@@ -151,7 +152,7 @@ export function DashboardWidgetCard({
         if (isVisualBuilderWidget) {
           const { groupByColumn, metricColumn, aggregation, filters, aiConfig, secondaryGroupBy, isMultiDimension: isMultiDim } = widget.dataSource;
 
-          console.log('[DashboardWidgetCard] Visual Builder query config:', {
+          logger.log('[DashboardWidgetCard] Visual Builder query config:', {
             groupByColumn,
             secondaryGroupBy,
             isMultiDim,
@@ -168,8 +169,8 @@ export function DashboardWidgetCard({
           const groupByField = isProductQuery ? 'description' : groupByColumn;
 
           if (isMultiDim && secondaryGroupBy && aiConfig?.searchTerms && aiConfig.searchTerms.length > 0) {
-            console.log('[DashboardWidgetCard] Multi-dimension query - using get_shipment_items_with_dates');
-            console.log('[DashboardWidgetCard] Search terms:', aiConfig.searchTerms);
+            logger.log('[DashboardWidgetCard] Multi-dimension query - using get_shipment_items_with_dates');
+            logger.log('[DashboardWidgetCard] Search terms:', aiConfig.searchTerms);
 
             try {
               const { data: itemData, error: itemError } = await supabase.rpc('get_shipment_items_with_dates', {
@@ -180,7 +181,7 @@ export function DashboardWidgetCard({
                 p_limit: 500
               });
 
-              console.log('[DashboardWidgetCard] Multi-dim RPC result:', { rowCount: itemData?.length || 0, error: itemError });
+              logger.log('[DashboardWidgetCard] Multi-dim RPC result:', { rowCount: itemData?.length || 0, error: itemError });
 
               if (itemError) {
                 console.error('[DashboardWidgetCard] Multi-dim RPC error:', itemError);
@@ -215,7 +216,7 @@ export function DashboardWidgetCard({
                     const addrs = addressMap.get(loadIdNum) || {};
                     return { ...row, origin_state: addrs.origin_state || '', destination_state: addrs.destination_state || '' };
                   });
-                  console.log('[DashboardWidgetCard] Multi-dim enriched with state data:', detailRows.length, 'rows');
+                  logger.log('[DashboardWidgetCard] Multi-dim enriched with state data:', detailRows.length, 'rows');
                 }
               }
 
@@ -252,7 +253,7 @@ export function DashboardWidgetCard({
               }
 
               const chartData = Array.from(groupedMap.values());
-              console.log('[DashboardWidgetCard] Multi-dim result:', chartData.length, 'categories,', secondaryGroups.length, 'states');
+              logger.log('[DashboardWidgetCard] Multi-dim result:', chartData.length, 'categories,', secondaryGroups.length, 'states');
 
               return { data: chartData, type: 'grouped_bar', secondaryGroups, isMultiDimension: true };
             } catch (err) {
@@ -264,7 +265,7 @@ export function DashboardWidgetCard({
           const hasMultipleSearchTerms = aiConfig?.searchTerms && aiConfig.searchTerms.length > 1;
 
           if (hasMultipleSearchTerms && isProductQuery) {
-            console.log('[DashboardWidgetCard] Multi-product query - using get_shipment_items_with_dates');
+            logger.log('[DashboardWidgetCard] Multi-product query - using get_shipment_items_with_dates');
 
             const { data: itemData, error: itemError } = await supabase.rpc('get_shipment_items_with_dates', {
               p_customer_id: customerId ? parseInt(customerId) : 0,
@@ -274,7 +275,7 @@ export function DashboardWidgetCard({
               p_limit: 500
             });
 
-            console.log('[DashboardWidgetCard] Multi-product RPC result:', { rowCount: itemData?.length || 0, error: itemError });
+            logger.log('[DashboardWidgetCard] Multi-product RPC result:', { rowCount: itemData?.length || 0, error: itemError });
 
             if (itemError) {
               console.error('[DashboardWidgetCard] Multi-product RPC error:', itemError);
@@ -286,7 +287,7 @@ export function DashboardWidgetCard({
 
             for (const term of aiConfig.searchTerms) {
               const termRows = detailRows.filter((row: any) => row.description?.toLowerCase().includes(term.toLowerCase()));
-              console.log(`[DashboardWidgetCard] "${term}" matched ${termRows.length} rows`);
+              logger.log(`[DashboardWidgetCard] "${term}" matched ${termRows.length} rows`);
 
               if (termRows.length > 0) {
                 let totalValue = 0;
@@ -301,12 +302,12 @@ export function DashboardWidgetCard({
                 if (count > 0) {
                   const finalValue = (aggregation || 'avg') === 'avg' ? totalValue / count : totalValue;
                   allResults.push({ name: term, value: Math.round(finalValue * 100) / 100 });
-                  console.log(`[DashboardWidgetCard] ${term}: ${finalValue.toFixed(2)}`);
+                  logger.log(`[DashboardWidgetCard] ${term}: ${finalValue.toFixed(2)}`);
                 }
               }
             }
 
-            console.log('[DashboardWidgetCard] Combined results:', allResults);
+            logger.log('[DashboardWidgetCard] Combined results:', allResults);
             return { data: allResults, type: 'chart', rawData: allResults };
           }
 
@@ -335,7 +336,7 @@ export function DashboardWidgetCard({
             });
           }
 
-          console.log('[DashboardWidgetCard] Query params:', {
+          logger.log('[DashboardWidgetCard] Query params:', {
             tableName,
             groupByField,
             metricColumn,
@@ -359,10 +360,10 @@ export function DashboardWidgetCard({
             throw new Error(queryError.message);
           }
 
-          console.log('[DashboardWidgetCard] Query result:', result);
-          console.log('[DashboardWidgetCard] Result type:', typeof result);
-          console.log('[DashboardWidgetCard] Result keys:', result ? Object.keys(result) : 'null');
-          console.log('[DashboardWidgetCard] Result stringified:', JSON.stringify(result).substring(0, 1000));
+          logger.log('[DashboardWidgetCard] Query result:', result);
+          logger.log('[DashboardWidgetCard] Result type:', typeof result);
+          logger.log('[DashboardWidgetCard] Result keys:', result ? Object.keys(result) : 'null');
+          logger.log('[DashboardWidgetCard] Result stringified:', JSON.stringify(result).substring(0, 1000));
 
           let rows: any[] = [];
 
@@ -370,16 +371,16 @@ export function DashboardWidgetCard({
             const parsed = JSON.parse(result);
             rows = parsed?.data || [];
           } else if (result?.data?.data && Array.isArray(result.data.data)) {
-            console.log('[DashboardWidgetCard] Found nested data.data structure');
+            logger.log('[DashboardWidgetCard] Found nested data.data structure');
             rows = result.data.data;
           } else if (result?.data && Array.isArray(result.data)) {
-            console.log('[DashboardWidgetCard] Found direct data array');
+            logger.log('[DashboardWidgetCard] Found direct data array');
             rows = result.data;
           } else if (Array.isArray(result)) {
-            console.log('[DashboardWidgetCard] Result is array');
+            logger.log('[DashboardWidgetCard] Result is array');
             rows = result;
           } else if (result && typeof result === 'object') {
-            console.log('[DashboardWidgetCard] Searching for data in object');
+            logger.log('[DashboardWidgetCard] Searching for data in object');
             const firstKey = Object.keys(result)[0];
             if (firstKey && result[firstKey]?.data) {
               rows = Array.isArray(result[firstKey].data) ? result[firstKey].data : [];
@@ -388,15 +389,15 @@ export function DashboardWidgetCard({
             }
           }
 
-          console.log('[DashboardWidgetCard] Parsed rows:', rows);
-          console.log('[DashboardWidgetCard] Rows length:', rows.length);
+          logger.log('[DashboardWidgetCard] Parsed rows:', rows);
+          logger.log('[DashboardWidgetCard] Rows length:', rows.length);
 
           const chartData = rows.map((row: any) => ({
             name: String(row.label || row.name || 'Unknown'),
             value: Number(row.value || 0),
           }));
 
-          console.log('[DashboardWidgetCard] Chart data:', chartData);
+          logger.log('[DashboardWidgetCard] Chart data:', chartData);
 
           return { data: chartData, type: 'chart', rawData: rows };
         }
@@ -419,7 +420,7 @@ export function DashboardWidgetCard({
         }
       }
 
-      console.log('[DashboardWidgetCard] Calling widget.calculate() for:', widget.id, {
+      logger.log('[DashboardWidgetCard] Calling widget.calculate() for:', widget.id, {
         customerId,
         effectiveCustomerIds,
         isAdmin: isAdmin(),

@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { AuthState, UserRole, CustomerAssociation } from '../types/auth';
 import { validateCustomerSelection } from '../utils/customerValidation';
+import { logger } from '../utils/logger';
 
 interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -49,11 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserRole = async (userId: string) => {
     if (loadingUserIdRef.current === userId) {
-      console.log('[AuthContext] Already loading role for:', userId);
+      logger.log('[AuthContext] Already loading role for:', userId);
       return;
     }
     loadingUserIdRef.current = userId;
-    console.log('[AuthContext] Loading user role for:', userId);
+    logger.log('[AuthContext] Loading user role for:', userId);
 
     try {
       const { data: roleData, error: roleError } = await supabase
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)
         .maybeSingle();
 
-      console.log('[AuthContext] user_roles query result:', { roleData, roleError });
+      logger.log('[AuthContext] user_roles query result:', { roleData, roleError });
 
       if (roleError) {
         console.error('Error loading user role:', roleError);
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (roleData) {
-        console.log('[AuthContext] Setting role from user_roles:', roleData);
+        logger.log('[AuthContext] Setting role from user_roles:', roleData);
 
         const userRole = roleData.user_role || 'customer';
         setRole({
@@ -84,14 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let loadedCustomers: CustomerAssociation[] = [];
 
         if (userRole === 'admin') {
-          console.log('[AuthContext] Loading all customers for admin');
+          logger.log('[AuthContext] Loading all customers for admin');
           const { data: allCustomers, error: customersError } = await supabase
             .from('customer')
             .select('customer_id, company_name')
             .eq('is_active', true)
             .order('company_name');
 
-          console.log('[AuthContext] Admin customers loaded:', { count: allCustomers?.length, error: customersError });
+          logger.log('[AuthContext] Admin customers loaded:', { count: allCustomers?.length, error: customersError });
 
           if (allCustomers) {
             loadedCustomers = allCustomers.map((c: any) => ({
@@ -100,13 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }));
           }
         } else if (userRole === 'customer') {
-          console.log('[AuthContext] Loading customer associations');
+          logger.log('[AuthContext] Loading customer associations');
           const { data: customerLinks, error: linksError } = await supabase
             .from('users_customers')
             .select('customer_id')
             .eq('user_id', userId);
 
-          console.log('[AuthContext] Customer links loaded:', { links: customerLinks, error: linksError });
+          logger.log('[AuthContext] Customer links loaded:', { links: customerLinks, error: linksError });
 
           if (customerLinks && customerLinks.length > 0) {
             const customerIds = customerLinks.map(link => link.customer_id);
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .eq('is_active', true)
               .order('company_name');
 
-            console.log('[AuthContext] Customer data loaded:', { data: customerData, error: customerError });
+            logger.log('[AuthContext] Customer data loaded:', { data: customerData, error: customerError });
 
             if (customerData) {
               loadedCustomers = customerData.map((c: any) => ({
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        console.log('[AuthContext] Setting customers:', loadedCustomers);
+        logger.log('[AuthContext] Setting customers:', loadedCustomers);
         setCustomers(loadedCustomers);
 
         const storedCustomerId = localStorage.getItem(SELECTED_CUSTOMER_KEY);
@@ -138,16 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (loadedCustomers.length > 0) {
           const isStoredValid = storedId && loadedCustomers.some(c => c.customer_id === storedId);
           const newSelectedId = isStoredValid ? storedId : loadedCustomers[0].customer_id;
-          console.log('[AuthContext] Setting selected customer:', newSelectedId);
+          logger.log('[AuthContext] Setting selected customer:', newSelectedId);
           setSelectedCustomerIdState(newSelectedId);
           localStorage.setItem(SELECTED_CUSTOMER_KEY, newSelectedId.toString());
         } else {
-          console.log('[AuthContext] No customers found, clearing selection');
+          logger.log('[AuthContext] No customers found, clearing selection');
           setSelectedCustomerIdState(null);
           localStorage.removeItem(SELECTED_CUSTOMER_KEY);
         }
       } else {
-        console.log('[AuthContext] No user role found, defaulting to customer');
+        logger.log('[AuthContext] No user role found, defaulting to customer');
         setRole({ user_role: 'customer', is_admin: false, is_customer: true });
         setCustomers([]);
       }
@@ -161,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('[AuthContext] useEffect mounting');
+    logger.log('[AuthContext] useEffect mounting');
     let isMounted = true;
 
     const initializeAuth = async () => {
@@ -181,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        console.log('[AuthContext] getSession result:', {
+        logger.log('[AuthContext] getSession result:', {
           hasUser: !!session?.user,
           userId: session?.user?.id
         });
@@ -196,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (isMounted) {
-          console.log('[AuthContext] Setting isLoading to false');
+          logger.log('[AuthContext] Setting isLoading to false');
           setIsLoading(false);
         }
       } catch (error) {
@@ -218,7 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
       if (event === 'INITIAL_SESSION') return;
 
-      console.log('[AuthContext] Auth state changed:', event);
+      logger.log('[AuthContext] Auth state changed:', event);
 
       (async () => {
         if (session?.user) {
@@ -292,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (customerId !== null) {
       const customer = customers.find(c => c.customer_id === customerId);
       if (customer) {
-        console.log(`[Auth] Setting view customer: ${customer.customer_name} (ID: ${customerId})`);
+        logger.log(`[Auth] Setting view customer: ${customer.customer_name} (ID: ${customerId})`);
 
         const validation = await validateCustomerSelection(customerId, customer.customer_name);
         if (!validation.valid) {
@@ -300,7 +301,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } else {
-      console.log('[Auth] Exiting customer view mode');
+      logger.log('[Auth] Exiting customer view mode');
     }
 
     setViewingAsCustomerIdState(customerId);
@@ -320,10 +321,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (customerId !== null) {
       const customer = customers.find(c => c.customer_id === customerId);
       if (customer) {
-        console.log(`[Auth] IMPERSONATING customer: ${customer.customer_name} (ID: ${customerId})`);
+        logger.log(`[Auth] IMPERSONATING customer: ${customer.customer_name} (ID: ${customerId})`);
       }
     } else {
-      console.log('[Auth] Exiting impersonation mode');
+      logger.log('[Auth] Exiting impersonation mode');
     }
 
     setImpersonatingCustomerIdState(customerId);

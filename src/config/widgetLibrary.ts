@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { WidgetSizeLevel } from '../types/widgets';
 import { getSecureTable } from '../utils/getSecureTable';
 import { loadLookupTables, getLookupDisplayValue } from '../services/lookupService';
+import { logger } from '../utils/logger';
 
 export type WidgetCategory = 'volume' | 'financial' | 'geographic' | 'performance' | 'breakdown';
 export type WidgetScope = 'global' | 'customer';
@@ -48,7 +49,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     tooltip: 'Interactive map showing origin to destination shipping lanes',
     dataDefinition: 'Each line connects pickup and delivery locations. Line thickness indicates volume.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
-      console.log('[flow_map] Starting calculation', {
+      logger.log('[flow_map] Starting calculation', {
         effectiveCustomerIds,
         isAdmin,
         isViewingAsCustomer,
@@ -69,13 +70,13 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      console.log('[flow_map] Shipments query result:', {
+      logger.log('[flow_map] Shipments query result:', {
         shipmentsCount: shipments?.length || 0,
         error: shipmentsError
       });
 
       if (!shipments || shipments.length === 0) {
-        console.log('[flow_map] No shipments found');
+        logger.log('[flow_map] No shipments found');
         return {
           effectiveCustomerIds,
           isAdmin,
@@ -86,7 +87,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
       }
 
       const loadIds = shipments.map(s => s.load_id);
-      console.log('[flow_map] Looking up addresses for load_ids:', loadIds.length);
+      logger.log('[flow_map] Looking up addresses for load_ids:', loadIds.length);
 
       const addressTable = getSecureTable('shipment_address', isAdmin, isViewingAsCustomer);
 
@@ -96,7 +97,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .in('load_id', loadIds)
         .in('address_type', [1, 2]);
 
-      console.log('[flow_map] Addresses query result:', {
+      logger.log('[flow_map] Addresses query result:', {
         addressesCount: addresses?.length || 0,
         error: addressesError
       });
@@ -104,10 +105,10 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
       if (addresses) {
         const origins = addresses.filter(a => a.address_type === 1);
         const destinations = addresses.filter(a => a.address_type === 2);
-        console.log('[flow_map] Origins:', origins.length, 'Destinations:', destinations.length);
+        logger.log('[flow_map] Origins:', origins.length, 'Destinations:', destinations.length);
 
         const states = new Set(addresses.map(a => a.state).filter(Boolean));
-        console.log('[flow_map] Unique states found:', Array.from(states));
+        logger.log('[flow_map] Unique states found:', Array.from(states));
       }
 
       return {
@@ -133,7 +134,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
     tooltip: 'Average cost per shipment by destination state. Darker = higher cost.',
     dataDefinition: 'SUM(retail) / COUNT(*) grouped by destination state.',
     calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
-      console.log('[cost_by_state] Starting calculation', {
+      logger.log('[cost_by_state] Starting calculation', {
         effectiveCustomerIds,
         isAdmin,
         isViewingAsCustomer,
@@ -154,18 +155,18 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      console.log('[cost_by_state] Shipments query result:', {
+      logger.log('[cost_by_state] Shipments query result:', {
         shipmentsCount: shipments?.length || 0,
         error: shipmentsError
       });
 
       if (!shipments || shipments.length === 0) {
-        console.log('[cost_by_state] No shipments found');
+        logger.log('[cost_by_state] No shipments found');
         return { data: [] };
       }
 
       const loadIds = shipments.map(s => s.load_id);
-      console.log('[cost_by_state] Looking up addresses for load_ids:', loadIds.length);
+      logger.log('[cost_by_state] Looking up addresses for load_ids:', loadIds.length);
 
       const addressTable = getSecureTable('shipment_address', isAdmin, isViewingAsCustomer);
 
@@ -175,7 +176,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .in('load_id', loadIds)
         .eq('address_type', 2);
 
-      console.log('[cost_by_state] Addresses query result:', {
+      logger.log('[cost_by_state] Addresses query result:', {
         addressesCount: addresses?.length || 0,
         error: addressesError
       });
@@ -193,7 +194,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         return acc;
       }, {});
 
-      console.log('[cost_by_state] State statistics:', stateStats);
+      logger.log('[cost_by_state] State statistics:', stateStats);
 
       const stateData = Object.entries(stateStats).map(([stateCode, stats]: [string, any]) => {
         const avgCost = stats.count > 0 ? stats.totalCost / stats.count : 0;
@@ -220,7 +221,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         });
       }
 
-      console.log('[cost_by_state] Final state data:', stateData.length, 'states');
+      logger.log('[cost_by_state] Final state data:', stateData.length, 'states');
 
       return { data: stateData };
     }

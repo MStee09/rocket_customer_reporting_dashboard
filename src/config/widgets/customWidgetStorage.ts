@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { CustomWidgetDefinition } from './customWidgetTypes';
+import { logger } from '../../utils/logger';
 
 const BUCKET = 'custom-widgets';
 
@@ -18,11 +19,11 @@ export const saveCustomWidget = async (
       ? getCustomerWidgetPath(customerId, widget.id)
       : getAdminWidgetPath(widget.id);
 
-    console.log('=== STORAGE SAVE DEBUG ===');
-    console.log('Bucket:', BUCKET);
-    console.log('Path:', path);
-    console.log('Customer ID:', customerId);
-    console.log('Widget ID:', widget.id);
+    logger.log('=== STORAGE SAVE DEBUG ===');
+    logger.log('Bucket:', BUCKET);
+    logger.log('Path:', path);
+    logger.log('Customer ID:', customerId);
+    logger.log('Widget ID:', widget.id);
 
     const { error } = await supabase.storage
       .from(BUCKET)
@@ -36,8 +37,8 @@ export const saveCustomWidget = async (
       throw error;
     }
 
-    console.log('✅ Widget saved to storage successfully!');
-    console.log('=== END STORAGE DEBUG ===');
+    logger.log('✅ Widget saved to storage successfully!');
+    logger.log('=== END STORAGE DEBUG ===');
 
     return { success: true };
   } catch (err) {
@@ -118,12 +119,12 @@ export const loadAllCustomWidgets = async (
   const widgets: CustomWidgetDefinition[] = [];
 
   try {
-    console.log('=== LOAD WIDGETS DEBUG ===');
-    console.log('Is Admin:', isAdmin);
-    console.log('Customer ID:', customerId);
+    logger.log('=== LOAD WIDGETS DEBUG ===');
+    logger.log('Is Admin:', isAdmin);
+    logger.log('Customer ID:', customerId);
 
     const systemWidgets = await loadSystemWidgets(supabase);
-    console.log('System widgets loaded:', systemWidgets.length);
+    logger.log('System widgets loaded:', systemWidgets.length);
     // Validate system widgets before adding
     widgets.push(...systemWidgets.filter(w => w && w.id && w.name && w.type));
 
@@ -132,7 +133,7 @@ export const loadAllCustomWidgets = async (
         .from(BUCKET)
         .list('admin');
 
-      console.log('Admin files:', adminFiles?.length || 0, 'Error:', adminError);
+      logger.log('Admin files:', adminFiles?.length || 0, 'Error:', adminError);
 
       for (const file of adminFiles || []) {
         if (file.name.endsWith('.json')) {
@@ -164,7 +165,7 @@ export const loadAllCustomWidgets = async (
 
     if (customerId) {
       const folderPath = `customer/${customerId}`;
-      console.log('Loading from folder:', folderPath);
+      logger.log('Loading from folder:', folderPath);
 
       // Get customer name from database
       const { data: customerData } = await supabase
@@ -174,18 +175,18 @@ export const loadAllCustomWidgets = async (
         .maybeSingle();
 
       const customerName = customerData?.company_name || `Customer ${customerId}`;
-      console.log('Customer name:', customerName);
+      logger.log('Customer name:', customerName);
 
       const { data: customerFiles, error: customerError } = await supabase.storage
         .from(BUCKET)
         .list(folderPath);
 
-      console.log('Customer files found:', customerFiles?.length || 0, 'Error:', customerError);
-      console.log('Files:', customerFiles);
+      logger.log('Customer files found:', customerFiles?.length || 0, 'Error:', customerError);
+      logger.log('Files:', customerFiles);
 
       for (const file of customerFiles || []) {
         if (file.name.endsWith('.json')) {
-          console.log('Loading file:', file.name);
+          logger.log('Loading file:', file.name);
           try {
             const { data, error: downloadError } = await supabase.storage
               .from(BUCKET)
@@ -211,7 +212,7 @@ export const loadAllCustomWidgets = async (
                 widget.createdBy.customerId = customerId;
               }
 
-              console.log('Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
+              logger.log('Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
               widgets.push(widget);
             }
           } catch (error) {
@@ -221,7 +222,7 @@ export const loadAllCustomWidgets = async (
       }
     }
 
-    console.log('Total widgets before filtering:', widgets.length);
+    logger.log('Total widgets before filtering:', widgets.length);
 
     const filtered = widgets.filter(widget => {
       if (isAdmin) return true;
@@ -250,8 +251,8 @@ export const loadAllCustomWidgets = async (
       return false;
     });
 
-    console.log('Widgets after filtering:', filtered.length);
-    console.log('=== END LOAD DEBUG ===');
+    logger.log('Widgets after filtering:', filtered.length);
+    logger.log('=== END LOAD DEBUG ===');
 
     return filtered;
   } catch (err) {

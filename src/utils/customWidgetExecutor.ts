@@ -6,6 +6,7 @@ import { ColumnFilter, DateRangeValue, NumberRangeValue } from '../types/filters
 import { getColumnById } from '../config/reportColumns';
 import { format, subDays, subMonths, startOfMonth, startOfYear, startOfQuarter } from 'date-fns';
 import { aggregateValues, AggregationType } from './aggregation';
+import { logger } from './logger';
 
 const LOOKUP_FIELDS = ['mode_id', 'status_id', 'equipment_type_id'];
 
@@ -191,10 +192,10 @@ export const executeCustomWidgetQuery = async (
   queryConfig: QueryConfig,
   options: ExecuteOptions
 ): Promise<{ data: any[]; error: string | null }> => {
-  console.log('=== EXECUTING CUSTOM WIDGET QUERY ===');
-  console.log('Query Config:', queryConfig);
-  console.log('Report Filters:', queryConfig.reportFilters);
-  console.log('Options:', options);
+  logger.log('=== EXECUTING CUSTOM WIDGET QUERY ===');
+  logger.log('Query Config:', queryConfig);
+  logger.log('Report Filters:', queryConfig.reportFilters);
+  logger.log('Options:', options);
 
   try {
     const { baseTable, columns, filters, groupBy, orderBy, limit, reportFilters } = queryConfig;
@@ -204,17 +205,17 @@ export const executeCustomWidgetQuery = async (
 
     if (reportFilters && reportFilters.length > 0) {
       const enabledFilters = reportFilters.filter(f => f.enabled);
-      console.log('Enabled report filters:', enabledFilters.length, 'of', reportFilters.length);
+      logger.log('Enabled report filters:', enabledFilters.length, 'of', reportFilters.length);
     }
 
-    console.log('Columns:', columns.map(c => c.field));
+    logger.log('Columns:', columns.map(c => c.field));
 
     if (!groupBy || groupBy.length === 0) {
       const selectFields = columns.map(c => c.field).join(', ');
 
-      console.log('Select fields:', selectFields);
-      console.log('Customer ID:', options.customerId);
-      console.log('Date range:', options.dateRange);
+      logger.log('Select fields:', selectFields);
+      logger.log('Customer ID:', options.customerId);
+      logger.log('Date range:', options.dateRange);
 
       let query = supabase
         .from(secureTable)
@@ -278,15 +279,15 @@ export const executeCustomWidgetQuery = async (
 
       const { data, error } = await query;
 
-      console.log('Supabase response - data count:', data?.length);
-      console.log('Supabase response - error:', error);
+      logger.log('Supabase response - data count:', data?.length);
+      logger.log('Supabase response - error:', error);
 
       if (error) {
         console.error('❌ Query error:', error);
         return { data: [], error: error.message };
       }
 
-      console.log('✅ Query result:', data?.length, 'rows');
+      logger.log('✅ Query result:', data?.length, 'rows');
       return { data: data || [], error: null };
     }
 
@@ -300,9 +301,9 @@ export const executeCustomWidgetQuery = async (
       selectFields += `, ${valueField}`;
     }
 
-    console.log('Aggregation select fields:', selectFields);
-    console.log('Group by:', groupByField);
-    console.log('Using secure table:', secureTable);
+    logger.log('Aggregation select fields:', selectFields);
+    logger.log('Group by:', groupByField);
+    logger.log('Using secure table:', secureTable);
 
     let query = supabase
       .from(secureTable)
@@ -339,8 +340,8 @@ export const executeCustomWidgetQuery = async (
 
     const { data: rawData, error } = await query;
 
-    console.log('Aggregation raw data count:', rawData?.length);
-    console.log('Aggregation error:', error);
+    logger.log('Aggregation raw data count:', rawData?.length);
+    logger.log('Aggregation error:', error);
 
     if (error) {
       console.error('❌ Aggregation query error:', error);
@@ -382,7 +383,7 @@ export const executeCustomWidgetQuery = async (
 
     const limitedData = limit ? aggregatedData.slice(0, limit) : aggregatedData;
 
-    console.log('✅ Aggregated result:', limitedData.length, 'groups');
+    logger.log('✅ Aggregated result:', limitedData.length, 'groups');
     return { data: limitedData, error: null };
 
   } catch (err) {

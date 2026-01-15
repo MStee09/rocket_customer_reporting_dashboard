@@ -14,9 +14,25 @@ export interface QueryExecutionContext {
   isAdmin?: boolean;
 }
 
+export type QueryResultRow = Record<string, unknown>;
+
+interface SupabaseError {
+  message: string;
+}
+
+interface QueryFilter {
+  field: string;
+  operator: string;
+  value: unknown;
+}
+
+interface ConfigFilter extends QueryFilter {
+  useDateRange?: boolean;
+}
+
 export interface QueryResult {
   success: boolean;
-  data: any[];
+  data: QueryResultRow[];
   rowCount: number;
   executionTimeMs: number;
   error?: string;
@@ -41,8 +57,8 @@ export function useWidgetQuery() {
       const adminMode = context?.isAdmin ?? isAdmin();
       const customerId = adminMode ? 0 : (context?.customerId ?? effectiveCustomerId ?? 0);
 
-      let data: any;
-      let queryError: any;
+      let data: unknown;
+      let queryError: SupabaseError | null;
 
       if (config.joins && config.joins.length > 0) {
         const response = await supabase.rpc('mcp_query_with_join', {
@@ -128,10 +144,10 @@ export function useWidgetQuery() {
 }
 
 function buildFilters(
-  configFilters: Array<{ field: string; operator: string; value: any; useDateRange?: boolean }>,
+  configFilters: ConfigFilter[],
   dateRange?: DateRange
-): Array<{ field: string; operator: string; value: any }> {
-  const filters: Array<{ field: string; operator: string; value: any }> = [];
+): QueryFilter[] {
+  const filters: QueryFilter[] = [];
 
   for (const filter of configFilters) {
     if (filter.useDateRange) continue;
@@ -152,8 +168,8 @@ export async function executeWidgetQuery(config: WidgetQueryConfig, context: Que
     const filters = buildFilters(config.filters || [], context.dateRange);
     const customerId = context.isAdmin ? 0 : (context.customerId ?? 0);
 
-    let data: any;
-    let error: any;
+    let data: unknown;
+    let error: SupabaseError | null;
 
     if (config.joins && config.joins.length > 0) {
       const response = await supabase.rpc('mcp_query_with_join', {

@@ -11,6 +11,77 @@ import { ShipmentRow } from '../components/shipments/ShipmentRow';
 import { ShipmentsFilterPanel, FilterState, defaultFilters } from '../components/shipments/ShipmentsFilterPanel';
 import { ColumnConfig } from '../services/exportService';
 
+interface ShipmentAddress {
+  stop_number: number;
+  address_type: number;
+  company_name: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+}
+
+interface ShipmentItem {
+  description: string | null;
+  commodity: string | null;
+  freight_class: string | null;
+  quantity: number | null;
+  weight: number | null;
+  package_type: string | null;
+  number_of_packages: number | null;
+  is_hazmat: boolean | null;
+}
+
+interface ShipmentCarrierInfo {
+  carrier_name: string | null;
+  pro_number: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+  truck_number: string | null;
+  trailer_number: string | null;
+}
+
+interface RawShipment {
+  load_id: number;
+  pickup_date: string | null;
+  delivery_date: string | null;
+  expected_delivery_date: string | null;
+  reference_number: string | null;
+  bol_number: string | null;
+  po_reference: string | null;
+  retail: number | null;
+  miles: number | null;
+  number_of_pallets: number | null;
+  linear_feet: number | null;
+  shipment_value: number | null;
+  priority: number | null;
+  is_stackable: boolean | null;
+  is_palletized: boolean | null;
+  created_date: string | null;
+  shipment_status: {
+    status_id: number;
+    status_name: string;
+    status_description: string | null;
+    is_completed: boolean;
+    is_cancelled: boolean;
+  } | null;
+  carrier: {
+    carrier_id: number;
+    carrier_name: string;
+  } | null;
+  shipment_mode: {
+    mode_name: string;
+  } | null;
+  equipment: {
+    equipment_name: string;
+  } | null;
+  addresses: ShipmentAddress[] | null;
+  carrier_info: ShipmentCarrierInfo[] | null;
+  items: ShipmentItem[] | null;
+}
+
 interface Shipment {
   load_id: number;
   pro_number: string;
@@ -146,19 +217,19 @@ export function ShipmentsPage() {
     }
 
     if (data) {
-      const enrichedData: Shipment[] = data.map((shipment: any) => {
-        const pickup = shipment.addresses?.find((a: any) => a.address_type === 1) || shipment.addresses?.[0];
-        const delivery = shipment.addresses?.find((a: any) => a.address_type === 2) || shipment.addresses?.[shipment.addresses?.length - 1];
+      const enrichedData: Shipment[] = (data as RawShipment[]).map((shipment) => {
+        const pickup = shipment.addresses?.find((a) => a.address_type === 1) || shipment.addresses?.[0];
+        const delivery = shipment.addresses?.find((a) => a.address_type === 2) || shipment.addresses?.[shipment.addresses?.length - 1];
         const carrierInfo = shipment.carrier_info?.[0];
         const items = shipment.items || [];
 
-        const totalWeight = items.reduce((sum: number, item: any) => sum + (item.weight || 0), 0);
-        const totalPieces = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-        const totalPackages = items.reduce((sum: number, item: any) => sum + (item.number_of_packages || 0), 0);
-        const itemDescriptions = items.map((i: any) => i.description).filter(Boolean).join('; ');
-        const commodities = [...new Set(items.map((i: any) => i.commodity).filter(Boolean))].join(', ');
-        const freightClasses = [...new Set(items.map((i: any) => i.freight_class).filter(Boolean))].join(', ');
-        const hasHazmat = items.some((i: any) => i.is_hazmat);
+        const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0), 0);
+        const totalPieces = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        const totalPackages = items.reduce((sum, item) => sum + (item.number_of_packages || 0), 0);
+        const itemDescriptions = items.map((i) => i.description).filter(Boolean).join('; ');
+        const commodities = [...new Set(items.map((i) => i.commodity).filter(Boolean))].join(', ');
+        const freightClasses = [...new Set(items.map((i) => i.freight_class).filter(Boolean))].join(', ');
+        const hasHazmat = items.some((i) => i.is_hazmat);
 
         return {
           load_id: shipment.load_id,

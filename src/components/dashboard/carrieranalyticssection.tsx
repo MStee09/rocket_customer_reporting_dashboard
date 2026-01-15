@@ -44,6 +44,29 @@ interface SummaryMetrics {
   prev_on_time_pct: number;
 }
 
+interface ShipmentRow {
+  carrier_name: string | null;
+  carrier_id: number | null;
+  retail: string | number | null;
+  miles: string | number | null;
+  delivered_date: string | null;
+  delivery_status: string | null;
+  shipped_date: string | null;
+}
+
+interface PrevShipmentRow {
+  carrier_name: string | null;
+  carrier_id: number | null;
+  retail: string | number | null;
+  miles: string | number | null;
+}
+
+interface MonthlyTrendRow {
+  shipped_date: string | null;
+  retail: string | number | null;
+  carrier_name: string | null;
+}
+
 interface CarrierAnalyticsSectionProps {
   customerId?: number;
   startDate: string;
@@ -155,11 +178,11 @@ export function CarrierAnalyticsSection({
       let onTimeShipments = 0;
       let deliveredShipments = 0;
 
-      (currentData || []).forEach((row: any) => {
+      (currentData || []).forEach((row: ShipmentRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         const carrierId = row.carrier_id || 0;
-        const spend = parseFloat(row.retail) || 0;
-        const miles = parseFloat(row.miles) || 0;
+        const spend = parseFloat(String(row.retail ?? 0)) || 0;
+        const miles = parseFloat(String(row.miles ?? 0)) || 0;
 
         if (!carrierMap.has(carrierName)) {
           carrierMap.set(carrierName, {
@@ -193,9 +216,9 @@ export function CarrierAnalyticsSection({
       let prevTotalSpend = 0;
       let prevTotalShipments = 0;
 
-      (prevData || []).forEach((row: any) => {
+      (prevData || []).forEach((row: PrevShipmentRow) => {
         const carrierName = row.carrier_name || 'Unknown';
-        const spend = parseFloat(row.retail) || 0;
+        const spend = parseFloat(String(row.retail ?? 0)) || 0;
         prevCarrierMap.set(carrierName, (prevCarrierMap.get(carrierName) || 0) + spend);
         prevTotalSpend += spend;
         prevTotalShipments++;
@@ -275,13 +298,13 @@ export function CarrierAnalyticsSection({
       const monthlyMap = new Map<string, Map<string, number>>();
       const topCarrierNames = new Set(topCarriers.map(c => c.carrier_name));
 
-      data.forEach((row: any) => {
+      data.forEach((row: MonthlyTrendRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         if (!topCarrierNames.has(carrierName)) return;
 
-        const date = new Date(row.shipped_date);
+        const date = new Date(row.shipped_date || '');
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const spend = parseFloat(row.retail) || 0;
+        const spend = parseFloat(String(row.retail ?? 0)) || 0;
 
         if (!monthlyMap.has(monthKey)) {
           monthlyMap.set(monthKey, new Map());

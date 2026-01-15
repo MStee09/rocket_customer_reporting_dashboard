@@ -8,13 +8,25 @@ import { executeReportData } from '../services/reportDataExecutor';
 import { Card } from '../components/ui/Card';
 import { logger } from '../utils/logger';
 
+interface ReportColumn {
+  id: string;
+  label: string;
+}
+
+type ReportDefinitionInput =
+  | AIReportDefinition
+  | { definition: AIReportDefinition }
+  | { type: 'custom_report'; simpleReport: { columns: ReportColumn[] }; queryResults?: Record<string, unknown>[] };
+
+type CellValue = string | number | boolean | null | undefined;
+
 interface SharedReport {
   id: string;
   share_token: string;
   customer_id: number;
   report_id: string;
   report_name: string;
-  report_definition: AIReportDefinition | any;
+  report_definition: ReportDefinitionInput;
   is_active: boolean;
   expires_at: string | null;
   view_count: number;
@@ -22,7 +34,7 @@ interface SharedReport {
   date_range_end: string;
 }
 
-function extractDefinition(reportDef: any): AIReportDefinition | null {
+function extractDefinition(reportDef: ReportDefinitionInput | null | undefined): AIReportDefinition | null {
   if (!reportDef) return null;
 
   if (reportDef.type === 'custom_report' || reportDef.simpleReport) {
@@ -50,7 +62,7 @@ function extractDefinition(reportDef: any): AIReportDefinition | null {
   return extracted;
 }
 
-function formatCellValue(value: any, columnId: string, columnLabel: string): string {
+function formatCellValue(value: CellValue, columnId: string, columnLabel: string): string {
   if (value === null || value === undefined) return '-';
 
   const label = columnLabel?.toLowerCase() || '';
@@ -291,7 +303,7 @@ export function SharedReportPage() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {columns.map((col: any) => (
+                        {columns.map((col: ReportColumn) => (
                           <th
                             key={col.id}
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -302,9 +314,9 @@ export function SharedReportPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {data.map((row: any, idx: number) => (
+                      {data.map((row: Record<string, CellValue>, idx: number) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          {columns.map((col: any) => (
+                          {columns.map((col: ReportColumn) => (
                             <td
                               key={col.id || col.label}
                               className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"

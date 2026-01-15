@@ -20,14 +20,120 @@ import { isSystemWidget } from '../../../config/widgets';
 import { saveCustomWidget } from '../../../config/widgets/customWidgetStorage';
 import { supabase } from '../../../lib/supabase';
 import { executeSimpleReport } from '../../../utils/simpleQueryBuilder';
-import { WidgetData } from '../../../config/widgets/widgetTypes';
+import { WidgetData, WhatItShows, WidgetType, WidgetCategory, WidgetSize, TableColumn } from '../../../config/widgets/widgetTypes';
 import { formatWidgetLabel } from '../../../utils/dateUtils';
 
+interface QueryColumn {
+  field: string;
+  alias?: string;
+  aggregate?: 'sum' | 'avg' | 'count' | 'min' | 'max';
+}
+
+interface QueryFilter {
+  field: string;
+  operator: string;
+  value: string;
+  isDynamic?: boolean;
+}
+
+interface QueryOrderBy {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+interface WidgetQuery {
+  columns?: QueryColumn[];
+  filters?: QueryFilter[];
+  orderBy?: QueryOrderBy[];
+  limit?: number;
+  groupBy?: string[];
+}
+
+interface WidgetVisualization {
+  type?: string;
+  columns?: TableColumn[];
+  categoryField?: string;
+  xAxis?: string;
+  valueField?: string;
+  format?: 'number' | 'currency' | 'percent';
+}
+
+interface WidgetDataSource {
+  type?: 'query' | 'static';
+  query?: WidgetQuery;
+  reportReference?: {
+    reportId: string;
+    reportName: string;
+  };
+  reportColumns?: { id: string; label: string }[];
+  aiGenerated?: {
+    originalPrompt: string;
+    validatedBy?: string;
+  };
+}
+
+interface WidgetCreatedBy {
+  userId: string;
+  userEmail: string;
+  isAdmin?: boolean;
+  customerId?: number;
+  customerName?: string;
+  timestamp?: string;
+}
+
+interface WidgetVisibility {
+  type: 'system' | 'private' | 'shared';
+  promotedFrom?: {
+    promotedByEmail?: string;
+    originalCreatorEmail?: string;
+  };
+}
+
+interface SourceReport {
+  id: string;
+  name: string;
+  path?: string;
+}
+
+interface WidgetDisplay {
+  icon?: string;
+  iconColor?: string;
+  defaultSize?: WidgetSize;
+}
+
+interface CustomWidget {
+  id: string;
+  name: string;
+  description?: string;
+  type: WidgetType;
+  category?: WidgetCategory;
+  access?: 'customer' | 'admin';
+  defaultSize?: WidgetSize;
+  source?: 'system' | 'ai' | 'report' | 'manual' | 'promoted';
+  visibility?: WidgetVisibility;
+  dataSource?: WidgetDataSource;
+  visualization?: WidgetVisualization;
+  display?: WidgetDisplay;
+  whatItShows?: WhatItShows;
+  dataMode?: 'dynamic' | 'static';
+  snapshotData?: WidgetData;
+  snapshotDate?: string;
+  sourceReport?: SourceReport;
+  createdBy?: WidgetCreatedBy;
+  createdAt?: string;
+  updatedAt?: string;
+  version?: number;
+}
+
+interface RawDataRow {
+  [key: string]: unknown;
+}
+
 interface WidgetOverviewTabProps {
-  widget: any;
+  widget: CustomWidget;
   isAdmin: boolean;
   customerId?: number;
-  onWidgetUpdated?: (widget: any) => void;
+  onWidgetUpdated?: (widget: CustomWidget) => void;
 }
 
 export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated }: WidgetOverviewTabProps) => {
@@ -363,8 +469,8 @@ export const WidgetOverviewTab = ({ widget, isAdmin, customerId, onWidgetUpdated
   );
 };
 
-const generateWhatItShows = (widget: any) => {
-  const whatItShows: any = {
+const generateWhatItShows = (widget: CustomWidget): WhatItShows => {
+  const whatItShows: WhatItShows = {
     summary: widget.description || 'Custom widget',
     columns: [],
     filters: [],
@@ -375,7 +481,7 @@ const generateWhatItShows = (widget: any) => {
 
   if (query) {
     if (query.columns) {
-      whatItShows.columns = query.columns.map((col: any) => ({
+      whatItShows.columns = query.columns.map((col: QueryColumn) => ({
         name: col.alias || col.field,
         description: col.aggregate
           ? `${col.aggregate.toUpperCase()} of ${col.field}`
@@ -384,7 +490,7 @@ const generateWhatItShows = (widget: any) => {
     }
 
     if (query.filters) {
-      whatItShows.filters = query.filters.map((f: any) => {
+      whatItShows.filters = query.filters.map((f: QueryFilter) => {
         if (f.isDynamic) {
           if (f.field === 'customer_id') return 'Your data only';
           if (f.field.includes('date')) return 'Within selected date range';
@@ -428,7 +534,7 @@ const InfoRow = ({ label, value, mono = false }: { label: string; value: string;
   </div>
 );
 
-const VisibilityInfo = ({ visibility }: { visibility: any }) => {
+const VisibilityInfo = ({ visibility }: { visibility: WidgetVisibility | undefined }) => {
   if (!visibility || visibility.type === 'system') {
     return (
       <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
@@ -509,14 +615,14 @@ const formatDate = (dateStr: string) => {
   }
 };
 
-function transformRawDataForWidget(rawData: any[], widget: any): WidgetData {
+function transformRawDataForWidget(rawData: RawDataRow[], widget: CustomWidget): WidgetData {
   const query = widget.dataSource?.query;
   const viz = widget.visualization;
   const widgetType = widget.type;
 
   switch (widgetType) {
     case 'table': {
-      const columns = viz?.columns || query?.columns?.map((c: any) => ({ field: c.field, label: c.field })) || [];
+      const columns = viz?.columns || query?.columns?.map((c: QueryColumn) => ({ key: c.field, label: c.field })) || [];
       const limit = query?.limit || 10;
       const tableData = rawData.slice(0, limit);
       return { type: 'table', data: tableData, columns };
@@ -525,8 +631,8 @@ function transformRawDataForWidget(rawData: any[], widget: any): WidgetData {
     case 'bar_chart':
     case 'pie_chart': {
       const groupField = viz?.categoryField || viz?.xAxis || query?.groupBy?.[0] || '';
-      const valueField = viz?.valueField || query?.columns?.find((c: any) => c.aggregate)?.field || '';
-      const aggregation = query?.columns?.find((c: any) => c.aggregate)?.aggregate || 'count';
+      const valueField = viz?.valueField || query?.columns?.find((c: QueryColumn) => c.aggregate)?.field || '';
+      const aggregation = query?.columns?.find((c: QueryColumn) => c.aggregate)?.aggregate || 'count';
 
       const grouped = new Map<string, number>();
       for (const row of rawData) {
@@ -549,8 +655,8 @@ function transformRawDataForWidget(rawData: any[], widget: any): WidgetData {
 
     case 'line_chart': {
       const xField = viz?.xAxis || query?.groupBy?.[0] || '';
-      const valueField = viz?.valueField || query?.columns?.find((c: any) => c.aggregate)?.field || '';
-      const aggregation = query?.columns?.find((c: any) => c.aggregate)?.aggregate || 'count';
+      const valueField = viz?.valueField || query?.columns?.find((c: QueryColumn) => c.aggregate)?.field || '';
+      const aggregation = query?.columns?.find((c: QueryColumn) => c.aggregate)?.aggregate || 'count';
 
       const grouped = new Map<string, { sum: number; count: number }>();
       for (const row of rawData) {

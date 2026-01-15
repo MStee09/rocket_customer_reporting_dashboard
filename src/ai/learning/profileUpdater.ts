@@ -29,7 +29,7 @@ export async function getCustomerProfile(
     const { data: dataProfile } = await supabase
       .rpc('get_customer_data_profile', { p_customer_id: customerId });
 
-    const adminTerminology = (profile.terminology || []).map((t: any) => ({
+    const adminTerminology = (profile.terminology || []).map((t: { term?: string; key?: string; means?: string; definition?: string }) => ({
       term: t.term || t.key,
       means: t.means || t.definition,
       source: 'admin' as const,
@@ -111,7 +111,7 @@ export function formatProfileForPrompt(profile: CustomerIntelligenceProfile): st
 export async function updateProfileField(
   customerId: string,
   field: string,
-  value: any
+  value: string | number | boolean | string[] | Record<string, unknown> | null
 ): Promise<boolean> {
   try {
     const { error } = await supabase

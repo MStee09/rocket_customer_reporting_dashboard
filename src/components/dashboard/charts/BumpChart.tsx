@@ -92,8 +92,8 @@ export function BumpChart({
                 <div className="bg-white px-3 py-2 rounded-lg shadow-xl border border-slate-200 text-xs">
                   <div className="font-medium text-slate-800 mb-2">{label}</div>
                   {payload
-                    .sort((a: any, b: any) => a.value - b.value)
-                    .map((entry: any) => (
+                    .sort((a, b) => (a.value as number) - (b.value as number))
+                    .map((entry) => (
                       <div key={entry.name} className="flex items-center gap-2">
                         <div className="w-3 text-right font-bold" style={{ color: entry.color }}>
                           #{entry.value}

@@ -12,7 +12,7 @@ import { Package, X, Loader2, Search } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useBuilder } from './BuilderContext';
 import { useDebounce } from '../../../hooks/useDebounce';
-import type { FilterBlock, FilterCondition } from '../types/BuilderSchema';
+import type { FilterBlock, FilterCondition, LogicBlock } from '../types/BuilderSchema';
 
 interface ProductTag {
   term: string;
@@ -21,7 +21,7 @@ interface ProductTag {
 }
 
 // Extract product tags from existing logicBlocks
-function extractProductTags(logicBlocks: any[]): string[] {
+function extractProductTags(logicBlocks: LogicBlock[]): string[] {
   const tags: string[] = [];
   
   for (const block of logicBlocks) {
@@ -50,7 +50,7 @@ function extractProductTags(logicBlocks: any[]): string[] {
 }
 
 // Find or create the product filter block
-function findProductFilterBlock(logicBlocks: any[]): FilterBlock | null {
+function findProductFilterBlock(logicBlocks: LogicBlock[]): FilterBlock | null {
   return logicBlocks.find(
     b => b.type === 'filter' && b.label === 'Product Filter'
   ) || null;

@@ -35,7 +35,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
     return filtered;
   }, [config, canSeeAdminColumns]);
 
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -144,7 +144,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
     setShowVisualizationStudio(false);
   };
 
-  const formatValue = (value: any, columnDef?: { type?: string; format?: string; id?: string }): string => {
+  const formatValue = (value: unknown, columnDef?: { type?: string; format?: string; id?: string }): string => {
     if (value === null || value === undefined) return 'N/A';
 
     const type = columnDef?.type;

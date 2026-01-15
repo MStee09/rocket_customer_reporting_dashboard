@@ -5,8 +5,8 @@ interface AskAIButtonProps {
   context: {
     type: 'widget' | 'shipments' | 'report';
     title?: string;
-    data?: any;
-    filters?: any;
+    data?: Record<string, unknown>[];
+    filters?: Record<string, unknown>;
     dateRange?: { start: string; end: string };
     customerId: number;
   };

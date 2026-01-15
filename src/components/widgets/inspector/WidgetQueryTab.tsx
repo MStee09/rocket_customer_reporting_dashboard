@@ -2,9 +2,33 @@ import { useState, useEffect } from 'react';
 import { Play, AlertTriangle, CheckCircle, Code, Database } from 'lucide-react';
 import { isSystemWidget, customerWidgets, adminWidgets } from '../../../config/widgets';
 import { useSupabase } from '../../../hooks/useSupabase';
+import type { WidgetDefinition } from '../../../types/widgets';
+import type { CustomWidgetDefinition, WidgetQueryConfig, QueryColumn, QueryFilter, QueryOrder } from '../../../config/widgets/customWidgetTypes';
+
+type WidgetUnion = WidgetDefinition | CustomWidgetDefinition;
+
+interface Customer {
+  customer_id: number;
+  company_name: string;
+}
+
+interface TestResultSuccess {
+  success: true;
+  data: unknown;
+  queryTime: number;
+  rowCount: number;
+}
+
+interface TestResultFailure {
+  success: false;
+  error: string;
+  queryTime: number;
+}
+
+type TestResult = TestResultSuccess | TestResultFailure;
 
 interface WidgetQueryTabProps {
-  widget: any;
+  widget: WidgetUnion;
 }
 
 export const WidgetQueryTab = ({ widget }: WidgetQueryTabProps) => {
@@ -12,8 +36,8 @@ export const WidgetQueryTab = ({ widget }: WidgetQueryTabProps) => {
   const isSystem = isSystemWidget(widget.id);
 
   const [testCustomerId, setTestCustomerId] = useState<string>('');
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -210,7 +234,7 @@ export const WidgetQueryTab = ({ widget }: WidgetQueryTabProps) => {
   );
 };
 
-const getQueryInfo = (widget: any, isSystem: boolean) => {
+const getQueryInfo = (widget: WidgetUnion, isSystem: boolean) => {
   const info = {
     baseTable: 'shipment',
     queryType: 'SELECT',
@@ -247,14 +271,15 @@ WHERE customer_id = {customerId}
   AND pickup_date <= {dateRange.end}
 ${info.aggregations.length ? 'GROUP BY ...' : ''}`;
   } else {
-    const query = widget.dataSource?.query;
+    const customWidget = widget as CustomWidgetDefinition;
+    const query = customWidget.dataSource?.query;
 
     if (query) {
       info.baseTable = query.baseTable || 'shipment';
-      info.columns = query.columns?.map((c: any) =>
+      info.columns = query.columns?.map((c: QueryColumn) =>
         c.aggregate ? `${c.aggregate}(${c.field})` : c.field
       ) || [];
-      info.filters = query.filters?.map((f: any) =>
+      info.filters = query.filters?.map((f: QueryFilter) =>
         `${f.field} ${f.operator} ${f.isDynamic ? `{${f.value}}` : `'${f.value}'`}`
       ) || [];
       info.aggregations = query.groupBy || [];
@@ -268,17 +293,17 @@ ${info.aggregations.length ? 'GROUP BY ...' : ''}`;
   return info;
 };
 
-const generateSQLPreview = (query: any) => {
+const generateSQLPreview = (query: WidgetQueryConfig) => {
   if (!query) return '-- No query configuration';
 
-  const columns = query.columns?.map((c: any) =>
+  const columns = query.columns?.map((c: QueryColumn) =>
     c.aggregate ? `${c.aggregate.toUpperCase()}(${c.field})` : c.field
   ).join(',\n       ') || '*';
 
   let sql = `SELECT ${columns}\nFROM ${query.baseTable || 'shipment'}`;
 
   if (query.filters?.length) {
-    const conditions = query.filters.map((f: any) =>
+    const conditions = query.filters.map((f: QueryFilter) =>
       `${f.field} ${f.operator} ${f.isDynamic ? `{${f.value}}` : `'${f.value}'`}`
     );
     sql += `\nWHERE ${conditions.join('\n  AND ')}`;
@@ -289,7 +314,7 @@ const generateSQLPreview = (query: any) => {
   }
 
   if (query.orderBy?.length) {
-    sql += `\nORDER BY ${query.orderBy.map((o: any) => `${o.field} ${o.direction}`).join(', ')}`;
+    sql += `\nORDER BY ${query.orderBy.map((o: QueryOrder) => `${o.field} ${o.direction}`).join(', ')}`;
   }
 
   if (query.limit) {

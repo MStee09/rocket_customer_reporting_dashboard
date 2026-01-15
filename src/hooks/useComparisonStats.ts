@@ -56,13 +56,19 @@ export function useComparisonStats(
       };
     }
 
+    interface ShipmentRow {
+      load_id: number;
+      retail: string | number | null;
+      shipment_status: { is_completed: boolean; is_cancelled: boolean } | null;
+    }
+
     const totalSpend = shipments.reduce(
-      (sum: number, s: any) => sum + (parseFloat(s.retail) || 0),
+      (sum: number, s: ShipmentRow) => sum + (parseFloat(String(s.retail)) || 0),
       0
     );
 
     const inTransit = shipments.filter(
-      (s: any) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
+      (s: ShipmentRow) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
     ).length;
 
     return {

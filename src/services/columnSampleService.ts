@@ -37,7 +37,7 @@ function isCacheValid(entry: CacheEntry): boolean {
   return Date.now() - entry.timestamp < CACHE_TTL;
 }
 
-function formatSampleValue(value: any, columnType: string, columnFormat?: string, columnId?: string): string {
+function formatSampleValue(value: unknown, columnType: string, columnFormat?: string, columnId?: string): string {
   if (value === null || value === undefined) return '';
 
   switch (columnType) {
@@ -252,7 +252,7 @@ export async function fetchColumnSamples(
     }
 
     const samples = data
-      .map((row: any) => formatSampleValue(
+      .map((row: { sample_value: unknown }) => formatSampleValue(
         row.sample_value,
         columnDef.type,
         columnDef.format,

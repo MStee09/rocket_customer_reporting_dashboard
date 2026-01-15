@@ -1,4 +1,4 @@
-function serializeValueForCSV(value: any): string {
+function serializeValueForCSV(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -30,7 +30,7 @@ function serializeValueForCSV(value: any): string {
   return String(value);
 }
 
-export function exportToCSV(data: any[], filename: string, columns: { key: string; header: string }[]) {
+export function exportToCSV(data: Record<string, unknown>[], filename: string, columns: { key: string; header: string }[]) {
   const headers = columns.map((col) => col.header).join(',');
 
   const rows = data.map((row) => {

@@ -9,7 +9,7 @@ interface DashboardWidget {
   position: number;
   size: string;
   tab: string;
-  config: any;
+  config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -49,9 +49,9 @@ export const useDashboardWidgets = (tab: string = 'overview') => {
       }
 
       setWidgets(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load dashboard widgets:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }

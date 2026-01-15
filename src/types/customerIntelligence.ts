@@ -57,8 +57,8 @@ export interface ProfileHistoryEntry {
   userEmail: string;
   changeType: 'add' | 'remove' | 'modify' | 'create';
   fieldChanged: string;
-  previousValue: any;
-  newValue: any;
+  previousValue: unknown;
+  newValue: unknown;
   userInput?: string;
   aiInterpretation?: string;
   correlationData?: {

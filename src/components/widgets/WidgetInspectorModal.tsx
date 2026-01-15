@@ -15,15 +15,19 @@ import { WidgetPreviewTab } from './inspector/WidgetPreviewTab';
 import { WidgetQueryTab } from './inspector/WidgetQueryTab';
 import { WidgetUsageTab } from './inspector/WidgetUsageTab';
 import { WidgetHistoryTab } from './inspector/WidgetHistoryTab';
+import type { WidgetDefinition } from '../../types/widgets';
+import type { CustomWidgetDefinition } from '../../config/widgets/customWidgetTypes';
+
+type InspectorWidget = WidgetDefinition | CustomWidgetDefinition;
 
 interface WidgetInspectorModalProps {
-  widget: any;
+  widget: InspectorWidget;
   isAdmin: boolean;
   isCustomerCreatedTab?: boolean;
   onClose: () => void;
   onAddToDashboard?: (widgetId: string) => void;
-  onEdit?: (widget: any) => void;
-  onDuplicate?: (widget: any) => void;
+  onEdit?: (widget: InspectorWidget) => void;
+  onDuplicate?: (widget: InspectorWidget) => void;
   onDelete?: (widgetId: string) => void;
   onCloneToSystem?: () => void;
 }
@@ -45,7 +49,7 @@ export const WidgetInspectorModal = ({
   const isSystem = isSystemWidget(widget.id);
   const isCustom = !isSystem;
 
-  const handleWidgetUpdated = useCallback((updatedWidget: any) => {
+  const handleWidgetUpdated = useCallback((updatedWidget: InspectorWidget) => {
     setWidget(updatedWidget);
   }, []);
 

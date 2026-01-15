@@ -2,6 +2,32 @@ import { supabase } from '../lib/supabase';
 import { ReportConfig } from '../types/reports';
 import { format } from 'date-fns';
 
+interface ReportCategory {
+  name: string;
+  keywords: string[];
+  isDefault?: boolean;
+}
+
+interface ShipmentWithStatus {
+  load_id: number;
+  retail: number | null;
+  pickup_date: string;
+  shipment_status: { status_name: string } | null;
+}
+
+interface ShipmentItem {
+  load_id: number;
+  quantity: number | null;
+  description: string | null;
+}
+
+interface QuantityByLoadIdAndCategory {
+  [loadId: number]: {
+    total: number;
+    [categoryName: string]: number;
+  };
+}
+
 export interface MonthlyMetric {
   month: string;
   avgCostPerUnit: number;
@@ -42,7 +68,7 @@ export interface ReportExecutionResult {
   overallMetrics: OverallMetrics | null;
 }
 
-function categorizeItem(description: string | null, categories: any[]): string {
+function categorizeItem(description: string | null, categories: ReportCategory[]): string {
   if (!description) {
     const defaultCategory = categories.find((c) => c.isDefault);
     return defaultCategory?.name || 'OTHER';
@@ -124,8 +150,8 @@ async function executeCategoryBreakdownReport(
     };
   }
 
-  const filteredShipments = shipments.filter(
-    (s: any) =>
+  const filteredShipments = (shipments as ShipmentWithStatus[]).filter(
+    (s) =>
       s.shipment_status?.status_name &&
       s.shipment_status.status_name.toLowerCase() !== 'cancelled' &&
       s.shipment_status.status_name.toLowerCase() !== 'quoted'
@@ -134,29 +160,32 @@ async function executeCategoryBreakdownReport(
   const { data: items, error: itemsError } = await supabase
     .from('shipment_item')
     .select('load_id, quantity, description')
-    .in('load_id', filteredShipments.map((s: any) => s.load_id));
+    .in('load_id', filteredShipments.map((s) => s.load_id));
 
   if (itemsError) throw itemsError;
 
-  const quantityByLoadIdAndCategory = (items || []).reduce((acc: any, item: any) => {
-    const category = categorizeItem(item.description, categories);
-    const loadId = item.load_id;
+  const quantityByLoadIdAndCategory = ((items || []) as ShipmentItem[]).reduce<QuantityByLoadIdAndCategory>(
+    (acc, item) => {
+      const category = categorizeItem(item.description, categories);
+      const loadId = item.load_id;
 
-    if (!acc[loadId]) {
-      acc[loadId] = {
-        total: 0,
-      };
-      categories.forEach((cat) => {
-        acc[loadId][cat.name] = 0;
-      });
-    }
+      if (!acc[loadId]) {
+        acc[loadId] = {
+          total: 0,
+        };
+        categories.forEach((cat) => {
+          acc[loadId][cat.name] = 0;
+        });
+      }
 
-    const qty = item.quantity || 0;
-    acc[loadId].total += qty;
-    acc[loadId][category] += qty;
+      const qty = item.quantity || 0;
+      acc[loadId].total += qty;
+      acc[loadId][category] += qty;
 
-    return acc;
-  }, {});
+      return acc;
+    },
+    {}
+  );
 
   type MonthlyMetricData = {
     revenue: number;
@@ -173,7 +202,7 @@ async function executeCategoryBreakdownReport(
 
   const monthlyMetrics: { [key: string]: MonthlyMetricData } = {};
 
-  filteredShipments.forEach((shipment: any) => {
+  filteredShipments.forEach((shipment) => {
     const loadData = quantityByLoadIdAndCategory[shipment.load_id];
     if (!loadData || loadData.total === 0 || !shipment.retail) return;
 

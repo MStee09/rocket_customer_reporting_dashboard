@@ -371,7 +371,7 @@ export function buildQueryFromSimpleReport(
 export async function executeSimpleReport(
   config: SimpleReportConfig,
   customerId?: string
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   const query = buildQueryFromSimpleReport(config, customerId);
 
   const { data, error } = await supabase.rpc('execute_custom_query', {
@@ -411,14 +411,14 @@ export function validateSimpleReport(config: SimpleReportConfig): string[] {
   return errors;
 }
 
-export function getReportPreviewData(config: SimpleReportConfig): any[] {
-  const sampleRow: any = {};
+export function getReportPreviewData(config: SimpleReportConfig): Record<string, string | number | boolean>[] {
+  const sampleRow: Record<string, string | number | boolean> = {};
 
   for (const column of config.columns) {
     const columnDef = getColumnById(column.id);
     if (!columnDef) continue;
 
-    let sampleValue: any;
+    let sampleValue: string | number | boolean;
 
     switch (columnDef.type) {
       case 'string':

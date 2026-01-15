@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { FloatingAIButton } from './ai/FloatingAIButton';
 import { WelcomeModal, useWelcomeModal } from './onboarding';
+import { PageErrorBoundary } from './PageErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { UserCog, Eye, X, AlertTriangle } from 'lucide-react';
 
@@ -96,7 +97,9 @@ export function AppLayout() {
 
           <main className="flex-1 overflow-y-auto w-full min-w-0">
             <div className="p-6 lg:p-8">
-              <Outlet />
+              <PageErrorBoundary>
+                <Outlet />
+              </PageErrorBoundary>
             </div>
           </main>
         </div>

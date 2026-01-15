@@ -9,7 +9,49 @@ import type {
   CorrelationValidationResult,
 } from '../types/customerIntelligence';
 
-function dbToProfile(row: any): CustomerIntelligenceProfile {
+interface ProfileDbRow {
+  id: string;
+  customer_id: number;
+  priorities: CustomerPriority[] | null;
+  products: ProductMapping[] | null;
+  key_markets: KeyMarket[] | null;
+  terminology: TermMapping[] | null;
+  benchmark_period: string | null;
+  account_notes: string | null;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+interface HistoryDbRow {
+  id: string;
+  profile_id: string;
+  customer_id: number;
+  timestamp: string;
+  user_id: string;
+  user_email: string;
+  change_type: string;
+  field_changed: string;
+  previous_value: unknown;
+  new_value: unknown;
+  user_input: string | null;
+  ai_interpretation: string | null;
+  correlation_data: CorrelationValidationResult | null;
+}
+
+interface ProfileDbUpdates {
+  updated_by: string;
+  updated_at: string;
+  priorities?: CustomerPriority[];
+  products?: ProductMapping[];
+  key_markets?: KeyMarket[];
+  terminology?: TermMapping[];
+  benchmark_period?: string | null;
+  account_notes?: string | null;
+}
+
+function dbToProfile(row: ProfileDbRow): CustomerIntelligenceProfile {
   return {
     id: row.id,
     customerId: row.customer_id,
@@ -26,7 +68,7 @@ function dbToProfile(row: any): CustomerIntelligenceProfile {
   };
 }
 
-function dbToHistoryEntry(row: any): ProfileHistoryEntry {
+function dbToHistoryEntry(row: HistoryDbRow): ProfileHistoryEntry {
   return {
     id: row.id,
     profileId: row.profile_id,
@@ -114,10 +156,10 @@ export async function updateProfile(
   updates: Partial<CustomerIntelligenceProfile>,
   userId: string,
   userEmail: string,
-  changeDetails: { field: string; previousValue: any; newValue: any; userInput?: string }
+  changeDetails: { field: string; previousValue: unknown; newValue: unknown; userInput?: string }
 ): Promise<CustomerIntelligenceProfile> {
   try {
-    const dbUpdates: Record<string, any> = {
+    const dbUpdates: ProfileDbUpdates = {
       updated_by: userId,
       updated_at: new Date().toISOString(),
     };
@@ -276,7 +318,7 @@ export async function addProduct(
   userId: string,
   userEmail: string,
   userInput?: string,
-  correlationData?: any
+  correlationData?: CorrelationValidationResult
 ): Promise<CustomerIntelligenceProfile> {
   try {
     const profile = await getProfile(customerId);

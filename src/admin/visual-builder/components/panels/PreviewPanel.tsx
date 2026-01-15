@@ -12,7 +12,14 @@ import {
 import { useBuilder } from '../BuilderContext';
 import { supabase } from '../../../../lib/supabase';
 import { useAuth } from '../../../../contexts/AuthContext';
-import type { LogicBlock, AILogicBlock, FilterBlock } from '../../types/BuilderSchema';
+import type { LogicBlock, AILogicBlock, FilterBlock, VisualizationConfig } from '../../types/BuilderSchema';
+
+interface AggregatedDataItem {
+  name: string;
+  value: number;
+  x?: number;
+  y?: number;
+}
 import {
   BarChart,
   Bar,
@@ -97,7 +104,7 @@ export function PreviewPanel() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<AggregatedDataItem[]>([]);
   const [rowCount, setRowCount] = useState<number | null>(null);
   const [usingJoin, setUsingJoin] = useState(false);
 
@@ -296,22 +303,26 @@ export function PreviewPanel() {
     }
   };
 
-  const aggregateData = (rawData: any[]): any[] => {
+  const aggregateData = (rawData: Record<string, unknown>[]): AggregatedDataItem[] => {
     const { xField, yField, aggregation = 'sum' } = state.visualization;
 
     if (!xField || !yField) {
       if (state.visualization.type === 'kpi') {
-        const total = rawData.reduce((sum, row) => sum + (parseFloat(row[yField || 'retail']) || 0), 0);
+        const field = yField || 'retail';
+        const total = rawData.reduce((sum, row) => sum + (parseFloat(String(row[field] ?? 0)) || 0), 0);
         return [{ name: 'Total', value: aggregation === 'avg' ? total / rawData.length : total }];
       }
-      return rawData.slice(0, 20);
+      return rawData.slice(0, 20).map((row, i) => ({
+        name: String(row['name'] ?? row['carrier_name'] ?? row['customer_name'] ?? `Item ${i + 1}`),
+        value: parseFloat(String(row['value'] ?? row['retail'] ?? row['cost'] ?? 0)) || 0
+      }));
     }
 
     const groups = new Map<string, number[]>();
 
     for (const row of rawData) {
       const key = String(row[xField] || 'Unknown');
-      const value = parseFloat(row[yField]) || 0;
+      const value = parseFloat(String(row[yField] ?? 0)) || 0;
 
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -496,7 +507,7 @@ export function PreviewPanel() {
 
 const COLORS = ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#14b8a6', '#f59e0b', '#6366f1'];
 
-function VisualizationRenderer({ type, data, config }: { type: string; data: any[]; config: any }) {
+function VisualizationRenderer({ type, data, config }: { type: string; data: AggregatedDataItem[]; config: VisualizationConfig }) {
   const colors = config.colors || COLORS;
   const isCurrency = config.yField === 'retail' || config.yField === 'cost';
 
@@ -662,7 +673,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
       );
 
     case 'choropleth':
-      return <ChoroplethPreview data={data} config={config} />;
+      return <ChoroplethPreview data={data} />;
 
     case 'treemap':
       return <TreemapPreview data={data} colors={colors} />;
@@ -679,7 +690,7 @@ function VisualizationRenderer({ type, data, config }: { type: string; data: any
   }
 }
 
-function KPIPreview({ data, config }: { data: any[]; config: any }) {
+function KPIPreview({ data, config }: { data: AggregatedDataItem[]; config: VisualizationConfig }) {
   const value = data[0]?.value || 0;
   const format = config.kpi?.format || (config.yField === 'retail' || config.yField === 'cost' ? 'currency' : 'number');
 
@@ -706,7 +717,7 @@ function KPIPreview({ data, config }: { data: any[]; config: any }) {
   );
 }
 
-function TablePreview({ data }: { data: any[] }) {
+function TablePreview({ data }: { data: AggregatedDataItem[] }) {
   if (data.length === 0) return null;
 
   return (
@@ -740,7 +751,7 @@ function TablePreview({ data }: { data: any[] }) {
   );
 }
 
-function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
+function ChoroplethPreview({ data }: { data: AggregatedDataItem[] }) {
   return (
     <div className="h-full flex items-center justify-center">
       <div className="text-center text-slate-400">
@@ -760,7 +771,7 @@ function ChoroplethPreview({ data, config }: { data: any[]; config: any }) {
   );
 }
 
-function TreemapPreview({ data, colors }: { data: any[]; colors: string[] }) {
+function TreemapPreview({ data, colors }: { data: AggregatedDataItem[]; colors: string[] }) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   return (

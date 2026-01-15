@@ -7,8 +7,79 @@ import { executeCustomWidgetQuery } from '../../../utils/customWidgetExecutor';
 import { WidgetRenderer, getWidgetDisplayType } from '../WidgetRenderer';
 import { logger } from '../../../utils/logger';
 
+interface QueryColumn {
+  field: string;
+  alias?: string;
+  aggregate?: string;
+  format?: string;
+}
+
+interface WidgetDataSource {
+  query?: {
+    columns: QueryColumn[];
+    table?: string;
+    filters?: unknown[];
+    groupBy?: string[];
+  };
+}
+
+interface WidgetVisualization {
+  type?: string;
+  format?: string;
+}
+
+interface WidgetConfig {
+  id: string;
+  name: string;
+  type?: string;
+  dataSource?: WidgetDataSource;
+  visualization?: WidgetVisualization;
+  calculate?: (params: {
+    supabase: ReturnType<typeof useSupabase>;
+    customerId?: number;
+    dateRange: { start: string; end: string };
+  }) => Promise<PreviewData>;
+}
+
+interface Customer {
+  customer_id: number;
+  company_name: string;
+}
+
+interface TableColumn {
+  key: string;
+  label: string;
+  align: string;
+  format?: string;
+}
+
+interface KpiPreviewData {
+  type: 'kpi';
+  value: number;
+  format: string;
+  label: string;
+}
+
+interface ChartPreviewData {
+  type: 'chart';
+  data: Record<string, unknown>[];
+}
+
+interface TablePreviewData {
+  type: 'table';
+  data: Record<string, unknown>[];
+  columns: TableColumn[];
+}
+
+interface PlaceholderPreviewData {
+  type: 'placeholder';
+  message: string;
+}
+
+type PreviewData = KpiPreviewData | ChartPreviewData | TablePreviewData | PlaceholderPreviewData;
+
 interface WidgetPreviewTabProps {
-  widget: any;
+  widget: WidgetConfig;
   isAdmin: boolean;
 }
 
@@ -20,9 +91,9 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
     effectiveCustomerId || null
   );
   const [dateRangeDays, setDateRangeDays] = useState(180);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +164,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
                 data: result.data,
               });
             } else if (vizType === 'table') {
-              const columns = widget.dataSource.query.columns.map((col: any) => ({
+              const columns = widget.dataSource.query.columns.map((col: QueryColumn): TableColumn => ({
                 key: col.alias || col.field,
                 label: col.alias || col.field.replace(/_/g, ' ').toUpperCase(),
                 align: col.aggregate ? 'right' : 'left',
@@ -236,7 +307,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
   );
 };
 
-const PreviewRenderer = ({ widget, data }: { widget: any; data: any }) => {
+const PreviewRenderer = ({ widget, data }: { widget: WidgetConfig; data: PreviewData | null }) => {
   if (!data) {
     return <p className="text-slate-500 text-center py-8">No data available</p>;
   }
@@ -270,7 +341,7 @@ const PreviewRenderer = ({ widget, data }: { widget: any; data: any }) => {
                       vizType === 'line_chart' ? 'line' : 'bar';
 
     const isCurrency = widget.visualization?.format === 'currency' ||
-                       widget.dataSource?.query?.columns?.some((c: any) =>
+                       widget.dataSource?.query?.columns?.some((c: QueryColumn) =>
                          c.field?.includes('retail') || c.field?.includes('cost') || c.field?.includes('margin')
                        );
 
@@ -291,7 +362,7 @@ const PreviewRenderer = ({ widget, data }: { widget: any; data: any }) => {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 sticky top-0">
             <tr>
-              {data.columns?.map((col: any, i: number) => (
+              {data.columns?.map((col: TableColumn, i: number) => (
                 <th key={i} className={`px-3 py-2 font-medium text-slate-600 ${col.align === 'right' ? 'text-right' : 'text-left'}`}>
                   {col.label}
                 </th>
@@ -303,14 +374,14 @@ const PreviewRenderer = ({ widget, data }: { widget: any; data: any }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {data.data.slice(0, 10).map((row: any, i: number) => (
+            {data.data.slice(0, 10).map((row: Record<string, unknown>, i: number) => (
               <tr key={i}>
-                {data.columns?.map((col: any, j: number) => (
+                {data.columns?.map((col: TableColumn, j: number) => (
                   <td key={j} className={`px-3 py-2 ${col.align === 'right' ? 'text-right' : 'text-left'} text-slate-700`}>
                     {formatCellValue(row[col.key], col.format)}
                   </td>
                 )) || (
-                  Object.values(row).map((val: any, j: number) => (
+                  Object.values(row).map((val: unknown, j: number) => (
                     <td key={j} className="px-3 py-2 text-slate-700">{String(val)}</td>
                   ))
                 )}
@@ -332,7 +403,7 @@ const PreviewRenderer = ({ widget, data }: { widget: any; data: any }) => {
   );
 };
 
-const formatCellValue = (value: any, format?: string) => {
+const formatCellValue = (value: unknown, format?: string): string => {
   if (value === null || value === undefined) return '-';
   if (format === 'currency') return `$${Number(value).toLocaleString()}`;
   if (format === 'percent') return `${Number(value).toFixed(1)}%`;

@@ -45,6 +45,25 @@ interface SummaryMetrics {
   prev_on_time_pct: number;
 }
 
+interface ShipmentRow {
+  carrier_name: string | null;
+  carrier_id: number;
+  retail: string | number | null;
+  delivered_date: string | null;
+  delivery_status: string | null;
+}
+
+interface PrevShipmentRow {
+  carrier_name: string | null;
+  retail: string | number | null;
+}
+
+interface MonthlyShipmentRow {
+  carrier_name: string;
+  retail: string | number | null;
+  shipped_date: string;
+}
+
 import { chartColors } from '../config/chartTheme';
 const CHART_COLORS = chartColors.primary;
 
@@ -127,7 +146,7 @@ export function CarriersPage() {
       let totalShipments = 0;
       let onTimeShipments = 0;
 
-      currentData.data.forEach((row: any) => {
+      currentData.data.forEach((row: ShipmentRow) => {
         const key = row.carrier_name || 'Unknown';
         const spend = parseFloat(row.retail) || 0;
 
@@ -157,7 +176,7 @@ export function CarriersPage() {
       const prevCarrierMap = new Map<string, number>();
       let prevTotalSpend = 0;
 
-      prevData.data.forEach((row: any) => {
+      prevData.data.forEach((row: PrevShipmentRow) => {
         const key = row.carrier_name || 'Unknown';
         const spend = parseFloat(row.retail) || 0;
         prevCarrierMap.set(key, (prevCarrierMap.get(key) || 0) + spend);
@@ -228,9 +247,9 @@ export function CarriersPage() {
 
       if (!data) return;
 
-      const monthlyMap = new Map<string, any>();
+      const monthlyMap = new Map<string, MonthlyData>();
 
-      data.forEach((row: any) => {
+      data.forEach((row: MonthlyShipmentRow) => {
         const date = new Date(row.shipped_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const spend = parseFloat(row.retail) || 0;
@@ -258,12 +277,12 @@ export function CarriersPage() {
 
   const sortedCarriers = useMemo(() => {
     const sorted = [...carriers].sort((a, b) => {
-      let aVal: any = a[sortField];
-      let bVal: any = b[sortField];
+      let aVal: string | number = a[sortField];
+      let bVal: string | number = b[sortField];
 
       if (sortField === 'carrier_name') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
+        aVal = (aVal as string).toLowerCase();
+        bVal = (bVal as string).toLowerCase();
       }
 
       if (sortDirection === 'asc') {

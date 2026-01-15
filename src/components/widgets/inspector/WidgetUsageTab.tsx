@@ -1,7 +1,14 @@
 import { TrendingUp, BarChart3 } from 'lucide-react';
 
+interface CustomerUsage {
+  name: string;
+  onDashboard: boolean;
+  loads: number;
+  lastLoad: string;
+}
+
 interface WidgetUsageTabProps {
-  widget: any;
+  widget: { id: string; name: string };
 }
 
 export const WidgetUsageTab = ({ widget }: WidgetUsageTabProps) => {
@@ -64,7 +71,7 @@ export const WidgetUsageTab = ({ widget }: WidgetUsageTabProps) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {usageData.customerBreakdown.map((customer: any, i: number) => (
+                {usageData.customerBreakdown.map((customer: CustomerUsage, i: number) => (
                   <tr key={i}>
                     <td className="px-4 py-3 font-medium text-slate-900">{customer.name}</td>
                     <td className="px-4 py-3">

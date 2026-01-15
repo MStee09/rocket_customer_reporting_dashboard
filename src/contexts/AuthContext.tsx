@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           logger.log('[AuthContext] Admin customers loaded:', { count: allCustomers?.length, error: customersError });
 
           if (allCustomers) {
-            loadedCustomers = allCustomers.map((c: any) => ({
+            loadedCustomers = allCustomers.map((c: { customer_id: number; company_name: string }) => ({
               customer_id: c.customer_id,
               customer_name: c.company_name,
             }));
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             logger.log('[AuthContext] Customer data loaded:', { data: customerData, error: customerError });
 
             if (customerData) {
-              loadedCustomers = customerData.map((c: any) => ({
+              loadedCustomers = customerData.map((c: { customer_id: number; company_name: string }) => ({
                 customer_id: c.customer_id,
                 customer_name: c.company_name,
               }));

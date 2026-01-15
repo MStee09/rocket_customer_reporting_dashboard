@@ -1,7 +1,26 @@
 import { Clock, RotateCcw, Eye, FileText } from 'lucide-react';
 
+interface WidgetForHistory {
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: { userEmail?: string };
+  source?: string;
+  visibility?: {
+    promotedFrom?: {
+      promotedByEmail?: string;
+      originalCreatorEmail?: string;
+    };
+  };
+  dataSource?: {
+    reportReference?: {
+      reportName?: string;
+    };
+  };
+}
+
 interface WidgetHistoryTabProps {
-  widget: any;
+  widget: WidgetForHistory;
 }
 
 export const WidgetHistoryTab = ({ widget }: WidgetHistoryTabProps) => {
@@ -87,7 +106,7 @@ export const WidgetHistoryTab = ({ widget }: WidgetHistoryTabProps) => {
   );
 };
 
-const buildVersionHistory = (widget: any) => {
+const buildVersionHistory = (widget: WidgetForHistory) => {
   const versions = [];
 
   if (widget.version || widget.createdAt) {

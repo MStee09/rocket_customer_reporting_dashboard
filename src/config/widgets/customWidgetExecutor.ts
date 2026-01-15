@@ -97,13 +97,13 @@ const isLookupField = (field: string): boolean => {
 };
 
 const transformToWidgetData = (
-  data: any[],
+  data: Record<string, unknown>[],
   widget: CustomWidgetDefinition,
   lookups: LookupData
 ): WidgetData => {
   const viz = widget.visualization;
 
-  const convertLookupValue = (field: string, value: any): string => {
+  const convertLookupValue = (field: string, value: unknown): string => {
     if (!isLookupField(field)) return String(value ?? '');
     return getLookupDisplayValue(lookups, field, value);
   };

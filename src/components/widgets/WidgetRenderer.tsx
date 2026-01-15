@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 export interface WidgetData {
   name: string;
   value: number;
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 export interface GroupedWidgetData {
@@ -370,7 +370,15 @@ export const TableWidget: React.FC<Omit<WidgetRenderProps, 'type'>> = (props) =>
   <WidgetRenderer {...props} type="table" />
 );
 
-export const getWidgetDisplayType = (widget: any): string => {
+interface WidgetTypeConfig {
+  displayType?: string;
+  type?: string;
+  chartType?: string;
+  visualization?: { type?: string };
+  config?: { type?: string; displayType?: string };
+}
+
+export const getWidgetDisplayType = (widget: WidgetTypeConfig | null | undefined): string => {
   const type = widget?.displayType
     || (widget?.type !== 'chart' ? widget?.type : null)
     || widget?.chartType

@@ -28,6 +28,30 @@ export interface JoinInfo {
   displayName: string;
 }
 
+interface TableRpcResponse {
+  table_name: string;
+  description: string | null;
+  category: 'core' | 'reference' | 'analytics' | null;
+}
+
+interface FieldRpcResponse {
+  field_name: string;
+  display_name: string | null;
+  data_type: string;
+  is_groupable: boolean | null;
+  is_aggregatable: boolean | null;
+  is_filterable: boolean | null;
+}
+
+interface JoinRpcResponse {
+  from_table: string;
+  to_table: string;
+  from_field: string;
+  to_field: string;
+  join_type: 'left' | 'inner' | null;
+  display_name: string | null;
+}
+
 export function useDynamicSchema() {
   const { isAdmin } = useAuth();
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -46,7 +70,7 @@ export function useDynamicSchema() {
 
       if (error) throw error;
 
-      const tableList: TableInfo[] = (data || []).map((t: any) => ({
+      const tableList: TableInfo[] = (data || []).map((t: TableRpcResponse) => ({
         name: t.table_name,
         displayName: t.table_name.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         description: t.description || '',
@@ -73,7 +97,7 @@ export function useDynamicSchema() {
 
       if (error) throw error;
 
-      const fieldList: FieldInfo[] = (data || []).map((f: any) => ({
+      const fieldList: FieldInfo[] = (data || []).map((f: FieldRpcResponse) => ({
         name: f.field_name,
         displayName: f.display_name || f.field_name.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         dataType: f.data_type,
@@ -101,7 +125,7 @@ export function useDynamicSchema() {
 
       if (error) throw error;
 
-      const joinList: JoinInfo[] = (data || []).map((j: any) => ({
+      const joinList: JoinInfo[] = (data || []).map((j: JoinRpcResponse) => ({
         fromTable: j.from_table,
         toTable: j.to_table,
         fromField: j.from_field,

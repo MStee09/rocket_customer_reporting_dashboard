@@ -6,9 +6,10 @@ import {
   loadAllCustomWidgets,
   loadAllCustomerCreatedWidgets,
 } from '../config/widgets/customWidgetStorage';
-import { CustomWidgetDefinition } from '../config/widgets/customWidgetTypes';
-import { customerWidgets, adminWidgets } from '../config/widgets';
+import { CustomWidgetDefinition, WidgetDefinition, customerWidgets, adminWidgets } from '../config/widgets';
 import { useAuth } from '../contexts/AuthContext';
+
+type AnyWidget = WidgetDefinition | CustomWidgetDefinition;
 
 export const useWidgetsByTab = (activeTab: string) => {
   const auth = useAuth();
@@ -22,7 +23,7 @@ export const useWidgetsByTab = (activeTab: string) => {
   const customerId = effectiveCustomerId;
   const userId = user?.id;
 
-  const [widgets, setWidgets] = useState<any[]>([]);
+  const [widgets, setWidgets] = useState<AnyWidget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refetchTrigger, setRefetchTrigger] = useState(0);
@@ -40,7 +41,7 @@ export const useWidgetsByTab = (activeTab: string) => {
       logger.log('User ID:', userId);
 
       try {
-        let result: any[] = [];
+        let result: AnyWidget[] = [];
 
         // SYSTEM WIDGETS TAB
         if (activeTab === 'system') {
@@ -138,7 +139,7 @@ export const useWidgetsByTab = (activeTab: string) => {
         else if (activeTab === 'admin_custom' && isAdmin() && !isViewingAsCustomer) {
           logger.log('📂 Loading admin custom widgets');
 
-          const allAdminWidgets: any[] = [];
+          const allAdminWidgets: CustomWidgetDefinition[] = [];
 
           const { data: adminFiles, error: listError } = await supabase.storage
             .from('custom-widgets')
@@ -188,7 +189,7 @@ export const useWidgetsByTab = (activeTab: string) => {
         else if (activeTab === 'customer_created' && isAdmin() && !isViewingAsCustomer) {
           logger.log('📂 Loading all customer-created widgets');
 
-          const allCustomerWidgets: any[] = [];
+          const allCustomerWidgets: CustomWidgetDefinition[] = [];
 
           const { data: customerFolders, error: listError } = await supabase.storage
             .from('custom-widgets')

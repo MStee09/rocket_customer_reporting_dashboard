@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -10,7 +10,9 @@ import {
   CheckCircle,
   AlertCircle,
   ArrowLeft,
+  LucideProps,
 } from 'lucide-react';
+import { CustomWidgetDefinition } from '../config/widgets/customWidgetTypes';
 import { useAuth } from '../contexts/AuthContext';
 import { WidgetLibraryCard } from '../components/widgets/WidgetLibraryCard';
 import { WidgetInspectorModal } from '../components/widgets/WidgetInspectorModal';
@@ -27,7 +29,7 @@ interface Tab {
   id: TabId;
   label: string;
   description: string;
-  icon: any;
+  icon: ComponentType<LucideProps>;
 }
 
 export const WidgetLibraryPage = () => {
@@ -38,10 +40,10 @@ export const WidgetLibraryPage = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TabId>('system');
-  const [selectedWidget, setSelectedWidget] = useState<any>(null);
-  const [widgetToClone, setWidgetToClone] = useState<any>(null);
-  const [widgetToDelete, setWidgetToDelete] = useState<any>(null);
-  const [widgetToEdit, setWidgetToEdit] = useState<any>(null);
+  const [selectedWidget, setSelectedWidget] = useState<CustomWidgetDefinition | null>(null);
+  const [widgetToClone, setWidgetToClone] = useState<CustomWidgetDefinition | null>(null);
+  const [widgetToDelete, setWidgetToDelete] = useState<CustomWidgetDefinition | null>(null);
+  const [widgetToEdit, setWidgetToEdit] = useState<CustomWidgetDefinition | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -88,7 +90,7 @@ export const WidgetLibraryPage = () => {
     ] : []),
   ];
 
-  const handleDeleteClick = (widget: any) => {
+  const handleDeleteClick = (widget: CustomWidgetDefinition) => {
     setWidgetToDelete(widget);
     setSelectedWidget(null);
   };
@@ -124,19 +126,19 @@ export const WidgetLibraryPage = () => {
     }
   };
 
-  const handleEditClick = (widget: any) => {
+  const handleEditClick = (widget: CustomWidgetDefinition) => {
     setWidgetToEdit(widget);
     setSelectedWidget(null);
   };
 
-  const handleEditSuccess = (updatedWidget: any) => {
+  const handleEditSuccess = () => {
     setWidgetToEdit(null);
     setEditSuccess(true);
     refetch();
     setTimeout(() => setEditSuccess(false), 3000);
   };
 
-  const handleDuplicateClick = async (widget: any) => {
+  const handleDuplicateClick = async (widget: CustomWidgetDefinition) => {
     setSelectedWidget(null);
     setDuplicateError(null);
 

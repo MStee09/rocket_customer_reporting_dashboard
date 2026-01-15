@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { ReportConfig, CustomerReportsData } from '../types/reports';
+import { ReportConfig, CustomerReportsData, SimpleReportColumn } from '../types/reports';
+import { ColumnFilter, ColumnSort } from '../types/filters';
 import { useAuth } from '../contexts/AuthContext';
 import { validateReportConfig, filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
 import { logger } from '../utils/logger';
@@ -9,12 +10,12 @@ interface ReportUpdates {
   name?: string;
   description?: string;
   simpleReport?: {
-    columns: any[];
+    columns: SimpleReportColumn[];
     isSummary: boolean;
     groupBy: string[];
     visualization: string;
-    filters?: any[];
-    sorts?: any[];
+    filters?: ColumnFilter[];
+    sorts?: ColumnSort[];
   };
 }
 

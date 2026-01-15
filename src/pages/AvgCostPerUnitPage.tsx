@@ -23,6 +23,34 @@ import { CategoryConfig } from '../types/metrics';
 
 type Category = string;
 
+interface ShipmentStatus {
+  status_name: string;
+}
+
+interface ShipmentWithStatus {
+  load_id: number;
+  retail: number | null;
+  pickup_date: string;
+  shipment_status: ShipmentStatus | null;
+}
+
+interface ShipmentItem {
+  load_id: number;
+  quantity: number | null;
+  description: string | null;
+}
+
+interface QuantityByCategory {
+  total: number;
+  [category: string]: number;
+}
+
+interface LineChartDataPoint {
+  month: string;
+  Overall: number;
+  [category: string]: string | number | null;
+}
+
 interface CategoryMetric {
   avgCostPerUnit: number;
   totalRevenue: number;
@@ -184,8 +212,8 @@ export function AvgCostPerUnitPage() {
         return;
       }
 
-      const filteredShipments = shipments.filter(
-        (s: any) =>
+      const filteredShipments = (shipments as ShipmentWithStatus[]).filter(
+        (s) =>
           s.shipment_status?.status_name &&
           s.shipment_status.status_name.toLowerCase() !== 'cancelled' &&
           s.shipment_status.status_name.toLowerCase() !== 'quoted'
@@ -194,11 +222,11 @@ export function AvgCostPerUnitPage() {
       const { data: items, error: itemsError } = await supabase
         .from('shipment_item')
         .select('load_id, quantity, description')
-        .in('load_id', filteredShipments.map((s: any) => s.load_id));
+        .in('load_id', filteredShipments.map((s) => s.load_id));
 
       if (itemsError) throw itemsError;
 
-      const quantityByLoadIdAndCategory = (items || []).reduce((acc: any, item: any) => {
+      const quantityByLoadIdAndCategory = ((items || []) as ShipmentItem[]).reduce<Record<number, QuantityByCategory>>((acc, item) => {
         const category = categorizeItem(item.description);
         const loadId = item.load_id;
 
@@ -233,7 +261,7 @@ export function AvgCostPerUnitPage() {
 
       const monthlyMetrics: { [key: string]: MonthlyMetricData } = {};
 
-      filteredShipments.forEach((shipment: any) => {
+      filteredShipments.forEach((shipment) => {
         const loadData = quantityByLoadIdAndCategory[shipment.load_id];
         if (!loadData || loadData.total === 0 || !shipment.retail) return;
 
@@ -637,7 +665,7 @@ export function AvgCostPerUnitPage() {
                       borderRadius: '8px',
                       padding: '12px',
                     }}
-                    formatter={(value: any, name: string) => {
+                    formatter={(value: number, name: string) => {
                       if (name === 'avgCostPerUnit') {
                         return [formatCurrency(value), 'Avg Cost Per Unit'];
                       }
@@ -674,7 +702,7 @@ export function AvgCostPerUnitPage() {
               <ResponsiveContainer width="100%" height={450}>
                 <LineChart
                   data={monthlyData.map((m) => {
-                    const chartData: any = {
+                    const chartData: LineChartDataPoint = {
                       month: m.month,
                       Overall: m.avgCostPerUnit,
                     };
@@ -702,7 +730,7 @@ export function AvgCostPerUnitPage() {
                       borderRadius: '8px',
                       padding: '12px',
                     }}
-                    formatter={(value: any) => {
+                    formatter={(value: number | null) => {
                       if (value === null || value === 0) return ['N/A', ''];
                       return [formatCurrency(value), ''];
                     }}

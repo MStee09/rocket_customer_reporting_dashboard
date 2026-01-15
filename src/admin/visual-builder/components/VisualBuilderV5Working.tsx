@@ -72,80 +72,22 @@ import {
 } from 'recharts';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-type ChartType = 'bar' | 'line' | 'pie' | 'kpi' | 'table' | 'area' | 'grouped_bar';
-type BuilderMode = 'ai' | 'manual';
-type Aggregation = 'sum' | 'avg' | 'count' | 'min' | 'max';
-type DateRangePreset = 'last7' | 'last30' | 'last90' | 'thisMonth' | 'lastMonth';
-type PublishDestination = 'pulse' | 'analytics';
-type PulseSection = 'key_metrics' | 'shipment_analysis' | 'financial_overview' | 'custom';
-type AnalyticsSection = 'overview' | 'trends' | 'comparisons' | 'custom';
-
-const DATE_PRESETS: Array<{ value: DateRangePreset; label: string }> = [
-  { value: 'last7', label: 'Last 7 Days' },
-  { value: 'last30', label: 'Last 30 Days' },
-  { value: 'last90', label: 'Last 90 Days' },
-  { value: 'thisMonth', label: 'This Month' },
-  { value: 'lastMonth', label: 'Last Month' },
-];
-
-interface Column {
-  id: string;
-  label: string;
-  category: string;
-  type: 'string' | 'number' | 'date' | 'boolean';
-  description?: string;
-  adminOnly?: boolean; // SECURITY: true = hidden from customers
-}
-
-interface AIConfig {
-  title: string;
-  xAxis: string;
-  yAxis: string;
-  aggregation: string;
-  filters: Array<{ field: string; operator: string; value: string }>;
-  searchTerms: string[];
-  groupingLogic?: string;
-}
-
-interface EditableFilter {
-  id: string;
-  field: string;
-  operator: 'contains' | 'equals' | 'gt' | 'lt';
-  value: string;
-}
-
-interface MultiDimensionData {
-  primary_group: string;
-  secondary_group: string;
-  value: number;
-  count: number;
-}
-
-interface GroupedChartData {
-  primaryGroup: string;
-  [secondaryGroup: string]: string | number;
-}
-
-interface WidgetConfig {
-  name: string;
-  description: string;
-  chartType: ChartType;
-  groupByColumn: string | null;
-  metricColumn: string | null;
-  aggregation: Aggregation;
-  filters: Array<{ field: string; operator: string; value: string }>;
-  data: Array<{ label: string; value: number }> | GroupedChartData[] | null;
-  aiConfig?: AIConfig;
-  secondaryGroupBy?: string;
-  secondaryGroups?: string[];
-  isMultiDimension?: boolean;
-  rawMultiDimData?: MultiDimensionData[];
-}
+import {
+  ChartType,
+  BuilderMode,
+  Aggregation,
+  DateRangePreset,
+  PublishDestination,
+  PulseSection,
+  AnalyticsSection,
+  DATE_PRESETS,
+  Column,
+  AIConfig,
+  EditableFilter,
+  MultiDimensionData,
+  GroupedChartData,
+  WidgetConfig,
+} from '../types/visualBuilderTypes';
 
 // =============================================================================
 // COLUMN DEFINITIONS WITH SECURITY FLAGS

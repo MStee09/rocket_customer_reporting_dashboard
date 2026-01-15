@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -11,22 +12,17 @@ import { ShipmentDetailPage } from './pages/ShipmentDetailPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { AIReportStudioPage } from './pages/AIReportStudioPage';
 import { ReportsPage } from './pages/ReportsPage';
-import { AvgCostPerUnitPage } from './pages/AvgCostPerUnitPage';
-import { CustomReportViewPage } from './pages/CustomReportViewPage';
 import { WidgetLibraryPage } from './pages/WidgetLibraryPage';
 import { AIReportViewerPage } from './pages/AIReportViewerPage';
 import { SharedReportPage } from './pages/SharedReportPage';
 import { ScheduledReportsPage } from './pages/ScheduledReportsPage';
 import { UserManagementPage } from './pages/UserManagementPage';
 import { SchemaExplorerPage } from './pages/SchemaExplorerPage';
-import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
 import { CustomerProfileEditorPage } from './pages/CustomerProfileEditorPage';
 import { CustomerProfileHistoryPage } from './pages/CustomerProfileHistoryPage';
-import { SettingsPage } from './pages/SettingsPage';
 import { HowToPage } from './pages/HowToPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DebugPage } from './pages/DebugPage';
-import { AIUsageDashboardPage } from './pages/AIUsageDashboardPage';
 import { WidgetRawDataPage } from './pages/WidgetRawDataPage';
 import { ReportViewPage } from './pages/ReportViewPage';
 import { VisualBuilderPage } from './admin/visual-builder';
@@ -36,6 +32,20 @@ import { MetricProtectedRoute } from './components/MetricProtectedRoute';
 import { ToastProvider } from './components/ui/Toast';
 import { ImpersonationGuardProvider } from './components/ui/ImpersonationGuard';
 import { Loader2 } from 'lucide-react';
+
+const KnowledgeBasePage = lazy(() => import('./pages/KnowledgeBasePage').then(m => ({ default: m.KnowledgeBasePage })));
+const CustomReportViewPage = lazy(() => import('./pages/CustomReportViewPage').then(m => ({ default: m.CustomReportViewPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AIUsageDashboardPage = lazy(() => import('./pages/AIUsageDashboardPage').then(m => ({ default: m.AIUsageDashboardPage })));
+const AvgCostPerUnitPage = lazy(() => import('./pages/AvgCostPerUnitPage').then(m => ({ default: m.AvgCostPerUnitPage })));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+    </div>
+  );
+}
 
 initializeWidgets();
 
@@ -122,13 +132,15 @@ function App() {
                 path="reports/avg-cost-per-unit"
                 element={
                   <MetricProtectedRoute metricKey="avg-cost-per-unit">
-                    <AvgCostPerUnitPage />
+                    <Suspense fallback={<PageLoader />}>
+                      <AvgCostPerUnitPage />
+                    </Suspense>
                   </MetricProtectedRoute>
                 }
               />
               {/* Redirect old custom-reports to new unified reports page */}
               <Route path="custom-reports" element={<Navigate to="/reports" replace />} />
-              <Route path="custom-reports/:reportId" element={<CustomReportViewPage />} />
+              <Route path="custom-reports/:reportId" element={<Suspense fallback={<PageLoader />}><CustomReportViewPage /></Suspense>} />
               <Route path="ai-reports/:reportId" element={<AIReportViewerPage />} />
               <Route path="saved-reports/:reportId" element={<ReportViewPage />} />
               <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
@@ -154,7 +166,9 @@ function App() {
                 path="knowledge-base"
                 element={
                   <ProtectedRoute requireAdmin>
-                    <KnowledgeBasePage />
+                    <Suspense fallback={<PageLoader />}>
+                      <KnowledgeBasePage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -182,7 +196,9 @@ function App() {
                 path="admin/ai-usage"
                 element={
                   <ProtectedRoute requireAdmin>
-                    <AIUsageDashboardPage />
+                    <Suspense fallback={<PageLoader />}>
+                      <AIUsageDashboardPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -194,7 +210,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
               <Route path="settings/how-to" element={<HowToPage />} />
               <Route path="debug" element={<DebugPage />} />
             </Route>

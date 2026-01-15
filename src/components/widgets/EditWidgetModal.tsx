@@ -28,10 +28,76 @@ import { useAuth } from '../../contexts/AuthContext';
 import { saveCustomWidget } from '../../config/widgets/customWidgetStorage';
 import { REPORT_COLUMNS, getGroupableColumns, getAggregatableColumns, getColumnById } from '../../config/reportColumns';
 
+interface QueryColumn {
+  field: string;
+  aggregate?: string;
+}
+
+interface VisualizationColumn {
+  field?: string;
+  key?: string;
+  label?: string;
+}
+
+interface ReportColumnRef {
+  id: string;
+}
+
+interface WidgetDisplay {
+  icon?: string;
+  iconColor?: string;
+  defaultSize?: string;
+}
+
+interface WidgetVisualization {
+  type?: string;
+  categoryField?: string;
+  valueField?: string;
+  xAxis?: string;
+  format?: string;
+  columns?: VisualizationColumn[];
+}
+
+interface WidgetQuery {
+  columns?: QueryColumn[];
+  groupBy?: string[];
+  orderBy?: Array<{ field: string; direction?: string }>;
+  limit?: number;
+}
+
+interface WidgetDataSource {
+  query?: WidgetQuery;
+  reportColumns?: ReportColumnRef[];
+}
+
+interface WidgetVisibility {
+  type?: 'private' | 'all_customers' | 'admin_only';
+}
+
+interface WidgetCreatedBy {
+  customerId?: number;
+}
+
+interface WidgetData {
+  id?: string;
+  name?: string;
+  description?: string;
+  type?: string;
+  icon?: string;
+  iconColor?: string;
+  defaultSize?: string;
+  display?: WidgetDisplay;
+  dataSource?: WidgetDataSource;
+  visualization?: WidgetVisualization;
+  visibility?: WidgetVisibility;
+  createdBy?: WidgetCreatedBy;
+  version?: number;
+}
+
 interface EditWidgetModalProps {
-  widget: any;
+  widget: WidgetData;
   onClose: () => void;
-  onSuccess: (updatedWidget: any) => void;
+  onSuccess: (updatedWidget: WidgetData) => void;
 }
 
 const ICON_OPTIONS = [
@@ -93,13 +159,13 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
 
   const extractValueField = () => {
     if (visualization.valueField) return visualization.valueField;
-    const aggCol = query.columns?.find((c: any) => c.aggregate);
+    const aggCol = query.columns?.find((c: QueryColumn) => c.aggregate);
     if (aggCol) return aggCol.field === '*' ? 'count' : aggCol.field;
     return 'count';
   };
 
   const extractAggregation = () => {
-    const aggCol = query.columns?.find((c: any) => c.aggregate);
+    const aggCol = query.columns?.find((c: QueryColumn) => c.aggregate);
     return aggCol?.aggregate || 'count';
   };
 
@@ -110,8 +176,8 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
   };
 
   const extractTableColumns = () => {
-    if (visualization.columns) return visualization.columns.map((c: any) => c.field || c.key);
-    if (query.columns) return query.columns.filter((c: any) => !c.aggregate).map((c: any) => c.field);
+    if (visualization.columns) return visualization.columns.map((c: VisualizationColumn) => c.field || c.key || '');
+    if (query.columns) return query.columns.filter((c: QueryColumn) => !c.aggregate).map((c: QueryColumn) => c.field);
     return [];
   };
 
@@ -131,7 +197,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
 
   const groupableColumns = useMemo(() => {
     if (hasReportColumns) {
-      const reportColumnIds = new Set(reportColumns.map((c: any) => c.id));
+      const reportColumnIds = new Set(reportColumns.map((c: ReportColumnRef) => c.id));
       return getGroupableColumns(isAdmin()).filter(c => reportColumnIds.has(c.id));
     }
     return getGroupableColumns(isAdmin());
@@ -139,7 +205,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
 
   const aggregatableColumns = useMemo(() => {
     if (hasReportColumns) {
-      const reportColumnIds = new Set(reportColumns.map((c: any) => c.id));
+      const reportColumnIds = new Set(reportColumns.map((c: ReportColumnRef) => c.id));
       return getAggregatableColumns(isAdmin()).filter(c => reportColumnIds.has(c.id));
     }
     return getAggregatableColumns(isAdmin());
@@ -147,7 +213,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
 
   const dateColumns = useMemo(() => {
     if (hasReportColumns) {
-      const reportColumnIds = new Set(reportColumns.map((c: any) => c.id));
+      const reportColumnIds = new Set(reportColumns.map((c: ReportColumnRef) => c.id));
       return REPORT_COLUMNS.filter(c => c.type === 'date' && reportColumnIds.has(c.id));
     }
     return REPORT_COLUMNS.filter(c => c.type === 'date');
@@ -155,7 +221,7 @@ export default function EditWidgetModal({ widget, onClose, onSuccess }: EditWidg
 
   const allColumns = useMemo(() => {
     if (hasReportColumns) {
-      const reportColumnIds = new Set(reportColumns.map((c: any) => c.id));
+      const reportColumnIds = new Set(reportColumns.map((c: ReportColumnRef) => c.id));
       return REPORT_COLUMNS.filter(c => (!c.adminOnly || isAdmin()) && reportColumnIds.has(c.id));
     }
     return REPORT_COLUMNS.filter(c => !c.adminOnly || isAdmin());

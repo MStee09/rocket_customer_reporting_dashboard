@@ -37,6 +37,19 @@ interface ShipmentFlowMapProps {
   endDate: string;
 }
 
+interface ShipmentAddress {
+  address_type: number;
+  stop_number: number;
+  state: string;
+}
+
+interface ShipmentWithAddresses {
+  load_id: string;
+  cost: string | number | null;
+  retail: string | number | null;
+  addresses: ShipmentAddress[];
+}
+
 const usGeoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 const canadaGeoUrl = 'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/canada.geojson';
 
@@ -284,12 +297,12 @@ export function ShipmentFlowMap({
         const locationCounts: { [state: string]: { outbound: number; inbound: number } } = {};
         const routeCounts: { [route: string]: { count: number; cost: number } } = {};
 
-        shipments.forEach((shipment: any) => {
+        shipments.forEach((shipment: ShipmentWithAddresses) => {
           if (!shipment.addresses || shipment.addresses.length < 2) return;
 
           const sortedAddresses = [...shipment.addresses].sort((a, b) => a.stop_number - b.stop_number);
-          const origin = sortedAddresses.find((a: any) => a.address_type === 1);
-          const destination = sortedAddresses.find((a: any) => a.address_type === 2);
+          const origin = sortedAddresses.find((a) => a.address_type === 1);
+          const destination = sortedAddresses.find((a) => a.address_type === 2);
 
           if (origin?.state && destination?.state && ALL_COORDINATES[origin.state] && ALL_COORDINATES[destination.state]) {
             locationCounts[origin.state] = locationCounts[origin.state] || { outbound: 0, inbound: 0 };

@@ -1855,5 +1855,9 @@ Return a clear visualization with properly grouped data.`;
   );
 }
 
+function formatFieldName(name: string): string {
+  if (!name) return '';
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
 export default VisualBuilderV5Working;

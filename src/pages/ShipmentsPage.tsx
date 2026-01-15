@@ -565,3 +565,5 @@ export function ShipmentsPage() {
     </div>
   );
 }
+
+export default ShipmentsPage;

@@ -526,3 +526,5 @@ export function ScheduledReportsPage() {
     </div>
   );
 }
+
+export default ScheduledReportsPage;

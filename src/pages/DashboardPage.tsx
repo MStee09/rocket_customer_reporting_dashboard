@@ -476,3 +476,5 @@ export function DashboardPage() {
     </DashboardAlertProvider>
   );
 }
+
+export default DashboardPage;

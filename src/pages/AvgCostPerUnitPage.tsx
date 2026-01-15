@@ -774,3 +774,5 @@ export function AvgCostPerUnitPage() {
     </div>
   );
 }
+
+export default AvgCostPerUnitPage;

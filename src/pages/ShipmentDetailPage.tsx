@@ -368,3 +368,5 @@ export function ShipmentDetailPage() {
     </div>
   );
 }
+
+export default ShipmentDetailPage;

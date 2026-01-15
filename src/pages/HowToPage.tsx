@@ -372,3 +372,5 @@ export function HowToPage() {
     </div>
   );
 }
+
+export default HowToPage;

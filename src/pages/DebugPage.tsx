@@ -309,3 +309,5 @@ export function DebugPage() {
     </div>
   );
 }
+
+export default DebugPage;

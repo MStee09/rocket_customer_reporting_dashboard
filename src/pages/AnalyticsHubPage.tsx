@@ -481,3 +481,5 @@ export function AnalyticsHubPage() {
     </DashboardAlertProvider>
   );
 }
+
+export default AnalyticsHubPage;

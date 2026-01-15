@@ -955,3 +955,5 @@ export function CustomReportViewPage() {
     </div>
   );
 }
+
+export default CustomReportViewPage;

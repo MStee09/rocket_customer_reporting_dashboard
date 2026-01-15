@@ -394,3 +394,5 @@ function LookupCard({
     </Card>
   );
 }
+
+export default SchemaExplorerPage;

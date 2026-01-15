@@ -13,6 +13,10 @@ export interface TableSchema {
   columns: ColumnSchema[];
 }
 
+interface SchemaRpcRow extends ColumnSchema {
+  table_name: string;
+}
+
 const SHIPMENT_TABLES = [
   'shipment',
   'shipment_accessorial',
@@ -42,12 +46,13 @@ export async function loadAllShipmentSchemas(): Promise<Map<string, TableSchema>
   const schemaMap = new Map<string, TableSchema>();
 
   if (data) {
+    const rows = data as SchemaRpcRow[];
     SHIPMENT_TABLES.forEach(tableName => {
-      const tableColumns = data.filter((col: any) => col.table_name === tableName);
+      const tableColumns = rows.filter(col => col.table_name === tableName);
       if (tableColumns.length > 0) {
         schemaMap.set(tableName, {
           table_name: tableName,
-          columns: tableColumns.map((col: any) => ({
+          columns: tableColumns.map(col => ({
             column_name: col.column_name,
             data_type: col.data_type,
             is_nullable: col.is_nullable,
@@ -90,7 +95,7 @@ export function getSchemaForTable(tableName: string, schemas: Map<string, TableS
   return schemas.get(tableName) || null;
 }
 
-export function mergeSchemaWithData(schema: TableSchema | null, data: any[]): { columns: string[], hasData: Set<string> } {
+export function mergeSchemaWithData(schema: TableSchema | null, data: Record<string, unknown>[]): { columns: string[], hasData: Set<string> } {
   if (!schema) {
     const allKeys = new Set<string>();
     data.forEach(row => {

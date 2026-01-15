@@ -18,9 +18,40 @@ import { getColumnById } from '../config/reportColumns';
 import { useLookupTables } from '../hooks/useLookupTables';
 import { format } from 'date-fns';
 import { AskAIButton } from './ui/AskAIButton';
+import { CustomWidgetDefinition, QueryColumn } from '../config/widgets/customWidgetTypes';
+
+interface ChartDataPoint {
+  name: string;
+  value: number;
+}
+
+interface ShipmentItemRow {
+  load_id: string;
+  description: string;
+  origin_state?: string;
+  destination_state?: string;
+  [key: string]: string | number | undefined;
+}
+
+interface AggregateResultRow {
+  label?: string;
+  name?: string;
+  value?: number;
+}
+
+interface TableColumn {
+  field: string;
+  label?: string;
+}
+
+interface DataSourceFilter {
+  field: string;
+  operator: string;
+  value: string;
+}
 
 interface DashboardWidgetCardProps {
-  widget: WidgetDefinition | any;
+  widget: WidgetDefinition | CustomWidgetDefinition;
   customerId: string | undefined;
   dateRange: DateRange;
   comparisonDateRange?: DateRange;
@@ -108,11 +139,11 @@ export function DashboardWidgetCard({
         if (widget.dataMode === 'static' && widget.snapshotData) {
           const snapshot = widget.snapshotData;
 
-          const normalizeChartData = (data: any[]): any[] => {
+          const normalizeChartData = (data: Record<string, unknown>[]): ChartDataPoint[] => {
             if (!data || data.length === 0) return [];
             const first = data[0];
             if ('name' in first && 'value' in first) {
-              return data;
+              return data as unknown as ChartDataPoint[];
             }
             const keys = Object.keys(first);
             if (keys.length >= 2) {
@@ -129,7 +160,7 @@ export function DashboardWidgetCard({
                 value: Number(item[keys[0]]) || 0,
               }));
             }
-            return data;
+            return data as unknown as ChartDataPoint[];
           };
 
           if (snapshot.type === 'chart' && Array.isArray(snapshot.data)) {
@@ -191,7 +222,7 @@ export function DashboardWidgetCard({
               let detailRows = itemData || [];
 
               if (secondaryGroupBy === 'origin_state' || secondaryGroupBy === 'destination_state') {
-                const loadIds = [...new Set(detailRows.map((r: any) => parseInt(r.load_id, 10)))].filter((id: number) => !isNaN(id));
+                const loadIds = [...new Set(detailRows.map((r: ShipmentItemRow) => parseInt(r.load_id, 10)))].filter((id: number) => !isNaN(id));
 
                 if (loadIds.length > 0) {
                   const { data: addresses } = await supabase
@@ -211,7 +242,7 @@ export function DashboardWidgetCard({
                     }
                   }
 
-                  detailRows = detailRows.map((row: any) => {
+                  detailRows = detailRows.map((row: ShipmentItemRow) => {
                     const loadIdNum = parseInt(row.load_id, 10);
                     const addrs = addressMap.get(loadIdNum) || {};
                     return { ...row, origin_state: addrs.origin_state || '', destination_state: addrs.destination_state || '' };
@@ -223,11 +254,11 @@ export function DashboardWidgetCard({
               const allRawData: Array<{ primary_group: string; secondary_group: string; value: number; count: number }> = [];
 
               for (const term of aiConfig.searchTerms) {
-                const termRows = detailRows.filter((row: any) => row.description?.toLowerCase().includes(term.toLowerCase()));
+                const termRows = detailRows.filter((row: ShipmentItemRow) => row.description?.toLowerCase().includes(term.toLowerCase()));
                 const categoryStates = new Map<string, { total: number; count: number }>();
 
-                for (const row of termRows) {
-                  const state = row[secondaryGroupBy] || 'Unknown';
+                for (const row of termRows as ShipmentItemRow[]) {
+                  const state = String(row[secondaryGroupBy] || 'Unknown');
                   if (!categoryStates.has(state)) {
                     categoryStates.set(state, { total: 0, count: 0 });
                   }
@@ -286,7 +317,7 @@ export function DashboardWidgetCard({
             const allResults: Array<{ name: string; value: number }> = [];
 
             for (const term of aiConfig.searchTerms) {
-              const termRows = detailRows.filter((row: any) => row.description?.toLowerCase().includes(term.toLowerCase()));
+              const termRows = detailRows.filter((row: ShipmentItemRow) => row.description?.toLowerCase().includes(term.toLowerCase()));
               logger.log(`[DashboardWidgetCard] "${term}" matched ${termRows.length} rows`);
 
               if (termRows.length > 0) {
@@ -325,7 +356,7 @@ export function DashboardWidgetCard({
           }
 
           if (filters && Array.isArray(filters)) {
-            filters.forEach((f: any) => {
+            filters.forEach((f: DataSourceFilter) => {
               if (f.value) {
                 queryFilters.push({
                   field: f.field === 'item_description' ? 'description' : f.field,
@@ -365,7 +396,7 @@ export function DashboardWidgetCard({
           logger.log('[DashboardWidgetCard] Result keys:', result ? Object.keys(result) : 'null');
           logger.log('[DashboardWidgetCard] Result stringified:', JSON.stringify(result).substring(0, 1000));
 
-          let rows: any[] = [];
+          let rows: AggregateResultRow[] = [];
 
           if (typeof result === 'string') {
             const parsed = JSON.parse(result);
@@ -392,7 +423,7 @@ export function DashboardWidgetCard({
           logger.log('[DashboardWidgetCard] Parsed rows:', rows);
           logger.log('[DashboardWidgetCard] Rows length:', rows.length);
 
-          const chartData = rows.map((row: any) => ({
+          const chartData = rows.map((row: AggregateResultRow) => ({
             name: String(row.label || row.name || 'Unknown'),
             value: Number(row.value || 0),
           }));
@@ -477,7 +508,7 @@ export function DashboardWidgetCard({
     if (isCustomWidget && data.data) {
       const widgetType = getWidgetDisplayType(widget);
       const isCurrency = widget.visualization?.format === 'currency' ||
-                         widget.dataSource?.query?.columns?.some((c: any) =>
+                         widget.dataSource?.query?.columns?.some((c: QueryColumn) =>
                            c.field?.includes('retail') || c.field?.includes('cost') || c.field?.includes('margin')
                          ) ||
                          widget.dataSource?.metricColumn?.includes('cost') ||
@@ -501,10 +532,10 @@ export function DashboardWidgetCard({
                 </tr>
               </thead>
               <tbody>
-                {data.data.map((row: any, idx: number) => (
+                {data.data.map((row: ChartDataPoint, idx: number) => (
                   <tr key={idx} className="border-b hover:bg-slate-50">
                     <td className="px-4 text-slate-700" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
-                      {row.name || row.label || 'Unknown'}
+                      {row.name || 'Unknown'}
                     </td>
                     <td className="px-4 text-right text-slate-700 font-medium" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
                       {isCurrency
@@ -524,7 +555,7 @@ export function DashboardWidgetCard({
       if ((widgetType === 'table' || data.type === 'table') && data.columns) {
         const columns = data.columns;
 
-        const formatTableCell = (value: any, columnId: string): string => {
+        const formatTableCell = (value: unknown, columnId: string): string => {
           if (value === null || value === undefined) return '-';
 
           const columnDef = getColumnById(columnId);
@@ -583,7 +614,7 @@ export function DashboardWidgetCard({
             <table className="w-full" style={{ fontSize: `${14 * scaleFactor}px` }}>
               <thead className="bg-slate-50 sticky top-0">
                 <tr>
-                  {columns.map((col: any, i: number) => {
+                  {columns.map((col: TableColumn, i: number) => {
                     const columnDef = getColumnById(col.field);
                     return (
                       <th key={i} className="px-4 text-left text-slate-700 font-semibold border-b" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
@@ -594,9 +625,9 @@ export function DashboardWidgetCard({
                 </tr>
               </thead>
               <tbody>
-                {data.data.slice(0, 10).map((row: any, idx: number) => (
+                {data.data.slice(0, 10).map((row: Record<string, unknown>, idx: number) => (
                   <tr key={idx} className="border-b hover:bg-slate-50">
-                    {columns.map((col: any, j: number) => (
+                    {columns.map((col: TableColumn, j: number) => (
                       <td key={j} className="px-4 text-slate-700" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
                         {formatTableCell(row[col.field], col.field)}
                       </td>
@@ -781,7 +812,7 @@ export function DashboardWidgetCard({
                     paddingAngle={2}
                     dataKey="value"
                   >
-                    {pieData.map((entry: any, index: number) => (
+                    {pieData.map((_entry: ChartDataPoint, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -791,7 +822,7 @@ export function DashboardWidgetCard({
             </div>
             <div className="pt-4 border-t mt-4">
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-                {pieData.map((item: any, index: number) => (
+                {pieData.map((item: ChartDataPoint, index: number) => (
                   <div key={index} className="flex items-center gap-2" style={{ fontSize: `${14 * scaleFactor}px` }}>
                     <div
                       className="rounded-full flex-shrink-0"
@@ -836,17 +867,20 @@ export function DashboardWidgetCard({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.data.map((row: any, idx: number) => (
+                  {data.data.map((row: Record<string, unknown>, idx: number) => (
                     <tr key={idx} className="border-b hover:bg-slate-50">
-                      {columns.map((col) => (
-                        <td key={col} className="px-4 text-slate-700" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
-                          {typeof row[col] === 'number' && col.toLowerCase().includes('cost')
-                            ? `$${row[col].toFixed(2)}`
-                            : typeof row[col] === 'number'
-                            ? row[col].toLocaleString()
-                            : row[col]}
-                        </td>
-                      ))}
+                      {columns.map((col) => {
+                        const cellValue = row[col];
+                        return (
+                          <td key={col} className="px-4 text-slate-700" style={{ paddingTop: `${12 * scaleFactor}px`, paddingBottom: `${12 * scaleFactor}px` }}>
+                            {typeof cellValue === 'number' && col.toLowerCase().includes('cost')
+                              ? `$${cellValue.toFixed(2)}`
+                              : typeof cellValue === 'number'
+                              ? cellValue.toLocaleString()
+                              : String(cellValue ?? '')}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>

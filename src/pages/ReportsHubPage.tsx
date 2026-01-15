@@ -552,3 +552,5 @@ export function ReportsHubPage() {
     </div>
   );
 }
+
+export default ReportsHubPage;

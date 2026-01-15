@@ -668,3 +668,5 @@ export function CarriersPage() {
     </div>
   );
 }
+
+export default CarriersPage;

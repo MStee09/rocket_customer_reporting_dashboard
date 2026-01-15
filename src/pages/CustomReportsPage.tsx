@@ -288,3 +288,5 @@ export function CustomReportsPage() {
     </div>
   );
 }
+
+export default CustomReportsPage;

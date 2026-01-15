@@ -122,3 +122,5 @@ export function PulseDashboardPage() {
     </DashboardAlertProvider>
   );
 }
+
+export default PulseDashboardPage;

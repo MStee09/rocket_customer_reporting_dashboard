@@ -47,8 +47,19 @@ import { ColumnConfig } from '../services/exportService';
 import { SchedulePromptBanner } from '../components/reports/SchedulePromptBanner';
 import { EmailReportModal } from '../components/reports/EmailReportModal';
 import { buildEnhancementContext } from '../utils/reportEnhancementContext';
+import { CustomerReport } from '../types/reports';
 
 type DatePreset = 'last30' | 'last90' | 'last6months' | 'lastyear' | 'custom';
+
+interface LocationState {
+  newReport?: CustomerReport;
+}
+
+interface ChartDataPoint {
+  month: string;
+  Overall: number;
+  [categoryName: string]: string | number | null;
+}
 
 export function CustomReportViewPage() {
   const { reportId } = useParams<{ reportId: string }>();
@@ -75,7 +86,7 @@ export function CustomReportViewPage() {
   const [enhancementData, setEnhancementData] = useState<Record<string, unknown>[]>([]);
   const [retryCount, setRetryCount] = useState(0);
 
-  const newReportFromState = (location.state as { newReport?: any })?.newReport;
+  const newReportFromState = (location.state as LocationState | null)?.newReport;
   const reportFromList = reports.find((r) => r.id === reportId);
   const report = reportFromList || (newReportFromState?.id === reportId ? newReportFromState : null);
 
@@ -823,7 +834,7 @@ export function CustomReportViewPage() {
                           borderRadius: '8px',
                           padding: '12px',
                         }}
-                        formatter={(value: any) => [formatCurrency(value), 'Avg Cost Per Unit']}
+                        formatter={(value: number) => [formatCurrency(value), 'Avg Cost Per Unit']}
                         labelStyle={{ fontWeight: 'bold', marginBottom: '8px' }}
                       />
                       <Bar dataKey="avgCostPerUnit" radius={[8, 8, 0, 0]}>
@@ -848,7 +859,7 @@ export function CustomReportViewPage() {
               <ResponsiveContainer width="100%" height={450}>
                 <LineChart
                   data={monthlyData.map((m) => {
-                    const chartData: any = {
+                    const chartData: ChartDataPoint = {
                       month: m.month,
                       Overall: m.avgCostPerUnit,
                     };
@@ -876,7 +887,7 @@ export function CustomReportViewPage() {
                       borderRadius: '8px',
                       padding: '12px',
                     }}
-                    formatter={(value: any) => {
+                    formatter={(value: number | null) => {
                       if (value === null || value === 0) return ['N/A', ''];
                       return [formatCurrency(value), ''];
                     }}

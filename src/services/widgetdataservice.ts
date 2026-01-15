@@ -4,7 +4,7 @@ import { getWidgetById } from '../config/widgets/widgetRegistry';
 import type { TableData } from '../utils/tabletransform';
 import type { ReportExecutionParams, DateRange } from '../types/report';
 import type { WidgetData } from '../config/widgets/widgetTypes';
-import { createWidgetDataFetchers, defaultShipmentQuery } from './widget-fetchers';
+import { createWidgetDataFetchers, defaultShipmentQuery } from './widgetFetchers';
 
 export interface WidgetExecutionResult {
   widgetId: string;

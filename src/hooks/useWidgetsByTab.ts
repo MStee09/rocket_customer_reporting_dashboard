@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 import {
   loadSystemWidgets,
   loadAllCustomWidgets,
@@ -31,12 +32,12 @@ export const useWidgetsByTab = (activeTab: string) => {
       setLoading(true);
       setError(null);
 
-      console.log('=== useWidgetsByTab ===');
-      console.log('Active Tab:', activeTab);
-      console.log('Is Admin:', isAdmin());
-      console.log('Is Viewing As Customer:', isViewingAsCustomer);
-      console.log('Effective Customer ID:', customerId);
-      console.log('User ID:', userId);
+      logger.log('=== useWidgetsByTab ===');
+      logger.log('Active Tab:', activeTab);
+      logger.log('Is Admin:', isAdmin());
+      logger.log('Is Viewing As Customer:', isViewingAsCustomer);
+      logger.log('Effective Customer ID:', customerId);
+      logger.log('User ID:', userId);
 
       try {
         let result: any[] = [];
@@ -49,21 +50,21 @@ export const useWidgetsByTab = (activeTab: string) => {
               ...Object.values(adminWidgets),
               ...Object.values(customerWidgets),
             ];
-            console.log('✅ Admin system widgets loaded:', result.length);
+            logger.log('✅ Admin system widgets loaded:', result.length);
           } else {
             // Customer or admin viewing as customer
             result = Object.values(customerWidgets);
-            console.log('✅ Customer system widgets loaded:', result.length);
+            logger.log('✅ Customer system widgets loaded:', result.length);
           }
         }
 
         // MY WIDGETS TAB (Customer's custom widgets)
         else if (activeTab === 'my_widgets') {
           if (!customerId) {
-            console.log('⚠️ No customer ID for my_widgets');
+            logger.log('⚠️ No customer ID for my_widgets');
             result = [];
           } else {
-            console.log('📂 Loading my_widgets for customer:', customerId);
+            logger.log('📂 Loading my_widgets for customer:', customerId);
 
             // Get customer name from database
             const { data: customerData } = await supabase
@@ -76,20 +77,20 @@ export const useWidgetsByTab = (activeTab: string) => {
 
             // Load from storage: customer/{customerId}/*.json
             const folderPath = `customer/${customerId}`;
-            console.log('Storage path:', folderPath);
-            console.log('Customer name:', customerName);
+            logger.log('Storage path:', folderPath);
+            logger.log('Customer name:', customerName);
 
             const { data: files, error: listError } = await supabase.storage
               .from('custom-widgets')
               .list(folderPath);
 
-            console.log('Files found:', files?.length || 0, 'Error:', listError);
+            logger.log('Files found:', files?.length || 0, 'Error:', listError);
 
             if (listError) {
               console.error('❌ List error:', listError);
               result = [];
             } else if (!files || files.length === 0) {
-              console.log('📭 No widget files in folder');
+              logger.log('📭 No widget files in folder');
               result = [];
             } else {
               // Load each JSON file
@@ -98,7 +99,7 @@ export const useWidgetsByTab = (activeTab: string) => {
                   .filter(f => f.name.endsWith('.json'))
                   .map(async (file) => {
                     const filePath = `${folderPath}/${file.name}`;
-                    console.log('📥 Downloading:', file.name);
+                    logger.log('📥 Downloading:', file.name);
 
                     try {
                       const { data, error: downloadError } = await supabase.storage
@@ -118,7 +119,7 @@ export const useWidgetsByTab = (activeTab: string) => {
                         widget.createdBy.customerName = customerName;
                       }
 
-                      console.log('✅ Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
+                      logger.log('✅ Widget loaded:', widget.name, 'ID:', widget.id, 'Customer:', customerName);
                       return widget;
                     } catch (parseError) {
                       console.error('❌ Parse error for', file.name, parseError);
@@ -128,14 +129,14 @@ export const useWidgetsByTab = (activeTab: string) => {
               );
 
               result = widgets.filter(Boolean);
-              console.log('✅ My widgets loaded:', result.length);
+              logger.log('✅ My widgets loaded:', result.length);
             }
           }
         }
 
         // ADMIN CUSTOM TAB (Admin's custom widgets)
         else if (activeTab === 'admin_custom' && isAdmin() && !isViewingAsCustomer) {
-          console.log('📂 Loading admin custom widgets');
+          logger.log('📂 Loading admin custom widgets');
 
           const allAdminWidgets: any[] = [];
 
@@ -143,7 +144,7 @@ export const useWidgetsByTab = (activeTab: string) => {
             .from('custom-widgets')
             .list('admin');
 
-          console.log('Admin files/folders found:', adminFiles?.length || 0, 'Error:', listError);
+          logger.log('Admin files/folders found:', adminFiles?.length || 0, 'Error:', listError);
 
           if (!listError && adminFiles) {
             for (const file of adminFiles) {
@@ -170,7 +171,7 @@ export const useWidgetsByTab = (activeTab: string) => {
                     };
                   }
 
-                  console.log('✅ Loaded admin widget:', widget.name, 'by:', widget.createdBy?.userEmail);
+                  logger.log('✅ Loaded admin widget:', widget.name, 'by:', widget.createdBy?.userEmail);
                   allAdminWidgets.push(widget);
                 }
               } catch (parseError) {
@@ -180,12 +181,12 @@ export const useWidgetsByTab = (activeTab: string) => {
           }
 
           result = allAdminWidgets;
-          console.log('✅ Admin custom widgets loaded:', result.length);
+          logger.log('✅ Admin custom widgets loaded:', result.length);
         }
 
         // CUSTOMER CREATED TAB (All customer widgets for admin to review)
         else if (activeTab === 'customer_created' && isAdmin() && !isViewingAsCustomer) {
-          console.log('📂 Loading all customer-created widgets');
+          logger.log('📂 Loading all customer-created widgets');
 
           const allCustomerWidgets: any[] = [];
 
@@ -193,7 +194,7 @@ export const useWidgetsByTab = (activeTab: string) => {
             .from('custom-widgets')
             .list('customer');
 
-          console.log('Customer folders found:', customerFolders?.length || 0, 'Error:', listError);
+          logger.log('Customer folders found:', customerFolders?.length || 0, 'Error:', listError);
 
           if (!listError && customerFolders) {
             const { data: customers } = await supabase
@@ -210,13 +211,13 @@ export const useWidgetsByTab = (activeTab: string) => {
               const customerId = folder.name;
               const customerName = customerMap.get(customerId) || `Customer ${customerId}`;
               const folderPath = `customer/${folder.name}`;
-              console.log('Loading from folder:', folderPath, 'Customer:', customerName);
+              logger.log('Loading from folder:', folderPath, 'Customer:', customerName);
 
               const { data: files, error: filesError } = await supabase.storage
                 .from('custom-widgets')
                 .list(folderPath);
 
-              console.log(`Files in ${folderPath}:`, files?.length || 0, 'Error:', filesError);
+              logger.log(`Files in ${folderPath}:`, files?.length || 0, 'Error:', filesError);
 
               if (!files) continue;
 
@@ -249,7 +250,7 @@ export const useWidgetsByTab = (activeTab: string) => {
                       };
                     }
 
-                    console.log('✅ Loaded widget:', widget.name, 'from customer:', widget.createdBy.customerName);
+                    logger.log('✅ Loaded widget:', widget.name, 'from customer:', widget.createdBy.customerName);
                     allCustomerWidgets.push(widget);
                   }
                 } catch (parseError) {
@@ -260,10 +261,10 @@ export const useWidgetsByTab = (activeTab: string) => {
           }
 
           result = allCustomerWidgets;
-          console.log('✅ Customer-created widgets loaded:', result.length);
+          logger.log('✅ Customer-created widgets loaded:', result.length);
         }
 
-        console.log('🏁 Final widget count:', result.length);
+        logger.log('🏁 Final widget count:', result.length);
         setWidgets(result);
       } catch (err) {
         console.error('❌ Failed to load widgets:', err);

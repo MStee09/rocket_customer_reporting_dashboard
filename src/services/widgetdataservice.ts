@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 import { getWidgetById } from '../config/widgets/widgetRegistry';
 import type { TableData } from '../utils/tabletransform';
 import type { ReportExecutionParams, DateRange } from '../types/report';
@@ -26,7 +27,7 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
 
     if (!error && data) {
       const widget = JSON.parse(await data.text());
-      console.log('[widgetdataservice] Widget found at customer path:', customerId);
+      logger.log('[widgetdataservice] Widget found at customer path:', customerId);
       return { widget, ownerCustomerId: customerId };
     }
   }
@@ -37,7 +38,7 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
 
   if (!adminError && adminData) {
     const widget = JSON.parse(await adminData.text());
-    console.log('[widgetdataservice] Widget found in admin folder');
+    logger.log('[widgetdataservice] Widget found in admin folder');
     return { widget, ownerCustomerId: undefined };
   }
 
@@ -47,11 +48,11 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
 
   if (!systemError && systemData) {
     const widget = JSON.parse(await systemData.text());
-    console.log('[widgetdataservice] Widget found in system folder');
+    logger.log('[widgetdataservice] Widget found in system folder');
     return { widget, ownerCustomerId: undefined };
   }
 
-  console.log('[widgetdataservice] Widget not found at provided paths, searching all customer folders for:', widgetId);
+  logger.log('[widgetdataservice] Widget not found at provided paths, searching all customer folders for:', widgetId);
 
   const { data: customerFolders, error: listError } = await supabase.storage
     .from('custom-widgets')
@@ -68,7 +69,7 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
 
           if (!widgetError && widgetData) {
             const widget = JSON.parse(await widgetData.text());
-            console.log('[widgetdataservice] Widget found in customer folder:', folderCustomerId);
+            logger.log('[widgetdataservice] Widget found in customer folder:', folderCustomerId);
             return { widget, ownerCustomerId: folderCustomerId };
           }
         }
@@ -76,7 +77,7 @@ async function loadVisualBuilderWidget(widgetId: string, customerId?: number): P
     }
   }
 
-  console.log('[widgetdataservice] Widget not found in any location');
+  logger.log('[widgetdataservice] Widget not found in any location');
   return null;
 }
 
@@ -125,20 +126,20 @@ export async function executeWidget(
   params: ReportExecutionParams,
   customerId: string
 ): Promise<WidgetExecutionResult> {
-  console.log('[widgetdataservice] executeWidget called widgetId:', widgetId);
-  console.log('[widgetdataservice] executeWidget customerId:', customerId);
-  console.log('[widgetdataservice] executeWidget params.dateRange:', params.dateRange);
+  logger.log('[widgetdataservice] executeWidget called widgetId:', widgetId);
+  logger.log('[widgetdataservice] executeWidget customerId:', customerId);
+  logger.log('[widgetdataservice] executeWidget params.dateRange:', params.dateRange);
 
   const dateRange = params.dateRange || getDefaultDateRange();
   const customerIdNum = customerId ? Number(customerId) : undefined;
 
-  console.log('[widgetdataservice] Using dateRange:', dateRange.start, 'to', dateRange.end);
-  console.log('[widgetdataservice] Using customerIdNum:', customerIdNum);
+  logger.log('[widgetdataservice] Using dateRange:', dateRange.start, 'to', dateRange.end);
+  logger.log('[widgetdataservice] Using customerIdNum:', customerIdNum);
 
   const widgetDef = getWidgetById(widgetId);
 
   if (!widgetDef) {
-    console.log('[widgetdataservice] Widget not in registry, checking for Visual Builder widget:', widgetId);
+    logger.log('[widgetdataservice] Widget not in registry, checking for Visual Builder widget:', widgetId);
 
     const loadedWidgetResult = await loadVisualBuilderWidget(widgetId, customerIdNum);
 
@@ -146,19 +147,19 @@ export async function executeWidget(
       const customWidget = loadedWidgetResult.widget;
       const effectiveCustomerIdNum = loadedWidgetResult.ownerCustomerId || customerIdNum;
 
-      console.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
-      console.log('[widgetdataservice] Widget owner customer ID:', loadedWidgetResult.ownerCustomerId);
-      console.log('[widgetdataservice] Effective customer ID for query:', effectiveCustomerIdNum);
-      console.log('[widgetdataservice] Widget dataSource:', JSON.stringify(customWidget.dataSource, null, 2));
+      logger.log('[widgetdataservice] Found Visual Builder widget:', customWidget.name);
+      logger.log('[widgetdataservice] Widget owner customer ID:', loadedWidgetResult.ownerCustomerId);
+      logger.log('[widgetdataservice] Effective customer ID for query:', effectiveCustomerIdNum);
+      logger.log('[widgetdataservice] Widget dataSource:', JSON.stringify(customWidget.dataSource, null, 2));
 
       const { groupByColumn, metricColumn, aggregation, filters: savedFilters, aiConfig, secondaryGroupByColumn, secondaryGroupBy } = customWidget.dataSource;
 
       const actualSecondaryGroupBy = secondaryGroupByColumn || secondaryGroupBy;
 
-      console.log('[widgetdataservice] groupByColumn:', groupByColumn);
-      console.log('[widgetdataservice] secondaryGroupBy (actual):', actualSecondaryGroupBy);
-      console.log('[widgetdataservice] aiConfig:', JSON.stringify(aiConfig));
-      console.log('[widgetdataservice] searchTerms:', aiConfig?.searchTerms);
+      logger.log('[widgetdataservice] groupByColumn:', groupByColumn);
+      logger.log('[widgetdataservice] secondaryGroupBy (actual):', actualSecondaryGroupBy);
+      logger.log('[widgetdataservice] aiConfig:', JSON.stringify(aiConfig));
+      logger.log('[widgetdataservice] searchTerms:', aiConfig?.searchTerms);
 
       const isProductQuery = groupByColumn === 'item_description' || groupByColumn === 'description';
       const tableName = isProductQuery ? 'shipment_item' : 'shipment';
@@ -167,18 +168,18 @@ export async function executeWidget(
       const searchTerms = aiConfig?.searchTerms || [];
       const isMultiDimension = actualSecondaryGroupBy && searchTerms.length > 0;
 
-      console.log('[widgetdataservice] isMultiDimension:', isMultiDimension, 'searchTerms.length:', searchTerms.length);
+      logger.log('[widgetdataservice] isMultiDimension:', isMultiDimension, 'searchTerms.length:', searchTerms.length);
 
       if (isMultiDimension) {
-        console.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', actualSecondaryGroupBy);
+        logger.log('[widgetdataservice] Multi-dimension query - grouping by', groupByField, 'and', actualSecondaryGroupBy);
 
         let detailRows: Record<string, unknown>[] = [];
 
         if (isProductQuery) {
-          console.log('[widgetdataservice] Multi-dim product query fetching actual shipment items');
-          console.log('[widgetdataservice]   - customer_id:', effectiveCustomerIdNum);
-          console.log('[widgetdataservice]   - date range:', dateRange.start, 'to', dateRange.end);
-          console.log('[widgetdataservice]   - search terms:', searchTerms);
+          logger.log('[widgetdataservice] Multi-dim product query fetching actual shipment items');
+          logger.log('[widgetdataservice]   - customer_id:', effectiveCustomerIdNum);
+          logger.log('[widgetdataservice]   - date range:', dateRange.start, 'to', dateRange.end);
+          logger.log('[widgetdataservice]   - search terms:', searchTerms);
 
           const { data: itemData, error: itemError } = await supabase
             .rpc('get_shipment_items_with_dates', {
@@ -193,7 +194,7 @@ export async function executeWidget(
             console.error('[widgetdataservice] Multi-dim get_shipment_items_with_dates error:', itemError);
             detailRows = [];
           } else {
-            console.log('[widgetdataservice] Multi-dim fetched', (itemData || []).length, 'actual shipment_item rows');
+            logger.log('[widgetdataservice] Multi-dim fetched', (itemData || []).length, 'actual shipment_item rows');
             detailRows = itemData || [];
           }
 
@@ -202,7 +203,7 @@ export async function executeWidget(
             const loadIds = [...new Set((detailRows || []).map((r: Record<string, unknown>) => parseInt(r.load_id as string, 10)))].filter(id => !isNaN(id));
 
             if (loadIds.length > 0) {
-              console.log('[widgetdataservice] Fetching addresses for', loadIds.length, 'load_ids');
+              logger.log('[widgetdataservice] Fetching addresses for', loadIds.length, 'load_ids');
               const { data: addresses, error: addrError } = await supabase
                 .from('shipment_address')
                 .select('load_id, city, state, address_type')
@@ -211,7 +212,7 @@ export async function executeWidget(
               if (addrError) {
                 console.error('[widgetdataservice] Address lookup error:', addrError);
               } else {
-                console.log('[widgetdataservice] Found', (addresses || []).length, 'address records');
+                logger.log('[widgetdataservice] Found', (addresses || []).length, 'address records');
               }
 
               const addressMap = new Map<number, { origin_state?: string; destination_state?: string }>();
@@ -235,7 +236,7 @@ export async function executeWidget(
                   destination_state: addrs.destination_state || ''
                 };
               });
-              console.log('[widgetdataservice] Multi-dim added state data to', detailRows.length, 'rows');
+              logger.log('[widgetdataservice] Multi-dim added state data to', detailRows.length, 'rows');
             }
           }
         } else {
@@ -329,7 +330,7 @@ export async function executeWidget(
           }
         }
 
-        console.log('[widgetdataservice] Multi-dim chartData computed:', allChartData.length, 'entries from', detailRows.length, 'detail rows');
+        logger.log('[widgetdataservice] Multi-dim chartData computed:', allChartData.length, 'entries from', detailRows.length, 'detail rows');
 
         const columns = isProductQuery
           ? [
@@ -413,7 +414,7 @@ export async function executeWidget(
         });
       }
 
-      console.log('[widgetdataservice] Single-dimension mcp_aggregate call:', {
+      logger.log('[widgetdataservice] Single-dimension mcp_aggregate call:', {
         tableName,
         customerId: effectiveCustomerIdNum,
         groupByField,
@@ -443,7 +444,7 @@ export async function executeWidget(
       let detailRows: Record<string, unknown>[] = [];
 
       if (isProductQuery) {
-        console.log('[widgetdataservice] Single-dimension fetching product detail rows via get_shipment_items_with_dates');
+        logger.log('[widgetdataservice] Single-dimension fetching product detail rows via get_shipment_items_with_dates');
         const { data: itemData, error: itemError } = await supabase
           .rpc('get_shipment_items_with_dates', {
             p_customer_id: effectiveCustomerIdNum || 0,
@@ -461,7 +462,7 @@ export async function executeWidget(
             .limit(500);
           detailRows = fallbackData || [];
         } else {
-          console.log('[widgetdataservice] Single-dimension got', (itemData || []).length, 'detail rows');
+          logger.log('[widgetdataservice] Single-dimension got', (itemData || []).length, 'detail rows');
           detailRows = itemData || [];
         }
       } else {
@@ -532,11 +533,11 @@ export async function executeWidget(
     throw new WidgetNotFoundError(widgetId);
   }
 
-  console.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum, filters: params.filters });
+  logger.log('[widgetdataservice] Calling fetchWidgetRowData', { widgetId, dateRange, customerIdNum, filters: params.filters });
 
   try {
     const { rows, columns } = await fetchWidgetRowData(widgetId, dateRange, customerIdNum, params.filters);
-    console.log('[widgetdataservice] fetchWidgetRowData returned', { rowCount: rows.length });
+    logger.log('[widgetdataservice] fetchWidgetRowData returned', { rowCount: rows.length });
 
     const tableData: TableData = {
       columns: columns.map(col => ({

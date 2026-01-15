@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { logger } from '../../../utils/logger';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -110,12 +111,12 @@ export function VisualBuilderV5Working() {
   const [targetCustomerId, setTargetCustomerId] = useState<number | null>(effectiveCustomerId);
 
   // Log what customer is being used
-  console.log('[VisualBuilder] Customer IDs - target:', targetCustomerId, 'effective:', effectiveCustomerId);
+  logger.log('[VisualBuilder] Customer IDs - target:', targetCustomerId, 'effective:', effectiveCustomerId);
 
   // Sync targetCustomerId when effectiveCustomerId changes (e.g., user switches customer in header)
   useEffect(() => {
     if (effectiveCustomerId && !targetCustomerId) {
-      console.log('[VisualBuilder] Syncing targetCustomerId from effectiveCustomerId:', effectiveCustomerId);
+      logger.log('[VisualBuilder] Syncing targetCustomerId from effectiveCustomerId:', effectiveCustomerId);
       setTargetCustomerId(effectiveCustomerId);
     }
   }, [effectiveCustomerId, targetCustomerId]);
@@ -219,7 +220,7 @@ export function VisualBuilderV5Working() {
       const multiDimConfig = detectMultiDimensionQuery(aiPrompt);
 
       if (multiDimConfig) {
-        console.log('[VisualBuilder] Multi-dimension query detected:', multiDimConfig);
+        logger.log('[VisualBuilder] Multi-dimension query detected:', multiDimConfig);
         setAiReasoning([
           { type: 'routing', content: `Multi-dimension analysis: ${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}` },
           { type: 'thinking', content: 'Using grouped aggregation for dual-dimension breakdown' }
@@ -280,7 +281,7 @@ export function VisualBuilderV5Working() {
 
       if (productTerms.length >= 2) {
         // DIRECT QUERY PATH - bypass AI entirely for product comparisons
-        console.log('[VisualBuilder] Product comparison detected:', productTerms);
+        logger.log('[VisualBuilder] Product comparison detected:', productTerms);
         setAiReasoning([
           { type: 'routing', content: `Detected product comparison: ${productTerms.join(', ')}` },
           { type: 'thinking', content: 'Using direct database queries for accurate category comparison' }
@@ -288,7 +289,7 @@ export function VisualBuilderV5Working() {
         
         // Determine which customer ID to use
         const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
-        console.log('[VisualBuilder] Product query using customer ID:', queryCustomerId, '(target:', targetCustomerId, 'effective:', effectiveCustomerId, 'scope:', targetScope, ')');
+        logger.log('[VisualBuilder] Product query using customer ID:', queryCustomerId, '(target:', targetCustomerId, 'effective:', effectiveCustomerId, 'scope:', targetScope, ')');
         
         const results = await queryProductCategories(
           productTerms,
@@ -458,7 +459,7 @@ export function VisualBuilderV5Working() {
   ): Promise<Array<{ label: string; value: number }>> => {
     const results: Array<{ label: string; value: number }> = [];
     
-    console.log('[VisualBuilder] Product query - terms:', terms, 'metric:', metric, 'dateFilter:', dateFilter);
+    logger.log('[VisualBuilder] Product query - terms:', terms, 'metric:', metric, 'dateFilter:', dateFilter);
     
     for (const term of terms) {
       try {
@@ -472,7 +473,7 @@ export function VisualBuilderV5Working() {
           filters.push({ field: 'pickup_date', operator: 'lte', value: dateFilter.end });
         }
         
-        console.log(`[VisualBuilder] Querying "${term}" with filters:`, filters);
+        logger.log(`[VisualBuilder] Querying "${term}" with filters:`, filters);
         
         const { data, error } = await supabase.rpc('mcp_aggregate', {
           p_table_name: 'shipment_item',  // Query shipment_item table
@@ -492,7 +493,7 @@ export function VisualBuilderV5Working() {
         
         // Parse response - handle both string and object responses
         let parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        console.log(`[VisualBuilder] Raw result for "${term}":`, parsed);
+        logger.log(`[VisualBuilder] Raw result for "${term}":`, parsed);
         
         // Supabase RPC returns the result directly, not wrapped
         // But the function returns {data: [...]} or {error: ...}
@@ -503,7 +504,7 @@ export function VisualBuilderV5Working() {
         
         // Get rows from the data array
         const rows = parsed?.data || [];
-        console.log(`[VisualBuilder] Rows for "${term}":`, rows.length, rows);
+        logger.log(`[VisualBuilder] Rows for "${term}":`, rows.length, rows);
         
         if (rows.length > 0) {
           // Sum up all matching rows for this term
@@ -522,17 +523,17 @@ export function VisualBuilderV5Working() {
               label: term,
               value: Math.round(finalValue * 100) / 100
             });
-            console.log(`[VisualBuilder] ✓ ${term}: ${finalValue.toFixed(2)}`);
+            logger.log(`[VisualBuilder] ✓ ${term}: ${finalValue.toFixed(2)}`);
           }
         } else {
-          console.log(`[VisualBuilder] No data for "${term}"`);
+          logger.log(`[VisualBuilder] No data for "${term}"`);
         }
       } catch (err) {
         console.error(`[VisualBuilder] Exception for "${term}":`, err);
       }
     }
     
-    console.log('[VisualBuilder] Final results:', results);
+    logger.log('[VisualBuilder] Final results:', results);
     return results;
   };
 
@@ -637,7 +638,7 @@ export function VisualBuilderV5Working() {
           continue;
         }
 
-        console.log('[VisualBuilder] Detected multi-dimension query (regex):', {
+        logger.log('[VisualBuilder] Detected multi-dimension query (regex):', {
           pattern: pattern.toString(),
           metric: resolvedMetric,
           primaryGroupBy: resolvedPrimary,
@@ -685,7 +686,7 @@ export function VisualBuilderV5Working() {
           if (lowerPrompt.includes('miles') || lowerPrompt.includes('mileage')) metric = 'miles';
           if (lowerPrompt.includes('count') || lowerPrompt.includes('how many')) metric = 'load_id';
 
-          console.log('[VisualBuilder] Detected multi-dimension query (keyword):', {
+          logger.log('[VisualBuilder] Detected multi-dimension query (keyword):', {
             secondaryMatch: match[0],
             metric,
             primaryGroupBy: 'description',
@@ -718,7 +719,7 @@ export function VisualBuilderV5Working() {
         if (lowerPrompt.includes('miles')) metric = 'miles';
         if (lowerPrompt.includes('count')) metric = 'load_id';
 
-        console.log('[VisualBuilder] Detected multi-dimension query (and-pattern):', {
+        logger.log('[VisualBuilder] Detected multi-dimension query (and-pattern):', {
           metric,
           primaryGroupBy: resolved1,
           secondaryGroupBy: resolved2,
@@ -743,7 +744,7 @@ export function VisualBuilderV5Working() {
     dateFilter?: { start: string; end: string },
     productFilters?: string[]
   ): Promise<{ raw: MultiDimensionData[]; grouped: GroupedChartData[]; secondaryGroups: string[] }> => {
-    console.log('[VisualBuilder] Multi-dimension query:', config);
+    logger.log('[VisualBuilder] Multi-dimension query:', config);
 
     const needsShipmentItem = config.primaryGroupBy === 'description' ||
                               (productFilters && productFilters.length > 0);
@@ -752,7 +753,7 @@ export function VisualBuilderV5Working() {
     // For product category queries, we want to aggregate BY CATEGORY, not by individual product
     // So we query each category separately and combine the results
     if (productFilters && productFilters.length > 0 && config.primaryGroupBy === 'description') {
-      console.log('[VisualBuilder] Product category query - aggregating by category');
+      logger.log('[VisualBuilder] Product category query - aggregating by category');
 
       // Map to store: categoryName -> { state1: value, state2: value, ... }
       const categoryData = new Map<string, Map<string, { total: number; count: number }>>();
@@ -770,7 +771,7 @@ export function VisualBuilderV5Working() {
         // Single product filter for this query
         filters.push({ field: 'description', operator: 'ilike', value: term });
 
-        console.log(`[VisualBuilder] Querying multi-dim for category "${term}"`);
+        logger.log(`[VisualBuilder] Querying multi-dim for category "${term}"`);
 
         const { data, error } = await supabase.rpc('mcp_aggregate', {
           p_table_name: tableName,
@@ -796,7 +797,7 @@ export function VisualBuilderV5Working() {
         }
 
         const rows = parsed?.data || [];
-        console.log(`[VisualBuilder] Results for "${term}":`, rows.length, 'rows');
+        logger.log(`[VisualBuilder] Results for "${term}":`, rows.length, 'rows');
 
         // Initialize category map if needed
         if (!categoryData.has(term)) {
@@ -861,8 +862,8 @@ export function VisualBuilderV5Working() {
         grouped.push(entry);
       }
 
-      console.log('[VisualBuilder] Category aggregation complete:', grouped.length, 'categories,', secondaryGroups.length, 'states');
-      console.log('[VisualBuilder] Grouped data:', grouped);
+      logger.log('[VisualBuilder] Category aggregation complete:', grouped.length, 'categories,', secondaryGroups.length, 'states');
+      logger.log('[VisualBuilder] Grouped data:', grouped);
 
       return { raw: allRawData, grouped, secondaryGroups };
     }
@@ -901,7 +902,7 @@ export function VisualBuilderV5Working() {
     }
 
     const rawData: MultiDimensionData[] = parsed?.data || [];
-    console.log('[VisualBuilder] Multi-dimension raw results:', rawData.length, 'rows');
+    logger.log('[VisualBuilder] Multi-dimension raw results:', rawData.length, 'rows');
 
     const secondaryGroups = [...new Set(rawData.map(d => d.secondary_group))].filter(Boolean).sort();
     const groupedMap = new Map<string, GroupedChartData>();
@@ -918,7 +919,7 @@ export function VisualBuilderV5Working() {
     }
 
     const grouped = Array.from(groupedMap.values());
-    console.log('[VisualBuilder] Transformed:', grouped.length, 'primary groups,', secondaryGroups.length, 'secondary groups');
+    logger.log('[VisualBuilder] Transformed:', grouped.length, 'primary groups,', secondaryGroups.length, 'secondary groups');
 
     return { raw: rawData, grouped, secondaryGroups };
   };
@@ -1232,7 +1233,7 @@ Return a clear visualization with properly grouped data.`;
         (isProductQuery && filterTerms.length > 0 && config.groupByColumn === 'item_description');
       
       if (shouldUseProductQuery) {
-        console.log('[VisualBuilder] Refreshing product query with terms:', filterTerms);
+        logger.log('[VisualBuilder] Refreshing product query with terms:', filterTerms);
         
         const results = await queryProductCategories(
           filterTerms,
@@ -1254,7 +1255,7 @@ Return a clear visualization with properly grouped data.`;
         showToast(`Updated: ${results.length} categories`, 'success');
       } else if (config.groupByColumn && config.metricColumn) {
         // Regular query using handleRunQuery
-        console.log('[VisualBuilder] Refreshing regular query:', config.groupByColumn, config.metricColumn);
+        logger.log('[VisualBuilder] Refreshing regular query:', config.groupByColumn, config.metricColumn);
         // Mark this as not a product query anymore
         setIsProductQuery(false);
         
@@ -1334,7 +1335,7 @@ Return a clear visualization with properly grouped data.`;
     // If either axis changed and we have both columns set, refresh
     if ((groupByChanged || metricChanged || aggregationChanged) && 
         config.groupByColumn && config.metricColumn && hasResults) {
-      console.log('[VisualBuilder] Column/aggregation changed, triggering refresh');
+      logger.log('[VisualBuilder] Column/aggregation changed, triggering refresh');
       showToast('Updating preview...', 'info');
       const timer = setTimeout(() => {
         refreshData();
@@ -1416,7 +1417,7 @@ Return a clear visualization with properly grouped data.`;
         })),
       ];
 
-      console.log('[VisualBuilder] Manual query - table:', tableName, 'groupBy:', groupByField, 'metric:', config.metricColumn);
+      logger.log('[VisualBuilder] Manual query - table:', tableName, 'groupBy:', groupByField, 'metric:', config.metricColumn);
 
       const { data, error } = await supabase.rpc('mcp_aggregate', {
         p_table_name: tableName,
@@ -1537,7 +1538,7 @@ Return a clear visualization with properly grouped data.`;
         storagePath = `system/${widgetId}.json`;
       }
 
-      console.log('[VisualBuilder] Publishing widget to:', storagePath);
+      logger.log('[VisualBuilder] Publishing widget to:', storagePath);
 
       const { error } = await supabase.storage
         .from('custom-widgets')

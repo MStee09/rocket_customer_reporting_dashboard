@@ -33,13 +33,11 @@ export {
   CarrierComparisonContent
 } from './CarrierContent';
 
-export {
-  AskAIContent,
-  CustomerProfilesContent,
-  KnowledgeBaseContent,
-  LearningQueueContent,
-  AIAnalyticsContent
-} from './AIFeaturesContent';
+export { AskAIContent } from './AskAIContent';
+export { CustomerProfilesContent } from './CustomerProfilesContent';
+export { KnowledgeBaseContent } from './KnowledgeBaseContent';
+export { LearningQueueContent } from './LearningQueueContent';
+export { AIAnalyticsContent } from './AIAnalyticsContent';
 
 export {
   UserManagementContent,

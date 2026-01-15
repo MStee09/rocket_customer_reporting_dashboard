@@ -81,6 +81,31 @@ import {
 } from '../types/visualBuilderTypes';
 import { ALL_COLUMNS, ADMIN_ONLY_COLUMNS } from '../config/columnDefinitions';
 
+interface AIVisualization {
+  title?: string;
+  type?: string;
+  config?: {
+    groupBy?: string;
+    metric?: string;
+  };
+  data?: {
+    data?: Array<{ label: string; value: number }>;
+  };
+}
+
+interface AggregateRow {
+  label?: string;
+  value?: number;
+  secondary_group?: string;
+  count?: number;
+  [key: string]: string | number | undefined;
+}
+
+interface CustomerRecord {
+  customer_id: number;
+  customer_name: string;
+}
+
 const CATEGORIES: Record<string, { label: string; icon: React.ElementType }> = {
   shipment: { label: 'Shipment Info', icon: Package },
   financial: { label: 'Financial', icon: DollarSign },
@@ -1021,7 +1046,7 @@ Return a clear visualization with properly grouped data.`;
 
   const parseAIConfig = (
     reasoning: Array<{ type: string; content: string; toolName?: string }>,
-    viz: any,
+    viz: AIVisualization,
     originalPrompt: string
   ): AIConfig => {
     const config: AIConfig = {
@@ -1284,9 +1309,9 @@ Return a clear visualization with properly grouped data.`;
         if (error) throw error;
 
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        const rows = parsed?.data || parsed || [];
+        const rows: AggregateRow[] = parsed?.data || parsed || [];
 
-        const chartData = rows.map((row: any) => ({
+        const chartData = rows.map((row: AggregateRow) => ({
           label: String(row.label || 'Unknown'),
           value: Number(row.value || 0),
         }));
@@ -1433,9 +1458,9 @@ Return a clear visualization with properly grouped data.`;
       if (error) throw error;
 
       const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      const rows = parsed?.data || parsed || [];
+      const rows: AggregateRow[] = parsed?.data || parsed || [];
 
-      const chartData = rows.map((row: any) => {
+      const chartData = rows.map((row: AggregateRow) => {
         const labelKey = Object.keys(row).find(k => typeof row[k] === 'string') || config.groupByColumn;
         const valueKey = Object.keys(row).find(k =>
           k.includes(config.aggregation!) ||
@@ -1826,7 +1851,7 @@ Return a clear visualization with properly grouped data.`;
                     <Lock className="w-4 h-4" />
                     <span className="font-medium">This Customer</span>
                     <span className="text-xs text-slate-500">
-                      {customers?.find((c: any) => c.customer_id === (targetCustomerId || effectiveCustomerId))?.customer_name || 'Selected customer'} only
+                      {(customers as CustomerRecord[] | undefined)?.find((c: CustomerRecord) => c.customer_id === (targetCustomerId || effectiveCustomerId))?.customer_name || 'Selected customer'} only
                     </span>
                   </button>
                 </div>

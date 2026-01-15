@@ -7,8 +7,42 @@ import { duplicateCustomerWidgetToAdmin } from '../../config/widgets/customWidge
 import { useDashboardWidgets } from '../../hooks/useDashboardWidgets';
 import { useAuth } from '../../contexts/AuthContext';
 
+interface WidgetCreatedBy {
+  userEmail?: string;
+  customerName?: string;
+  email?: string;
+}
+
+interface WidgetVisibility {
+  type: 'all_customers' | 'specific_customers' | 'private' | 'admin_only';
+  customerIds?: number[];
+}
+
+interface WidgetDisplay {
+  iconColor?: string;
+  defaultSize?: string;
+  icon?: string;
+}
+
+interface LibraryWidget {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  icon?: string;
+  iconColor?: string;
+  defaultSize?: string;
+  source?: string;
+  dataMode?: 'static' | 'dynamic';
+  display?: WidgetDisplay;
+  createdBy?: WidgetCreatedBy;
+  createdAt?: string;
+  updatedAt?: string;
+  visibility?: WidgetVisibility;
+}
+
 interface WidgetLibraryCardProps {
-  widget: any;
+  widget: LibraryWidget;
   isAdmin: boolean;
   isCustomerCreated?: boolean;
   isAdminCustom?: boolean;
@@ -88,9 +122,9 @@ export const WidgetLibraryCard = ({ widget, isAdmin, isCustomerCreated, isAdminC
     try {
       await addWidget(widget.id, { size });
       setShowConfirmModal(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to add widget to dashboard:', err);
-      setError(err.message || 'Failed to add widget to dashboard');
+      setError(err instanceof Error ? err.message : 'Failed to add widget to dashboard');
     } finally {
       setIsAddingToDashboard(false);
     }
@@ -353,7 +387,7 @@ export const WidgetLibraryCard = ({ widget, isAdmin, isCustomerCreated, isAdminC
   );
 };
 
-const WidgetStatusBadge = ({ widget }: { widget: any }) => {
+const WidgetStatusBadge = ({ widget }: { widget: LibraryWidget }) => {
   const lastUpdated = widget.updatedAt || widget.createdAt;
   const daysSinceUpdate = lastUpdated
     ? Math.floor((Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24))
@@ -385,7 +419,7 @@ const WidgetStatusBadge = ({ widget }: { widget: any }) => {
   );
 };
 
-const VisibilityBadge = ({ visibility }: { visibility: any }) => {
+const VisibilityBadge = ({ visibility }: { visibility: WidgetVisibility | undefined }) => {
   if (!visibility) return null;
 
   switch (visibility.type) {

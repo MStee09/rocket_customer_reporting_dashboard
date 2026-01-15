@@ -30,6 +30,55 @@ import type {
 } from '../types/BuilderSchema';
 import type { ExecutionParams } from '../../../widgets/types/ExecutionParams';
 
+type FilterValue = string | number | boolean | string[] | [number, number];
+
+interface LegacyFilterBlock {
+  field?: string;
+  operator?: FilterOperator;
+  value?: FilterValue;
+}
+
+interface SupabaseQueryBuilder<T> {
+  eq: (col: string, val: FilterValue) => T;
+  neq: (col: string, val: FilterValue) => T;
+  gt: (col: string, val: FilterValue) => T;
+  gte: (col: string, val: FilterValue) => T;
+  lt: (col: string, val: FilterValue) => T;
+  lte: (col: string, val: FilterValue) => T;
+  like: (col: string, val: string) => T;
+  ilike: (col: string, val: string) => T;
+  in: (col: string, val: string[] | number[]) => T;
+  is: (col: string, val: null) => T;
+  not: (col: string, op: string, val: FilterValue | null) => T;
+  or: (filters: string) => T;
+}
+
+interface LegacyFilterEntry {
+  op: string;
+  value: FilterValue;
+}
+
+interface SerializedFilterBlock {
+  type: 'filter';
+  id: string;
+  enabled: boolean;
+  conditions?: FilterCondition[];
+  field?: string;
+  operator?: FilterOperator;
+  value?: FilterValue;
+}
+
+interface SerializedAIBlock {
+  type: 'ai';
+  id: string;
+  enabled: boolean;
+  prompt: string;
+  status: string;
+  compiledRule?: CompiledRule;
+}
+
+type SerializedLogicBlock = SerializedFilterBlock | SerializedAIBlock;
+
 // =============================================================================
 // COMPILED FILTER TYPES
 // =============================================================================
@@ -62,7 +111,7 @@ function compileFilterBlock(block: FilterBlock): CompiledFilter[] {
       }));
   }
 
-  const legacyBlock = block as any;
+  const legacyBlock = block as unknown as LegacyFilterBlock;
   if (legacyBlock.field && legacyBlock.value !== undefined && legacyBlock.value !== null) {
     return [{
       field: legacyBlock.field,
@@ -122,7 +171,7 @@ export function compileLogicBlocks(
 ): ExecutionParams & { filterConditions?: CompiledFilter[] } {
   const allFilters = compileLogicBlocksToArray(blocks);
 
-  const legacyFilters: Record<string, { op: string; value: any }> = { ...baseParams.filters };
+  const legacyFilters: Record<string, LegacyFilterEntry> = { ...baseParams.filters };
 
   for (const filter of allFilters) {
     legacyFilters[filter.field] = {
@@ -142,22 +191,9 @@ export function compileLogicBlocks(
 // FILTER APPLICATION (for Supabase queries)
 // =============================================================================
 
-export function applyFiltersToQuery<T extends {
-  eq: (col: string, val: any) => T;
-  neq: (col: string, val: any) => T;
-  gt: (col: string, val: any) => T;
-  gte: (col: string, val: any) => T;
-  lt: (col: string, val: any) => T;
-  lte: (col: string, val: any) => T;
-  like: (col: string, val: any) => T;
-  ilike: (col: string, val: any) => T;
-  in: (col: string, val: any[]) => T;
-  is: (col: string, val: any) => T;
-  not: (col: string, op: string, val: any) => T;
-  or: (filters: string) => T;
-}>(
+export function applyFiltersToQuery<T extends SupabaseQueryBuilder<T>>(
   query: T,
-  filters?: CompiledFilter[] | Record<string, { op: string; value: any }>
+  filters?: CompiledFilter[] | Record<string, LegacyFilterEntry>
 ): T {
   if (!filters) return query;
 
@@ -178,24 +214,11 @@ export function applyFiltersToQuery<T extends {
   return result;
 }
 
-function applySingleFilter<T extends {
-  eq: (col: string, val: any) => T;
-  neq: (col: string, val: any) => T;
-  gt: (col: string, val: any) => T;
-  gte: (col: string, val: any) => T;
-  lt: (col: string, val: any) => T;
-  lte: (col: string, val: any) => T;
-  like: (col: string, val: any) => T;
-  ilike: (col: string, val: any) => T;
-  in: (col: string, val: any[]) => T;
-  is: (col: string, val: any) => T;
-  not: (col: string, op: string, val: any) => T;
-  or: (filters: string) => T;
-}>(
+function applySingleFilter<T extends SupabaseQueryBuilder<T>>(
   query: T,
   field: string,
   operator: FilterOperator,
-  value: any
+  value: FilterValue
 ): T {
   switch (operator) {
     case 'eq':
@@ -336,23 +359,23 @@ export function serializeLogicBlocks(blocks: LogicBlock[]): string {
 export function deserializeLogicBlocks(json: string | null): LogicBlock[] {
   if (!json) return [];
   try {
-    const parsed = JSON.parse(json);
+    const parsed: SerializedLogicBlock[] = JSON.parse(json);
 
-    return parsed.map((block: any) => {
+    return parsed.map((block) => {
       if (block.type === 'filter') {
         if (block.conditions && Array.isArray(block.conditions)) {
-          return block;
+          return block as FilterBlock;
         }
         return {
           ...block,
           conditions: block.field ? [{
             field: block.field,
             operator: block.operator || 'eq',
-            value: block.value,
+            value: block.value ?? '',
           }] : [],
-        };
+        } as FilterBlock;
       }
-      return block;
+      return block as AILogicBlock;
     });
   } catch {
     return [];

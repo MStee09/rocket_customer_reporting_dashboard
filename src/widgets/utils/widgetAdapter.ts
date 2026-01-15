@@ -147,7 +147,24 @@ function mapSize(size?: string): WidgetDefinition['ui']['defaultSize'] {
   return mapping[size || 'small'] || 'small';
 }
 
-function normalizeWidgetData(result: any, params: ExecutionParams): WidgetData {
+interface LegacyWidgetResult {
+  type?: string;
+  value?: number | string;
+  label?: string;
+  format?: string;
+  trend?: {
+    value: number;
+    direction?: 'up' | 'down';
+    positive?: boolean;
+  };
+  data?: Record<string, unknown>[];
+  columns?: { key: string; label: string }[];
+  metadata?: {
+    recordCount?: number;
+  };
+}
+
+function normalizeWidgetData(result: LegacyWidgetResult, params: ExecutionParams): WidgetData {
   // Handle KPI results
   if (result.type === 'kpi' || result.value !== undefined) {
     return {

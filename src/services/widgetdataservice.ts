@@ -14,8 +14,26 @@ export interface WidgetExecutionResult {
   executedAt: string;
 }
 
+interface VisualBuilderWidgetDataSource {
+  groupByColumn?: string;
+  metricColumn?: string;
+  aggregation?: string;
+  filters?: Array<{ field: string; operator: string; value: string }>;
+  aiConfig?: {
+    searchTerms?: string[];
+  };
+  secondaryGroupByColumn?: string;
+  secondaryGroupBy?: string;
+}
+
+interface VisualBuilderWidget {
+  name: string;
+  type?: string;
+  dataSource?: VisualBuilderWidgetDataSource;
+}
+
 interface LoadedWidget {
-  widget: any;
+  widget: VisualBuilderWidget;
   ownerCustomerId?: number;
 }
 

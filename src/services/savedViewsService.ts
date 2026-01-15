@@ -1,7 +1,20 @@
 import { supabase } from '../lib/supabase';
 import type { SavedView } from '../types/customerIntelligence';
 
-function dbToSavedView(row: any): SavedView {
+interface SavedViewRow {
+  id: string;
+  user_id: string;
+  customer_id?: number;
+  name: string;
+  description?: string;
+  view_type: 'shipments' | 'report' | 'dashboard_filter';
+  view_config: Record<string, unknown>;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+function dbToSavedView(row: SavedViewRow): SavedView {
   return {
     id: row.id,
     userId: row.user_id,

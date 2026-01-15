@@ -21,7 +21,7 @@ export interface AIWidgetSuggestion {
   yField: string;
   aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max';
   query: WidgetQueryConfig;
-  data: any[];
+  data: Record<string, unknown>[];
 }
 
 export interface AIInvestigationResult {
@@ -95,7 +95,7 @@ Focus on creating a reusable widget configuration.`;
         throw new Error(data.error || 'Investigation failed');
       }
 
-      const reasoningSteps: ReasoningStep[] = (data.reasoning || []).map((r: any) => ({
+      const reasoningSteps: ReasoningStep[] = (data.reasoning || []).map((r: { type: ReasoningStep['type']; content: string; toolName?: string }) => ({
         type: r.type,
         content: r.content,
         toolName: r.toolName,

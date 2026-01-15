@@ -45,7 +45,7 @@ interface BuilderContextValue {
   setLimit: (limit: number) => void;
   setCustomerScope: (scope: 'all' | 'specific', customerId?: number) => void;
   setPreviewDateRange: (range: { start: string; end: string }) => void;
-  setPreviewData: (data: any[] | null) => void;
+  setPreviewData: (data: Record<string, unknown>[] | null) => void;
   setPreviewLoading: (loading: boolean) => void;
   setPreviewError: (error: string | null) => void;
   setVisibility: (visibility: WidgetVisibility) => void;
@@ -167,7 +167,7 @@ export function BuilderProviderV3({ children, initialState }: BuilderProviderPro
     dispatch({ type: 'SET_PREVIEW_DATE_RANGE', range });
   }, []);
 
-  const setPreviewData = useCallback((data: any[] | null) => {
+  const setPreviewData = useCallback((data: Record<string, unknown>[] | null) => {
     dispatch({ type: 'SET_PREVIEW_DATA', data });
   }, []);
 

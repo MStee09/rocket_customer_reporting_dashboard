@@ -35,7 +35,7 @@ export interface LearningQueueItem {
   confidence_score?: number;
   conflicts_with_global: boolean;
   conflicts_with_customer: boolean;
-  similar_existing_terms: any[];
+  similar_existing_terms: string[];
   status: string;
   created_at: string;
   reviewed_by?: string;
@@ -515,8 +515,8 @@ async function logAudit(
   glossaryId: string,
   term: string | undefined,
   userId: string,
-  oldValue: any,
-  newValue: any,
+  oldValue: GlossaryTerm | null,
+  newValue: Partial<GlossaryTerm> | null,
   reason?: string
 ): Promise<void> {
   await supabase.from('glossary_audit_log').insert({

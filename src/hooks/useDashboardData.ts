@@ -4,6 +4,57 @@ import { format } from 'date-fns';
 import { getSecureTable, getSelectFields } from '../utils/getSecureTable';
 import { logger } from '../utils/logger';
 
+interface ShipmentStatus {
+  status_id?: number;
+  is_completed?: boolean;
+  is_cancelled?: boolean;
+  status_name?: string;
+}
+
+interface ShipmentWithStatus {
+  load_id: number;
+  retail?: string | number | null;
+  cost?: string | number | null;
+  delivery_date?: string | null;
+  expected_delivery_date?: string | null;
+  pickup_date?: string | null;
+  status_id?: number;
+  shipment_status?: ShipmentStatus | null;
+}
+
+interface ShipmentWithMode {
+  load_id: number;
+  mode_id?: number;
+  shipment_mode?: { mode_name?: string } | null;
+}
+
+interface ShipmentWithCarrier {
+  load_id: number;
+  rate_carrier_id?: number | null;
+}
+
+interface ShipmentWithCost {
+  load_id: number;
+  retail?: string | number | null;
+  customer_id?: number | null;
+}
+
+interface CarrierRecord {
+  carrier_id: number;
+  carrier_name: string;
+}
+
+interface CustomerRecord {
+  customer_id: number;
+  company_name: string;
+}
+
+interface AddressRecord {
+  load_id: number;
+  state?: string | null;
+  address_type: number;
+}
+
 export interface DashboardStats {
   totalShipments: number;
   inTransit: number;
@@ -117,16 +168,16 @@ export function useDashboardStats(
 
         const totalShipments = shipments.length;
         const inTransit = shipments.filter(
-          (s: any) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
+          (s: ShipmentWithStatus) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
         ).length;
         const deliveredThisMonth = shipments.filter(
-          (s: any) =>
+          (s: ShipmentWithStatus) =>
             s.shipment_status?.is_completed &&
             s.delivery_date &&
             new Date(s.delivery_date) >= firstDayOfMonth
         ).length;
         const totalCost = shipments.reduce(
-          (sum: number, s: any) => sum + (parseFloat(s.retail) || 0),
+          (sum: number, s: ShipmentWithStatus) => sum + (parseFloat(String(s.retail ?? 0)) || 0),
           0
         );
         const avgCostPerShipment = totalShipments > 0 ? totalCost / totalShipments : 0;
@@ -141,7 +192,7 @@ export function useDashboardStats(
 
         if (isAdmin && !isViewingAsCustomer) {
           const totalCarrierCost = shipments.reduce(
-            (sum: number, s: any) => sum + (parseFloat(s.cost) || 0),
+            (sum: number, s: ShipmentWithStatus) => sum + (parseFloat(String(s.cost ?? 0)) || 0),
             0
           );
           statsData.totalMargin = totalCost - totalCarrierCost;
@@ -201,7 +252,7 @@ export function useMonthlyTrend(
 
       if (shipments) {
         const filteredShipments = shipments.filter(
-          (s: any) =>
+          (s: ShipmentWithStatus) =>
             s.shipment_status?.status_name &&
             s.shipment_status.status_name.toLowerCase() !== 'cancelled' &&
             s.shipment_status.status_name.toLowerCase() !== 'quoted'
@@ -209,7 +260,7 @@ export function useMonthlyTrend(
 
         const monthlyMetrics: { [key: string]: { cost: number; count: number } } = {};
 
-        filteredShipments.forEach((shipment: any) => {
+        filteredShipments.forEach((shipment: ShipmentWithStatus) => {
           if (!shipment.retail || !shipment.pickup_date) return;
 
           const monthKey = format(new Date(shipment.pickup_date), 'yyyy-MM');
@@ -218,7 +269,7 @@ export function useMonthlyTrend(
             monthlyMetrics[monthKey] = { cost: 0, count: 0 };
           }
 
-          monthlyMetrics[monthKey].cost += parseFloat(shipment.retail);
+          monthlyMetrics[monthKey].cost += parseFloat(String(shipment.retail));
           monthlyMetrics[monthKey].count += 1;
         });
 
@@ -286,7 +337,7 @@ export function useShipmentModes(
       if (shipments) {
         const modeCounts: { [key: string]: number } = {};
 
-        shipments.forEach((s: any) => {
+        shipments.forEach((s: ShipmentWithMode) => {
           const modeName = s.shipment_mode?.mode_name || 'Unknown';
           modeCounts[modeName] = (modeCounts[modeName] || 0) + 1;
         });
@@ -347,8 +398,8 @@ export function useCarrierMix(
 
       if (shipments && shipments.length > 0) {
         const carrierIds = shipments
-          .map((s: any) => s.rate_carrier_id)
-          .filter((id: number) => id != null);
+          .map((s: ShipmentWithCarrier) => s.rate_carrier_id)
+          .filter((id): id is number => id != null);
 
         if (carrierIds.length > 0) {
           const uniqueCarrierIds = [...new Set(carrierIds)];
@@ -359,7 +410,7 @@ export function useCarrierMix(
             .in('carrier_id', uniqueCarrierIds);
 
           if (carriers) {
-            const carrierMap = new Map(carriers.map((c: any) => [c.carrier_id, c.carrier_name]));
+            const carrierMap = new Map((carriers as CarrierRecord[]).map((c) => [c.carrier_id, c.carrier_name]));
             const carrierCounts: { [key: string]: number } = {};
 
             carrierIds.forEach((carrierId: number) => {
@@ -425,7 +476,7 @@ export function useTopLanes(
         .lte('pickup_date', endDate);
 
       if (shipments && shipments.length > 0) {
-        const loadIds = shipments.map((s: any) => s.load_id);
+        const loadIds = shipments.map((s: ShipmentWithCost) => s.load_id);
 
         const { data: addresses } = await supabase
           .from(addressTable)
@@ -434,12 +485,12 @@ export function useTopLanes(
           .in('address_type', [1, 2]);
 
         if (addresses) {
-          const shipmentMap = new Map(shipments.map((s: any) => [s.load_id, parseFloat(s.retail) || 0]));
+          const shipmentMap = new Map(shipments.map((s: ShipmentWithCost) => [s.load_id, parseFloat(String(s.retail ?? 0)) || 0]));
 
           const lanes: { [key: string]: { count: number; totalCost: number } } = {};
 
           const addressByLoadId: { [key: number]: { origin?: string; dest?: string } } = {};
-          addresses.forEach((addr: any) => {
+          (addresses as AddressRecord[]).forEach((addr) => {
             if (!addressByLoadId[addr.load_id]) {
               addressByLoadId[addr.load_id] = {};
             }
@@ -527,13 +578,13 @@ export function usePerformanceMetrics(
         .lte('pickup_date', endDate);
 
       if (shipments && shipments.length > 0) {
-        const completedShipments = shipments.filter((s: any) => s.shipment_status?.is_completed);
+        const completedShipments = shipments.filter((s: ShipmentWithStatus) => s.shipment_status?.is_completed);
 
         let onTimeCount = 0;
         let totalTransitDays = 0;
         let transitDaysCount = 0;
 
-        completedShipments.forEach((s: any) => {
+        completedShipments.forEach((s: ShipmentWithStatus) => {
           if (s.expected_delivery_date && s.delivery_date) {
             const expectedDate = new Date(s.expected_delivery_date);
             const actualDate = new Date(s.delivery_date);
@@ -621,7 +672,7 @@ export function useCostPerStateData(
         .lte('pickup_date', endDate);
 
       if (shipments && shipments.length > 0) {
-        const loadIds = shipments.map((s: any) => s.load_id);
+        const loadIds = shipments.map((s: ShipmentWithCost) => s.load_id);
 
         const { data: addresses } = await supabase
           .from(addressTable)
@@ -630,11 +681,11 @@ export function useCostPerStateData(
           .eq('address_type', 2);
 
         if (addresses) {
-          const shipmentMap = new Map(shipments.map((s: any) => [s.load_id, parseFloat(s.retail) || 0]));
+          const shipmentMap = new Map(shipments.map((s: ShipmentWithCost) => [s.load_id, parseFloat(String(s.retail ?? 0)) || 0]));
 
           const stateMetrics: { [key: string]: { totalCost: number; count: number } } = {};
 
-          addresses.forEach((addr: any) => {
+          (addresses as AddressRecord[]).forEach((addr) => {
             if (addr.state) {
               const cost = shipmentMap.get(addr.load_id) || 0;
               if (!stateMetrics[addr.state]) {
@@ -710,7 +761,7 @@ export function useTopCustomers(
         .lte('pickup_date', endDate);
 
       if (shipments && shipments.length > 0) {
-        const customerIds = [...new Set(shipments.map((s: any) => s.customer_id).filter((id: number) => id != null))];
+        const customerIds = [...new Set(shipments.map((s: ShipmentWithCost) => s.customer_id).filter((id): id is number => id != null))];
 
         if (customerIds.length > 0) {
           const { data: customers } = await supabase
@@ -719,17 +770,17 @@ export function useTopCustomers(
             .in('customer_id', customerIds);
 
           if (customers) {
-            const customerMap = new Map(customers.map((c: any) => [c.customer_id, c.company_name]));
+            const customerMap = new Map((customers as CustomerRecord[]).map((c) => [c.customer_id, c.company_name]));
             const customerMetrics: { [key: number]: { count: number; totalSpend: number } } = {};
 
-            shipments.forEach((shipment: any) => {
+            shipments.forEach((shipment: ShipmentWithCost) => {
               const customerId = shipment.customer_id;
               if (customerId) {
                 if (!customerMetrics[customerId]) {
                   customerMetrics[customerId] = { count: 0, totalSpend: 0 };
                 }
                 customerMetrics[customerId].count += 1;
-                customerMetrics[customerId].totalSpend += parseFloat(shipment.retail) || 0;
+                customerMetrics[customerId].totalSpend += parseFloat(String(shipment.retail ?? 0)) || 0;
               }
             });
 

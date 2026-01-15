@@ -18,21 +18,22 @@ import {
   RefreshCw,
   Plus,
   Camera,
+  LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { saveCustomWidget } from '../../config/widgets/customWidgetStorage';
 import { SimpleReportConfig } from '../../types/reports';
 import { executeSimpleReport } from '../../utils/simpleQueryBuilder';
-import { WidgetData } from '../../config/widgets/widgetTypes';
+import { WidgetData, WhatItShows } from '../../config/widgets/widgetTypes';
 import { formatWidgetLabel } from '../../utils/dateUtils';
 import { getColumnById } from '../../config/reportColumns';
 import {
   detectColumnCapabilities,
   getAvailableWidgetTypes,
-  ColumnCapabilities,
 } from '../../utils/columnCapabilities';
 import FilterSummary from './FilterSummary';
+import { ColumnFilter } from '../../types/filters';
 
 interface SaveAsWidgetModalProps {
   report: SimpleReportConfig & { id: string };
@@ -66,6 +67,75 @@ interface FieldInfo {
   field: string;
   label: string;
   type: string;
+}
+
+interface ConfigurationStepProps {
+  config: WidgetConfig;
+  setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
+  availableFields: FieldInfo[];
+  numericFields: FieldInfo[];
+  categoryFields: FieldInfo[];
+  dateFields: FieldInfo[];
+}
+
+interface TableConfigProps {
+  config: WidgetConfig;
+  setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
+  availableFields: FieldInfo[];
+}
+
+interface ChartConfigProps {
+  config: WidgetConfig;
+  setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
+  categoryFields: FieldInfo[];
+  numericFields: FieldInfo[];
+}
+
+interface LineChartConfigProps {
+  config: WidgetConfig;
+  setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
+  dateFields: FieldInfo[];
+  numericFields: FieldInfo[];
+}
+
+interface KpiConfigProps {
+  config: WidgetConfig;
+  setConfig: React.Dispatch<React.SetStateAction<WidgetConfig>>;
+  numericFields: FieldInfo[];
+  availableFields: FieldInfo[];
+}
+
+interface PreviewStepProps {
+  config: WidgetConfig;
+  report: SimpleReportConfig & { id: string };
+  error: string | null;
+}
+
+interface AiSuggestionContext {
+  reportName: string;
+  availableFields: FieldInfo[];
+  numericFields: FieldInfo[];
+  categoryFields: FieldInfo[];
+  dateFields: FieldInfo[];
+}
+
+interface QueryConfig {
+  baseTable: string;
+  columns: { field: string; aggregate?: string }[];
+  filters: { field: string; operator: string; value: string; isDynamic?: boolean }[];
+  reportFilters: ColumnFilter[];
+  groupBy?: string[];
+  orderBy?: { field: string; direction: string }[];
+  limit?: number;
+}
+
+interface WhatItShowsColumn {
+  name: string;
+  description: string;
+}
+
+interface RawDataRow {
+  [key: string]: unknown;
 }
 
 export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAsWidgetModalProps) {
@@ -148,7 +218,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
     type: 'date',
   }));
 
-  const widgetTypeIcons: Record<string, any> = {
+  const widgetTypeIcons: Record<string, LucideIcon> = {
     table: Table,
     bar_chart: BarChart3,
     pie_chart: PieChart,
@@ -325,13 +395,13 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
 
       const reportPath = `customer/${customerId}/${report.id}.json`;
 
-      const widgetDefinition: any = {
+      const widgetDefinition = {
         id: widgetId,
         name: config.name,
         description: config.description,
         type: config.type,
         category: inferCategory(config),
-        source: 'report',
+        source: 'report' as const,
         visibility: { type: 'private' as const },
         createdBy: {
           userId: user?.id || '',
@@ -369,6 +439,8 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
         },
         whatItShows: buildWhatItShows(config, report),
         dataMode: config.dataMode,
+        snapshotData: undefined as WidgetData | undefined,
+        snapshotDate: undefined as string | undefined,
       };
 
       if (config.dataMode === 'static') {
@@ -681,7 +753,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
   );
 }
 
-function ConfigurationStep({ config, setConfig, availableFields, numericFields, categoryFields, dateFields }: any) {
+function ConfigurationStep({ config, setConfig, availableFields, numericFields, categoryFields, dateFields }: ConfigurationStepProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -787,7 +859,7 @@ function ConfigurationStep({ config, setConfig, availableFields, numericFields, 
   );
 }
 
-function TableConfig({ config, setConfig, availableFields }: any) {
+function TableConfig({ config, setConfig, availableFields }: TableConfigProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-slate-900">Table Configuration</h3>
@@ -839,7 +911,7 @@ function TableConfig({ config, setConfig, availableFields }: any) {
   );
 }
 
-function ChartConfig({ config, setConfig, categoryFields, numericFields }: any) {
+function ChartConfig({ config, setConfig, categoryFields, numericFields }: ChartConfigProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-slate-900">
@@ -904,7 +976,7 @@ function ChartConfig({ config, setConfig, categoryFields, numericFields }: any) 
   );
 }
 
-function LineChartConfig({ config, setConfig, dateFields, numericFields }: any) {
+function LineChartConfig({ config, setConfig, dateFields, numericFields }: LineChartConfigProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-slate-900">Line Chart Configuration</h3>
@@ -961,7 +1033,7 @@ function LineChartConfig({ config, setConfig, dateFields, numericFields }: any) 
   );
 }
 
-function KpiConfig({ config, setConfig, numericFields, availableFields }: any) {
+function KpiConfig({ config, setConfig, numericFields }: KpiConfigProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-slate-900">KPI Configuration</h3>
@@ -1018,9 +1090,9 @@ function KpiConfig({ config, setConfig, numericFields, availableFields }: any) {
   );
 }
 
-function PreviewStep({ config, report, error }: any) {
+function PreviewStep({ config, report, error }: PreviewStepProps) {
   const whatItShows = buildWhatItShows(config, report);
-  const activeFilters = report.filters?.filter((f: any) => f.enabled) || [];
+  const activeFilters = report.filters?.filter((f: ColumnFilter) => f.enabled) || [];
 
   return (
     <div className="space-y-6">
@@ -1035,7 +1107,7 @@ function PreviewStep({ config, report, error }: any) {
           <div className="mb-3">
             <span className="text-xs font-semibold text-rocket-700 uppercase">Data Displayed</span>
             <ul className="mt-1 space-y-1">
-              {whatItShows.columns.map((col: any, i: number) => (
+              {whatItShows.columns.map((col: WhatItShowsColumn, i: number) => (
                 <li key={i} className="text-sm text-rocket-800 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-rocket-500 rounded-full" />
                   <strong>{col.name}</strong> — {col.description}
@@ -1088,7 +1160,7 @@ function formatWidgetType(type: WidgetType): string {
   }
 }
 
-function generateLocalAiSuggestion(prompt: string, context: any): WidgetConfig {
+function generateLocalAiSuggestion(prompt: string, context: AiSuggestionContext): WidgetConfig {
   const lower = prompt.toLowerCase();
 
   let type: WidgetType = 'table';
@@ -1206,8 +1278,8 @@ function generateLocalAiSuggestion(prompt: string, context: any): WidgetConfig {
   return suggestion;
 }
 
-function buildQueryConfig(config: WidgetConfig, report: any) {
-  const query: any = {
+function buildQueryConfig(config: WidgetConfig, report: SimpleReportConfig & { id: string }): QueryConfig {
+  const query: QueryConfig = {
     baseTable: 'shipment',
     columns: [],
     filters: [
@@ -1255,8 +1327,8 @@ function buildVisualizationConfig(config: WidgetConfig) {
   };
 }
 
-function buildWhatItShows(config: WidgetConfig, report: any) {
-  const whatItShows: any = {
+function buildWhatItShows(config: WidgetConfig, report: SimpleReportConfig & { id: string }): WhatItShows {
+  const whatItShows: WhatItShows = {
     summary: '',
     columns: [],
     filters: ['Your shipments only', 'Within selected date range'],
@@ -1309,7 +1381,7 @@ function buildWhatItShows(config: WidgetConfig, report: any) {
   }
 
   if (report.filters && report.filters.length > 0) {
-    const activeFilters = report.filters.filter((f: any) => f.enabled);
+    const activeFilters = report.filters.filter((f: ColumnFilter) => f.enabled);
     if (activeFilters.length > 0) {
       whatItShows.filters.push(`${activeFilters.length} data filter${activeFilters.length !== 1 ? 's' : ''} applied`);
     }
@@ -1361,7 +1433,7 @@ function getDefaultSize(type: WidgetType): string {
   return sizes[type] || 'medium';
 }
 
-function transformRawDataToWidgetData(rawData: any[], config: WidgetConfig): WidgetData {
+function transformRawDataToWidgetData(rawData: RawDataRow[], config: WidgetConfig): WidgetData {
   switch (config.type) {
     case 'table': {
       const columns = config.tableColumns || [];

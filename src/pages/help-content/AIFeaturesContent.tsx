@@ -198,7 +198,7 @@ export function CustomerProfilesContent() {
 
       <Step number={4} title="Test the Profile">
         Use <strong>View as Customer</strong> to switch to their view, then open <strong>AI Report Studio</strong>.
-        Try asking "show me [product] shipments to [market]" and verify it works.
+        Try asking "show me [product] shipments to [market]\" and verify it works.
       </Step>
 
       <div className="mt-8 p-6 bg-slate-50 rounded-xl border-2 border-slate-200">

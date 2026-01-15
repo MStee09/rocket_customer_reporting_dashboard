@@ -11,6 +11,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useAuth } from '../contexts/AuthContext';
 import { InvestigatorUnified } from '../components/ai/InvestigatorUnified';
 import type { ReportDraft } from '../ai/investigator/types';
+import { logger } from '../utils/logger';
 
 export function AIReportStudioPage() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export function AIReportStudioPage() {
     : customers.find((c) => c.customer_id === effectiveCustomerId)?.customer_name;
 
   const handleReportGenerated = (report: ReportDraft) => {
-    console.log('Report generated:', report);
+    logger.log('Report generated:', report);
   };
 
   if (!effectiveCustomerId && !isAdmin()) {

@@ -16,6 +16,7 @@
  */
 
 import type { WidgetDefinition, WidgetCategory, WidgetAccess } from '../types/WidgetTypes';
+import { logger } from '../../utils/logger';
 
 // =============================================================================
 // REGISTRY STORAGE
@@ -33,7 +34,7 @@ const widgetRegistry = new Map<string, WidgetDefinition>();
  */
 export function registerWidget(widget: WidgetDefinition): void {
   if (widgetRegistry.has(widget.id)) {
-    console.warn(`[WidgetRegistry] Widget "${widget.id}" is already registered. Overwriting.`);
+    logger.warn(`[WidgetRegistry] Widget "${widget.id}" is already registered. Overwriting.`);
   }
   widgetRegistry.set(widget.id, widget);
 }
@@ -206,8 +207,7 @@ export function getRegistryStats(): {
  * Log registry contents (for debugging)
  */
 export function debugRegistry(): void {
-  console.group('[WidgetRegistry] Contents');
-  console.log('Stats:', getRegistryStats());
-  console.log('Widgets:', getRegisteredWidgetIds());
-  console.groupEnd();
+  logger.log('[WidgetRegistry] Contents');
+  logger.log('Stats:', getRegistryStats());
+  logger.log('Widgets:', getRegisteredWidgetIds());
 }

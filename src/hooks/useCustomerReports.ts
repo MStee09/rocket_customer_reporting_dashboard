@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { ReportConfig, CustomerReportsData } from '../types/reports';
 import { useAuth } from '../contexts/AuthContext';
 import { validateReportConfig, filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
+import { logger } from '../utils/logger';
 
 interface ReportUpdates {
   name?: string;
@@ -76,7 +77,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
         setReports(reportsData.reports || []);
       }
     } catch (err) {
-      console.error('Error loading reports:', err);
+      logger.error('Error loading reports:', err);
       setError(err instanceof Error ? err.message : 'Failed to load reports');
       setReports([]);
     } finally {
@@ -103,7 +104,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
         );
 
         if (!validation.isValid) {
-          console.warn('Report contains admin-only columns, filtering them out:', validation.errors);
+          logger.warn('Report contains admin-only columns, filtering them out:', validation.errors);
 
           const filteredColumns = filterAdminOnlyColumns(simpleReport.columns || []);
           const filteredGroupBy = filterAdminOnlyColumnIds(simpleReport.groupBy || []);
@@ -114,7 +115,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
             groupBy: filteredGroupBy
           };
 
-          console.log('Filtered admin-only columns before saving:', {
+          logger.log('Filtered admin-only columns before saving:', {
             originalColumns: simpleReport.columns?.length || 0,
             filteredColumns: filteredColumns.length,
             originalGroupBy: simpleReport.groupBy?.length || 0,
@@ -159,7 +160,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
 
       setReports(updatedReports);
     } catch (err) {
-      console.error('Error saving report:', err);
+      logger.error('Error saving report:', err);
       throw err;
     }
   };
@@ -195,7 +196,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
 
       setReports(updatedReports);
     } catch (err) {
-      console.error('Error deleting report:', err);
+      logger.error('Error deleting report:', err);
       throw err;
     }
   };
@@ -273,7 +274,7 @@ export function useCustomerReports(customerId?: number): UseCustomerReportsResul
 
       setReports(updatedReports);
     } catch (err) {
-      console.error('Error updating report:', err);
+      logger.error('Error updating report:', err);
       throw err;
     }
   };

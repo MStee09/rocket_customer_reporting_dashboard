@@ -8,6 +8,7 @@ import type {
   ToolExecution,
   LearningEntry,
 } from '../ai/investigator/types';
+import { logger } from '../utils/logger';
 
 export interface UseInvestigatorOptions {
   customerId: string;
@@ -157,7 +158,7 @@ export function useInvestigator(options: UseInvestigatorOptions): UseInvestigato
         return null;
       }
 
-      console.log('[Investigator] Full response:', JSON.stringify(response, null, 2));
+      logger.log('[Investigator] Full response:', JSON.stringify(response, null, 2));
 
       setUsage(prev => ({
         totalInputTokens: prev.totalInputTokens + response.usage.inputTokens,

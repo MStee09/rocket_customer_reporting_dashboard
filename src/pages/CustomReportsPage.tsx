@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { filterAdminOnlyColumns, filterAdminOnlyColumnIds } from '../utils/reportFilters';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
 import { ScheduledReport } from '../types/scheduledReports';
+import { logger } from '../utils/logger';
 
 interface AIStudioNavigationState {
   initialColumns?: Array<{ id: string; label: string }>;
@@ -62,7 +63,7 @@ export function CustomReportsPage() {
       try {
         await deleteReport(reportId);
       } catch (error) {
-        console.error('Error deleting report:', error);
+        logger.error('Error deleting report:', error);
         alert('Failed to delete report. Please try again.');
       }
     }
@@ -77,7 +78,7 @@ export function CustomReportsPage() {
         columns = filterAdminOnlyColumns(columns);
         groupByColumns = filterAdminOnlyColumnIds(groupByColumns);
 
-        console.log('Filtered admin-only columns from customer report', {
+        logger.log('Filtered admin-only columns from customer report', {
           originalColumns: state.selectedColumns.length,
           filteredColumns: columns.length,
           originalGroupBy: state.groupByColumns.length,
@@ -112,7 +113,7 @@ export function CustomReportsPage() {
       setIsBuilderOpen(false);
       navigate(`/custom-reports/${reportConfig.id}`, { state: { newReport: reportConfig } });
     } catch (error) {
-      console.error('Error saving report:', error);
+      logger.error('Error saving report:', error);
       alert('Failed to save report. Please try again.');
     }
   };

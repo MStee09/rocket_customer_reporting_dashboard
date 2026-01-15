@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSupabase } from '../../hooks/useSupabase';
+import { logger } from '../../utils/logger';
 import { saveCustomWidget } from '../../config/widgets/customWidgetStorage';
 import { SimpleReportConfig } from '../../types/reports';
 import { executeSimpleReport } from '../../utils/simpleQueryBuilder';
@@ -295,7 +296,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
 
   const applyAiSuggestion = () => {
     if (aiSuggestion) {
-      console.log('Applying AI suggestion:', aiSuggestion);
+      logger.log('Applying AI suggestion:', aiSuggestion);
 
       setConfig(prev => ({
         ...prev,
@@ -450,7 +451,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
           widgetDefinition.snapshotData = snapshotData;
           widgetDefinition.snapshotDate = new Date().toISOString();
         } catch (err) {
-          console.error('Failed to capture snapshot:', err);
+          logger.error('Failed to capture snapshot:', err);
           throw new Error('Failed to capture data snapshot for static widget');
         }
       }
@@ -465,7 +466,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
       setShowSuccessOptions(true);
 
     } catch (err) {
-      console.error('Save error:', err);
+      logger.error('Save error:', err);
       setError(String(err));
     } finally {
       setSaving(false);
@@ -1273,7 +1274,7 @@ function generateLocalAiSuggestion(prompt: string, context: AiSuggestionContext)
     suggestion.kpiFormat = valueField.toLowerCase().includes('retail') || valueField.toLowerCase().includes('cost') ? 'currency' : 'number';
   }
 
-  console.log('AI Suggestion generated:', suggestion);
+  logger.log('AI Suggestion generated:', suggestion);
 
   return suggestion;
 }

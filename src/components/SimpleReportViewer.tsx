@@ -10,6 +10,7 @@ import { useLookupTables } from '../hooks/useLookupTables';
 import { ExportMenu } from './ui/ExportMenu';
 import { ColumnConfig } from '../services/exportService';
 import { AIVisualizationStudio, VisualizationConfig } from './ai-studio';
+import { logger } from '../utils/logger';
 
 interface SimpleReportViewerProps {
   config: SimpleReportConfig;
@@ -66,7 +67,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
       setData(result);
       onDataLoad?.(result);
     } catch (err: any) {
-      console.error('Error loading report data:', err);
+      logger.error('Error loading report data:', err);
       setError(err.message || 'Failed to load report data');
     } finally {
       setIsLoading(false);
@@ -139,7 +140,7 @@ export default function SimpleReportViewer({ config, customerId, onDataLoad }: S
   }, [filteredConfig.columns]);
 
   const handleAddVisualization = (vizConfig: VisualizationConfig) => {
-    console.log('Adding visualization to report:', vizConfig);
+    logger.log('Adding visualization to report:', vizConfig);
     setShowVisualizationStudio(false);
   };
 

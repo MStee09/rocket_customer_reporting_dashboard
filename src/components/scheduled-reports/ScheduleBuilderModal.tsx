@@ -12,6 +12,7 @@ import {
 } from '../../types/scheduledReports';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 
 interface ScheduleBuilderModalProps {
   isOpen: boolean;
@@ -213,11 +214,11 @@ export function ScheduleBuilderModal({
           .upload(storagePath, reportBlob, { upsert: true });
 
         if (uploadError) {
-          console.error('Failed to save custom report to storage:', uploadError);
+          logger.error('Failed to save custom report to storage:', uploadError);
           throw new Error('Failed to save report for scheduling. Please try again.');
         }
 
-        console.log('Custom report saved to storage:', storagePath);
+        logger.log('Custom report saved to storage:', storagePath);
       }
 
       const scheduleData = {
@@ -275,7 +276,7 @@ export function ScheduleBuilderModal({
       onClose();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save schedule';
-      console.error('Failed to save schedule:', err);
+      logger.error('Failed to save schedule:', err);
       setError(message);
     } finally {
       setSaving(false);

@@ -14,6 +14,7 @@ import {
 } from '../../config/widgetConstraints';
 import { loadAllCustomWidgets } from '../../config/widgets/customWidgetStorage';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 
 interface WidgetGalleryModalProps {
   isOpen: boolean;
@@ -89,8 +90,8 @@ export function WidgetGalleryModal({
           customerId
         );
         
-        console.log('[WidgetGallery] Loaded custom widgets:', customWidgets.length);
-        
+        logger.log('[WidgetGallery] Loaded custom widgets:', customWidgets.length);
+
         // Convert custom widget format to WidgetDefinition format for the gallery
         const widgetDefs: WidgetWithMeta[] = customWidgets.map(cw => ({
           id: cw.id,
@@ -111,7 +112,7 @@ export function WidgetGalleryModal({
         
         setCustomWidgetDefs(widgetDefs);
       } catch (error) {
-        console.error('[WidgetGallery] Error loading custom widgets:', error);
+        logger.error('[WidgetGallery] Error loading custom widgets:', error);
       } finally {
         setLoadingCustomWidgets(false);
       }

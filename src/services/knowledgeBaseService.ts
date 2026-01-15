@@ -11,6 +11,7 @@ import {
   countWords,
   detectFileType,
 } from '../utils/documentExtractors';
+import { logger } from '../utils/logger';
 
 const BUCKET_NAME = 'knowledge-documents';
 
@@ -112,12 +113,12 @@ async function embedDocumentInBackground(
     });
 
     if (error) {
-      console.error('[KnowledgeBase] Embedding failed:', error);
+      logger.error('[KnowledgeBase] Embedding failed:', error);
     } else {
-      console.log(`[KnowledgeBase] Embedded ${data.chunksCreated} chunks for: ${fileName}`);
+      logger.log(`[KnowledgeBase] Embedded ${data.chunksCreated} chunks for: ${fileName}`);
     }
   } catch (err) {
-    console.error('[KnowledgeBase] Embedding error:', err);
+    logger.error('[KnowledgeBase] Embedding error:', err);
   }
 }
 
@@ -211,7 +212,7 @@ export async function deleteDocument(
     .remove([document.storage_path]);
 
   if (storageError) {
-    console.warn('Failed to delete file from storage:', storageError);
+    logger.warn('Failed to delete file from storage:', storageError);
   }
 
   const { error } = await supabase
@@ -253,7 +254,7 @@ export async function getDocumentsForContext(
   const { data, error } = await query;
 
   if (error) {
-    console.error('Failed to load knowledge documents for context:', error);
+    logger.error('Failed to load knowledge documents for context:', error);
     return [];
   }
 
@@ -382,7 +383,7 @@ export async function deleteDocumentWithPath(
     .remove([storagePath]);
 
   if (storageError) {
-    console.warn('Failed to delete file from storage:', storageError);
+    logger.warn('Failed to delete file from storage:', storageError);
   }
 
   const { error } = await supabase

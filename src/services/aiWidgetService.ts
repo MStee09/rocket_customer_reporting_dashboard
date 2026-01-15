@@ -3,6 +3,7 @@ import { AIReportDefinition, ExecutedReportData } from '../types/aiReport';
 import { CustomWidgetDefinition } from '../config/widgets/customWidgetTypes';
 import { saveCustomWidget, deleteCustomWidget } from '../config/widgets/customWidgetStorage';
 import { executeReportData } from './reportDataExecutor';
+import { logger } from '../utils/logger';
 
 export async function createWidgetFromAIReport(
   supabase: SupabaseClient,
@@ -81,13 +82,13 @@ export async function createWidgetFromAIReport(
     const result = await saveCustomWidget(supabase, widget, params.customerId);
 
     if (result.success) {
-      console.log('[AI Widget] Created widget:', widgetId);
+      logger.log('[AI Widget] Created widget:', widgetId);
       return { success: true, widgetId };
     } else {
       return { success: false, error: result.error };
     }
   } catch (err) {
-    console.error('[AI Widget] Failed to create widget:', err);
+    logger.error('[AI Widget] Failed to create widget:', err);
     return { success: false, error: String(err) };
   }
 }
@@ -122,7 +123,7 @@ export async function executeAIWidget(
 
     return { success: true, data: executedData };
   } catch (err) {
-    console.error('[AI Widget] Execution failed:', err);
+    logger.error('[AI Widget] Execution failed:', err);
     return { success: false, error: String(err) };
   }
 }

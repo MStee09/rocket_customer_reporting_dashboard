@@ -21,6 +21,34 @@ interface StatusDistributionData {
   value: number;
 }
 
+interface ShipmentWithCustomer {
+  load_id: string;
+  customer_id: number;
+  customer: { company_name: string } | null;
+  pickup_date: string;
+}
+
+interface ShipmentWithCarrier {
+  load_id: string;
+  customer_id: number;
+  carrier: { carrier_name: string } | null;
+  pickup_date: string;
+}
+
+interface ShipmentWithMode {
+  load_id: string;
+  customer_id: number;
+  shipment_mode: { mode_name: string } | null;
+  pickup_date: string;
+}
+
+interface ShipmentWithStatus {
+  load_id: string;
+  customer_id: number;
+  shipment_status: { status_name: string } | null;
+  pickup_date: string;
+}
+
 export function useReportCharts(
   effectiveCustomerIds: number[],
   isAdmin: boolean,
@@ -51,7 +79,7 @@ export function useReportCharts(
       if (!shipments) return [];
 
       const customerCounts: { [key: string]: number } = {};
-      shipments.forEach((s: any) => {
+      shipments.forEach((s: ShipmentWithCustomer) => {
         const customerName = s.customer?.company_name || 'Unknown';
         customerCounts[customerName] = (customerCounts[customerName] || 0) + 1;
       });
@@ -89,7 +117,7 @@ export function useReportCharts(
       if (!shipments) return [];
 
       const carrierCounts: { [key: string]: number } = {};
-      shipments.forEach((s: any) => {
+      shipments.forEach((s: ShipmentWithCarrier) => {
         const carrierName = s.carrier?.carrier_name || 'Unknown';
         carrierCounts[carrierName] = (carrierCounts[carrierName] || 0) + 1;
       });
@@ -126,7 +154,7 @@ export function useReportCharts(
       if (!shipments) return [];
 
       const modeCounts: { [key: string]: number } = {};
-      shipments.forEach((s: any) => {
+      shipments.forEach((s: ShipmentWithMode) => {
         const modeName = s.shipment_mode?.mode_name || 'Unknown';
         modeCounts[modeName] = (modeCounts[modeName] || 0) + 1;
       });
@@ -163,7 +191,7 @@ export function useReportCharts(
       if (!shipments) return [];
 
       const statusCounts: { [key: string]: number } = {};
-      shipments.forEach((s: any) => {
+      shipments.forEach((s: ShipmentWithStatus) => {
         const statusName = s.shipment_status?.status_name || 'Unknown';
         statusCounts[statusName] = (statusCounts[statusName] || 0) + 1;
       });

@@ -27,10 +27,12 @@ export interface QueryColumn {
   format?: 'number' | 'currency' | 'percent' | 'date';
 }
 
+export type QueryFilterValue = string | number | boolean | Date | (string | number)[] | null;
+
 export interface QueryFilter {
   field: string;
   operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'like';
-  value: any;
+  value: QueryFilterValue;
   isDynamic?: boolean;
 }
 
@@ -127,7 +129,7 @@ export interface CustomWidgetDefinition {
   };
 
   dataMode: DataMode;
-  snapshotData?: any[];
+  snapshotData?: Record<string, unknown>[];
   snapshotDate?: string;
 
   version: number;
@@ -135,6 +137,6 @@ export interface CustomWidgetDefinition {
   updatedAt: string;
 }
 
-export const isCustomWidget = (widget: any): widget is CustomWidgetDefinition => {
-  return 'source' in widget && widget.source !== 'system';
+export const isCustomWidget = (widget: unknown): widget is CustomWidgetDefinition => {
+  return typeof widget === 'object' && widget !== null && 'source' in widget && (widget as CustomWidgetDefinition).source !== 'system';
 };

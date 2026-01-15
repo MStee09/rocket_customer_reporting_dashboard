@@ -9,6 +9,53 @@ export type WidgetScope = 'global' | 'customer';
 export type WidgetType = 'kpi' | 'featured_kpi' | 'line_chart' | 'bar_chart' | 'pie_chart' | 'table' | 'map';
 export type WidgetSize = 'small' | 'medium' | 'wide' | 'tall' | 'large' | 'hero';
 
+export interface KpiResult {
+  value: number;
+  label: string;
+  format?: 'currency' | 'percentage';
+}
+
+export interface ChartDataResult {
+  data: Array<Record<string, unknown>>;
+}
+
+export interface MapDataResult {
+  effectiveCustomerIds?: number[];
+  isAdmin?: boolean;
+  isViewingAsCustomer?: boolean;
+  startDate?: string;
+  endDate?: string;
+  data?: Array<Record<string, unknown>>;
+}
+
+export type WidgetResult = KpiResult | ChartDataResult | MapDataResult;
+
+interface StateStats {
+  count: number;
+  totalCost: number;
+}
+
+interface CarrierStats {
+  total: number;
+  onTime: number;
+  transitDays: number[];
+}
+
+interface ShipmentRow {
+  load_id?: string;
+  retail?: number;
+  pickup_date?: string;
+  mode_id?: number;
+  rate_carrier_id?: number;
+  delivery_date?: string;
+  expected_delivery_date?: string;
+}
+
+interface AccessorialRow {
+  accessorial_type_id?: number;
+  charge?: number;
+}
+
 export interface WidgetCalculateParams {
   supabase: SupabaseClient;
   effectiveCustomerIds: number[];
@@ -30,7 +77,7 @@ export interface WidgetDefinition {
   gradient?: string;
   tooltip?: string;
   dataDefinition?: string;
-  calculate: (params: WidgetCalculateParams) => Promise<any>;
+  calculate: (params: WidgetCalculateParams) => Promise<WidgetResult>;
   adminOnly?: boolean;
 }
 
@@ -181,7 +228,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         error: addressesError
       });
 
-      const stateStats = (shipments || []).reduce((acc: any, shipment: any) => {
+      const stateStats = (shipments || []).reduce<Record<string, StateStats>>((acc, shipment) => {
         const address = addresses?.find(a => a.load_id === shipment.load_id);
         const state = address?.state;
         if (state) {
@@ -196,7 +243,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       logger.log('[cost_by_state] State statistics:', stateStats);
 
-      const stateData = Object.entries(stateStats).map(([stateCode, stats]: [string, any]) => {
+      const stateData = Object.entries(stateStats).map(([stateCode, stats]) => {
         const avgCost = stats.count > 0 ? stats.totalCost / stats.count : 0;
         return {
           state: stateCode,
@@ -354,9 +401,11 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .lte('pickup_date', dateRange.end)
         .order('pickup_date');
 
-      const dailyCounts = (data || []).reduce((acc: any, row: any) => {
+      const dailyCounts = (data || []).reduce<Record<string, number>>((acc, row) => {
         const date = row.pickup_date;
-        acc[date] = (acc[date] || 0) + 1;
+        if (date) {
+          acc[date] = (acc[date] || 0) + 1;
+        }
         return acc;
       }, {});
 
@@ -465,9 +514,11 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .lte('pickup_date', dateRange.end)
         .order('pickup_date');
 
-      const monthlyData = (data || []).reduce((acc: any, row: any) => {
-        const month = row.pickup_date.substring(0, 7);
-        acc[month] = (acc[month] || 0) + (row.retail || 0);
+      const monthlyData = (data || []).reduce<Record<string, number>>((acc, row) => {
+        const month = row.pickup_date?.substring(0, 7);
+        if (month) {
+          acc[month] = (acc[month] || 0) + (row.retail || 0);
+        }
         return acc;
       }, {});
 
@@ -518,8 +569,8 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .select('accessorial_type_id, charge')
         .in('shipment_id', shipmentIds);
 
-      const typeData = (accessorials || []).reduce((acc: any, row: any) => {
-        const type = row.accessorial_type_id || 'Unknown';
+      const typeData = (accessorials || []).reduce<Record<string, number>>((acc, row: AccessorialRow) => {
+        const type = String(row.accessorial_type_id ?? 'Unknown');
         acc[type] = (acc[type] || 0) + (row.charge || 0);
         return acc;
       }, {});
@@ -599,7 +650,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      const modeCounts = (data || []).reduce((acc: any, row: any) => {
+      const modeCounts = (data || []).reduce<Record<string, number>>((acc, row) => {
         const modeName = getLookupDisplayValue(lookups, 'mode_id', row.mode_id);
         acc[modeName] = (acc[modeName] || 0) + 1;
         return acc;
@@ -658,7 +709,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       const carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
 
-      const carrierCounts = (shipments || []).reduce((acc: any, row: any) => {
+      const carrierCounts = (shipments || []).reduce<Record<string, number>>((acc, row) => {
         const carrierName = carrierMap.get(row.rate_carrier_id) || 'Unknown';
         acc[carrierName] = (acc[carrierName] || 0) + 1;
         return acc;
@@ -717,7 +768,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       const carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
 
-      const carrierSpend = (shipments || []).reduce((acc: any, row: any) => {
+      const carrierSpend = (shipments || []).reduce<Record<string, number>>((acc, row) => {
         const carrierName = carrierMap.get(row.rate_carrier_id) || 'Unknown';
         acc[carrierName] = (acc[carrierName] || 0) + (row.retail || 0);
         return acc;
@@ -725,7 +776,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       const chartData = Object.entries(carrierSpend)
         .map(([carrier, spend]) => ({ carrier, spend }))
-        .sort((a: any, b: any) => b.spend - a.spend);
+        .sort((a, b) => b.spend - a.spend);
 
       return { data: chartData };
     }
@@ -769,7 +820,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         .in('load_id', loadIds)
         .in('address_type', [1, 2]);
 
-      const laneData = (shipments || []).reduce((acc: any, shipment: any) => {
+      const laneData = (shipments || []).reduce<Record<string, StateStats>>((acc, shipment) => {
         const origin = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 1)?.state || 'Unknown';
         const dest = addresses?.find(a => a.load_id === shipment.load_id && a.address_type === 2)?.state || 'Unknown';
         const lane = `${origin} → ${dest}`;
@@ -783,7 +834,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
       }, {});
 
       const tableData = Object.entries(laneData)
-        .map(([lane, stats]: [string, any]) => ({
+        .map(([lane, stats]) => ({
           lane,
           count: stats.count,
           avgCost: stats.count > 0 ? stats.totalCost / stats.count : 0
@@ -922,7 +973,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       const carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
 
-      const carrierStats = (shipments || []).reduce((acc: any, row: any) => {
+      const carrierStats = (shipments || []).reduce<Record<string, CarrierStats>>((acc, row) => {
         const carrierName = carrierMap.get(row.rate_carrier_id) || 'Unknown';
 
         if (!acc[carrierName]) {
@@ -931,19 +982,21 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
         acc[carrierName].total += 1;
 
-        if (row.expected_delivery_date && row.delivery_date <= row.expected_delivery_date) {
+        if (row.expected_delivery_date && row.delivery_date && row.delivery_date <= row.expected_delivery_date) {
           acc[carrierName].onTime += 1;
         }
 
-        const pickup = new Date(row.pickup_date);
-        const delivery = new Date(row.delivery_date);
-        const days = (delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24);
-        acc[carrierName].transitDays.push(days);
+        if (row.pickup_date && row.delivery_date) {
+          const pickup = new Date(row.pickup_date);
+          const delivery = new Date(row.delivery_date);
+          const days = (delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24);
+          acc[carrierName].transitDays.push(days);
+        }
 
         return acc;
       }, {});
 
-      const tableData = Object.entries(carrierStats).map(([carrier, stats]: [string, any]) => ({
+      const tableData = Object.entries(carrierStats).map(([carrier, stats]) => ({
         carrier,
         shipments: stats.total,
         onTimeRate: stats.total > 0 ? (stats.onTime / stats.total) * 100 : 0,

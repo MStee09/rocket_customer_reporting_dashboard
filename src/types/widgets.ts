@@ -17,20 +17,54 @@ export type WidgetType =
   | 'table'
   | 'map';
 
+export interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+export interface TableColumn {
+  key: string;
+  label: string;
+}
+
+export interface TableRow {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+export interface StateDataPoint {
+  stateCode: string;
+  value?: number;
+  avgCost?: number;
+  shipmentCount?: number;
+  isOutlier?: boolean;
+}
+
+export interface MapData {
+  stateData: StateDataPoint[];
+}
+
+export interface ShipmentRecord {
+  load_id?: number;
+  customer_id?: number;
+  retail?: number | string;
+  [key: string]: string | number | boolean | null | undefined;
+}
+
 export interface WidgetData {
   value?: number | string;
   label?: string;
   format?: 'number' | 'currency' | 'percentage';
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: number;
-  data?: any[];
-  chartData?: any[];
-  tableData?: any[];
-  columns?: any[];
-  mapData?: any;
+  data?: Record<string, unknown>[];
+  chartData?: ChartDataPoint[];
+  tableData?: TableRow[];
+  columns?: TableColumn[];
+  mapData?: MapData;
   subtitle?: string;
-  shipments?: any[];
-  stateData?: any;
+  shipments?: ShipmentRecord[];
+  stateData?: StateDataPoint[];
 }
 
 export interface DateRange {

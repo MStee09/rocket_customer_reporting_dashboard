@@ -1,5 +1,11 @@
 import { getFieldByColumn, getFieldById, FieldDefinition } from '../config/schema/fieldSchema';
 
+export interface InputColumn {
+  id?: string;
+  column?: string;
+  label?: string;
+}
+
 export interface ColumnInfo {
   id: string;
   column: string;
@@ -22,7 +28,7 @@ export interface ColumnCapabilities {
   allColumns: ColumnInfo[];
 }
 
-export const detectColumnCapabilities = (columns: any[]): ColumnCapabilities => {
+export const detectColumnCapabilities = (columns: InputColumn[]): ColumnCapabilities => {
   const result: ColumnCapabilities = {
     hasGroupableColumn: false,
     hasAggregatableColumn: false,
@@ -164,7 +170,7 @@ export interface WidgetTypeOption {
   requiredCapabilities: string[];
 }
 
-export const getAvailableWidgetTypes = (columns: any[]): WidgetTypeOption[] => {
+export const getAvailableWidgetTypes = (columns: InputColumn[]): WidgetTypeOption[] => {
   const caps = detectColumnCapabilities(columns);
 
   return [
@@ -249,15 +255,15 @@ const getChartReason = (caps: ColumnCapabilities, chartType: string): string | n
   }
 };
 
-export const getGroupByOptions = (columns: any[]): ColumnInfo[] => {
+export const getGroupByOptions = (columns: InputColumn[]): ColumnInfo[] => {
   return detectColumnCapabilities(columns).groupableColumns;
 };
 
-export const getAggregationOptions = (columns: any[]): ColumnInfo[] => {
+export const getAggregationOptions = (columns: InputColumn[]): ColumnInfo[] => {
   return detectColumnCapabilities(columns).aggregatableColumns;
 };
 
-export const getDateOptions = (columns: any[]): ColumnInfo[] => {
+export const getDateOptions = (columns: InputColumn[]): ColumnInfo[] => {
   return detectColumnCapabilities(columns).dateColumns;
 };
 

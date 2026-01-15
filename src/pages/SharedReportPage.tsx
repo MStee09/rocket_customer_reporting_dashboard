@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { AIReportDefinition, ExecutedReportData } from '../types/aiReport';
 import { executeReportData } from '../services/reportDataExecutor';
 import { Card } from '../components/ui/Card';
+import { logger } from '../utils/logger';
 
 interface SharedReport {
   id: string;
@@ -128,9 +129,9 @@ export function SharedReportPage() {
         return;
       }
 
-      console.log('Raw report_definition:', data.report_definition);
+      logger.log('Raw report_definition:', data.report_definition);
       const definition = extractDefinition(data.report_definition);
-      console.log('Extracted definition:', definition);
+      logger.log('Extracted definition:', definition);
 
       if (!definition) {
         setError('Invalid report structure');
@@ -161,10 +162,10 @@ export function SharedReportPage() {
       return;
     }
 
-    console.log('=== Executing SharedReport ===');
-    console.log('Definition:', definition);
-    console.log('Sections:', definition.sections);
-    console.log('DateRange:', definition.dateRange);
+    logger.log('=== Executing SharedReport ===');
+    logger.log('Definition:', definition);
+    logger.log('Sections:', definition.sections);
+    logger.log('DateRange:', definition.dateRange);
 
     if (!definition.sections || definition.sections.length === 0) {
       console.warn('Report has no sections');

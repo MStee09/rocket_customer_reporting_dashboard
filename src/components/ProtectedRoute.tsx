@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,7 +11,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, isAdmin, isViewingAsCustomer, user } = useAuth();
 
-  console.log('[ProtectedRoute]', {
+  logger.log('[ProtectedRoute]', {
     isAuthenticated,
     isLoading,
     requireAdmin,
@@ -20,7 +21,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   });
 
   if (isLoading) {
-    console.log('[ProtectedRoute] Still loading auth state...');
+    logger.log('[ProtectedRoute] Still loading auth state...');
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -32,15 +33,15 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    console.log('[ProtectedRoute] User not authenticated, redirecting to login');
+    logger.log('[ProtectedRoute] User not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   if (requireAdmin && (!isAdmin() || isViewingAsCustomer)) {
-    console.log('[ProtectedRoute] Admin required but user is not admin, redirecting to dashboard');
+    logger.log('[ProtectedRoute] Admin required but user is not admin, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
-  console.log('[ProtectedRoute] Auth check passed, rendering children');
+  logger.log('[ProtectedRoute] Auth check passed, rendering children');
   return <>{children}</>;
 }

@@ -15,6 +15,7 @@ import {
   CalculatedField,
 } from '../types/aiReport';
 import { aggregateValues as aggregateNumericValues, AggregationType } from '../utils/aggregation';
+import { logger } from '../utils/logger';
 
 interface DateRange {
   start: Date;
@@ -87,8 +88,8 @@ export async function executeReportData(
   customerId: string,
   isAdmin: boolean
 ): Promise<ExecutedReportData> {
-  console.log('executeReportData called with report:', report);
-  console.log('dateRange:', report.dateRange);
+  logger.log('executeReportData called with report:', report);
+  logger.log('dateRange:', report.dateRange);
 
   const dateRangeType = report.dateRange?.type || 'last90';
   const dateRange = getDateRangeForPreset(
@@ -97,7 +98,7 @@ export async function executeReportData(
     report.dateRange?.customEnd
   );
 
-  console.log('Calculated dateRange:', dateRange);
+  logger.log('Calculated dateRange:', dateRange);
 
   const results: ExecutedReportData = {
     sections: [],

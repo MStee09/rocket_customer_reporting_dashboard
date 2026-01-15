@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getColumnById } from '../config/reportColumns';
 import { format, subDays } from 'date-fns';
+import { logger } from '../utils/logger';
 
 interface ColumnSample {
   values: string[];
@@ -209,10 +210,10 @@ export async function fetchColumnSamples(
   columnId: string,
   customerId: string
 ): Promise<string[]> {
-  console.log('[ColumnSamples] Fetching samples for:', columnId, 'customerId:', customerId);
+  logger.log('[ColumnSamples] Fetching samples for:', columnId, 'customerId:', customerId);
 
   if (!canQueryColumn(columnId)) {
-    console.log('[ColumnSamples] Column not queryable, skipping:', columnId);
+    logger.log('[ColumnSamples] Column not queryable, skipping:', columnId);
     return [];
   }
 
@@ -220,7 +221,7 @@ export async function fetchColumnSamples(
 
   const cached = cache.get(cacheKey);
   if (cached && isCacheValid(cached)) {
-    console.log('[ColumnSamples] Returning cached data');
+    logger.log('[ColumnSamples] Returning cached data');
     return cached.data;
   }
 
@@ -231,7 +232,7 @@ export async function fetchColumnSamples(
     }
 
     const query = buildSampleQuery(columnId, customerId);
-    console.log('[ColumnSamples] Query:', query);
+    logger.log('[ColumnSamples] Query:', query);
 
     const { data, error } = await supabase.rpc('execute_custom_query', {
       query_text: query
@@ -242,10 +243,10 @@ export async function fetchColumnSamples(
       throw new Error(`Database error: ${error.message || 'Failed to fetch sample data'}`);
     }
 
-    console.log('[ColumnSamples] Raw data:', data);
+    logger.log('[ColumnSamples] Raw data:', data);
 
     if (!data || data.length === 0) {
-      console.log('[ColumnSamples] No data found');
+      logger.log('[ColumnSamples] No data found');
       cache.set(cacheKey, { data: [], timestamp: Date.now() });
       return [];
     }
@@ -259,7 +260,7 @@ export async function fetchColumnSamples(
       ))
       .filter((val: string) => val.trim() !== '');
 
-    console.log('[ColumnSamples] Formatted samples:', samples);
+    logger.log('[ColumnSamples] Formatted samples:', samples);
     cache.set(cacheKey, { data: samples, timestamp: Date.now() });
     return samples;
 

@@ -5,6 +5,7 @@ import { useSupabase } from '../../../hooks/useSupabase';
 import { isSystemWidget, customerWidgets, adminWidgets } from '../../../config/widgets';
 import { executeCustomWidgetQuery } from '../../../utils/customWidgetExecutor';
 import { WidgetRenderer, getWidgetDisplayType } from '../WidgetRenderer';
+import { logger } from '../../../utils/logger';
 
 interface WidgetPreviewTabProps {
   widget: any;
@@ -55,12 +56,12 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
       setError(null);
 
       try {
-        console.log('🔍 Loading preview for widget:', widget.name);
-        console.log('Widget structure:', widget);
+        logger.log('🔍 Loading preview for widget:', widget.name);
+        logger.log('Widget structure:', widget);
 
         if (widget.dataSource?.query) {
-          console.log('📊 Custom widget detected - executing query config');
-          console.log('Using customerId:', selectedCustomerId || effectiveCustomerId || 'none');
+          logger.log('📊 Custom widget detected - executing query config');
+          logger.log('Using customerId:', selectedCustomerId || effectiveCustomerId || 'none');
           const result = await executeCustomWidgetQuery(
             supabase,
             widget.dataSource.query,
@@ -75,7 +76,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
             setPreviewData(null);
           } else {
             const vizType = widget.visualization?.type || widget.type;
-            console.log('✅ Query executed, formatting as:', vizType);
+            logger.log('✅ Query executed, formatting as:', vizType);
 
             if (vizType === 'kpi') {
               const total = result.data.reduce((sum, row) => sum + (row.value || 0), 0);
@@ -111,7 +112,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
             }
           }
         } else {
-          console.log('🎨 System widget detected - using calculate function');
+          logger.log('🎨 System widget detected - using calculate function');
           const isSystem = isSystemWidget(widget.id);
           let widgetDef;
 
@@ -122,7 +123,7 @@ export const WidgetPreviewTab = ({ widget, isAdmin }: WidgetPreviewTabProps) => 
           }
 
           if (widgetDef?.calculate) {
-            console.log('Using customerId for system widget:', selectedCustomerId || effectiveCustomerId || 'none');
+            logger.log('Using customerId for system widget:', selectedCustomerId || effectiveCustomerId || 'none');
             const result = await widgetDef.calculate({
               supabase,
               customerId: selectedCustomerId || effectiveCustomerId || undefined,

@@ -1,4 +1,5 @@
 import { WidgetDefinition } from './widgetTypes';
+import { logger } from '../../utils/logger';
 
 export const customerWidgets: Record<string, WidgetDefinition> = {
 
@@ -26,7 +27,7 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       updateBehavior: 'live',
     },
     calculate: async ({ supabase, customerId, dateRange }) => {
-      console.log('[total_shipments] Calculate called with:', {
+      logger.log('[total_shipments] Calculate called with:', {
         customerId,
         dateRange: { start: dateRange.start, end: dateRange.end },
       });
@@ -39,14 +40,14 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
 
       if (customerId) {
         query.eq('customer_id', customerId);
-        console.log('[total_shipments] Filtering by customer_id:', customerId);
+        logger.log('[total_shipments] Filtering by customer_id:', customerId);
       } else {
-        console.log('[total_shipments] WARNING: No customerId provided - query will return ALL shipments (subject to RLS)');
+        logger.log('[total_shipments] WARNING: No customerId provided - query will return ALL shipments (subject to RLS)');
       }
 
       const { count, error } = await query;
 
-      console.log('[total_shipments] Query result:', { count, error });
+      logger.log('[total_shipments] Query result:', { count, error });
 
       return {
         type: 'kpi',

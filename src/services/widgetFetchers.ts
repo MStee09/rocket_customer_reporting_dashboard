@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { DateRange } from '../types/report';
+import { logger } from '../utils/logger';
 
 export type WidgetFetcherResult = {
   rows: Record<string, unknown>[];
@@ -287,7 +288,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
     },
 
     flow_map: async () => {
-      console.log('[widgetFetchers] flow_map fetcher called', { customerFilter, dateRange });
+      logger.log('[widgetFetchers] flow_map fetcher called', { customerFilter, dateRange });
 
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipment')
@@ -297,7 +298,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
         .lte('pickup_date', dateRange.end)
         .limit(500);
 
-      console.log('[widgetFetchers] flow_map query result:', { count: shipments?.length, error: shipmentsError });
+      logger.log('[widgetFetchers] flow_map query result:', { count: shipments?.length, error: shipmentsError });
 
       if (shipmentsError || !shipments || shipments.length === 0) {
         console.error('[widgetFetchers] Flow map - no shipments found:', shipmentsError);
@@ -350,7 +351,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
     },
 
     cost_by_state: async () => {
-      console.log('[widgetFetchers] cost_by_state fetcher called', { customerFilter, dateRange });
+      logger.log('[widgetFetchers] cost_by_state fetcher called', { customerFilter, dateRange });
 
       const { data: shipments, error: shipmentsError } = await supabase
         .from('shipment')
@@ -362,7 +363,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
         .order('retail', { ascending: false })
         .limit(500);
 
-      console.log('[widgetFetchers] cost_by_state query result:', { count: shipments?.length, error: shipmentsError });
+      logger.log('[widgetFetchers] cost_by_state query result:', { count: shipments?.length, error: shipmentsError });
 
       if (shipmentsError || !shipments || shipments.length === 0) {
         console.error('[widgetFetchers] Cost by state - no shipments found:', shipmentsError);
@@ -560,7 +561,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
 
     carrier_performance: async () => {
       const carrierNameFilter = filters?.carrier_name ? decodeURIComponent(String(filters.carrier_name)) : null;
-      console.log('[widgetFetchers] carrier_performance called', { carrierFilter, carrierNameFilter });
+      logger.log('[widgetFetchers] carrier_performance called', { carrierFilter, carrierNameFilter });
 
       let query = supabase
         .from('shipment_report_view')
@@ -597,7 +598,7 @@ export function createWidgetDataFetchers(params: WidgetFetcherParams): Record<st
         return { rows: [], columns: [] };
       }
 
-      console.log('[widgetFetchers] carrier_performance found', data?.length || 0, 'shipments');
+      logger.log('[widgetFetchers] carrier_performance found', data?.length || 0, 'shipments');
 
       return {
         rows: (data || []).map(row => ({

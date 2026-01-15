@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { getSecureTable, getSelectFields } from '../utils/getSecureTable';
+import { logger } from '../utils/logger';
 
 export interface DashboardStats {
   totalShipments: number;
@@ -65,14 +66,14 @@ export function useDashboardStats(
 
   const loadStats = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      console.log('[Dashboard] Loading stats with:', {
+      logger.log('[Dashboard] Loading stats with:', {
         effectiveCustomerIds,
         isAdmin,
         isViewingAsCustomer,
@@ -92,17 +93,17 @@ export function useDashboardStats(
         .select(selectFields);
 
       if (!isAdmin || isViewingAsCustomer) {
-        console.log('[Dashboard] Filtering by customer_id IN:', effectiveCustomerIds);
+        logger.log('[Dashboard] Filtering by customer_id IN:', effectiveCustomerIds);
         query = query.in('customer_id', effectiveCustomerIds);
       } else {
-        console.log('[Dashboard] Admin mode - no customer_id filter');
+        logger.log('[Dashboard] Admin mode - no customer_id filter');
       }
 
       const { data: shipments, error } = await query
         .gte('pickup_date', startDate)
         .lte('pickup_date', endDate);
 
-      console.log('[Dashboard] Query result:', {
+      logger.log('[Dashboard] Query result:', {
         table,
         count: shipments?.length,
         error,
@@ -174,7 +175,7 @@ export function useMonthlyTrend(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
@@ -182,7 +183,7 @@ export function useMonthlyTrend(
     setIsLoading(true);
     try {
       const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
-      console.log('[Monthly Trend] Using table:', table, 'customer_ids:', effectiveCustomerIds);
+      logger.log('[Monthly Trend] Using table:', table, 'customer_ids:', effectiveCustomerIds);
 
       let query = supabase
         .from(table)
@@ -196,7 +197,7 @@ export function useMonthlyTrend(
         .gte('pickup_date', startDate)
         .lte('pickup_date', endDate);
 
-      console.log('[Monthly Trend] Query result:', { count: shipments?.length, error });
+      logger.log('[Monthly Trend] Query result:', { count: shipments?.length, error });
 
       if (shipments) {
         const filteredShipments = shipments.filter(
@@ -261,7 +262,7 @@ export function useShipmentModes(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
@@ -323,7 +324,7 @@ export function useCarrierMix(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
@@ -401,7 +402,7 @@ export function useTopLanes(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
@@ -503,7 +504,7 @@ export function usePerformanceMetrics(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }
@@ -597,7 +598,7 @@ export function useCostPerStateData(
 
   const loadData = async () => {
     if (!isAdmin && effectiveCustomerIds.length === 0) {
-      console.log('[Dashboard] No customer IDs available, skipping query');
+      logger.log('[Dashboard] No customer IDs available, skipping query');
       setIsLoading(false);
       return;
     }

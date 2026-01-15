@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase';
 import { SchemaContext, SchemaField, DataProfile } from '../types';
 import { isRestrictedField } from '../../security/restrictedFields';
+import { logger } from '../../utils/logger';
 
 export async function compileSchemaContext(customerId: string): Promise<SchemaContext> {
   const fields = await fetchSchemaFields();
@@ -18,7 +19,7 @@ async function fetchSchemaFields(): Promise<SchemaField[]> {
       .order('ordinal_position');
 
     if (!error && data && data.length > 0) {
-      console.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns_metadata`);
+      logger.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns_metadata`);
       return data.map(col => ({
         name: col.column_name,
         type: col.data_type,
@@ -42,7 +43,7 @@ async function fetchSchemaFields(): Promise<SchemaField[]> {
       .order('ordinal_position');
 
     if (!error && data && data.length > 0) {
-      console.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns table`);
+      logger.log(`[SchemaCompiler] Loaded ${data.length} fields from schema_columns table`);
 
       const { data: contextData } = await supabase
         .from('field_business_context')
@@ -73,7 +74,7 @@ async function fetchSchemaFields(): Promise<SchemaField[]> {
     const { data, error } = await supabase.rpc('get_available_fields', { p_include_context: true });
 
     if (!error && data && data.length > 0) {
-      console.log(`[SchemaCompiler] Loaded ${data.length} fields from RPC`);
+      logger.log(`[SchemaCompiler] Loaded ${data.length} fields from RPC`);
       return data.map((col: Record<string, unknown>) => ({
         name: col.column_name as string,
         type: col.data_type as string,

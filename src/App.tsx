@@ -12,6 +12,7 @@ import { MetricProtectedRoute } from './components/MetricProtectedRoute';
 import { ToastProvider } from './components/ui/Toast';
 import { ImpersonationGuardProvider } from './components/ui/ImpersonationGuard';
 import { Loader2 } from 'lucide-react';
+import { logger } from './utils/logger';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const AnalyticsHubPage = lazy(() => import('./pages/AnalyticsHubPage').then(m => ({ default: m.AnalyticsHubPage })));
@@ -64,7 +65,7 @@ const queryClient = new QueryClient({
 function LoginRedirect() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  console.log('[LoginRedirect]', { isAuthenticated, isLoading, hasUser: !!user });
+  logger.log('[LoginRedirect]', { isAuthenticated, isLoading, hasUser: !!user });
 
   if (isLoading) {
     return (
@@ -78,11 +79,11 @@ function LoginRedirect() {
   }
 
   if (isAuthenticated) {
-    console.log('[LoginRedirect] User is authenticated, redirecting to dashboard');
+    logger.log('[LoginRedirect] User is authenticated, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
-  console.log('[LoginRedirect] User not authenticated, showing login page');
+  logger.log('[LoginRedirect] User not authenticated, showing login page');
   return <LoginPage />;
 }
 

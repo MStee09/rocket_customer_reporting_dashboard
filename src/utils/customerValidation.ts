@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from './logger';
 
 export async function validateCustomerSelection(
   customerId: number,
@@ -32,7 +33,7 @@ export async function validateCustomerSelection(
       );
     }
 
-    console.log(`[Validation] ✓ Customer verified: ${data.company_name} (ID: ${customerId})`);
+    logger.log(`[Validation] ✓ Customer verified: ${data.company_name} (ID: ${customerId})`);
     return { valid: true, actualName: data.company_name };
   } catch (error) {
     console.error('[Validation] Unexpected error:', error);
@@ -54,9 +55,9 @@ export async function verifyActiveCustomers(): Promise<void> {
     }
 
     if (customers && customers.length > 0) {
-      console.log('[Validation] Active customers in database:');
+      logger.log('[Validation] Active customers in database:');
       customers.forEach(c => {
-        console.log(`  - ${c.company_name} (ID: ${c.customer_id})`);
+        logger.log(`  - ${c.company_name} (ID: ${c.customer_id})`);
       });
 
       const { data: shipmentCounts } = await supabase
@@ -70,10 +71,10 @@ export async function verifyActiveCustomers(): Promise<void> {
           return acc;
         }, {} as Record<number, number>);
 
-        console.log('[Validation] Shipment counts by customer:');
+        logger.log('[Validation] Shipment counts by customer:');
         customers.forEach(c => {
           const count = countMap[c.customer_id] || 0;
-          console.log(`  - ${c.company_name} (ID: ${c.customer_id}): ${count} shipments`);
+          logger.log(`  - ${c.company_name} (ID: ${c.customer_id}): ${count} shipments`);
         });
       }
     } else {

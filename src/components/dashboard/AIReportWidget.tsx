@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Maximize2, MoreVertical, Trash2, Pencil, AlertCircle } from 'lucide-react';
-import { loadAIReport, SavedAIReport } from '../../services/aiReportService';
+import { loadAIReport, SavedAIReport } from '../../services/aiReportStorageService';
 import { executeReportData } from '../../services/reportDataExecutor';
 import { supabase } from '../../lib/supabase';
 import { ExecutedReportData } from '../../types/aiReport';

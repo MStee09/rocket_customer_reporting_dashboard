@@ -5,7 +5,7 @@ import {
   Clock, Trash2, Sparkles, PenTool, Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportService';
+import { loadAIReports, SavedAIReport, deleteAIReport } from '../services/aiReportStorageService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { supabase } from '../lib/supabase';
 import { formatDistanceToNow, format } from 'date-fns';

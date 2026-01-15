@@ -3,7 +3,7 @@ import {
   Search, BarChart2, Brain, CheckCircle, AlertTriangle,
   HelpCircle, Wrench, ChevronDown, ChevronUp, X, Loader2
 } from 'lucide-react';
-import type { ToolExecution } from '../../services/aiReportServiceV2';
+import type { ToolExecution } from '../../services/aiReportGeneratorService';
 
 interface ThinkingStepsProps {
   toolExecutions: ToolExecution[];

@@ -17,11 +17,11 @@ import {
   ChatMessage,
   ToolExecution,
   LearningV2,
-  generateReportV2,
+  generateReport,
   ConversationState,
   formatToolExecution,
   buildThinkingSteps
-} from '../../services/aiReportServiceV2';
+} from '../../services/aiReportGeneratorService';
 import { AIReportDefinition } from '../../types/aiReport';
 import { supabase } from '../../lib/supabase';
 
@@ -197,7 +197,7 @@ export function ChatInterfaceV2({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const response = await generateReportV2(
+      const response = await generateReport(
         messageText,
         messages,
         customerId,

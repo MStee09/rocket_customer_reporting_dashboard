@@ -8,7 +8,7 @@ import {
   Sparkles,
   ChevronRight
 } from 'lucide-react';
-import { fetchSuggestedPrompts } from '../../services/aiReportServiceV2';
+import { fetchSuggestedPrompts } from '../../services/aiReportGeneratorService';
 
 interface OutcomePromptsProps {
   onSelectPrompt: (prompt: string) => void;

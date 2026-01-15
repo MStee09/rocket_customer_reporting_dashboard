@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  generateReportV2,
+  generateReport,
   ChatMessage,
   ConversationState,
   fetchSuggestedPrompts
-} from '../services/aiReportServiceV2';
+} from '../services/aiReportGeneratorService';
 import { LearningEngine } from '../ai/learning/learningEngine';
 import { PatternTracker } from '../ai/learning/patternTracker';
 import { AIReportDefinition } from '../types/aiReport';
@@ -71,7 +71,7 @@ export function useAIReportStudio({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const response = await generateReportV2(
+      const response = await generateReport(
         message,
         messages,
         customerId,

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { User, Bot, AlertCircle, Check, Brain, Zap, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
-import { ChatMessage as ChatMessageType } from '../../services/aiReportService';
-import type { ToolExecution, LearningV2 } from '../../services/aiReportServiceV2';
+import { ChatMessage as ChatMessageType, ToolExecution, LearningV2 } from '../../services/aiReportGeneratorService';
 import { AIReportDefinition } from '../../types/aiReport';
 import { Card } from '../ui/Card';
 import { ThinkingSteps, ThinkingStepsInline } from './ThinkingSteps';

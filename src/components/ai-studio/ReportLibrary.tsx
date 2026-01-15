@@ -11,7 +11,7 @@ import {
   BarChart3,
   Table2,
 } from 'lucide-react';
-import { SavedAIReport } from '../../services/aiReportService';
+import { SavedAIReport } from '../../services/aiReportStorageService';
 import { Card } from '../ui/Card';
 
 type SortOption = 'newest' | 'oldest' | 'name';

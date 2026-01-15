@@ -15,7 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ReportRenderer } from '../components/reports/studio';
 import { AddToDashboardModal, AIReportWidgetConfig } from '../components/ai-studio';
 import { ScheduleBuilderModal } from '../components/scheduled-reports/ScheduleBuilderModal';
-import { loadAIReport, SavedAIReport } from '../services/aiReportService';
+import { loadAIReport, SavedAIReport } from '../services/aiReportStorageService';
 import { executeReportData } from '../services/reportDataExecutor';
 import { supabase } from '../lib/supabase';
 import { ExecutedReportData, DateRangeType } from '../types/aiReport';

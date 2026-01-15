@@ -1,5 +1,5 @@
 import { X, Pencil, Eye } from 'lucide-react';
-import { SavedAIReport } from '../../services/aiReportService';
+import { SavedAIReport } from '../../services/aiReportStorageService';
 
 interface ReportActionModalProps {
   report: SavedAIReport;

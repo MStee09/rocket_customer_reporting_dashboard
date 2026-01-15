@@ -63,7 +63,7 @@ export interface GenerateReportResponse {
   usage?: AIUsageInfo;
 }
 
-export async function generateReportV2(
+export async function generateReport(
   prompt: string,
   conversationHistory: ChatMessage[],
   customerId: string,

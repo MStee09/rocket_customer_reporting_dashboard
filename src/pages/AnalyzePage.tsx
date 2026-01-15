@@ -10,7 +10,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Table2, Clock, ArrowRight, Loader2, Brain, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { loadAIReports, SavedAIReport } from '../services/aiReportService';
+import { loadAIReports, SavedAIReport } from '../services/aiReportStorageService';
 import { useCustomerReports } from '../hooks/useCustomerReports';
 import { formatDistanceToNow } from 'date-fns';
 import { InvestigatorUnified } from '../components/ai/InvestigatorUnified';

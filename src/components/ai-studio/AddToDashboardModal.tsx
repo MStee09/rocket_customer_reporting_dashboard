@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, LayoutDashboard, Eye, EyeOff, ChevronUp, ChevronDown, Loader2, Check } from 'lucide-react';
-import { SavedAIReport } from '../../services/aiReportService';
+import { SavedAIReport } from '../../services/aiReportStorageService';
 import { executeReportData } from '../../services/reportDataExecutor';
 import { createWidgetFromAIReport } from '../../services/aiWidgetService';
 import { supabase } from '../../lib/supabase';

@@ -3,6 +3,56 @@ import { format } from 'date-fns';
 import { formatCurrency } from '../utils/dateUtils';
 import { getSecureTable, getSelectFields } from '../utils/getSecureTable';
 
+interface ShipmentStatus {
+  is_completed?: boolean;
+  is_cancelled?: boolean;
+  status_name?: string;
+}
+
+interface ShipmentWithStatus {
+  load_id: number;
+  shipment_status?: ShipmentStatus | null;
+  delivery_date?: string | null;
+  expected_delivery_date?: string | null;
+  pickup_date?: string | null;
+}
+
+interface ShipmentWithCost {
+  load_id?: number;
+  retail?: string | number | null;
+  cost?: string | number | null;
+  customer_id?: number | null;
+  pickup_date?: string | null;
+  rate_carrier_id?: number | null;
+  shipment_status?: ShipmentStatus | null;
+}
+
+interface ShipmentWithMode {
+  load_id: number;
+  shipment_mode?: { mode_name?: string } | null;
+}
+
+interface CarrierRecord {
+  carrier_id: number;
+  carrier_name: string;
+}
+
+interface CustomerRecord {
+  customer_id: number;
+  company_name: string;
+}
+
+interface ShipmentAddress {
+  load_id: number;
+  state?: string | null;
+  address_type: number;
+}
+
+interface AccessorialRecord {
+  load_id: number;
+  charge_amount?: string | number | null;
+}
+
 export const dashboardWidgets: Record<string, WidgetDefinition> = {
   total_shipments: {
     id: 'total_shipments',
@@ -55,7 +105,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .lte('pickup_date', dateRange.end);
 
       const inTransit = shipments?.filter(
-        (s: any) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
+        (s: ShipmentWithStatus) => s.shipment_status && !s.shipment_status.is_completed && !s.shipment_status.is_cancelled
       ).length || 0;
 
       return { value: inTransit };
@@ -89,7 +139,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .lte('pickup_date', dateRange.end);
 
       const deliveredThisMonth = shipments?.filter(
-        (s: any) =>
+        (s: ShipmentWithStatus) =>
           s.shipment_status?.is_completed &&
           s.delivery_date &&
           new Date(s.delivery_date) >= firstDayOfMonth
@@ -123,11 +173,11 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      const totalCost = shipments?.reduce((sum: number, s: any) => sum + (parseFloat(s.retail) || 0), 0) || 0;
+      const totalCost = shipments?.reduce((sum: number, s: ShipmentWithCost) => sum + (parseFloat(String(s.retail ?? 0)) || 0), 0) || 0;
 
       let subtitle: string | undefined;
       if (isAdmin && !isViewingAsCustomer) {
-        const totalCarrierCost = shipments?.reduce((sum: number, s: any) => sum + (parseFloat(s.cost) || 0), 0) || 0;
+        const totalCarrierCost = shipments?.reduce((sum: number, s: ShipmentWithCost) => sum + (parseFloat(String(s.cost ?? 0)) || 0), 0) || 0;
         const margin = totalCost - totalCarrierCost;
         subtitle = `Margin: ${formatCurrency(margin.toString())}`;
       }
@@ -159,7 +209,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      const totalCost = shipments?.reduce((sum: number, s: any) => sum + (parseFloat(s.retail) || 0), 0) || 0;
+      const totalCost = shipments?.reduce((sum: number, s: ShipmentWithCost) => sum + (parseFloat(String(s.retail ?? 0)) || 0), 0) || 0;
       const avgCost = shipments && shipments.length > 0 ? totalCost / shipments.length : 0;
 
       return { value: formatCurrency(avgCost.toString()) };
@@ -190,7 +240,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .lte('pickup_date', dateRange.end);
 
       const filteredShipments = shipments?.filter(
-        (s: any) =>
+        (s: ShipmentWithCost) =>
           s.shipment_status?.status_name &&
           s.shipment_status.status_name.toLowerCase() !== 'cancelled' &&
           s.shipment_status.status_name.toLowerCase() !== 'quoted'
@@ -198,7 +248,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
 
       const monthlyMetrics: { [key: string]: { cost: number; count: number } } = {};
 
-      filteredShipments.forEach((shipment: any) => {
+      filteredShipments.forEach((shipment: ShipmentWithCost) => {
         if (!shipment.retail || !shipment.pickup_date) return;
         const monthKey = format(new Date(shipment.pickup_date), 'yyyy-MM');
 
@@ -206,7 +256,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
           monthlyMetrics[monthKey] = { cost: 0, count: 0 };
         }
 
-        monthlyMetrics[monthKey].cost += parseFloat(shipment.retail);
+        monthlyMetrics[monthKey].cost += parseFloat(String(shipment.retail));
         monthlyMetrics[monthKey].count += 1;
       });
 
@@ -251,7 +301,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
 
       const modeCounts: { [key: string]: number } = {};
 
-      shipments?.forEach((s: any) => {
+      shipments?.forEach((s: ShipmentWithMode) => {
         const modeName = s.shipment_mode?.mode_name || 'Unknown';
         modeCounts[modeName] = (modeCounts[modeName] || 0) + 1;
       });
@@ -293,8 +343,8 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
       }
 
       const carrierIds = shipments
-        .map((s: any) => s.rate_carrier_id)
-        .filter((id: number) => id != null);
+        .map((s: ShipmentWithCost) => s.rate_carrier_id)
+        .filter((id): id is number => id != null);
 
       if (carrierIds.length === 0) {
         return { chartData: [] };
@@ -307,7 +357,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .select('carrier_id, carrier_name')
         .in('carrier_id', uniqueCarrierIds);
 
-      const carrierMap = new Map(carriers?.map((c: any) => [c.carrier_id, c.carrier_name]) || []);
+      const carrierMap = new Map(carriers?.map((c: CarrierRecord) => [c.carrier_id, c.carrier_name]) || []);
       const carrierCounts: { [key: string]: number } = {};
 
       carrierIds.forEach((carrierId: number) => {
@@ -351,26 +401,25 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         return { tableData: [], columns: [] };
       }
 
-      const loadIds = shipments.map((s: any) => s.load_id);
+      const loadIds = shipments.map((s: ShipmentWithCost) => s.load_id);
 
       const addressTable = getSecureTable('shipment_address', isAdmin, isViewingAsCustomer);
 
       const { data: addresses } = await supabase
         .from(addressTable)
         .select('load_id, state, address_type')
-        .in('load_id', loadIds)
-        .in('address_type', [1, 2]);
+        .in('load_id', loadIds);
 
       if (!addresses) {
         return { tableData: [], columns: [] };
       }
 
-      const shipmentMap = new Map(shipments.map((s: any) => [s.load_id, parseFloat(s.retail) || 0]));
+      const shipmentMap = new Map(shipments.map((s: ShipmentWithCost) => [s.load_id, parseFloat(String(s.retail ?? 0)) || 0]));
 
       const lanes: { [key: string]: { count: number; totalCost: number } } = {};
 
       const addressByLoadId: { [key: number]: { origin?: string; dest?: string } } = {};
-      addresses.forEach((addr: any) => {
+      (addresses as ShipmentAddress[]).forEach((addr: ShipmentAddress) => {
         if (!addressByLoadId[addr.load_id]) {
           addressByLoadId[addr.load_id] = {};
         }
@@ -445,7 +494,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         return { mapData: { stateData: [] } };
       }
 
-      const loadIds = shipments.map((s: any) => s.load_id);
+      const loadIds = shipments.map((s: ShipmentWithCost) => s.load_id);
 
       const addressTable = getSecureTable('shipment_address', isAdmin, isViewingAsCustomer);
 
@@ -459,10 +508,10 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         return { mapData: { stateData: [] } };
       }
 
-      const shipmentMap = new Map(shipments.map((s: any) => [s.load_id, parseFloat(s.retail) || 0]));
+      const shipmentMap = new Map(shipments.map((s: ShipmentWithCost) => [s.load_id, parseFloat(String(s.retail ?? 0)) || 0]));
       const stateMetrics: { [key: string]: { totalCost: number; count: number } } = {};
 
-      addresses.forEach((addr: any) => {
+      (addresses as ShipmentAddress[]).forEach((addr: ShipmentAddress) => {
         if (addr.state) {
           const cost = shipmentMap.get(addr.load_id) || 0;
           if (!stateMetrics[addr.state]) {
@@ -508,7 +557,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      const completedShipments = shipments?.filter((s: any) => s.shipment_status?.is_completed) || [];
+      const completedShipments = shipments?.filter((s: ShipmentWithStatus) => s.shipment_status?.is_completed) || [];
 
       if (completedShipments.length === 0) {
         return { value: 0 };
@@ -516,7 +565,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
 
       let onTimeCount = 0;
 
-      completedShipments.forEach((s: any) => {
+      completedShipments.forEach((s: ShipmentWithStatus) => {
         if (s.expected_delivery_date && s.delivery_date) {
           const expectedDate = new Date(s.expected_delivery_date);
           const actualDate = new Date(s.delivery_date);
@@ -563,7 +612,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
       let totalTransitDays = 0;
       let transitDaysCount = 0;
 
-      shipments.forEach((s: any) => {
+      shipments.forEach((s: ShipmentWithStatus) => {
         if (s.pickup_date && s.delivery_date) {
           const pickupDate = new Date(s.pickup_date);
           const deliveryDate = new Date(s.delivery_date);
@@ -608,9 +657,9 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         return { value: 0 };
       }
 
-      const totalCost = shipments.reduce((sum: number, s: any) => sum + (parseFloat(s.retail) || 0), 0);
+      const totalCost = shipments.reduce((sum: number, s: ShipmentWithCost) => sum + (parseFloat(String(s.retail ?? 0)) || 0), 0);
 
-      const loadIds = shipments.map((s: any) => s.load_id);
+      const loadIds = shipments.map((s: ShipmentWithCost) => s.load_id);
 
       const accessorialTable = getSecureTable('shipment_accessorial', isAdmin, isViewingAsCustomer);
 
@@ -619,7 +668,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .select('load_id, charge_amount')
         .in('load_id', loadIds);
 
-      const totalAccessorials = accessorials?.reduce((sum: number, a: any) => sum + (parseFloat(a.charge_amount) || 0), 0) || 0;
+      const totalAccessorials = accessorials?.reduce((sum: number, a: AccessorialRecord) => sum + (parseFloat(String(a.charge_amount ?? 0)) || 0), 0) || 0;
 
       const percentage = totalCost > 0 ? (totalAccessorials / totalCost) * 100 : 0;
 
@@ -647,7 +696,7 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         return { tableData: [], columns: [] };
       }
 
-      const customerIds = [...new Set(shipments.map((s: any) => s.customer_id).filter((id: number) => id != null))];
+      const customerIds = [...new Set(shipments.map((s: ShipmentWithCost) => s.customer_id).filter((id): id is number => id != null))];
 
       if (customerIds.length === 0) {
         return { tableData: [], columns: [] };
@@ -658,17 +707,17 @@ export const dashboardWidgets: Record<string, WidgetDefinition> = {
         .select('customer_id, company_name')
         .in('customer_id', customerIds);
 
-      const customerMap = new Map(customers?.map((c: any) => [c.customer_id, c.company_name]) || []);
+      const customerMap = new Map(customers?.map((c: CustomerRecord) => [c.customer_id, c.company_name]) || []);
       const customerMetrics: { [key: number]: { count: number; totalSpend: number } } = {};
 
-      shipments.forEach((shipment: any) => {
+      shipments.forEach((shipment: ShipmentWithCost) => {
         const customerId = shipment.customer_id;
         if (customerId) {
           if (!customerMetrics[customerId]) {
             customerMetrics[customerId] = { count: 0, totalSpend: 0 };
           }
           customerMetrics[customerId].count += 1;
-          customerMetrics[customerId].totalSpend += parseFloat(shipment.retail) || 0;
+          customerMetrics[customerId].totalSpend += parseFloat(String(shipment.retail ?? 0)) || 0;
         }
       });
 

@@ -7,6 +7,10 @@ import { getColumnById } from '../config/reportColumns';
 import { format, subDays, subMonths, startOfMonth, startOfYear, startOfQuarter } from 'date-fns';
 import { aggregateValues, AggregationType } from './aggregation';
 import { logger } from './logger';
+import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+
+type FilterValue = string | number | boolean | number[] | string[] | null;
+type QueryBuilder = PostgrestFilterBuilder<Record<string, unknown>, Record<string, unknown>[], string, unknown>;
 
 const LOOKUP_FIELDS = ['mode_id', 'status_id', 'equipment_type_id'];
 
@@ -18,7 +22,7 @@ const isLookupField = (field: string): boolean => {
 interface QueryConfig {
   baseTable: string;
   columns: Array<{ field: string; aggregate?: string; alias?: string }>;
-  filters: Array<{ field: string; operator: string; value: any; isDynamic?: boolean }>;
+  filters: Array<{ field: string; operator: string; value: FilterValue; isDynamic?: boolean }>;
   groupBy?: string[];
   orderBy?: Array<{ field: string; direction: string }>;
   limit?: number;
@@ -66,7 +70,7 @@ function getDateRangeForPreset(condition: string): { start: string; end: string 
   }
 }
 
-function applyReportFilters(query: any, reportFilters: ColumnFilter[] | undefined): any {
+function applyReportFilters(query: QueryBuilder, reportFilters: ColumnFilter[] | undefined): QueryBuilder {
   if (!reportFilters || reportFilters.length === 0) return query;
 
   const enabledFilters = reportFilters.filter(f => f.enabled);
@@ -191,7 +195,7 @@ export const executeCustomWidgetQuery = async (
   supabase: SupabaseClient,
   queryConfig: QueryConfig,
   options: ExecuteOptions
-): Promise<{ data: any[]; error: string | null }> => {
+): Promise<{ data: Record<string, unknown>[]; error: string | null }> => {
   logger.log('=== EXECUTING CUSTOM WIDGET QUERY ===');
   logger.log('Query Config:', queryConfig);
   logger.log('Report Filters:', queryConfig.reportFilters);

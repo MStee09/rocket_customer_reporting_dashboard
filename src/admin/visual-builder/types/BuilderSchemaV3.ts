@@ -1,7 +1,9 @@
+export type FilterValue = string | number | boolean | string[] | number[] | null;
+
 export interface WidgetQueryFilter {
   field: string;
   operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'ilike' | 'between' | 'is_null' | 'is_not_null';
-  value: any;
+  value: FilterValue;
   useDateRange?: boolean;
 }
 
@@ -78,6 +80,8 @@ export interface WidgetDefinitionV3 {
 export type BuilderMode = 'ai' | 'manual';
 export type BuilderStep = 'input' | 'configure' | 'preview' | 'publish';
 
+export type ChartDataRow = Record<string, string | number | boolean | null>;
+
 export interface AIResult {
   success: boolean;
   answer: string;
@@ -91,7 +95,7 @@ export interface AIResult {
     yField: string;
     aggregation: string;
     query: WidgetQueryConfig;
-    data: any[];
+    data: ChartDataRow[];
   };
   error?: string;
 }
@@ -118,7 +122,7 @@ export interface BuilderState {
   customerScope: 'all' | 'specific';
   selectedCustomerId?: number;
   previewDateRange: { start: string; end: string };
-  previewData: any[] | null;
+  previewData: ChartDataRow[] | null;
   previewLoading: boolean;
   previewError: string | null;
   visibility: WidgetVisibility;
@@ -150,7 +154,7 @@ export type BuilderAction =
   | { type: 'SET_LIMIT'; limit: number }
   | { type: 'SET_CUSTOMER_SCOPE'; scope: 'all' | 'specific'; customerId?: number }
   | { type: 'SET_PREVIEW_DATE_RANGE'; range: { start: string; end: string } }
-  | { type: 'SET_PREVIEW_DATA'; data: any[] | null }
+  | { type: 'SET_PREVIEW_DATA'; data: ChartDataRow[] | null }
   | { type: 'SET_PREVIEW_LOADING'; loading: boolean }
   | { type: 'SET_PREVIEW_ERROR'; error: string | null }
   | { type: 'SET_VISIBILITY'; visibility: WidgetVisibility }

@@ -114,6 +114,7 @@ export function CarrierAnalyticsSection({
   const [sortField, setSortField] = useState<SortField>('total_spend');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedMode, setSelectedMode] = useState<string>('all');
+  const [availableModes, setAvailableModes] = useState<string[]>([]);
 
   const prevDateRange = useMemo(() => {
     const start = new Date(startDate);
@@ -175,13 +176,16 @@ export function CarrierAnalyticsSection({
         console.error('Error loading previous carrier data:', prevError);
       }
 
+      const modes = [...new Set(currentData?.map(row => row.mode_name).filter(Boolean) || [])] as string[];
+      setAvailableModes(modes.sort());
+
       const filteredCurrentData = selectedMode === 'all'
         ? currentData
-        : currentData?.filter((row: ShipmentRow) => row.mode_name === selectedMode);
+        : currentData?.filter((row: ShipmentRow) => row.mode_name === selectedMode) || [];
 
       const filteredPrevData = selectedMode === 'all'
         ? prevData
-        : prevData?.filter((row: PrevShipmentRow) => row.mode_name === selectedMode);
+        : prevData?.filter((row: PrevShipmentRow) => row.mode_name === selectedMode) || [];
 
       const carrierMap = new Map<string, CarrierMetrics>();
       let totalSpend = 0;
@@ -507,9 +511,9 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
               className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Modes</option>
-              <option value="LTL">LTL Only</option>
-              <option value="FTL">FTL Only</option>
-              <option value="Parcel">Parcel Only</option>
+              {availableModes.map(mode => (
+                <option key={mode} value={mode}>{mode}</option>
+              ))}
             </select>
             <button
               onClick={handleAskAI}

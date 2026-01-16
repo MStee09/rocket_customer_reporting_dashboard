@@ -487,19 +487,12 @@ export async function fetchTopLanes(ctx: FetcherContext): Promise<WidgetFetcherR
 export async function fetchCarrierMix(ctx: FetcherContext): Promise<WidgetFetcherResult> {
   const { customerFilter, dateRange, supabase } = ctx;
 
-  const { data, error } = await supabase
+  const { data: shipments, error } = await supabase
     .from('shipment')
-    .select(`
-      load_id,
-      reference_number,
-      pickup_date,
-      retail,
-      rate_carrier_id
-    `)
+    .select('load_id, reference_number, pickup_date, retail')
     .in('customer_id', customerFilter)
     .gte('pickup_date', dateRange.start)
     .lte('pickup_date', dateRange.end)
-    .not('rate_carrier_id', 'is', null)
     .order('pickup_date', { ascending: false })
     .limit(500);
 
@@ -508,9 +501,20 @@ export async function fetchCarrierMix(ctx: FetcherContext): Promise<WidgetFetche
     return { rows: [], columns: [] };
   }
 
-  const carrierIds = [...new Set((data || []).map(s => s.rate_carrier_id).filter(Boolean))];
+  if (!shipments || shipments.length === 0) {
+    return { rows: [], columns: [] };
+  }
 
-  let carrierMap: Record<number, string> = {};
+  const loadIds = shipments.map(s => s.load_id);
+
+  const { data: carrierAssignments } = await supabase
+    .from('shipment_carrier')
+    .select('load_id, carrier_id')
+    .in('load_id', loadIds);
+
+  const carrierIds = [...new Set((carrierAssignments || []).map(ca => ca.carrier_id).filter(Boolean))];
+
+  let carrierNameMap: Record<number, string> = {};
   if (carrierIds.length > 0) {
     const { data: carriers } = await supabase
       .from('carrier')
@@ -518,16 +522,21 @@ export async function fetchCarrierMix(ctx: FetcherContext): Promise<WidgetFetche
       .in('carrier_id', carrierIds);
 
     if (carriers) {
-      carrierMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
+      carrierNameMap = Object.fromEntries(carriers.map(c => [c.carrier_id, c.carrier_name]));
     }
   }
 
+  const loadCarrierMap: Record<number, string> = {};
+  (carrierAssignments || []).forEach(ca => {
+    loadCarrierMap[ca.load_id] = carrierNameMap[ca.carrier_id] || 'Unknown';
+  });
+
   return {
-    rows: (data || []).map(row => ({
+    rows: shipments.map(row => ({
       load_id: row.load_id,
       reference_number: row.reference_number,
       pickup_date: row.pickup_date,
-      carrier: carrierMap[row.rate_carrier_id] || 'Unknown',
+      carrier: loadCarrierMap[row.load_id] || 'Unassigned',
       retail: row.retail,
     })),
     columns: [

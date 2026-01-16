@@ -12,6 +12,7 @@ import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 interface CarrierMetrics {
   carrier_name: string;
   carrier_id: number;
+  mode_name: string;
   shipment_count: number;
   total_spend: number;
   total_miles: number;
@@ -188,6 +189,7 @@ export function CarrierAnalyticsSection({
         : prevData?.filter((row: PrevShipmentRow) => row.mode_name === selectedMode) || [];
 
       const carrierMap = new Map<string, CarrierMetrics>();
+      const carrierModes = new Map<string, Map<string, number>>();
       let totalSpend = 0;
       let totalMiles = 0;
       let totalShipments = 0;
@@ -197,13 +199,21 @@ export function CarrierAnalyticsSection({
       (filteredCurrentData || []).forEach((row: ShipmentRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         const carrierId = row.carrier_id || 0;
+        const mode = row.mode_name || 'Unknown';
         const spend = parseFloat(String(row.retail ?? 0)) || 0;
         const miles = parseFloat(String(row.miles ?? 0)) || 0;
+
+        if (!carrierModes.has(carrierName)) {
+          carrierModes.set(carrierName, new Map());
+        }
+        const modeCount = carrierModes.get(carrierName)!;
+        modeCount.set(mode, (modeCount.get(mode) || 0) + 1);
 
         if (!carrierMap.has(carrierName)) {
           carrierMap.set(carrierName, {
             carrier_name: carrierName,
             carrier_id: carrierId,
+            mode_name: '',
             shipment_count: 0,
             total_spend: 0,
             total_miles: 0,
@@ -225,6 +235,14 @@ export function CarrierAnalyticsSection({
         if (row.delivery_status === 'Delivered' && row.delivered_date) {
           deliveredShipments++;
           onTimeShipments++;
+        }
+      });
+
+      carrierMap.forEach((carrier, key) => {
+        const modeCounts = carrierModes.get(key);
+        if (modeCounts) {
+          const primaryMode = [...modeCounts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+          carrier.mode_name = primaryMode;
         }
       });
 
@@ -421,7 +439,7 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
   return (
     <div className="space-y-6">
       {summaryMetrics && summaryMetrics.active_carriers > 0 && (
-        <div className={`grid grid-cols-2 gap-4 ${selectedMode !== 'all' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Active Carriers</span>
@@ -467,20 +485,18 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             </div>
           </div>
 
-          {selectedMode !== 'all' && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
-                <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
-                  <TrendingDown className="w-5 h-5 text-sky-600" />
-                </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
+              <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-sky-600" />
               </div>
-              <div className="text-2xl font-bold text-slate-900">
-                ${summaryMetrics.avg_cpm.toFixed(2)}
-              </div>
-              <p className="text-xs text-slate-500 mt-1">Benchmark for grading</p>
             </div>
-          )}
+            <div className="text-2xl font-bold text-slate-900">
+              ${summaryMetrics.avg_cpm.toFixed(2)}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Benchmark for grading</p>
+          </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -568,17 +584,15 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
-                  {selectedMode !== 'all' && (
-                    <th
-                      onClick={() => handleSort('avg_cpm')}
-                      className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="flex items-center justify-end gap-2">
-                        CPM
-                        <ArrowUpDown className="w-3 h-3" />
-                      </div>
-                    </th>
-                  )}
+                  <th
+                    onClick={() => handleSort('avg_cpm')}
+                    className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      CPM
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
                   {selectedMode !== 'all' && (
                     <th
                       onClick={() => handleSort('efficiency_grade')}
@@ -617,8 +631,15 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     onClick={() => navigate(`/widgets/carrier_performance/data?carrier=${carrier.carrier_id}&carrier_name=${encodeURIComponent(carrier.carrier_name)}`)}
                     className="hover:bg-slate-50 cursor-pointer transition-colors"
                   >
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                      {carrier.carrier_name}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">{carrier.carrier_name}</span>
+                        {selectedMode === 'all' && carrier.mode_name && (
+                          <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">
+                            {carrier.mode_name}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
                       {carrier.shipment_count.toLocaleString()}
@@ -626,11 +647,9 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     <td className="px-6 py-4 text-sm text-slate-900 text-right font-semibold">
                       {formatCurrency(carrier.total_spend)}
                     </td>
-                    {selectedMode !== 'all' && (
-                      <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
-                        ${carrier.avg_cpm.toFixed(2)}
-                      </td>
-                    )}
+                    <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
+                      ${carrier.avg_cpm.toFixed(2)}
+                    </td>
                     {selectedMode !== 'all' && (
                       <td className="px-6 py-4 text-center">
                         <EfficiencyGradeBadge grade={carrier.efficiency_grade} />

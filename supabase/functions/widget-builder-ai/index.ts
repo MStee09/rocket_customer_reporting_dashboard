@@ -30,7 +30,7 @@ Main Fields:
 - origin_city, origin_state, origin_zip (text) - Origin location
 - destination_city, destination_state, destination_zip (text) - Destination
 - status (text) - Shipment status
-- rate_carrier_id (integer) - FK to carrier table
+- Carrier info is in shipment_carrier table (joined via load_id), NOT directly on shipment
 
 Aggregatable: retail, cost, weight, target_rate
 Groupable: customer_id, origin_state, destination_state, status, pickup_date, delivery_date
@@ -66,7 +66,7 @@ they mean shipment_item.description. This requires a JOIN from shipment to shipm
 
 ### "Show shipments by carrier"
 - visualizationType: "bar"
-- xField: "carrier.carrier_name" (requires join via rate_carrier_id)
+- xField: "carrier.carrier_name" (requires join via shipment_carrier table: shipment.load_id -> shipment_carrier.load_id -> shipment_carrier.carrier_id -> carrier.carrier_id)
 - yField: "retail"
 - aggregation: "sum"
 

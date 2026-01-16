@@ -40,7 +40,8 @@ Present findings with specific numbers. Offer follow-up options.
 - **retail** = customer's cost (what they pay)
 - **cost** = carrier cost (ADMIN ONLY - don't show to customers)
 - **weight** is in shipment_item table, NOT shipment. Use SUM(weight) for total shipment weight.
-- Use **rate_carrier_id** to join shipment -> carrier (NOT carrier_id)
+- Use **shipment_carrier** table to get carrier info (JOIN shipment.load_id = shipment_carrier.load_id, then shipment_carrier.carrier_id = carrier.carrier_id)
+- The shipment_carrier table contains the ACTUAL hauling carrier, not rate_carrier_id which is the quoting carrier
 - Use **load_id** to join shipment -> shipment_item
 
 ## EXAMPLES

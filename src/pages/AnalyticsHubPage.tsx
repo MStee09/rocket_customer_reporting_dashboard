@@ -36,7 +36,6 @@ const DEFAULT_WIDGET_LAYOUT = [
   'avg_cost_shipment',
   'in_transit',
   'delivered_month',
-  'carrier_performance',
   'spend_by_carrier',
   'avg_transit_days',
   'mode_breakdown',

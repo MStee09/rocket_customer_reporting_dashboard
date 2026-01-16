@@ -91,8 +91,7 @@ export async function fetchDeliveredMonth(ctx: FetcherContext): Promise<WidgetFe
       reference_number,
       pickup_date,
       delivery_date,
-      retail,
-      rate_carrier_id
+      retail
     `)
     .in('customer_id', customerFilter)
     .eq('status_id', statusData.status_id)

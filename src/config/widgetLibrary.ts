@@ -35,12 +35,6 @@ interface StateStats {
   totalCost: number;
 }
 
-interface CarrierStats {
-  total: number;
-  onTime: number;
-  transitDays: number[];
-}
-
 interface ShipmentRow {
   load_id?: string;
   retail?: number;
@@ -950,87 +944,6 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         : 0;
 
       return { value: Math.round(avg * 10) / 10, label: 'Days' };
-    }
-  },
-
-  carrier_performance: {
-    id: 'carrier_performance',
-    name: 'Carrier Performance',
-    description: 'On-time rates and transit times by carrier',
-    category: 'performance',
-    scope: 'global',
-    type: 'table',
-    size: 'large',
-    icon: 'Award',
-    iconColor: 'bg-amber-500',
-    tooltip: 'On-time %, avg transit, and volume by carrier',
-    dataDefinition: 'Carrier service quality comparison.',
-    calculate: async ({ supabase, effectiveCustomerIds, isAdmin, isViewingAsCustomer, dateRange }) => {
-      const table = getSecureTable('shipment', isAdmin, isViewingAsCustomer);
-
-      let query = supabase
-        .from(table)
-        .select('load_id, pickup_date, delivery_date, expected_delivery_date, rate_carrier_id');
-
-      if (!isAdmin || isViewingAsCustomer) {
-        query = query.in('customer_id', effectiveCustomerIds);
-      }
-
-      const { data: shipments } = await query
-        .gte('pickup_date', dateRange.start)
-        .lte('pickup_date', dateRange.end)
-        .not('delivery_date', 'is', null);
-
-      if (!shipments || shipments.length === 0) {
-        return { data: [] };
-      }
-
-      const carrierIds = [...new Set(shipments.map(s => s.rate_carrier_id).filter(id => id != null))];
-
-      if (carrierIds.length === 0) {
-        return { data: [] };
-      }
-
-      const { data: carriers } = await supabase
-        .from('carrier')
-        .select('carrier_id, carrier_name')
-        .in('carrier_id', carrierIds);
-
-      const carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
-
-      const carrierStats = (shipments || []).reduce<Record<string, CarrierStats>>((acc, row) => {
-        const carrierName = carrierMap.get(row.rate_carrier_id) || 'Unknown';
-
-        if (!acc[carrierName]) {
-          acc[carrierName] = { total: 0, onTime: 0, transitDays: [] };
-        }
-
-        acc[carrierName].total += 1;
-
-        if (row.expected_delivery_date && row.delivery_date && row.delivery_date <= row.expected_delivery_date) {
-          acc[carrierName].onTime += 1;
-        }
-
-        if (row.pickup_date && row.delivery_date) {
-          const pickup = new Date(row.pickup_date);
-          const delivery = new Date(row.delivery_date);
-          const days = (delivery.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24);
-          acc[carrierName].transitDays.push(days);
-        }
-
-        return acc;
-      }, {});
-
-      const tableData = Object.entries(carrierStats).map(([carrier, stats]) => ({
-        carrier,
-        shipments: stats.total,
-        onTimeRate: stats.total > 0 ? (stats.onTime / stats.total) * 100 : 0,
-        avgTransit: stats.transitDays.length > 0
-          ? stats.transitDays.reduce((sum: number, d: number) => sum + d, 0) / stats.transitDays.length
-          : 0
-      }));
-
-      return { data: tableData };
     }
   }
 };

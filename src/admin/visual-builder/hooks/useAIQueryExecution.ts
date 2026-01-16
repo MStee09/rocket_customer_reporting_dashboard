@@ -217,6 +217,10 @@ export function useAIQueryExecution({
 
       const data = await response.json();
 
+      console.log('[VisualBuilder] Raw investigate response:', JSON.stringify(data, null, 2));
+      console.log('[VisualBuilder] Response keys:', Object.keys(data));
+      console.log('[VisualBuilder] Has visualizations?', !!data.visualizations, 'Count:', data.visualizations?.length);
+
       if (!data.success) {
         throw new Error(data.error || 'AI investigation failed');
       }

@@ -26,7 +26,7 @@ export const adminWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, dateRange }) => {
       const { count } = await supabase
         .from('shipment')
-        .select('shipment_id', { count: 'exact', head: true })
+        .select('load_id', { count: 'exact', head: true })
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
@@ -327,20 +327,20 @@ export const adminWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, dateRange }) => {
       const { data: shipments } = await supabase
         .from('shipment')
-        .select('shipment_id')
+        .select('load_id')
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
-      const shipmentIds = shipments?.map(s => s.shipment_id) || [];
+      const loadIds = shipments?.map(s => s.load_id) || [];
 
-      if (shipmentIds.length === 0) {
+      if (loadIds.length === 0) {
         return { type: 'chart', data: [] };
       }
 
       const { data: shipmentCarriers } = await supabase
         .from('shipment_carrier')
         .select('carrier_id')
-        .in('shipment_id', shipmentIds);
+        .in('load_id', loadIds);
 
       const { data: carriers } = await supabase
         .from('carrier')

@@ -446,7 +446,19 @@ function generateVisualization(
   const id = crypto.randomUUID();
   const data = result as Record<string, unknown>;
 
-  if (!data.success || !data.data) return null;
+  console.log('[generateVisualization] Input:', {
+    toolName,
+    dataSuccess: data.success,
+    hasData: !!data.data,
+    dataLength: Array.isArray(data.data) ? data.data.length : 0,
+    dataKeys: Object.keys(data),
+    toolInputKeys: Object.keys(toolInput)
+  });
+
+  if (!data.success || !data.data) {
+    console.log('[generateVisualization] Returning null: success=', data.success, 'hasData=', !!data.data);
+    return null;
+  }
   const rows = data.data as Array<Record<string, unknown>>;
   if (!rows || rows.length === 0) return null;
 
@@ -580,6 +592,14 @@ Deno.serve(async (req: Request) => {
     const body: RequestBody = await req.json();
     const { question, customerId, userId, conversationHistory = [], preferences = {} } = body;
 
+    console.log('[Investigate] Request received:', {
+      question: question?.substring(0, 100),
+      customerId,
+      userId,
+      preferences,
+      hasHistory: conversationHistory.length > 0
+    });
+
     if (!question || !customerId) {
       return new Response(
         JSON.stringify({ success: false, error: "question and customerId are required" }),
@@ -676,6 +696,15 @@ Deno.serve(async (req: Request) => {
           toolUse.name,
           toolUse.input as Record<string, unknown>
         );
+
+        console.log('[Investigate] Tool execution result:', {
+          toolName: toolUse.name,
+          success: result?.success,
+          hasData: !!result?.data,
+          rowCount: result?.row_count || result?.data?.length || 0,
+          hasQuery: !!result?.query,
+          resultKeys: result ? Object.keys(result) : []
+        });
 
         const viz = generateVisualization(toolUse.name, toolUse.input as Record<string, unknown>, result);
         if (viz) visualizations.push(viz);

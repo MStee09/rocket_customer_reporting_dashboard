@@ -230,9 +230,40 @@ export function useAIQueryExecution({
 
       const data = await response.json();
 
-      console.log('[VisualBuilder] Raw investigate response:', JSON.stringify(data, null, 2));
+      console.log('[VisualBuilder] Raw investigate response:', data);
       console.log('[VisualBuilder] Response keys:', Object.keys(data));
-      console.log('[VisualBuilder] Has visualizations?', !!data.visualizations, 'Count:', data.visualizations?.length);
+      console.log('[VisualBuilder] Has visualizations?', {
+        exists: 'visualizations' in data,
+        isArray: Array.isArray(data.visualizations),
+        count: data.visualizations?.length
+      });
+
+      if (data.reasoning && Array.isArray(data.reasoning)) {
+        console.log('[VisualBuilder] Reasoning steps:', data.reasoning.map((r: any) => ({
+          type: r.type,
+          toolName: r.type === 'tool_use' ? r.name : undefined,
+          inputKeys: r.type === 'tool_use' ? Object.keys(r.input || {}) : undefined,
+          text: r.type === 'text' ? r.text?.substring(0, 100) : undefined
+        })));
+
+        const queryWithJoinCalls = data.reasoning.filter((r: any) => r.type === 'tool_use' && r.name === 'query_with_join');
+        if (queryWithJoinCalls.length > 0) {
+          console.log('[VisualBuilder] query_with_join tool calls:', queryWithJoinCalls.map((call: any) => ({
+            input: call.input,
+            result: call.result
+          })));
+        }
+      }
+
+      if (data.visualizations && data.visualizations.length > 0) {
+        console.log('[VisualBuilder] First visualization:', {
+          title: data.visualizations[0].title,
+          type: data.visualizations[0].type,
+          dataKeys: Object.keys(data.visualizations[0].data || {}),
+          dataRowCount: data.visualizations[0].data?.data?.length || 0,
+          hasQuery: !!data.visualizations[0].data?.query
+        });
+      }
 
       if (!data.success) {
         throw new Error(data.error || 'AI investigation failed');

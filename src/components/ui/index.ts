@@ -10,10 +10,6 @@ export { Card, CardHeader, CardTitle, CardDescription, CardBody, CardFooter } fr
 
 export { Modal } from './Modal';
 
-export { Drawer } from './Drawer';
-
-export { Tabs } from './Tabs';
-
 export { EmptyState } from './EmptyState';
 
 export { TrendIndicator } from './TrendIndicator';

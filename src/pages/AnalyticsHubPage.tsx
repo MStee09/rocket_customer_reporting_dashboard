@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { WidgetGrid, InlineEditToolbar, WidgetGalleryModal } from '../components/dashboard';
+import { CarrierAnalyticsSection } from '../components/dashboard/carrieranalyticssection';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { useDashboardWidgets } from '../hooks/useDashboardWidgets';
 import { useDashboardEditMode } from '../hooks/useDashboardEditMode';
@@ -449,6 +450,15 @@ export function AnalyticsHubPage() {
               </button>
             </div>
           )}
+
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-slate-900 mb-4">Carrier Analytics</h2>
+            <CarrierAnalyticsSection
+              customerId={effectiveCustomerId}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          </div>
         </div>
 
         <WidgetGalleryModal

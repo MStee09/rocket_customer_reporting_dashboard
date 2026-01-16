@@ -391,13 +391,13 @@ export const adminWidgets: Record<string, WidgetDefinition> = {
     calculate: async ({ supabase, dateRange }) => {
       const { data } = await supabase
         .from('shipment')
-        .select('mode')
+        .select('mode_id, shipment_mode(mode_name)')
         .gte('pickup_date', dateRange.start)
         .lte('pickup_date', dateRange.end);
 
       const byMode = new Map<string, number>();
-      data?.forEach(s => {
-        const mode = s.mode || 'Unknown';
+      data?.forEach((s: { mode_id: number | null; shipment_mode: { mode_name: string } | null }) => {
+        const mode = s.shipment_mode?.mode_name || 'Unknown';
         byMode.set(mode, (byMode.get(mode) || 0) + 1);
       });
 

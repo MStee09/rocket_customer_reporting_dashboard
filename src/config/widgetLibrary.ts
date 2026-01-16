@@ -753,7 +753,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       let query = supabase
         .from(table)
-        .select('load_id, retail, rate_carrier_id');
+        .select('load_id, retail');
 
       if (!isAdmin || isViewingAsCustomer) {
         query = query.in('customer_id', effectiveCustomerIds);
@@ -767,24 +767,37 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         return { data: [] };
       }
 
-      const carrierIds = [...new Set(shipments.map(s => s.rate_carrier_id).filter(id => id != null))];
+      const loadIds = shipments.map(s => s.load_id);
 
-      if (carrierIds.length === 0) {
-        return { data: [] };
+      const { data: carrierAssignments } = await supabase
+        .from('shipment_carrier')
+        .select('load_id, carrier_id')
+        .in('load_id', loadIds);
+
+      if (!carrierAssignments || carrierAssignments.length === 0) {
+        return { data: [{ carrier: 'Unassigned', spend: shipments.reduce((sum, s) => sum + (s.retail || 0), 0) }] };
       }
 
-      const { data: carriers } = await supabase
-        .from('carrier')
-        .select('carrier_id, carrier_name')
-        .in('carrier_id', carrierIds);
+      const carrierIds = [...new Set(carrierAssignments.map(ca => ca.carrier_id).filter(Boolean))];
 
-      const carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
+      let carrierMap = new Map<number, string>();
+      if (carrierIds.length > 0) {
+        const { data: carriers } = await supabase
+          .from('carrier')
+          .select('carrier_id, carrier_name')
+          .in('carrier_id', carrierIds);
+        carrierMap = new Map((carriers || []).map(c => [c.carrier_id, c.carrier_name]));
+      }
 
-      const carrierSpend = (shipments || []).reduce<Record<string, number>>((acc, row) => {
-        const carrierName = carrierMap.get(row.rate_carrier_id) || 'Unknown';
-        acc[carrierName] = (acc[carrierName] || 0) + (row.retail || 0);
-        return acc;
-      }, {});
+      const loadCarrierMap = new Map(
+        carrierAssignments.map(ca => [ca.load_id, carrierMap.get(ca.carrier_id) || 'Unknown'])
+      );
+
+      const carrierSpend: Record<string, number> = {};
+      shipments.forEach(s => {
+        const carrierName = loadCarrierMap.get(s.load_id) || 'Unassigned';
+        carrierSpend[carrierName] = (carrierSpend[carrierName] || 0) + (s.retail || 0);
+      });
 
       const chartData = Object.entries(carrierSpend)
         .map(([carrier, spend]) => ({ carrier, spend }))

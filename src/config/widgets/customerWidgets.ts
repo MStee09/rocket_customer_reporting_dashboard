@@ -544,19 +544,17 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
       updateBehavior: 'live',
     },
     calculate: async ({ supabase, customerId, dateRange }) => {
-      const shipmentsQuery = supabase
+      let shipmentsQuery = supabase
         .from('shipment')
-        .select('load_id, rate_carrier_id')
+        .select('load_id')
         .gte('pickup_date', dateRange.start)
-        .lte('pickup_date', dateRange.end)
-        .not('rate_carrier_id', 'is', null);
+        .lte('pickup_date', dateRange.end);
 
       if (customerId) {
-        shipmentsQuery.eq('customer_id', customerId);
+        shipmentsQuery = shipmentsQuery.eq('customer_id', customerId);
       }
 
       const { data: shipments } = await shipmentsQuery;
-      const recordCount = shipments?.length || 0;
 
       if (!shipments || shipments.length === 0) {
         return {
@@ -569,18 +567,32 @@ export const customerWidgets: Record<string, WidgetDefinition> = {
         };
       }
 
-      const carrierIds = [...new Set(shipments.map(s => s.rate_carrier_id).filter(Boolean))];
+      const loadIds = shipments.map(s => s.load_id);
+      const recordCount = loadIds.length;
 
-      const { data: carriers } = await supabase
-        .from('carrier')
-        .select('carrier_id, carrier_name')
-        .in('carrier_id', carrierIds);
+      const { data: carrierAssignments } = await supabase
+        .from('shipment_carrier')
+        .select('load_id, carrier_id')
+        .in('load_id', loadIds);
 
-      const carrierMap = new Map(carriers?.map(c => [c.carrier_id, c.carrier_name]));
+      const carrierIds = [...new Set(carrierAssignments?.map(ca => ca.carrier_id).filter(Boolean) || [])];
+
+      let carrierMap = new Map<number, string>();
+      if (carrierIds.length > 0) {
+        const { data: carriers } = await supabase
+          .from('carrier')
+          .select('carrier_id, carrier_name')
+          .in('carrier_id', carrierIds);
+        carrierMap = new Map(carriers?.map(c => [c.carrier_id, c.carrier_name]));
+      }
+
+      const loadCarrierMap = new Map(
+        carrierAssignments?.map(ca => [ca.load_id, carrierMap.get(ca.carrier_id) || 'Unknown']) || []
+      );
 
       const byCarrier = new Map<string, number>();
-      shipments.forEach(s => {
-        const name = carrierMap.get(s.rate_carrier_id) || 'Unknown';
+      loadIds.forEach(loadId => {
+        const name = loadCarrierMap.get(loadId) || 'Unassigned';
         byCarrier.set(name, (byCarrier.get(name) || 0) + 1);
       });
 

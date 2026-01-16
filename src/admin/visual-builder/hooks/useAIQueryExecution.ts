@@ -196,19 +196,32 @@ export function useAIQueryExecution({
 
       const improvedPrompt = buildAIPrompt(aiPrompt, canSeeAdminColumns);
 
+      const requestBody = {
+        question: improvedPrompt,
+        customerId: targetScope === 'admin' ? '0' : String(targetCustomerId || effectiveCustomerId),
+        userId: userId,
+        conversationHistory: [],
+        preferences: { showReasoning: true, forceMode: 'visual' },
+      };
+
+      console.log('[VisualBuilder] Investigate request body:', {
+        originalPrompt: aiPrompt,
+        improvedPrompt,
+        customerId: requestBody.customerId,
+        userId: requestBody.userId,
+        targetScope,
+        targetCustomerId,
+        effectiveCustomerId,
+        preferences: requestBody.preferences
+      });
+
       const response = await fetch(`${supabaseUrl}/functions/v1/investigate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token || ''}`,
         },
-        body: JSON.stringify({
-          question: improvedPrompt,
-          customerId: targetScope === 'admin' ? '0' : String(targetCustomerId || effectiveCustomerId),
-          userId: userId,
-          conversationHistory: [],
-          preferences: { showReasoning: true, forceMode: 'visual' },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {

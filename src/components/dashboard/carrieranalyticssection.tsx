@@ -421,7 +421,7 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
   return (
     <div className="space-y-6">
       {summaryMetrics && summaryMetrics.active_carriers > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-2 gap-4 ${selectedMode !== 'all' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-slate-500">Active Carriers</span>
@@ -467,18 +467,20 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
-              <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-sky-600" />
+          {selectedMode !== 'all' && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-slate-500">Avg Cost/Mile</span>
+                <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5 text-sky-600" />
+                </div>
               </div>
+              <div className="text-2xl font-bold text-slate-900">
+                ${summaryMetrics.avg_cpm.toFixed(2)}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Benchmark for grading</p>
             </div>
-            <div className="text-2xl font-bold text-slate-900">
-              ${summaryMetrics.avg_cpm.toFixed(2)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Benchmark for grading</p>
-          </div>
+          )}
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -499,10 +501,11 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Carrier Comparison</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Grade: A = &lt;85% of benchmark CPM, B = 85-95%, C = 95-105%, D = 105-115%, F = &gt;115%
-              {selectedMode !== 'all' && ` (${selectedMode} only)`}
-            </p>
+            {selectedMode !== 'all' && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                Grade: A = &lt;85% of benchmark CPM, B = 85-95%, C = 95-105%, D = 105-115%, F = &gt;115% ({selectedMode})
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <select
@@ -565,24 +568,28 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                       <ArrowUpDown className="w-3 h-3" />
                     </div>
                   </th>
-                  <th
-                    onClick={() => handleSort('avg_cpm')}
-                    className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
-                  >
-                    <div className="flex items-center justify-end gap-2">
-                      CPM
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('efficiency_grade')}
-                    className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      Grade
-                      <ArrowUpDown className="w-3 h-3" />
-                    </div>
-                  </th>
+                  {selectedMode !== 'all' && (
+                    <th
+                      onClick={() => handleSort('avg_cpm')}
+                      className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        CPM
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </th>
+                  )}
+                  {selectedMode !== 'all' && (
+                    <th
+                      onClick={() => handleSort('efficiency_grade')}
+                      className="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Grade
+                        <ArrowUpDown className="w-3 h-3" />
+                      </div>
+                    </th>
+                  )}
                   <th
                     onClick={() => handleSort('market_share')}
                     className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase cursor-pointer hover:bg-slate-100 transition-colors"
@@ -619,12 +626,16 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
                     <td className="px-6 py-4 text-sm text-slate-900 text-right font-semibold">
                       {formatCurrency(carrier.total_spend)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
-                      ${carrier.avg_cpm.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <EfficiencyGradeBadge grade={carrier.efficiency_grade} />
-                    </td>
+                    {selectedMode !== 'all' && (
+                      <td className="px-6 py-4 text-sm text-slate-600 text-right font-medium">
+                        ${carrier.avg_cpm.toFixed(2)}
+                      </td>
+                    )}
+                    {selectedMode !== 'all' && (
+                      <td className="px-6 py-4 text-center">
+                        <EfficiencyGradeBadge grade={carrier.efficiency_grade} />
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-sm text-slate-600 text-right">
                       {carrier.market_share.toFixed(1)}%
                     </td>

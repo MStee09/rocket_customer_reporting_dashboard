@@ -21,9 +21,7 @@ import { getColumnById } from '../../config/reportColumns';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { logger } from '../../utils/logger';
-import { saveCustomWidget } from '../../config/widgets/customWidgetStorage';
 import { SimpleReportConfig } from '../../types/reports';
-import { executeSimpleReport } from '../../utils/simpleQueryBuilder';
 import {
   detectColumnCapabilities,
   getAvailableWidgetTypes,
@@ -32,21 +30,12 @@ import {
   WidgetType,
   FieldInfo,
   WidgetConfig,
-  AiSuggestionContext,
-  RawDataRow,
   formatWidgetType,
   generateLocalAiSuggestion,
-  buildQueryConfig,
-  buildVisualizationConfig,
-  buildWhatItShows,
-  inferCategory,
-  getWidgetIcon,
-  getWidgetColor,
-  getDefaultSize,
-  transformRawDataToWidgetData,
 } from './saveAsWidgetUtils';
 import { ConfigurationStep } from './SaveAsWidgetConfigSteps';
 import { PreviewStep } from './SaveAsWidgetPreview';
+import { useSaveAsWidget } from './useSaveAsWidget';
 
 interface SaveAsWidgetModalProps {
   report: SimpleReportConfig & { id: string };
@@ -77,11 +66,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
   const [aiSuggestion, setAiSuggestion] = useState<WidgetConfig | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [createdWidgetId, setCreatedWidgetId] = useState<string | null>(null);
-  const [showSuccessOptions, setShowSuccessOptions] = useState(false);
 
   useEffect(() => {
     setValidationError(null);
@@ -279,6 +264,25 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
     return { valid: true };
   };
 
+  const {
+    saving,
+    error,
+    createdWidgetId,
+    showSuccessOptions,
+    setShowSuccessOptions,
+    saveWidget,
+  } = useSaveAsWidget({
+    config,
+    report,
+    customerId,
+    customerName,
+    user,
+    isAdmin: isAdmin(),
+    supabase,
+    validateStep,
+    setValidationError,
+  });
+
   const handleContinue = () => {
     const validation = validateStep(step);
 
@@ -289,103 +293,6 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
 
     setValidationError(null);
     setStep(step + 1);
-  };
-
-  const handleSave = async () => {
-    const validation = validateStep(2);
-    if (!validation.valid) {
-      setValidationError(validation.error || 'Please fill in required fields');
-      return;
-    }
-
-    if (!customerId) {
-      setError('No customer selected. Please select a customer to save the widget.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const widgetId = `widget_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      const reportPath = `customer/${customerId}/${report.id}.json`;
-
-      const widgetDefinition = {
-        id: widgetId,
-        name: config.name,
-        description: config.description,
-        type: config.type,
-        category: inferCategory(config),
-        source: 'report' as const,
-        visibility: { type: 'private' as const },
-        createdBy: {
-          userId: user?.id || '',
-          userEmail: user?.email || '',
-          isAdmin: isAdmin(),
-          customerId: customerId,
-          customerName: customerName,
-          timestamp: new Date().toISOString(),
-        },
-        sourceReport: {
-          id: report.id,
-          name: report.name,
-          path: reportPath,
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        version: 1,
-        dataSource: {
-          type: 'query' as const,
-          reportReference: {
-            reportId: report.id,
-            reportName: report.name,
-          },
-          reportColumns: report.columns.map(c => ({
-            id: c.id,
-            label: c.label,
-          })),
-          query: buildQueryConfig(config, report),
-        },
-        visualization: buildVisualizationConfig(config),
-        display: {
-          icon: getWidgetIcon(config.type),
-          iconColor: getWidgetColor(config.type),
-          defaultSize: getDefaultSize(config.type),
-        },
-        whatItShows: buildWhatItShows(config, report),
-        dataMode: config.dataMode,
-        snapshotData: undefined as WidgetData | undefined,
-        snapshotDate: undefined as string | undefined,
-      };
-
-      if (config.dataMode === 'static') {
-        try {
-          const rawData = await executeSimpleReport(report, String(customerId));
-          const snapshotData = transformRawDataToWidgetData(rawData, config);
-          widgetDefinition.snapshotData = snapshotData;
-          widgetDefinition.snapshotDate = new Date().toISOString();
-        } catch (err) {
-          logger.error('Failed to capture snapshot:', err);
-          throw new Error('Failed to capture data snapshot for static widget');
-        }
-      }
-
-      const result = await saveCustomWidget(supabase, widgetDefinition, customerId);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to save widget');
-      }
-
-      setCreatedWidgetId(widgetId);
-      setShowSuccessOptions(true);
-
-    } catch (err) {
-      logger.error('Save error:', err);
-      setError(String(err));
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleAddToDashboard = (widgetId: string) => {
@@ -643,7 +550,7 @@ export default function SaveAsWidgetModal({ report, onClose, onSuccess }: SaveAs
                   </button>
                 ) : (
                   <button
-                    onClick={handleSave}
+                    onClick={saveWidget}
                     disabled={saving}
                     className="px-4 py-2 bg-rocket-600 text-white rounded-lg hover:bg-rocket-700 disabled:opacity-50 flex items-center gap-2"
                   >

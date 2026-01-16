@@ -81,24 +81,9 @@ import {
   WidgetConfig,
 } from '../types/visualBuilderTypes';
 import { ALL_COLUMNS, ADMIN_ONLY_COLUMNS } from '../config/columnDefinitions';
-import {
-  extractProductTerms,
-  detectMultiDimensionQuery,
-  generateDescription,
-  buildAIPrompt,
-  filterAdminData,
-  parseAIConfig,
-  mapAIChartType,
-  mapAIFieldToColumn,
-  mapAIAggregation,
-  formatFieldName,
-  type MultiDimensionConfig,
-} from '../utils/visualBuilderUtils';
-import {
-  queryProductCategories,
-  queryMultiDimension,
-} from '../utils/visualBuilderQueries';
+import { queryProductCategories } from '../utils/visualBuilderQueries';
 import { useVisualBuilderState } from '../hooks/useVisualBuilderState';
+import { useAIQueryExecution } from '../hooks/useAIQueryExecution';
 
 interface AggregateRow {
   label?: string;
@@ -203,229 +188,24 @@ export function VisualBuilderV5Working() {
     customers,
   });
 
-  // =============================================================================
-  // AI MODE - IMPROVED PROMPT
-  // =============================================================================
-
-  const handleAISubmit = useCallback(async () => {
-    if (!aiPrompt.trim() || aiLoading) return;
-
-    setAiLoading(true);
-    setAiError(null);
-    setAiReasoning([]);
-    setConfig(prev => ({ ...prev, data: null, aiConfig: undefined }));
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-      // STEP 0: Check if this is a multi-dimension query
-      const multiDimConfig = detectMultiDimensionQuery(aiPrompt);
-
-      if (multiDimConfig) {
-        logger.log('[VisualBuilder] Multi-dimension query detected:', multiDimConfig);
-        setAiReasoning([
-          { type: 'routing', content: `Multi-dimension analysis: ${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}` },
-          { type: 'thinking', content: 'Using grouped aggregation for dual-dimension breakdown' }
-        ]);
-
-        try {
-          const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
-          const productTerms = extractProductTerms(aiPrompt);
-
-          const { raw, grouped, secondaryGroups } = await queryMultiDimension(
-            multiDimConfig,
-            queryCustomerId,
-            dateRange,
-            productTerms.length > 0 ? productTerms : undefined
-          );
-
-          if (grouped.length > 0) {
-            setConfig(prev => ({
-              ...prev,
-              name: `${multiDimConfig.aggregation.toUpperCase()} ${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
-              description: `Shows ${multiDimConfig.aggregation} ${multiDimConfig.metric} broken down by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
-              chartType: 'grouped_bar',
-              groupByColumn: multiDimConfig.primaryGroupBy,
-              secondaryGroupBy: multiDimConfig.secondaryGroupBy,
-              metricColumn: multiDimConfig.metric,
-              aggregation: multiDimConfig.aggregation as Aggregation,
-              data: grouped,
-              rawMultiDimData: raw,
-              secondaryGroups: secondaryGroups,
-              isMultiDimension: true,
-              aiConfig: {
-                title: `${multiDimConfig.metric} by ${multiDimConfig.primaryGroupBy} and ${multiDimConfig.secondaryGroupBy}`,
-                xAxis: multiDimConfig.primaryGroupBy,
-                yAxis: multiDimConfig.metric,
-                aggregation: multiDimConfig.aggregation.toUpperCase(),
-                filters: [],
-                searchTerms: productTerms
-              }
-            }));
-
-            setHasResults(true);
-            setAiReasoning(prev => [...prev,
-              { type: 'tool_result', content: `Found ${grouped.length} primary groups x ${secondaryGroups.length} secondary groups` }
-            ]);
-            setAiLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.error('[VisualBuilder] Multi-dimension query failed:', err);
-          setAiError(`Multi-dimension query failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          setAiLoading(false);
-          return;
-        }
-      }
-
-      // STEP 1: Check if this is a product comparison query we can handle directly
-      const productTerms = extractProductTerms(aiPrompt);
-
-      if (productTerms.length >= 2) {
-        // DIRECT QUERY PATH - bypass AI entirely for product comparisons
-        logger.log('[VisualBuilder] Product comparison detected:', productTerms);
-        setAiReasoning([
-          { type: 'routing', content: `Detected product comparison: ${productTerms.join(', ')}` },
-          { type: 'thinking', content: 'Using direct database queries for accurate category comparison' }
-        ]);
-        
-        // Determine which customer ID to use
-        const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
-        logger.log('[VisualBuilder] Product query using customer ID:', queryCustomerId, '(target:', targetCustomerId, 'effective:', effectiveCustomerId, 'scope:', targetScope, ')');
-        
-        const results = await queryProductCategories(
-          productTerms,
-          canSeeAdminColumns ? 'cost' : 'retail',
-          'avg',
-          queryCustomerId,
-          dateRange  // Pass date range for filtering
-        );
-        
-        if (results.length > 0) {
-          const aiConfig: AIConfig = {
-            title: `Average ${canSeeAdminColumns ? 'Cost' : 'Retail'} by Product Category`,
-            xAxis: 'Product Category',
-            yAxis: canSeeAdminColumns ? 'cost' : 'retail',
-            aggregation: 'AVG',
-            filters: productTerms.map(t => `item_description ILIKE '%${t}%'`),
-            searchTerms: productTerms
-          };
-          
-          syncFiltersFromAI(productTerms);
-          
-          setConfig(prev => ({
-            ...prev,
-            name: aiConfig.title,
-            description: `Shows average ${canSeeAdminColumns ? 'cost' : 'retail'} for products: ${productTerms.join(', ')}`,
-            chartType: 'bar',
-            groupByColumn: 'item_description',
-            metricColumn: canSeeAdminColumns ? 'cost' : 'retail',
-            aggregation: 'avg',
-            data: results,
-            aiConfig,
-          }));
-          
-          setHasResults(true);
-          setIsProductQuery(true);  // Mark this as a product query for refresh handling
-          setAiReasoning(prev => [...prev, 
-            { type: 'tool_result', content: `Found ${results.length} categories with data` }
-          ]);
-          return;
-        } else {
-          // Product query returned no results - give helpful feedback
-          const dateRangeStr = `${dateRange.start} to ${dateRange.end}`;
-          setAiError(`No product data found for "${productTerms.join(', ')}" in the selected date range (${dateRangeStr}). Try expanding the date range or check if this customer has shipments with these products.`);
-          setAiLoading(false);
-          return;
-        }
-      }
-
-      // STEP 2: Fall back to investigate endpoint for other queries
-      const improvedPrompt = buildAIPrompt(aiPrompt, canSeeAdminColumns);
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/investigate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          question: improvedPrompt,
-          customerId: targetScope === 'admin' ? '0' : String(targetCustomerId || effectiveCustomerId),
-          userId: user?.id,
-          conversationHistory: [],
-          preferences: { showReasoning: true, forceMode: 'visual' },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'AI investigation failed');
-      }
-
-      setAiReasoning(data.reasoning || []);
-
-      if (data.visualizations && data.visualizations.length > 0) {
-        const viz = data.visualizations[0];
-        const vizData = viz.data?.data || [];
-
-        // SECURITY: Filter out any admin-only data if user is not admin
-        const secureData = canSeeAdminColumns ? vizData : filterAdminData(vizData);
-
-        const aiConfig = parseAIConfig(data.reasoning || [], viz, aiPrompt);
-
-        // Sync editable filters from AI search terms
-        if (aiConfig.searchTerms.length > 0) {
-          syncFiltersFromAI(aiConfig.searchTerms);
-        }
-
-        // IMPORTANT: Map AI config to manual mode fields so refresh works
-        // Find the best matching columns for what AI used
-        const xAxisColumn = mapAIFieldToColumn(aiConfig.xAxis, availableColumns);
-        const yAxisColumn = mapAIFieldToColumn(aiConfig.yAxis, availableColumns);
-        const aggregation = mapAIAggregation(aiConfig.aggregation);
-
-        setConfig(prev => ({
-          ...prev,
-          name: viz.title || '',
-          description: generateDescription(aiPrompt, aiConfig, secureData),
-          chartType: mapAIChartType(viz.type),
-          // Populate manual mode fields from AI results
-          groupByColumn: xAxisColumn,
-          metricColumn: yAxisColumn,
-          aggregation: aggregation,
-          data: secureData,
-          aiConfig,
-        }));
-
-        // Mark that we have results - refresh should re-query, not re-run AI
-        setHasResults(true);
-      } else {
-        throw new Error('AI could not generate visualization. Try a prompt like: "Average cost for drawer, cargoglide, toolbox"');
-      }
-    } catch (err) {
-      // Provide better error messages
-      let errorMessage = 'AI request failed';
-      if (err instanceof Error) {
-        if (err.message.includes('Unexpected end of JSON')) {
-          errorMessage = 'Request timed out. Try a simpler query or check your connection.';
-        } else if (err.message.includes('500') || err.message.includes('502')) {
-          errorMessage = 'Server error. Please try again in a moment.';
-        } else {
-          errorMessage = err.message;
-        }
-      }
-      setAiError(errorMessage);
-    } finally {
-      setAiLoading(false);
-    }
-  }, [aiPrompt, aiLoading, targetScope, targetCustomerId, effectiveCustomerId, user?.id, canSeeAdminColumns, availableColumns, syncFiltersFromAI]);
+  const { executeAIQuery } = useAIQueryExecution({
+    aiPrompt,
+    aiLoading,
+    targetScope,
+    targetCustomerId,
+    effectiveCustomerId,
+    userId: user?.id,
+    canSeeAdminColumns,
+    availableColumns,
+    dateRange,
+    setAiLoading,
+    setAiError,
+    setAiReasoning,
+    setConfig,
+    setHasResults,
+    setIsProductQuery,
+    syncFiltersFromAI,
+  });
 
   // =============================================================================
   // REFRESH DATA
@@ -888,7 +668,7 @@ export function VisualBuilderV5Working() {
                 reasoning={aiReasoning}
                 config={config}
                 setConfig={setConfig}
-                onSubmit={handleAISubmit}
+                onSubmit={executeAIQuery}
                 onEdit={() => setMode('manual')}
                 canSeeAdminColumns={canSeeAdminColumns}
                 editableFilters={editableFilters}
@@ -901,7 +681,7 @@ export function VisualBuilderV5Working() {
                 availableColumns={availableColumns}
                 onRerunWithFilters={() => {
                   showToast('Re-running query with updated filters...', 'info');
-                  handleAISubmit();
+                  executeAIQuery();
                 }}
               />
             ) : (

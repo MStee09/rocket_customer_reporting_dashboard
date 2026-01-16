@@ -548,7 +548,7 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
 
       let query = supabase
         .from(table)
-        .select('id');
+        .select('load_id');
 
       if (!isAdmin || isViewingAsCustomer) {
         query = query.in('customer_id', effectiveCustomerIds);
@@ -562,12 +562,12 @@ export const widgetLibrary: Record<string, WidgetDefinition> = {
         return { data: [] };
       }
 
-      const shipmentIds = shipments.map(s => s.id);
+      const loadIds = shipments.map(s => s.load_id);
 
       const { data: accessorials } = await supabase
         .from('shipment_accessorial')
         .select('accessorial_type_id, charge')
-        .in('shipment_id', shipmentIds);
+        .in('load_id', loadIds);
 
       const typeData = (accessorials || []).reduce<Record<string, number>>((acc, row: AccessorialRow) => {
         const type = String(row.accessorial_type_id ?? 'Unknown');

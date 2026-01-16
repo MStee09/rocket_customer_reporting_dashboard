@@ -52,6 +52,7 @@ interface ShipmentRow {
   delivered_date: string | null;
   delivery_status: string | null;
   shipped_date: string | null;
+  mode_name: string | null;
 }
 
 interface PrevShipmentRow {
@@ -59,12 +60,14 @@ interface PrevShipmentRow {
   carrier_id: number | null;
   retail: string | number | null;
   miles: string | number | null;
+  mode_name: string | null;
 }
 
 interface MonthlyTrendRow {
   shipped_date: string | null;
   retail: string | number | null;
   carrier_name: string | null;
+  mode_name: string | null;
 }
 
 interface CarrierAnalyticsSectionProps {
@@ -110,6 +113,7 @@ export function CarrierAnalyticsSection({
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetrics | null>(null);
   const [sortField, setSortField] = useState<SortField>('total_spend');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [selectedMode, setSelectedMode] = useState<string>('all');
 
   const prevDateRange = useMemo(() => {
     const start = new Date(startDate);
@@ -125,7 +129,7 @@ export function CarrierAnalyticsSection({
 
   useEffect(() => {
     loadCarrierData();
-  }, [customerId, startDate, endDate]);
+  }, [customerId, startDate, endDate, selectedMode]);
 
   function calculateEfficiencyGrade(carrierCpm: number, benchmarkCpm: number): 'A' | 'B' | 'C' | 'D' | 'F' | '-' {
     if (!carrierCpm || !benchmarkCpm || benchmarkCpm === 0) return '-';
@@ -149,7 +153,7 @@ export function CarrierAnalyticsSection({
     try {
       const { data: currentData, error: currentError } = await supabase
         .from('shipment_report_view')
-        .select('carrier_name, carrier_id, retail, miles, delivered_date, delivery_status, shipped_date')
+        .select('carrier_name, carrier_id, retail, miles, delivered_date, delivery_status, shipped_date, mode_name')
         .eq('customer_id', customerId)
         .gte('shipped_date', startDate)
         .lte('shipped_date', endDate);
@@ -162,7 +166,7 @@ export function CarrierAnalyticsSection({
 
       const { data: prevData, error: prevError } = await supabase
         .from('shipment_report_view')
-        .select('carrier_name, carrier_id, retail, miles')
+        .select('carrier_name, carrier_id, retail, miles, mode_name')
         .eq('customer_id', customerId)
         .gte('shipped_date', prevDateRange.start)
         .lte('shipped_date', prevDateRange.end);
@@ -171,6 +175,14 @@ export function CarrierAnalyticsSection({
         console.error('Error loading previous carrier data:', prevError);
       }
 
+      const filteredCurrentData = selectedMode === 'all'
+        ? currentData
+        : currentData?.filter((row: ShipmentRow) => row.mode_name === selectedMode);
+
+      const filteredPrevData = selectedMode === 'all'
+        ? prevData
+        : prevData?.filter((row: PrevShipmentRow) => row.mode_name === selectedMode);
+
       const carrierMap = new Map<string, CarrierMetrics>();
       let totalSpend = 0;
       let totalMiles = 0;
@@ -178,7 +190,7 @@ export function CarrierAnalyticsSection({
       let onTimeShipments = 0;
       let deliveredShipments = 0;
 
-      (currentData || []).forEach((row: ShipmentRow) => {
+      (filteredCurrentData || []).forEach((row: ShipmentRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         const carrierId = row.carrier_id || 0;
         const spend = parseFloat(String(row.retail ?? 0)) || 0;
@@ -216,7 +228,7 @@ export function CarrierAnalyticsSection({
       let prevTotalSpend = 0;
       let prevTotalShipments = 0;
 
-      (prevData || []).forEach((row: PrevShipmentRow) => {
+      (filteredPrevData || []).forEach((row: PrevShipmentRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         const spend = parseFloat(String(row.retail ?? 0)) || 0;
         prevCarrierMap.set(carrierName, (prevCarrierMap.get(carrierName) || 0) + spend);
@@ -285,7 +297,7 @@ export function CarrierAnalyticsSection({
 
       const { data, error } = await supabase
         .from('shipment_report_view')
-        .select('shipped_date, retail, carrier_name')
+        .select('shipped_date, retail, carrier_name, mode_name')
         .eq('customer_id', customerId)
         .gte('shipped_date', sixMonthsAgo.toISOString().split('T')[0])
         .lte('shipped_date', endDate);
@@ -295,10 +307,14 @@ export function CarrierAnalyticsSection({
         return;
       }
 
+      const filteredData = selectedMode === 'all'
+        ? data
+        : data.filter((row: MonthlyTrendRow) => row.mode_name === selectedMode);
+
       const monthlyMap = new Map<string, Map<string, number>>();
       const topCarrierNames = new Set(topCarriers.map(c => c.carrier_name));
 
-      data.forEach((row: MonthlyTrendRow) => {
+      filteredData.forEach((row: MonthlyTrendRow) => {
         const carrierName = row.carrier_name || 'Unknown';
         if (!topCarrierNames.has(carrierName)) return;
 
@@ -481,15 +497,28 @@ Total spend: ${formatCurrency(summaryMetrics?.total_spend || 0)} across ${summar
             <h3 className="text-lg font-semibold text-slate-900">Carrier Comparison</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Grade: A = &lt;85% of benchmark CPM, B = 85-95%, C = 95-105%, D = 105-115%, F = &gt;115%
+              {selectedMode !== 'all' && ` (${selectedMode} only)`}
             </p>
           </div>
-          <button
-            onClick={handleAskAI}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
-          >
-            <Sparkles className="w-4 h-4" />
-            Ask AI
-          </button>
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedMode}
+              onChange={(e) => setSelectedMode(e.target.value)}
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Modes</option>
+              <option value="LTL">LTL Only</option>
+              <option value="FTL">FTL Only</option>
+              <option value="Parcel">Parcel Only</option>
+            </select>
+            <button
+              onClick={handleAskAI}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium rounded-lg transition-all shadow-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              Ask AI
+            </button>
+          </div>
         </div>
 
         {carriers.length === 0 ? (

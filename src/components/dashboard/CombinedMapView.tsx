@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ShipmentFlowMap } from './ShipmentFlowMap';
 import { CostPerStateMap } from './CostPerStateMap';
-import { StateData } from '../../hooks/useDashboardData';
+import { StateData } from '../../types/dashboard';
 import { Card } from '../ui/Card';
 
 interface CombinedMapViewProps {

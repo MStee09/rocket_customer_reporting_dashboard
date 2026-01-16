@@ -9,7 +9,7 @@ import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
 import { formatCurrency } from '../utils/dateUtils';
-import { CustomerData } from '../hooks/useDashboardData';
+import { CustomerData } from '../types/dashboard';
 import { useCustomerHealth } from '../hooks/useCustomerHealth';
 
 export function AdminDashboardPage() {

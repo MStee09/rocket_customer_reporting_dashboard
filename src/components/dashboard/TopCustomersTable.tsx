@@ -1,5 +1,5 @@
 import { Building2 } from 'lucide-react';
-import { CustomerData } from '../../hooks/useDashboardData';
+import { CustomerData } from '../../types/dashboard';
 import { formatCurrency } from '../../utils/dateUtils';
 import { Card } from '../ui/Card';
 

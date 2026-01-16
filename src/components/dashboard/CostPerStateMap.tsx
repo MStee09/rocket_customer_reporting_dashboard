@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { Loader2, AlertTriangle, Plus, Minus, RotateCcw, Settings, Lightbulb, ChevronRight, ChevronDown, TrendingUp, TrendingDown, MapPin, BarChart3 } from 'lucide-react';
-import { StateData } from '../../hooks/useDashboardData';
+import { StateData } from '../../types/dashboard';
 
 interface CostPerStateMapProps {
   data: StateData[];

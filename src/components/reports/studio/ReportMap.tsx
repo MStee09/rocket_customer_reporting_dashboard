@@ -3,7 +3,7 @@ import { Loader2, Map as MapIcon } from 'lucide-react';
 import { Card } from '../../ui/Card';
 import { CostPerStateMap } from '../../dashboard/CostPerStateMap';
 import type { MapType } from '../../../types/aiReport';
-import type { StateData } from '../../../hooks/useDashboardData';
+import type { StateData } from '../../../types/dashboard';
 
 export interface MapDataPoint {
   stateCode?: string;

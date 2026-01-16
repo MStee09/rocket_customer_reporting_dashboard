@@ -84,6 +84,7 @@ import { ALL_COLUMNS, ADMIN_ONLY_COLUMNS } from '../config/columnDefinitions';
 import { queryProductCategories } from '../utils/visualBuilderQueries';
 import { useVisualBuilderState } from '../hooks/useVisualBuilderState';
 import { useAIQueryExecution } from '../hooks/useAIQueryExecution';
+import { useWidgetPublisher } from '../hooks/useWidgetPublisher';
 
 interface AggregateRow {
   label?: string;
@@ -141,10 +142,6 @@ export function VisualBuilderV5Working() {
     setPreviewLoading,
     previewError,
     setPreviewError,
-    isPublishing,
-    setIsPublishing,
-    publishResult,
-    setPublishResult,
     datePreset,
     setDatePreset,
     showDateDropdown,
@@ -205,6 +202,22 @@ export function VisualBuilderV5Working() {
     setHasResults,
     setIsProductQuery,
     syncFiltersFromAI,
+  });
+
+  const { publishWidget, isPublishing, publishResult, setPublishResult } = useWidgetPublisher({
+    config,
+    mode,
+    visibility,
+    user,
+    isAdmin,
+    effectiveCustomerId,
+    targetCustomerId,
+    publishDestination,
+    pulseSection,
+    analyticsSection,
+    editableFilters,
+    datePreset,
+    setShowPublishModal,
   });
 
   // =============================================================================
@@ -466,116 +479,6 @@ export function VisualBuilderV5Working() {
   }, [refreshData]);
 
   // =============================================================================
-  // PUBLISH
-  // =============================================================================
-
-  const handlePublish = useCallback(async () => {
-    if (!config.name.trim() || !config.data || config.data.length === 0) {
-      setPublishResult({ success: false, message: 'Name and data required' });
-      return;
-    }
-
-    setIsPublishing(true);
-    setPublishResult(null);
-
-    try {
-      const widgetId = `widget_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      // For private widgets, we need to know which customer they're for
-      const targetCustomer = targetCustomerId || effectiveCustomerId;
-      
-      const widgetDefinition = {
-        id: widgetId,
-        name: config.name,
-        description: config.description,
-        type: config.chartType,
-        source: mode === 'ai' ? 'ai' : 'manual',
-        createdBy: {
-          userId: user?.id,
-          userEmail: user?.email,
-          isAdmin: isAdmin(),
-          timestamp: new Date().toISOString(),
-        },
-        // NEW: Publish destination
-        destination: publishDestination,
-        section: publishDestination === 'pulse' ? pulseSection : analyticsSection,
-        // Include customer ID for private widgets
-        visibility: { 
-          type: visibility,
-          customerId: visibility === 'private' ? targetCustomer : null
-        },
-        // For private widgets, store which customer this is for
-        customerId: visibility === 'private' ? targetCustomer : null,
-        // SECURITY: Mark if widget contains admin-only data
-        containsAdminData: config.metricColumn ? ADMIN_ONLY_COLUMNS.has(config.metricColumn) : false,
-        dataSource: {
-          groupByColumn: config.groupByColumn,
-          secondaryGroupBy: config.secondaryGroupBy,
-          isMultiDimension: config.isMultiDimension,
-          metricColumn: config.metricColumn,
-          aggregation: config.aggregation,
-          filters: editableFilters,
-          aiConfig: config.aiConfig,
-          datePreset,
-        },
-        visualization: {
-          type: config.chartType,
-          data: config.data,
-          secondaryGroups: config.secondaryGroups,
-        },
-        createdAt: new Date().toISOString(),
-      };
-
-      // Storage path - use same structure as customWidgetStorage.ts
-      // admin widgets go to admin/, customer widgets go to customer/{id}/
-      let storagePath: string;
-      if (visibility === 'admin_only') {
-        storagePath = `admin/${widgetId}.json`;
-      } else if (visibility === 'private' && targetCustomer) {
-        storagePath = `customer/${targetCustomer}/${widgetId}.json`;
-      } else {
-        // all_customers = system-wide
-        storagePath = `system/${widgetId}.json`;
-      }
-
-      logger.log('[VisualBuilder] Publishing widget to:', storagePath);
-
-      const { error } = await supabase.storage
-        .from('custom-widgets')
-        .upload(storagePath, JSON.stringify(widgetDefinition, null, 2), {
-          contentType: 'application/json',
-          upsert: true,
-        });
-
-      if (error) throw error;
-
-      // Also add to dashboard_widgets table so it shows up immediately
-      const dashboardCustomerId = visibility === 'private' ? targetCustomer : null;
-      const { error: dbError } = await supabase
-        .from('dashboard_widgets')
-        .insert({
-          widget_id: widgetId,
-          customer_id: dashboardCustomerId,
-          position: 999,
-          size: 'medium',
-          tab: 'overview',
-        });
-
-      if (dbError) {
-        console.warn('[VisualBuilder] Could not add to dashboard_widgets:', dbError);
-        // Don't fail the whole publish for this
-      }
-
-      setPublishResult({ success: true, message: `Widget "${config.name}" published to ${publishDestination === 'pulse' ? 'Pulse Dashboard' : 'Analytics Hub'}!` });
-      setShowPublishModal(false);
-    } catch (err) {
-      setPublishResult({ success: false, message: err instanceof Error ? err.message : 'Publish failed' });
-    } finally {
-      setIsPublishing(false);
-    }
-  }, [config, mode, visibility, user, isAdmin, effectiveCustomerId, targetCustomerId, publishDestination, pulseSection, analyticsSection, editableFilters, datePreset]);
-
-  // =============================================================================
   // RENDER
   // =============================================================================
 
@@ -736,7 +639,7 @@ export function VisualBuilderV5Working() {
         visibility={visibility}
         setVisibility={setVisibility}
         isPublishing={isPublishing}
-        onPublish={handlePublish}
+        onPublish={publishWidget}
         customers={customers as { customer_id: number; customer_name: string }[]}
         targetCustomerId={targetCustomerId}
         effectiveCustomerId={effectiveCustomerId}

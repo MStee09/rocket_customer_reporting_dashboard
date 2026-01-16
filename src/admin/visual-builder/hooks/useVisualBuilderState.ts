@@ -86,9 +86,6 @@ export function useVisualBuilderState({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishResult, setPublishResult] = useState<{ success: boolean; message: string } | null>(null);
-
   const [datePreset, setDatePreset] = useState<DateRangePreset>('last30');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [dateRange, setDateRange] = useState({
@@ -211,11 +208,6 @@ export function useVisualBuilderState({
     setPreviewLoading,
     previewError,
     setPreviewError,
-
-    isPublishing,
-    setIsPublishing,
-    publishResult,
-    setPublishResult,
 
     datePreset,
     setDatePreset,

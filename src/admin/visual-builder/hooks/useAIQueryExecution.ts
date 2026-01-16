@@ -239,20 +239,38 @@ export function useAIQueryExecution({
       });
 
       if (data.reasoning && Array.isArray(data.reasoning)) {
-        console.log('[VisualBuilder] Reasoning steps:', data.reasoning.map((r: any) => ({
-          type: r.type,
-          toolName: r.type === 'tool_use' ? r.name : undefined,
-          inputKeys: r.type === 'tool_use' ? Object.keys(r.input || {}) : undefined,
-          text: r.type === 'text' ? r.text?.substring(0, 100) : undefined
-        })));
+        console.log('[VisualBuilder] Reasoning steps:', data.reasoning.map((r: any, idx: number) => {
+          console.log(`Step ${idx}:`, r);
 
-        const queryWithJoinCalls = data.reasoning.filter((r: any) => r.type === 'tool_use' && r.name === 'query_with_join');
-        if (queryWithJoinCalls.length > 0) {
-          console.log('[VisualBuilder] query_with_join tool calls:', queryWithJoinCalls.map((call: any) => ({
-            input: call.input,
-            result: call.result
-          })));
-        }
+          if (r.type === 'tool_use') {
+            return {
+              type: 'tool_use',
+              toolName: r.name,
+              input: r.input
+            };
+          } else if (r.type === 'tool_result') {
+            return {
+              type: 'tool_result',
+              toolUseId: r.tool_use_id,
+              content: r.content
+            };
+          } else {
+            return {
+              type: r.type,
+              text: r.text
+            };
+          }
+        }));
+
+        const queryToolCalls = data.reasoning.filter((r: any) =>
+          r.type === 'tool_use' && r.name === 'query_with_join'
+        );
+        console.log('[VisualBuilder] query_with_join tool calls:', queryToolCalls?.map((r: any) => ({
+          input: r.input,
+          result: data.reasoning.find((res: any) =>
+            res.type === 'tool_result' && res.tool_use_id === r.id
+          )?.content
+        })));
       }
 
       if (data.visualizations && data.visualizations.length > 0) {

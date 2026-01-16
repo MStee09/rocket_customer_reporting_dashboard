@@ -14,7 +14,6 @@ export { useWidgetsByTab } from './useWidgetsByTab';
 export { useCustomerMetrics } from './useCustomerMetrics';
 export { useCustomerReports } from './useCustomerReports';
 export { useLookupTables } from './useLookupTables';
-export { useComparisonStats } from './useComparisonStats';
 export { useSavedViews } from './useSavedViews';
 export { useAIReportStudio } from './useAIReportStudio';
 export { useAIUsageDashboard, useUserAIUsage } from './useAIUsageDashboard';

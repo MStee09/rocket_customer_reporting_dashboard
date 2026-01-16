@@ -81,18 +81,10 @@ import {
   WidgetConfig,
 } from '../types/visualBuilderTypes';
 import { ALL_COLUMNS, ADMIN_ONLY_COLUMNS } from '../config/columnDefinitions';
-import { queryProductCategories } from '../utils/visualBuilderQueries';
 import { useVisualBuilderState } from '../hooks/useVisualBuilderState';
 import { useAIQueryExecution } from '../hooks/useAIQueryExecution';
 import { useWidgetPublisher } from '../hooks/useWidgetPublisher';
-
-interface AggregateRow {
-  label?: string;
-  value?: number;
-  secondary_group?: string;
-  count?: number;
-  [key: string]: string | number | undefined;
-}
+import { useQueryExecution } from '../hooks/useQueryExecution';
 
 interface CustomerRecord {
   customer_id: number;
@@ -138,10 +130,6 @@ export function VisualBuilderV5Working() {
     setAiReasoning,
     config,
     setConfig,
-    previewLoading,
-    setPreviewLoading,
-    previewError,
-    setPreviewError,
     datePreset,
     setDatePreset,
     showDateDropdown,
@@ -220,103 +208,21 @@ export function VisualBuilderV5Working() {
     setShowPublishModal,
   });
 
-  // =============================================================================
-  // REFRESH DATA
-  // =============================================================================
-
-  // Unified refresh function that works for both product queries and regular queries
-  const refreshData = useCallback(async () => {
-    if (!hasResults) return;
-    
-    setPreviewLoading(true);
-    setPreviewError(null);
-    
-    try {
-      // Get current filter terms from editable filters
-      const filterTerms = editableFilters
-        .filter(f => f.field === 'item_description' && f.value.trim())
-        .map(f => f.value.trim());
-      
-      // Determine if we should use product query or regular query
-      // Use product query if:
-      // 1. groupByColumn is item_description AND we have filter terms
-      // 2. OR this was originally a product query and we still have product filters
-      const shouldUseProductQuery = 
-        (config.groupByColumn === 'item_description' && filterTerms.length > 0) ||
-        (isProductQuery && filterTerms.length > 0 && config.groupByColumn === 'item_description');
-      
-      if (shouldUseProductQuery) {
-        logger.log('[VisualBuilder] Refreshing product query with terms:', filterTerms);
-        
-        const results = await queryProductCategories(
-          filterTerms,
-          config.metricColumn || (canSeeAdminColumns ? 'cost' : 'retail'),
-          config.aggregation || 'avg',
-          targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId),
-          dateRange
-        );
-        
-        setConfig(prev => ({
-          ...prev,
-          data: results,
-          aiConfig: prev.aiConfig ? {
-            ...prev.aiConfig,
-            searchTerms: filterTerms,
-          } : undefined,
-        }));
-        
-        showToast(`Updated: ${results.length} categories`, 'success');
-      } else if (config.groupByColumn && config.metricColumn) {
-        // Regular query using handleRunQuery
-        logger.log('[VisualBuilder] Refreshing regular query:', config.groupByColumn, config.metricColumn);
-        // Mark this as not a product query anymore
-        setIsProductQuery(false);
-        
-        // Build filters from date range AND editable filters
-        const queryFilters = [
-          { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-          { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-          ...editableFilters.filter(f => f.value.trim()).map(f => ({
-            field: f.field,
-            operator: f.operator === 'contains' ? 'ilike' : f.operator,
-            value: f.operator === 'contains' ? `%${f.value}%` : f.value,
-          })),
-        ];
-
-        const { data, error } = await supabase.rpc('mcp_aggregate', {
-          p_table_name: 'shipment',
-          p_customer_id: targetScope === 'admin' ? 0 : (targetCustomerId || effectiveCustomerId || 0),
-          p_is_admin: targetScope === 'admin' && canSeeAdminColumns,
-          p_group_by: config.groupByColumn,
-          p_metric: config.metricColumn,
-          p_aggregation: config.aggregation,
-          p_filters: queryFilters,
-          p_limit: 20,
-        });
-
-        if (error) throw error;
-
-        const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        const rows: AggregateRow[] = parsed?.data || parsed || [];
-
-        const chartData = rows.map((row: AggregateRow) => ({
-          label: String(row.label || 'Unknown'),
-          value: Number(row.value || 0),
-        }));
-
-        setConfig(prev => ({ ...prev, data: chartData }));
-        showToast(`Updated: ${chartData.length} data points`, 'success');
-      } else {
-        showToast('Select both X and Y axis to refresh', 'info');
-      }
-    } catch (err) {
-      console.error('[VisualBuilder] Refresh error:', err);
-      setPreviewError(err instanceof Error ? err.message : 'Refresh failed');
-      showToast('Refresh failed', 'error');
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [hasResults, isProductQuery, editableFilters, config.groupByColumn, config.metricColumn, config.aggregation, canSeeAdminColumns, targetScope, targetCustomerId, effectiveCustomerId, dateRange, showToast, queryProductCategories]);
+  const { runManualQuery, refreshData, previewLoading, previewError } = useQueryExecution({
+    config,
+    setConfig,
+    targetScope,
+    targetCustomerId,
+    effectiveCustomerId,
+    canSeeAdminColumns,
+    dateRange,
+    editableFilters,
+    availableColumns,
+    setHasResults,
+    showToast,
+    isProductQuery,
+    setIsProductQuery,
+  });
 
   // Auto-refresh when filters are deleted
   useEffect(() => {
@@ -339,14 +245,12 @@ export function VisualBuilderV5Working() {
     const groupByChanged = prevGroupByRef.current !== config.groupByColumn && prevGroupByRef.current !== null;
     const metricChanged = prevMetricRef.current !== config.metricColumn && prevMetricRef.current !== null;
     const aggregationChanged = prevAggregationRef.current !== config.aggregation;
-    
-    // Update refs
+
     prevGroupByRef.current = config.groupByColumn;
     prevMetricRef.current = config.metricColumn;
     prevAggregationRef.current = config.aggregation;
-    
-    // If either axis changed and we have both columns set, refresh
-    if ((groupByChanged || metricChanged || aggregationChanged) && 
+
+    if ((groupByChanged || metricChanged || aggregationChanged) &&
         config.groupByColumn && config.metricColumn && hasResults) {
       logger.log('[VisualBuilder] Column/aggregation changed, triggering refresh');
       showToast('Updating preview...', 'info');
@@ -363,17 +267,17 @@ export function VisualBuilderV5Working() {
 
   const exportToCSV = useCallback(() => {
     if (!config.data) return;
-    
+
     const groupCol = availableColumns.find(c => c.id === config.groupByColumn);
     const metricCol = availableColumns.find(c => c.id === config.metricColumn);
-    
+
     const headers = [
       groupCol?.label || config.aiConfig?.xAxis || 'Category',
       `${config.aggregation.toUpperCase()} of ${metricCol?.label || config.aiConfig?.yAxis || 'Value'}`
     ];
     const rows = config.data.map(d => [d.label, d.value]);
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -382,101 +286,6 @@ export function VisualBuilderV5Working() {
     a.click();
     URL.revokeObjectURL(url);
   }, [config, availableColumns]);
-
-  // =============================================================================
-  // MANUAL MODE
-  // =============================================================================
-
-  const handleRunQuery = useCallback(async () => {
-    if (!config.groupByColumn || !config.metricColumn) {
-      setPreviewError('Select both Group By and Metric columns');
-      return;
-    }
-
-    // SECURITY: Verify selected columns are allowed
-    if (!canSeeAdminColumns) {
-      if (ADMIN_ONLY_COLUMNS.has(config.metricColumn) || ADMIN_ONLY_COLUMNS.has(config.groupByColumn)) {
-        setPreviewError('Access denied: You do not have permission to view this data');
-        return;
-      }
-    }
-
-    setPreviewLoading(true);
-    setPreviewError(null);
-
-    try {
-      const groupCol = availableColumns.find(c => c.id === config.groupByColumn);
-      const metricCol = availableColumns.find(c => c.id === config.metricColumn);
-
-      if (!groupCol || !metricCol) {
-        throw new Error('Invalid column selection');
-      }
-
-      // Determine which table to query based on columns
-      // If grouping by item_description, use shipment_item table
-      const isProductQuery = config.groupByColumn === 'item_description' || config.groupByColumn === 'description';
-      const tableName = isProductQuery ? 'shipment_item' : 'shipment';
-      const groupByField = isProductQuery ? 'description' : config.groupByColumn;
-
-      // Build filters from date range AND editable filters
-      const queryFilters = [
-        { field: 'pickup_date', operator: 'gte', value: dateRange.start },
-        { field: 'pickup_date', operator: 'lte', value: dateRange.end },
-        // Add editable filters
-        ...editableFilters.filter(f => f.value.trim()).map(f => ({
-          field: f.field === 'item_description' ? 'description' : f.field,
-          operator: f.operator === 'contains' ? 'ilike' : f.operator,
-          value: f.operator === 'contains' ? `%${f.value}%` : f.value,
-        })),
-      ];
-
-      logger.log('[VisualBuilder] Manual query - table:', tableName, 'groupBy:', groupByField, 'metric:', config.metricColumn);
-
-      const { data, error } = await supabase.rpc('mcp_aggregate', {
-        p_table_name: tableName,
-        p_customer_id: targetScope === 'admin' ? 0 : (targetCustomerId || effectiveCustomerId || 0),
-        p_is_admin: targetScope === 'admin' && canSeeAdminColumns,
-        p_group_by: groupByField,
-        p_metric: config.metricColumn,
-        p_aggregation: config.aggregation,
-        p_filters: queryFilters,
-        p_limit: 20,
-      });
-
-      if (error) throw error;
-
-      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-      const rows: AggregateRow[] = parsed?.data || parsed || [];
-
-      const chartData = rows.map((row: AggregateRow) => {
-        const labelKey = Object.keys(row).find(k => typeof row[k] === 'string') || config.groupByColumn;
-        const valueKey = Object.keys(row).find(k =>
-          k.includes(config.aggregation!) ||
-          k === 'value' ||
-          (typeof row[k] === 'number' && k !== labelKey)
-        );
-        return {
-          label: String(row[labelKey!] || 'Unknown'),
-          value: Number(row[valueKey!] || row.value || 0),
-        };
-      });
-
-      setConfig(prev => ({ ...prev, data: chartData }));
-    } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Query failed');
-    } finally {
-      setPreviewLoading(false);
-    }
-  }, [config.groupByColumn, config.metricColumn, config.aggregation, targetScope, targetCustomerId, effectiveCustomerId, dateRange, canSeeAdminColumns, availableColumns, editableFilters]);
-
-  // =============================================================================
-  // UNIFIED REFRESH - Uses current config, doesn't re-run AI
-  // =============================================================================
-
-  const handleRefreshData = useCallback(() => {
-    // Use the unified refresh function that handles both product queries and regular queries
-    refreshData();
-  }, [refreshData]);
 
   // =============================================================================
   // RENDER
@@ -592,7 +401,7 @@ export function VisualBuilderV5Working() {
                 config={config}
                 setConfig={setConfig}
                 columns={availableColumns}
-                onRunQuery={handleRunQuery}
+                onRunQuery={runManualQuery}
                 previewLoading={previewLoading}
                 canSeeAdminColumns={canSeeAdminColumns}
                 barOrientation={barOrientation}
@@ -620,7 +429,7 @@ export function VisualBuilderV5Working() {
               setShowDateDropdown={setShowDateDropdown}
               loading={previewLoading || aiLoading}
               error={previewError || aiError}
-              onRefresh={handleRefreshData}
+              onRefresh={refreshData}
               barOrientation={barOrientation}
             />
           </div>

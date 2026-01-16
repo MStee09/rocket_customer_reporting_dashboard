@@ -11,7 +11,6 @@ export { useDashboardLayout } from './useDashboardLayout';
 export { usePulseWidgetLayout } from './usePulseWidgetLayout';
 export { useDashboardWidgets } from './useDashboardWidgets';
 export { useDashboardData } from './useDashboardData';
-export { useWidgetData } from './useWidgetData';
 export { useWidgetsByTab } from './useWidgetsByTab';
 export { useCustomerMetrics } from './useCustomerMetrics';
 export { useCustomerReports } from './useCustomerReports';

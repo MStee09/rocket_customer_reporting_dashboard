@@ -79,8 +79,6 @@ export {
   buildWidgetDefinition,
 } from './types/BuilderSchemaV3';
 
-export { BuilderProviderV3, useBuilderV3 } from './components/BuilderContextV3';
-
 export type {
   ReasoningStep,
   AIWidgetSuggestion,

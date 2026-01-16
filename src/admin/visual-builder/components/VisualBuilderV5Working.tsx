@@ -97,6 +97,7 @@ import {
   queryProductCategories,
   queryMultiDimension,
 } from '../utils/visualBuilderQueries';
+import { useVisualBuilderState } from '../hooks/useVisualBuilderState';
 
 interface AggregateRow {
   label?: string;
@@ -130,105 +131,76 @@ export function VisualBuilderV5Working() {
   const navigate = useNavigate();
   const { user, isAdmin, isViewingAsCustomer, effectiveCustomerId, customers } = useAuth();
 
-  // SECURITY: Base admin check - is user an admin not viewing as customer?
-  const isUserAdmin = isAdmin() && !isViewingAsCustomer;
-
-  // Target scope - who are we building this widget FOR?
-  const [targetScope, setTargetScope] = useState<'admin' | 'customer'>(
-    isUserAdmin ? 'admin' : 'customer'
-  );
-  // Initialize targetCustomerId from effectiveCustomerId so dropdown matches
-  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(effectiveCustomerId);
-
-  // Log what customer is being used
-  logger.log('[VisualBuilder] Customer IDs - target:', targetCustomerId, 'effective:', effectiveCustomerId);
-
-  // Sync targetCustomerId when effectiveCustomerId changes (e.g., user switches customer in header)
-  useEffect(() => {
-    if (effectiveCustomerId && !targetCustomerId) {
-      logger.log('[VisualBuilder] Syncing targetCustomerId from effectiveCustomerId:', effectiveCustomerId);
-      setTargetCustomerId(effectiveCustomerId);
-    }
-  }, [effectiveCustomerId, targetCustomerId]);
-
-  // SECURITY: Can see admin columns ONLY if user is admin AND building for admin scope
-  // Even if you're an admin, building for a customer means NO admin columns
-  const canSeeAdminColumns = isUserAdmin && targetScope === 'admin';
-
-  // Get filtered columns based on TARGET scope, not user permissions
-  const availableColumns = useMemo(() => {
-    if (canSeeAdminColumns) {
-      return ALL_COLUMNS;
-    }
-    // Filter out admin-only columns when building for customers
-    return ALL_COLUMNS.filter(col => !col.adminOnly);
-  }, [canSeeAdminColumns]);
-
-  // Mode
-  const [mode, setMode] = useState<BuilderMode>('ai');
-
-  // AI State
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiReasoning, setAiReasoning] = useState<Array<{ type: string; content: string; toolName?: string }>>([]);
-
-  // Widget Config
-  const [config, setConfig] = useState<WidgetConfig>({
-    name: '',
-    description: '',
-    chartType: 'bar',
-    groupByColumn: null,
-    metricColumn: null,
-    aggregation: 'sum',
-    filters: [],
-    data: null,
-    aiConfig: undefined,
+  const {
+    isUserAdmin,
+    canSeeAdminColumns,
+    availableColumns,
+    targetScope,
+    setTargetScope,
+    targetCustomerId,
+    setTargetCustomerId,
+    mode,
+    setMode,
+    aiPrompt,
+    setAiPrompt,
+    aiLoading,
+    setAiLoading,
+    aiError,
+    setAiError,
+    aiReasoning,
+    setAiReasoning,
+    config,
+    setConfig,
+    previewLoading,
+    setPreviewLoading,
+    previewError,
+    setPreviewError,
+    isPublishing,
+    setIsPublishing,
+    publishResult,
+    setPublishResult,
+    datePreset,
+    setDatePreset,
+    showDateDropdown,
+    setShowDateDropdown,
+    dateRange,
+    setDateRange,
+    visibility,
+    setVisibility,
+    showPublishModal,
+    setShowPublishModal,
+    publishDestination,
+    setPublishDestination,
+    pulseSection,
+    setPulseSection,
+    analyticsSection,
+    setAnalyticsSection,
+    editableFilters,
+    setEditableFilters,
+    showRawData,
+    setShowRawData,
+    hasResults,
+    setHasResults,
+    barOrientation,
+    setBarOrientation,
+    toast,
+    needsRefresh,
+    setNeedsRefresh,
+    isProductQuery,
+    setIsProductQuery,
+    showToast,
+    updateDateRange,
+    addFilter,
+    updateFilter,
+    removeFilter,
+    syncFiltersFromAI,
+  } = useVisualBuilderState({
+    user,
+    isAdmin,
+    isViewingAsCustomer,
+    effectiveCustomerId,
+    customers,
   });
-
-  // Preview state
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-
-  // Publish state
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishResult, setPublishResult] = useState<{ success: boolean; message: string } | null>(null);
-
-  // Date range - now with presets
-  const [datePreset, setDatePreset] = useState<DateRangePreset>('last30');
-  const [showDateDropdown, setShowDateDropdown] = useState(false);
-  const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
-  });
-
-  // Visibility
-  const [visibility, setVisibility] = useState<'admin_only' | 'all_customers' | 'private'>('admin_only');
-
-  // Publish destination
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [publishDestination, setPublishDestination] = useState<PublishDestination>('pulse');
-  const [pulseSection, setPulseSection] = useState<PulseSection>('custom');
-  const [analyticsSection, setAnalyticsSection] = useState<AnalyticsSection>('custom');
-
-  // Editable filters
-  const [editableFilters, setEditableFilters] = useState<EditableFilter[]>([]);
-  const [showRawData, setShowRawData] = useState(false);
-
-  // Track if we have results (either from AI or manual) - refresh should re-query, not re-run AI
-  const [hasResults, setHasResults] = useState(false);
-
-  // Bar chart orientation
-  const [barOrientation, setBarOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
-
-  // Toast notification for feedback
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
-
-  // Show toast helper
-  const showToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   // =============================================================================
   // AI MODE - IMPROVED PROMPT
@@ -452,84 +424,11 @@ export function VisualBuilderV5Working() {
     } finally {
       setAiLoading(false);
     }
-  }, [aiPrompt, aiLoading, targetScope, targetCustomerId, effectiveCustomerId, user?.id, canSeeAdminColumns, availableColumns]);
+  }, [aiPrompt, aiLoading, targetScope, targetCustomerId, effectiveCustomerId, user?.id, canSeeAdminColumns, availableColumns, syncFiltersFromAI]);
 
   // =============================================================================
-  // DATE RANGE HELPERS
+  // REFRESH DATA
   // =============================================================================
-
-  const updateDateRange = useCallback((preset: DateRangePreset) => {
-    setDatePreset(preset);
-    const now = new Date();
-    const end = now.toISOString().split('T')[0];
-    let start: string;
-
-    switch (preset) {
-      case 'last7':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        break;
-      case 'last30':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        break;
-      case 'last90':
-        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        break;
-      case 'thisMonth':
-        start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        break;
-      case 'lastMonth':
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        start = lastMonth.toISOString().split('T')[0];
-        break;
-      default:
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    }
-
-    setDateRange({ start, end });
-  }, []);
-
-  // =============================================================================
-  // EDITABLE FILTERS
-  // =============================================================================
-
-  const addFilter = useCallback(() => {
-    const newFilter: EditableFilter = {
-      id: `filter_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      field: 'item_description',
-      operator: 'contains',
-      value: '',
-    };
-    setEditableFilters(prev => [...prev, newFilter]);
-  }, []);
-
-  const updateFilter = useCallback((id: string, updates: Partial<EditableFilter>) => {
-    setEditableFilters(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
-  }, []);
-
-  const removeFilter = useCallback((id: string) => {
-    const filterToRemove = editableFilters.find(f => f.id === id);
-    setEditableFilters(prev => prev.filter(f => f.id !== id));
-    showToast(`Filter "${filterToRemove?.value || 'item'}" removed`, 'info');
-    // Set a flag to trigger refresh after state updates
-    setNeedsRefresh(true);
-  }, [editableFilters, showToast]);
-
-  // State to trigger auto-refresh when filters change
-  const [needsRefresh, setNeedsRefresh] = useState(false);
-
-  // Sync AI search terms to editable filters when AI returns results
-  const syncFiltersFromAI = useCallback((searchTerms: string[]) => {
-    const newFilters: EditableFilter[] = searchTerms.map((term, i) => ({
-      id: `ai_filter_${Date.now()}_${i}`,
-      field: 'item_description',
-      operator: 'contains' as const,
-      value: term,
-    }));
-    setEditableFilters(newFilters);
-  }, []);
-
-  // Track if current results are from a product query (need special refresh handling)
-  const [isProductQuery, setIsProductQuery] = useState(false);
 
   // Unified refresh function that works for both product queries and regular queries
   const refreshData = useCallback(async () => {

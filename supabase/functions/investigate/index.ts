@@ -379,12 +379,10 @@ async function executeMCPTool(
         p_customer_id: customerIdInt,
         p_is_admin: isAdmin,
         p_joins: toolInput.joins || [],
-        p_select: (toolInput.select as string[]) || ['*'],
         p_filters: toolInput.filters || [],
-        p_group_by: (toolInput.group_by as string[]) || null,
-        p_aggregations: toolInput.aggregations || null,
-        p_order_by: (toolInput.order_by as string) || null,
-        p_limit: (toolInput.limit as number) || 100
+        p_group_by: toolInput.group_by || [],
+        p_select_fields: (toolInput.select as string[]) || [],
+        p_aggregations: toolInput.aggregations || []
       });
       if (error) return { success: false, error: error.message };
 

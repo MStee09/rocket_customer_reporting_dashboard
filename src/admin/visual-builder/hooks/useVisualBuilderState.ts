@@ -44,16 +44,21 @@ export function useVisualBuilderState({
   const [targetScope, setTargetScope] = useState<'admin' | 'customer'>(
     isUserAdmin ? 'admin' : 'customer'
   );
-  const [targetCustomerId, setTargetCustomerId] = useState<number | null>(effectiveCustomerId);
+  const [targetCustomerId, setTargetCustomerIdInternal] = useState<number | null>(() => effectiveCustomerId);
+  const [hasExplicitSelection, setHasExplicitSelection] = useState(false);
 
-  logger.log('[VisualBuilder] Customer IDs - target:', targetCustomerId, 'effective:', effectiveCustomerId);
+  const setTargetCustomerId = useCallback((id: number | null) => {
+    logger.log('[VisualBuilder] Explicit customer selection:', id);
+    setHasExplicitSelection(true);
+    setTargetCustomerIdInternal(id);
+  }, []);
 
   useEffect(() => {
-    if (effectiveCustomerId && !targetCustomerId) {
-      logger.log('[VisualBuilder] Syncing targetCustomerId from effectiveCustomerId:', effectiveCustomerId);
-      setTargetCustomerId(effectiveCustomerId);
+    if (!hasExplicitSelection && effectiveCustomerId && !targetCustomerId) {
+      logger.log('[VisualBuilder] Initial sync from effectiveCustomerId:', effectiveCustomerId);
+      setTargetCustomerIdInternal(effectiveCustomerId);
     }
-  }, [effectiveCustomerId, targetCustomerId]);
+  }, [effectiveCustomerId, targetCustomerId, hasExplicitSelection]);
 
   const canSeeAdminColumns = isUserAdmin && targetScope === 'admin';
 

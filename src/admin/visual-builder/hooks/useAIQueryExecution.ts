@@ -68,6 +68,23 @@ export function useAIQueryExecution({
   const executeAIQuery = useCallback(async () => {
     if (!aiPrompt.trim() || aiLoading) return;
 
+    const resolvedCustomerId =
+      typeof targetCustomerId === 'number'
+        ? targetCustomerId
+        : effectiveCustomerId;
+
+    logger.log('[VisualBuilder] Customer ID resolution:', {
+      targetCustomerId,
+      effectiveCustomerId,
+      resolvedCustomerId,
+      targetScope
+    });
+
+    if (!resolvedCustomerId || resolvedCustomerId === 0) {
+      setAiError('Please select a customer before running AI queries. No customer is currently selected.');
+      return;
+    }
+
     setAiLoading(true);
     setAiError(null);
     setAiReasoning([]);
@@ -87,12 +104,11 @@ export function useAIQueryExecution({
         ]);
 
         try {
-          const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
           const productTerms = extractProductTerms(aiPrompt);
 
           const { raw, grouped, secondaryGroups } = await queryMultiDimension(
             multiDimConfig,
-            queryCustomerId,
+            resolvedCustomerId,
             dateRange,
             productTerms.length > 0 ? productTerms : undefined
           );
@@ -145,14 +161,13 @@ export function useAIQueryExecution({
           { type: 'thinking', content: 'Using direct database queries for accurate category comparison' }
         ]);
 
-        const queryCustomerId = targetScope === 'admin' ? null : (targetCustomerId || effectiveCustomerId);
-        logger.log('[VisualBuilder] Product query using customer ID:', queryCustomerId, '(target:', targetCustomerId, 'effective:', effectiveCustomerId, 'scope:', targetScope, ')');
+        logger.log('[VisualBuilder] Product query using resolvedCustomerId:', resolvedCustomerId);
 
         const results = await queryProductCategories(
           productTerms,
           canSeeAdminColumns ? 'cost' : 'retail',
           'avg',
-          queryCustomerId,
+          resolvedCustomerId,
           dateRange
         );
 
@@ -196,17 +211,9 @@ export function useAIQueryExecution({
 
       const improvedPrompt = buildAIPrompt(aiPrompt, canSeeAdminColumns);
 
-      const actualCustomerId = targetCustomerId || effectiveCustomerId;
-
-      if (!actualCustomerId || actualCustomerId === 0) {
-        setAiError('Please select a customer before running AI queries. No customer is currently selected.');
-        setAiLoading(false);
-        return;
-      }
-
       const requestBody = {
         question: improvedPrompt,
-        customerId: String(actualCustomerId),
+        customerId: String(resolvedCustomerId),
         userId: userId,
         conversationHistory: [],
         preferences: { showReasoning: true, forceMode: 'visual' },
@@ -217,9 +224,7 @@ export function useAIQueryExecution({
         improvedPrompt,
         customerId: requestBody.customerId,
         userId: requestBody.userId,
-        targetCustomerId,
-        effectiveCustomerId,
-        actualCustomerId,
+        resolvedCustomerId,
         preferences: requestBody.preferences
       });
 

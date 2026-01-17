@@ -678,25 +678,31 @@ Deno.serve(async (req: Request) => {
       for (const toolUse of toolUseBlocks) {
         if (toolUse.type !== "tool_use") continue;
 
+        const toolName = toolUse.name;
+        if (!toolName) {
+          console.error('[Investigate] Tool use block missing name:', toolUse);
+          continue;
+        }
+
         toolCallCount++;
-        console.log(`[Investigate] Tool: ${toolUse.name}`, JSON.stringify(toolUse.input).slice(0, 200));
+        console.log(`[Investigate] Tool: ${toolName}`, JSON.stringify(toolUse.input).slice(0, 200));
 
         reasoningSteps.push({
           type: 'tool_call',
-          content: `Calling ${toolUse.name}`,
-          toolName: toolUse.name
+          content: `Calling ${toolName}`,
+          toolName: toolName
         });
 
         const result = await executeMCPTool(
           supabase,
           customerId,
           isAdmin,
-          toolUse.name,
+          toolName,
           toolUse.input as Record<string, unknown>
         );
 
         console.log('[Investigate] Tool execution result:', {
-          toolName: toolUse.name,
+          toolName,
           success: result?.success,
           hasData: !!result?.data,
           rowCount: result?.row_count || result?.data?.length || 0,
@@ -704,14 +710,14 @@ Deno.serve(async (req: Request) => {
           resultKeys: result ? Object.keys(result) : []
         });
 
-        const viz = generateVisualization(toolUse.name, toolUse.input as Record<string, unknown>, result);
+        const viz = generateVisualization(toolName, toolUse.input as Record<string, unknown>, result);
         if (viz) visualizations.push(viz);
 
         const resultSummary = JSON.stringify(result).slice(0, 500);
         reasoningSteps.push({
           type: 'tool_result',
           content: resultSummary,
-          toolName: toolUse.name
+          toolName
         });
 
         toolResults.push({

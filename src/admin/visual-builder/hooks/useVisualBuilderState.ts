@@ -54,11 +54,16 @@ export function useVisualBuilderState({
   }, []);
 
   useEffect(() => {
-    if (!hasExplicitSelection && effectiveCustomerId && !targetCustomerId) {
-      logger.log('[VisualBuilder] Initial sync from effectiveCustomerId:', effectiveCustomerId);
-      setTargetCustomerIdInternal(effectiveCustomerId);
+    if (!hasExplicitSelection && effectiveCustomerId) {
+      if (!targetCustomerId || targetCustomerId !== effectiveCustomerId) {
+        logger.log('[VisualBuilder] Syncing from effectiveCustomerId:', {
+          from: targetCustomerId,
+          to: effectiveCustomerId
+        });
+        setTargetCustomerIdInternal(effectiveCustomerId);
+      }
     }
-  }, [effectiveCustomerId, targetCustomerId, hasExplicitSelection]);
+  }, [effectiveCustomerId, hasExplicitSelection]);
 
   const canSeeAdminColumns = isUserAdmin && targetScope === 'admin';
 

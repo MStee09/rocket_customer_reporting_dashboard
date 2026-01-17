@@ -85,6 +85,11 @@ export function useAIQueryExecution({
       return;
     }
 
+    if (!userId) {
+      setAiError('User session not found. Please refresh the page and try again.');
+      return;
+    }
+
     setAiLoading(true);
     setAiError(null);
     setAiReasoning([]);
@@ -238,7 +243,9 @@ export function useAIQueryExecution({
       });
 
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        const errorBody = await response.json().catch(() => ({}));
+        const errorMessage = errorBody.error || `Request failed: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

@@ -196,9 +196,17 @@ export function useAIQueryExecution({
 
       const improvedPrompt = buildAIPrompt(aiPrompt, canSeeAdminColumns);
 
+      const actualCustomerId = targetCustomerId || effectiveCustomerId;
+
+      if (!actualCustomerId || actualCustomerId === 0) {
+        setAiError('Please select a customer before running AI queries. No customer is currently selected.');
+        setAiLoading(false);
+        return;
+      }
+
       const requestBody = {
         question: improvedPrompt,
-        customerId: targetScope === 'admin' ? '0' : String(targetCustomerId || effectiveCustomerId),
+        customerId: String(actualCustomerId),
         userId: userId,
         conversationHistory: [],
         preferences: { showReasoning: true, forceMode: 'visual' },
@@ -209,9 +217,9 @@ export function useAIQueryExecution({
         improvedPrompt,
         customerId: requestBody.customerId,
         userId: requestBody.userId,
-        targetScope,
         targetCustomerId,
         effectiveCustomerId,
+        actualCustomerId,
         preferences: requestBody.preferences
       });
 

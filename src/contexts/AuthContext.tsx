@@ -137,11 +137,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedId = storedCustomerId ? parseInt(storedCustomerId, 10) : null;
 
         if (loadedCustomers.length > 0) {
-          const isStoredValid = storedId && loadedCustomers.some(c => c.customer_id === storedId);
-          const newSelectedId = isStoredValid ? storedId : loadedCustomers[0].customer_id;
-          logger.log('[AuthContext] Setting selected customer:', newSelectedId);
-          setSelectedCustomerIdState(newSelectedId);
-          localStorage.setItem(SELECTED_CUSTOMER_KEY, newSelectedId.toString());
+          setSelectedCustomerIdState(prev => {
+            const isStoredValid = storedId && loadedCustomers.some(c => c.customer_id === storedId);
+            const isPrevValid = prev && loadedCustomers.some(c => c.customer_id === prev);
+
+            if (isPrevValid) {
+              logger.log('[AuthContext] Keeping existing selected customer:', prev);
+              return prev;
+            }
+
+            if (isStoredValid) {
+              logger.log('[AuthContext] Restoring stored customer:', storedId);
+              localStorage.setItem(SELECTED_CUSTOMER_KEY, storedId!.toString());
+              return storedId;
+            }
+
+            const defaultId = loadedCustomers[0].customer_id;
+            logger.log('[AuthContext] Setting default customer:', defaultId);
+            localStorage.setItem(SELECTED_CUSTOMER_KEY, defaultId.toString());
+            return defaultId;
+          });
         } else {
           logger.log('[AuthContext] No customers found, clearing selection');
           setSelectedCustomerIdState(null);

@@ -23,9 +23,9 @@ import {
 import { supabase } from '../../lib/supabase';
 
 interface AdminUnifiedInsightsCardProps {
-  dateRange: {
-    start: Date;
-    end: Date;
+  dateRange?: {
+    start?: Date;
+    end?: Date;
   };
   onCustomerClick?: (customerId: number) => void;
   className?: string;
@@ -212,6 +212,11 @@ export function AdminUnifiedInsightsCard({
   const endDate = formatDateSafe(dateRange?.end);
 
   const fetchData = useCallback(async () => {
+    if (!startDate || !endDate) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 

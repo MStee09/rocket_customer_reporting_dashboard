@@ -110,7 +110,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-6 border-b border-charcoal-700">
           <div className="flex items-center justify-between">
             <img
-              src="/logo-with_words copy.png"
+              src="/logo-with_words.png"
               alt="Rocket Shipping"
               className="h-10 w-auto"
             />

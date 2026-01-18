@@ -992,12 +992,17 @@ function findLabelKey(row: Record<string, unknown>, keys: string[], excludeKey: 
 
   for (const pk of priorityKeys) {
     const found = keys.find(k => k.toLowerCase() === pk || k.toLowerCase().includes(pk));
-    if (found && found !== excludeKey && typeof row[found] === 'string') {
+    // FIX: Check if key exists (even if null in this row) - null values are common in first rows
+    // The key name matching priority list is enough to identify label fields
+    if (found && found !== excludeKey) {
       return found;
     }
   }
 
-  return keys.find(k => typeof row[k] === 'string' && k !== excludeKey) || keys[0];
+  // Fallback: find any string field, but also accept fields that could be strings (might be null)
+  return keys.find(k => typeof row[k] === 'string' && k !== excludeKey) || 
+         keys.find(k => k !== excludeKey && !['total_spend', 'total_cost', 'shipment_count', 'count', 'sum', 'avg'].includes(k.toLowerCase())) ||
+         keys[0];
 }
 
 // ============================================================================
@@ -1123,11 +1128,16 @@ function generateVisualization(
     const isCurrency = isCurrencyMetric(metric, valueKey);
     const title = buildVisualizationTitle(aggregation, metric || valueKey, groupByField || labelKey, false);
 
-    const chartData = rows.slice(0, 15).map(row => ({
-      label: String(row[labelKey!] || 'Unknown'),
-      value: Number(row[valueKey]) || 0
-    }));
+    // Filter out rows with null/empty labels and create chart data
+    const chartData = rows
+      .filter(row => row[labelKey!] != null && String(row[labelKey!]).trim() !== '')
+      .slice(0, 15)
+      .map(row => ({
+        label: String(row[labelKey!]),
+        value: Number(row[valueKey]) || 0
+      }));
 
+    // Sort by value descending
     chartData.sort((a, b) => b.value - a.value);
 
     console.log('[Viz] Creating BAR chart:', {

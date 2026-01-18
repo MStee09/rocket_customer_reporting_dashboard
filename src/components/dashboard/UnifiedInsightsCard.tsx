@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Info,
   ChevronDown,
+  Check,
+  X,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,7 +59,7 @@ interface InsightsResponse {
 
 interface Alert {
   id: string;
-  type: 'volume_spike' | 'volume_drop' | 'spend_spike' | 'spend_drop' | 'carrier_concentration' | 'carrier_cost_up' | 'carrier_cost_down';
+  type: 'volume_spike' | 'volume_drop' | 'spend_spike' | 'spend_drop' | 'carrier_concentration' | 'carrier_cost_up' | 'carrier_cost_down' | 'concentration_risk' | 'new_lane';
   severity: 'info' | 'warning' | 'critical' | 'success';
   title: string;
   description: string;
@@ -65,6 +67,9 @@ interface Alert {
   change?: number;
   methodology?: string;
   investigateQuery: string;
+  // For database anomalies
+  isFromDatabase?: boolean;
+  databaseId?: string;
 }
 
 interface CarrierCostChange {
@@ -75,10 +80,58 @@ interface CarrierCostChange {
   current_volume: number;
 }
 
+interface DetectedAnomaly {
+  id: string;
+  anomaly_type: string;
+  severity: string;
+  title: string;
+  description: string;
+  change_percent: number | null;
+  suggested_actions: Array<{ action: string; priority: string }> | null;
+  status: string;
+}
+
 function formatCurrency(value: number): string {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
   return `$${value.toFixed(0)}`;
+}
+
+// Map database anomaly types to investigate queries (customer-friendly)
+function getInvestigateQuery(anomalyType: string): string {
+  const queries: Record<string, string> = {
+    'spend_spike': 'What is driving my recent spending increase?',
+    'spend_drop': 'Why has my shipping spend decreased recently?',
+    'volume_spike': 'What is causing my shipment volume to increase?',
+    'volume_drop': 'Why has my shipment volume decreased?',
+    'concentration_risk': 'Show me my carrier diversity and suggest alternatives',
+    'new_lane': 'Tell me about my new shipping lanes and their rates',
+  };
+  return queries[anomalyType] || 'Analyze my recent shipping patterns';
+}
+
+async function fetchDatabaseAnomalies(customerId: number): Promise<Alert[]> {
+  const { data, error } = await supabase
+    .from('detected_anomalies')
+    .select('*')
+    .eq('customer_id', customerId)
+    .eq('status', 'new')
+    .order('detection_date', { ascending: false })
+    .limit(10);
+
+  if (error || !data) return [];
+
+  return data.map((anomaly: DetectedAnomaly) => ({
+    id: `db_${anomaly.id}`,
+    type: anomaly.anomaly_type as Alert['type'],
+    severity: anomaly.severity as Alert['severity'],
+    title: anomaly.title,
+    description: anomaly.description,
+    change: anomaly.change_percent || undefined,
+    investigateQuery: getInvestigateQuery(anomaly.anomaly_type),
+    isFromDatabase: true,
+    databaseId: anomaly.id,
+  }));
 }
 
 async function detectAlerts(
@@ -192,171 +245,265 @@ async function detectAlerts(
         });
       }
     }
-
-    const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2, success: 3 };
-    alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-
-    return alerts;
-  } catch (error) {
-    console.error('Error detecting alerts:', error);
-    return [];
+  } catch (err) {
+    console.error('Error detecting alerts:', err);
   }
+
+  return alerts;
 }
 
-function AlertIcon({ type, severity }: { type: Alert['type']; severity: Alert['severity'] }) {
-  const colorClass = {
-    critical: 'text-red-400',
-    warning: 'text-amber-400',
-    info: 'text-blue-400',
-    success: 'text-emerald-400'
-  }[severity];
+const MAX_VISIBLE_ALERTS = 3;
 
-  switch (type) {
-    case 'volume_spike':
-    case 'spend_spike':
-    case 'carrier_cost_up':
-      return <TrendingUp className={`w-4 h-4 ${colorClass}`} />;
-    case 'volume_drop':
-    case 'spend_drop':
-    case 'carrier_cost_down':
-      return <TrendingDown className={`w-4 h-4 ${colorClass}`} />;
-    case 'carrier_concentration':
-      return <Truck className={`w-4 h-4 ${colorClass}`} />;
-    default:
-      return <AlertTriangle className={`w-4 h-4 ${colorClass}`} />;
-  }
+function TrendIcon({ value }: { value: number }) {
+  if (value > 0) return <TrendingUp className="w-3 h-3" />;
+  if (value < 0) return <TrendingDown className="w-3 h-3" />;
+  return <Minus className="w-3 h-3" />;
 }
 
-function AlertBadge({ alert, onInvestigate }: { alert: Alert; onInvestigate: (query: string) => void }) {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const severityBg = {
-    critical: 'bg-red-500/20 border-red-500/30 text-red-100',
-    warning: 'bg-amber-500/20 border-amber-500/30 text-amber-100',
-    info: 'bg-blue-500/20 border-blue-500/30 text-blue-100',
-    success: 'bg-emerald-500/20 border-emerald-500/30 text-emerald-100'
+function getTrendColor(value: number, inverse = false): string {
+  if (value === 0) return 'text-slate-400';
+  const isPositive = inverse ? value < 0 : value > 0;
+  return isPositive ? 'text-emerald-400' : 'text-rose-400';
+}
+
+function AlertBadge({ 
+  alert, 
+  onInvestigate,
+  onAcknowledge,
+  onDismiss,
+}: { 
+  alert: Alert; 
+  onInvestigate: (query: string) => void;
+  onAcknowledge?: (id: string) => void;
+  onDismiss?: (id: string) => void;
+}) {
+  const [showMethodology, setShowMethodology] = useState(false);
+  
+  const bgColor = {
+    critical: 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15',
+    warning: 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15',
+    info: 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15',
+    success: 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15',
   }[alert.severity];
 
+  const iconColor = {
+    critical: 'text-rose-400',
+    warning: 'text-amber-400',
+    info: 'text-blue-400',
+    success: 'text-emerald-400',
+  }[alert.severity];
+
+  const changeColor = alert.change
+    ? (alert.change > 0 ? 'text-rose-400' : 'text-emerald-400')
+    : '';
+
   return (
-    <div className="relative">
-      <button
-        onClick={() => onInvestigate(alert.investigateQuery)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${severityBg} hover:opacity-80 transition-opacity text-left w-full`}
-      >
-        <AlertIcon type={alert.type} severity={alert.severity} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-medium truncate">{alert.title}</p>
-            {alert.methodology && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowTooltip(!showTooltip);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.stopPropagation();
-                    setShowTooltip(!showTooltip);
-                  }
-                }}
-                className="opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
-                title="How was this calculated?"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </span>
+    <div className={`rounded-lg border ${bgColor} p-3 transition-colors`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 min-w-0 flex-1">
+          <TrendingUp className={`w-4 h-4 ${iconColor} flex-shrink-0 mt-0.5`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-white text-sm">{alert.title}</span>
+              {alert.methodology && (
+                <button 
+                  onClick={() => setShowMethodology(!showMethodology)}
+                  className="text-slate-500 hover:text-slate-300"
+                  title="How was this calculated?"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {alert.change !== undefined && (
+                <span className={`text-xs font-medium flex items-center gap-0.5 ${changeColor}`}>
+                  {alert.change > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {alert.change > 0 ? '+' : ''}{alert.change.toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">{alert.description}</p>
+            {showMethodology && alert.methodology && (
+              <p className="text-xs text-slate-500 mt-2 italic border-t border-slate-700/50 pt-2">
+                {alert.methodology}
+              </p>
             )}
           </div>
-          <p className="text-xs opacity-80 truncate">{alert.description}</p>
         </div>
-        <ArrowRight className="w-4 h-4 opacity-60 flex-shrink-0" />
-      </button>
-      {showTooltip && alert.methodology && (
-        <div className="absolute z-10 top-full left-0 right-0 mt-1 p-2 bg-slate-800 border border-slate-600 rounded-lg text-xs text-slate-300 shadow-lg">
-          <p className="font-medium text-slate-200 mb-1">How this was calculated:</p>
-          <p>{alert.methodology}</p>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => onInvestigate(alert.investigateQuery)}
+            className="text-xs text-amber-400 hover:text-amber-300 font-medium whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded hover:bg-amber-500/10 transition-colors"
+          >
+            Investigate
+            <ArrowRight className="w-3 h-3" />
+          </button>
+          {alert.isFromDatabase && onAcknowledge && onDismiss && (
+            <>
+              <button
+                onClick={() => onAcknowledge(alert.databaseId!)}
+                className="p-1 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
+                title="Acknowledge"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDismiss(alert.databaseId!)}
+                className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-function TrendIcon({ value }: { value: number }) {
-  if (value > 0) return <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />;
-  if (value < 0) return <TrendingDown className="w-3.5 h-3.5 text-red-400" />;
-  return <Minus className="w-3.5 h-3.5 text-slate-500" />;
-}
-
-function getTrendColor(value: number, inverse = false) {
-  if (value === 0) return 'text-slate-400';
-  const isPositive = inverse ? value < 0 : value > 0;
-  return isPositive ? 'text-emerald-400' : 'text-red-400';
-}
-
 export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className = '' }: UnifiedInsightsCardProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
   const [insightsData, setInsightsData] = useState<InsightsResponse | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFetchKey, setLastFetchKey] = useState<string>('');
   const [alertsExpanded, setAlertsExpanded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const MAX_VISIBLE_ALERTS = 3;
+  const startDate = dateRange.start.toISOString().split('T')[0];
+  const endDate = dateRange.end.toISOString().split('T')[0];
 
-  const fetchKey = `${customerId}-${dateRange.start.toISOString()}-${dateRange.end.toISOString()}`;
-  const startDateStr = dateRange.start.toISOString().split('T')[0];
-  const endDateStr = dateRange.end.toISOString().split('T')[0];
-
-  const fetchData = useCallback(async (force = false) => {
-    if (!force && fetchKey === lastFetchKey && insightsData) {
-      return;
-    }
-
+  const fetchInsights = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const { data: customerData } = await supabase
-        .from('customer')
-        .select('company_name')
-        .eq('customer_id', customerId)
-        .single();
+      // Fetch period-based alerts
+      const detectedAlerts = await detectAlerts(customerId, startDate, endDate);
+      
+      // Fetch database anomalies (proactive detection)
+      const databaseAnomalies = await fetchDatabaseAnomalies(customerId);
+      
+      // Merge and deduplicate (prefer database anomalies as they're more specific)
+      const mergedAlerts = [...detectedAlerts];
+      for (const dbAnomaly of databaseAnomalies) {
+        // Don't add if we already have a similar type from period comparison
+        const hasOverlap = detectedAlerts.some(a => 
+          a.type === dbAnomaly.type || 
+          (a.type.includes('spend') && dbAnomaly.type.includes('spend')) ||
+          (a.type.includes('volume') && dbAnomaly.type.includes('volume'))
+        );
+        if (!hasOverlap) {
+          mergedAlerts.push(dbAnomaly);
+        }
+      }
+      
+      // Sort by severity (critical first, then warning, then info)
+      const severityOrder = { critical: 0, warning: 1, info: 2, success: 3 };
+      mergedAlerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+      
+      setAlerts(mergedAlerts);
 
-      const [insightsResult, alertsResult] = await Promise.all([
-        supabase.functions.invoke('generate-insights', {
-          body: {
-            customerId,
-            dateRange: { start: startDateStr, end: endDateStr },
-            userId: user?.id,
-            userEmail: user?.email,
-            customerName: customerData?.company_name,
+      // Fetch metrics for insights
+      const { data: metrics } = await supabase.rpc('get_pulse_executive_metrics', {
+        p_customer_id: String(customerId),
+        p_start_date: startDate,
+        p_end_date: endDate
+      });
+
+      if (metrics) {
+        const current: Metrics = {
+          totalSpend: metrics.current_spend || 0,
+          shipmentCount: metrics.current_volume || 0,
+          avgCostPerShipment: metrics.current_avg_cost || 0,
+          topMode: metrics.top_mode || 'N/A',
+          topModePercent: metrics.top_mode_percent || 0,
+          topDestinationState: metrics.top_destination || '',
+        };
+
+        const changes: Changes = {
+          spendChange: Math.round(metrics.spend_change_percent || 0),
+          volumeChange: Math.round(metrics.volume_change_percent || 0),
+          avgCostChange: Math.round(metrics.avg_cost_change_percent || 0),
+        };
+
+        // Generate insights text
+        let insightsText = '';
+        if (changes.volumeChange > 20) {
+          insightsText = `Freight operations experienced significant growth with volume up ${changes.volumeChange}%`;
+        } else if (changes.volumeChange < -20) {
+          insightsText = `Shipping volume declined ${Math.abs(changes.volumeChange)}% compared to prior period`;
+        } else {
+          insightsText = `Operations remained stable with ${current.shipmentCount.toLocaleString()} shipments`;
+        }
+
+        if (changes.avgCostChange < -5) {
+          insightsText += `, while achieving cost efficiency with a ${Math.abs(changes.avgCostChange)}% reduction in average cost per shipment to ${formatCurrency(current.avgCostPerShipment)}.`;
+        } else if (changes.avgCostChange > 10) {
+          insightsText += `. Average cost per shipment increased ${changes.avgCostChange}% to ${formatCurrency(current.avgCostPerShipment)}, warranting rate review.`;
+        } else {
+          insightsText += ` at an average of ${formatCurrency(current.avgCostPerShipment)} per shipment.`;
+        }
+
+        if (current.topMode && current.topModePercent > 80) {
+          insightsText += ` ${current.topMode} handles ${current.topModePercent}% of volume.`;
+        }
+
+        setInsightsData({
+          insights: insightsText,
+          metrics: {
+            current,
+            previous: current, // We don't have previous separately
+            changes,
           },
-        }),
-        detectAlerts(customerId, startDateStr, endDateStr),
-      ]);
-
-      if (insightsResult.error) throw insightsResult.error;
-      setInsightsData(insightsResult.data);
-      setAlerts(alertsResult);
-      setLastFetchKey(fetchKey);
+          generatedAt: new Date().toISOString(),
+        });
+      }
     } catch (err) {
-      console.error('Failed to fetch insights:', err);
-      setError('Unable to generate insights');
+      console.error('Error fetching insights:', err);
+      setError('Unable to load insights');
     } finally {
       setIsLoading(false);
     }
-  }, [customerId, startDateStr, endDateStr, fetchKey, lastFetchKey, insightsData, user]);
+  }, [customerId, startDate, endDate]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInsights();
+  }, [fetchInsights]);
 
-  const handleRefresh = () => fetchData(true);
+  const handleRefresh = () => {
+    fetchInsights();
+  };
 
   const handleInvestigate = (query: string) => {
     navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
+  };
+
+  const handleAcknowledge = async (anomalyId: string) => {
+    try {
+      await supabase
+        .from('detected_anomalies')
+        .update({ status: 'acknowledged', acknowledged_at: new Date().toISOString() })
+        .eq('id', anomalyId);
+      
+      // Remove from local state
+      setAlerts(prev => prev.filter(a => a.databaseId !== anomalyId));
+    } catch (err) {
+      console.error('Failed to acknowledge anomaly:', err);
+    }
+  };
+
+  const handleDismiss = async (anomalyId: string) => {
+    try {
+      await supabase
+        .from('detected_anomalies')
+        .update({ status: 'dismissed' })
+        .eq('id', anomalyId);
+      
+      // Remove from local state
+      setAlerts(prev => prev.filter(a => a.databaseId !== anomalyId));
+    } catch (err) {
+      console.error('Failed to dismiss anomaly:', err);
+    }
   };
 
   if (isLoading) {
@@ -516,7 +663,13 @@ export function UnifiedInsightsCard({ customerId, isAdmin, dateRange, className 
           </div>
           <div className="grid gap-2">
             {(alertsExpanded ? alerts : alerts.slice(0, MAX_VISIBLE_ALERTS)).map((alert) => (
-              <AlertBadge key={alert.id} alert={alert} onInvestigate={handleInvestigate} />
+              <AlertBadge 
+                key={alert.id} 
+                alert={alert} 
+                onInvestigate={handleInvestigate}
+                onAcknowledge={alert.isFromDatabase ? handleAcknowledge : undefined}
+                onDismiss={alert.isFromDatabase ? handleDismiss : undefined}
+              />
             ))}
           </div>
           {alerts.length > MAX_VISIBLE_ALERTS && !alertsExpanded && (

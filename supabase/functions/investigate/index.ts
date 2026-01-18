@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.9
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v3.0
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
@@ -8,16 +8,15 @@
 // v2.5: Fixed MCP function calls to use correct names (mcp_discover_tables)
 //       Added shipment_mode and equipment_type to known schema
 // v2.6: Fixed duplicate visualizations - skip ID fields when name fields exist
-//       Prevents "Equipment Type Id by Equipment Type Id" charts
 // v2.7: Skip visualizations for lookup tables (shipment_mode, equipment_type)
-//       They show ALL values, not customer-specific data
 // v2.8: mcp_aggregate now AUTO-RESOLVES IDs to names (mode_id → "LTL")
-//       Returns 'label' key with human-readable names automatically
-//       No manual joins needed for simple breakdowns
 // v2.9: Added KNOWLEDGE vs DATA question routing
-//       Knowledge questions (what is X, explain Y) answered from context without DB query
-//       Added mode_name filter example (use "Less Than Truckload" not "LTL")
-//       Fixed filter field qualification (shipment_mode.mode_name not just mode_name)
+//       Fixed filter field qualification (shipment_mode.mode_name)
+// v3.0: SMART KNOWLEDGE MATCHING
+//       - Only injects relevant knowledge items based on question
+//       - Core items (LTL, FTL, spend, etc.) always included (~10)
+//       - Matched items based on keyword/semantic matching (~15 max)
+//       - Reduces context from 91 items to ~20, faster responses
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -376,14 +375,17 @@ query_with_join({
 async function compileContext(
   supabase: SupabaseClient,
   customerId: string,
-  isAdmin: boolean
+  isAdmin: boolean,
+  question?: string
 ): Promise<{ systemPrompt: string; knowledgeIds: number[]; tokenEstimate: number }> {
   const customerIdInt = parseInt(customerId, 10);
 
   try {
+    // Pass question for smart knowledge matching
     const { data, error } = await supabase.rpc('get_ai_context', {
       p_customer_id: customerIdInt,
-      p_is_admin: isAdmin
+      p_is_admin: isAdmin,
+      p_question: question || null
     });
 
     if (error || !data) {
@@ -397,7 +399,7 @@ async function compileContext(
     const knowledgeIds: number[] = [];
 
     if (ctx.global_knowledge?.length > 0) {
-      let kSection = '## BUSINESS KNOWLEDGE\n';
+      let kSection = '## BUSINESS KNOWLEDGE (relevant to your question)\n';
       const terms = ctx.global_knowledge.filter(k => k.type === 'term');
       const products = ctx.global_knowledge.filter(k => k.type === 'product');
       const fields = ctx.global_knowledge.filter(k => k.type === 'field');
@@ -1371,7 +1373,8 @@ Deno.serve(async (req: Request) => {
     const routing = routeMode(question, preferences);
     console.log(`[Investigate] Mode: ${routing.mode}, Admin: ${isAdmin}`);
 
-    const compiledContext = await compileContext(supabase, customerId, isAdmin);
+    // Pass question for smart knowledge matching
+    const compiledContext = await compileContext(supabase, customerId, isAdmin, question);
     console.log(`[Investigate] Context: ${compiledContext.tokenEstimate} tokens, ${compiledContext.knowledgeIds.length} knowledge items`);
 
     if (routing.mode === 'compile') {
@@ -1428,7 +1431,7 @@ Deno.serve(async (req: Request) => {
 
       const response = await anthropic.messages.create({
         model: currentModel,
-        max_tokens: routing.mode === 'analyze' ? 4096 : routing.mode === 'report' ? 4096 : 3000,
+        max_tokens: routing.mode === 'analyze' ? 4096 : routing.mode === 'report' ? 4096 : 4096,
         system: compiledContext.systemPrompt,
         messages: currentMessages,
         tools: MCP_TOOLS,

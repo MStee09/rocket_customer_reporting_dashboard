@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v3.0
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v3.1
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
@@ -17,6 +17,11 @@
 //       - Core items (LTL, FTL, spend, etc.) always included (~10)
 //       - Matched items based on keyword/semantic matching (~15 max)
 //       - Reduces context from 91 items to ~20, faster responses
+// v3.1: ERROR LOGGING
+//       - All tool errors logged to ai_error_log table
+//       - Error classification (schema_error, query_error, etc.)
+//       - Suggested fixes generated automatically
+//       - Deduplication for repeated errors
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -753,14 +758,112 @@ const MCP_TOOLS: Anthropic.Tool[] = [
 
 // ============================================================================
 // TOOL EXECUTOR - v2.5 Fixed function names
+// v3.1: Added error logging for schema/query failures
 // ============================================================================
+
+// Error classification helper
+function classifyError(errorMessage: string, toolName: string): { type: string; subtype: string | null; suggestedFix: string | null } {
+  const msg = errorMessage.toLowerCase();
+  
+  // Schema errors
+  if (msg.includes('relation') && msg.includes('does not exist')) {
+    const tableMatch = errorMessage.match(/relation "([^"]+)"/);
+    return {
+      type: 'schema_error',
+      subtype: 'unknown_table',
+      suggestedFix: tableMatch ? `Table "${tableMatch[1]}" not found. Check table name or create missing table.` : null
+    };
+  }
+  
+  if (msg.includes('column') && msg.includes('does not exist')) {
+    const colMatch = errorMessage.match(/column "([^"]+)"/);
+    return {
+      type: 'schema_error',
+      subtype: 'unknown_field',
+      suggestedFix: colMatch ? `Column "${colMatch[1]}" not found. Check field name or add field definition.` : null
+    };
+  }
+  
+  if (msg.includes('join') || msg.includes('foreign key')) {
+    return {
+      type: 'schema_error',
+      subtype: 'missing_join',
+      suggestedFix: 'Join path may be missing. Check mcp_join_paths table.'
+    };
+  }
+  
+  // Query errors
+  if (msg.includes('syntax error') || msg.includes('invalid')) {
+    return {
+      type: 'query_error',
+      subtype: 'syntax',
+      suggestedFix: null
+    };
+  }
+  
+  if (msg.includes('permission denied') || msg.includes('rls')) {
+    return {
+      type: 'query_error',
+      subtype: 'permission',
+      suggestedFix: 'Check RLS policies for this table.'
+    };
+  }
+  
+  // Tool errors
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return {
+      type: 'timeout_error',
+      subtype: null,
+      suggestedFix: 'Query took too long. Consider adding indexes or simplifying query.'
+    };
+  }
+  
+  // Default
+  return {
+    type: 'tool_error',
+    subtype: toolName,
+    suggestedFix: null
+  };
+}
+
+// Log error to database
+async function logToolError(
+  supabase: SupabaseClient,
+  errorMessage: string,
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  customerId: string,
+  question?: string
+): Promise<void> {
+  try {
+    const classification = classifyError(errorMessage, toolName);
+    
+    await supabase.rpc('log_ai_error', {
+      p_error_type: classification.type,
+      p_error_subtype: classification.subtype,
+      p_error_message: errorMessage,
+      p_error_details: { raw_error: errorMessage },
+      p_customer_id: parseInt(customerId, 10) || null,
+      p_user_id: null,
+      p_question: question || null,
+      p_tool_name: toolName,
+      p_tool_input: toolInput,
+      p_suggested_fix_type: classification.suggestedFix ? 'manual' : null,
+      p_suggested_fix_details: classification.suggestedFix ? { suggestion: classification.suggestedFix } : null
+    });
+  } catch (e) {
+    // Don't let error logging break the main flow
+    console.error('[ErrorLog] Failed to log error:', e);
+  }
+}
 
 async function executeMCPTool(
   supabase: SupabaseClient,
   customerId: string,
   isAdmin: boolean,
   toolName: string,
-  toolInput: Record<string, unknown>
+  toolInput: Record<string, unknown>,
+  question?: string
 ): Promise<unknown> {
   const customerIdInt = parseInt(customerId, 10);
 
@@ -792,7 +895,10 @@ async function executeMCPTool(
         p_include_samples: true,
         p_admin_mode: isAdmin
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       return { success: true, table_name: tableName, fields: data || [] };
     }
 
@@ -800,7 +906,10 @@ async function executeMCPTool(
       const tableName = toolInput.table_name as string;
       // v2.5: mcp_get_table_joins now returns mode and equipment joins too
       const { data, error } = await supabase.rpc('mcp_get_table_joins');
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, table_name: tableName, ...result };
     }
@@ -815,7 +924,10 @@ async function executeMCPTool(
         p_match_type: (toolInput.match_type as string) || 'contains',
         p_limit: 10
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, query, matches: result?.results || [], total_matches: result?.total_matches || 0 };
     }
@@ -835,7 +947,10 @@ async function executeMCPTool(
         p_order_dir: (toolInput.order_dir as string) || 'desc',
         p_limit: (toolInput.limit as number) || 100
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, table: tableName, row_count: result?.row_count || 0, data: result?.data || [] };
     }
@@ -853,7 +968,10 @@ async function executeMCPTool(
         p_select_fields: (toolInput.select as string[]) || [],
         p_aggregations: toolInput.aggregations || []
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, base_table: baseTable, row_count: result?.row_count || 0, data: result?.data || [] };
     }
@@ -872,7 +990,10 @@ async function executeMCPTool(
         p_order_dir: 'desc',
         p_limit: (toolInput.limit as number) || 20
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, data: result?.data || [] };
     }
@@ -882,7 +1003,10 @@ async function executeMCPTool(
         p_customer_id: customerIdInt,
         p_limit: (toolInput.limit as number) || 20
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, data: result?.data || [] };
     }
@@ -916,7 +1040,8 @@ async function executeToolsInParallel(
         customerId,
         isAdmin,
         toolUse.name,
-        toolUse.input as Record<string, unknown>
+        toolUse.input as Record<string, unknown>,
+        originalQuestion  // v3.1: Pass question for error logging
       );
 
       const visualization = generateVisualization(

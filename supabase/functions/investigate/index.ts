@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.5
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.8
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
@@ -7,6 +7,13 @@
 // v2.4: Smart model routing (Haiku/Sonnet) + parallel tool execution
 // v2.5: Fixed MCP function calls to use correct names (mcp_discover_tables)
 //       Added shipment_mode and equipment_type to known schema
+// v2.6: Fixed duplicate visualizations - skip ID fields when name fields exist
+//       Prevents "Equipment Type Id by Equipment Type Id" charts
+// v2.7: Skip visualizations for lookup tables (shipment_mode, equipment_type)
+//       They show ALL values, not customer-specific data
+// v2.8: mcp_aggregate now AUTO-RESOLVES IDs to names (mode_id → "LTL")
+//       Returns 'label' key with human-readable names automatically
+//       No manual joins needed for simple breakdowns
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";

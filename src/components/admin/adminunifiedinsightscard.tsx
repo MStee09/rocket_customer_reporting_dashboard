@@ -186,10 +186,10 @@ function AdminAlertBadge({
   );
 }
 
-export function AdminUnifiedInsightsCard({ 
-  dateRange, 
+export function AdminUnifiedInsightsCard({
+  dateRange,
   onCustomerClick,
-  className = '' 
+  className = ''
 }: AdminUnifiedInsightsCardProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -201,8 +201,15 @@ export function AdminUnifiedInsightsCard({
   const [insightsText, setInsightsText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const startDate = dateRange.start.toISOString().split('T')[0];
-  const endDate = dateRange.end.toISOString().split('T')[0];
+  const formatDateSafe = (date: Date | undefined | null): string => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return new Date().toISOString().split('T')[0];
+    }
+    return date.toISOString().split('T')[0];
+  };
+
+  const startDate = formatDateSafe(dateRange?.start);
+  const endDate = formatDateSafe(dateRange?.end);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

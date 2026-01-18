@@ -1,10 +1,12 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.4
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.5
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
 // v2.3: Optimized system prompt to reduce tool calls
 // v2.4: Smart model routing (Haiku/Sonnet) + parallel tool execution
+// v2.5: Fixed MCP function calls to use correct names (mcp_discover_tables)
+//       Added shipment_mode and equipment_type to known schema
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -77,19 +79,9 @@ interface ModelSelection {
   confidence: number;
 }
 
-/**
- * Determines which model to use based on question complexity.
- *
- * CONSERVATIVE APPROACH:
- * - Haiku: Only for simple, well-defined patterns (totals, counts, simple breakdowns)
- * - Sonnet: Everything else (analysis, comparisons, ambiguous questions)
- *
- * This minimizes risk of bad answers while still getting speed benefits.
- */
 function selectModel(question: string, mode: Mode): ModelSelection {
   const q = question.toLowerCase().trim();
 
-  // ALWAYS use Sonnet for these modes (complex reasoning required)
   if (mode === 'analyze' || mode === 'report') {
     return {
       model: MODELS.SONNET,
@@ -98,7 +90,6 @@ function selectModel(question: string, mode: Mode): ModelSelection {
     };
   }
 
-  // ALWAYS use Sonnet for complex question patterns
   const complexPatterns = [
     /why\s/i,
     /compare|versus|vs\.?|compared to/i,
@@ -122,7 +113,6 @@ function selectModel(question: string, mode: Mode): ModelSelection {
     }
   }
 
-  // Use Haiku for these SIMPLE patterns (high confidence, clear intent)
   const simplePatterns = [
     {
       pattern: /^(what('?s| is| are)?|show( me)?|get( me)?|give( me)?)\s+(my\s+)?(total|overall)\s+(spend|cost|retail|shipment|revenue)/i,
@@ -137,11 +127,11 @@ function selectModel(question: string, mode: Mode): ModelSelection {
       reason: 'Simple average query'
     },
     {
-      pattern: /^(spend|cost|shipment|revenue|retail)\s+by\s+(carrier|state|month|week|city)/i,
+      pattern: /^(spend|cost|shipment|revenue|retail)\s+by\s+(carrier|state|month|week|city|mode)/i,
       reason: 'Simple group-by query'
     },
     {
-      pattern: /^(what('?s| is)?|show( me)?)\s+(my\s+)?(spend|cost|shipment).*(by|per|grouped by)\s+(carrier|state|month)/i,
+      pattern: /^(what('?s| is)?|show( me)?)\s+(my\s+)?(spend|cost|shipment).*(by|per|grouped by)\s+(carrier|state|month|mode)/i,
       reason: 'Simple breakdown query'
     },
     {
@@ -151,6 +141,10 @@ function selectModel(question: string, mode: Mode): ModelSelection {
     {
       pattern: /^(what('?s| is)?|show)\s+(the\s+)?(total|sum)\s+/i,
       reason: 'Simple sum query'
+    },
+    {
+      pattern: /by\s+mode|by\s+equipment/i,
+      reason: 'Simple mode/equipment breakdown'
     },
   ];
 
@@ -164,7 +158,6 @@ function selectModel(question: string, mode: Mode): ModelSelection {
     }
   }
 
-  // Default to Sonnet for anything we're not confident about
   return {
     model: MODELS.SONNET,
     reason: 'Default to Sonnet for unrecognized patterns',
@@ -217,7 +210,8 @@ interface AIContext {
 }
 
 // ============================================================================
-// OPTIMIZED SYSTEM PROMPT - v2.3/2.4
+// OPTIMIZED SYSTEM PROMPT - v2.5
+// Added shipment_mode and equipment_type to known schema
 // ============================================================================
 
 const HARDCODED_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping.
@@ -237,12 +231,26 @@ For common questions, query DIRECTLY using the known schema below. Do NOT call d
 - origin_city, origin_state, origin_zip
 - dest_city, dest_state, dest_zip
 - customer_id, load_id
+- mode_id (integer) - FK to shipment_mode table
+- equipment_type_id (integer) - FK to equipment_type table
+
+**shipment_mode table** (lookup for shipping modes):
+- mode_id (PK), mode_name, mode_code
+- Values: LTL, Truckload, Parcel, Intermodal, Ocean, Air, Rail, etc.
+
+**equipment_type table** (lookup for equipment):
+- equipment_type_id (PK), equipment_name, equipment_code
+- Values: Van/Dry Van, Reefer, Flatbed, Step Deck, Container, etc.
 
 **carrier table** (join via shipment_carrier):
 - carrier_id, carrier_name, scac_code
 
 **shipment_carrier table** (bridge table):
 - load_id, carrier_id
+
+**shipment_report_view** (pre-joined view - USE FOR COMPLEX QUERIES):
+- Has ALL shipment fields PLUS: mode_name, equipment_name, carrier_name, origin/dest addresses
+- Best choice when you need multiple lookups already joined
 
 ### ONE-CALL PATTERNS (use these directly!)
 
@@ -253,7 +261,44 @@ For common questions, query DIRECTLY using the known schema below. Do NOT call d
 | "Average cost" | query_table | table: shipment, aggregations: [{function: AVG, field: retail, alias: avg_cost}] |
 | "Spend by state" | aggregate | table: shipment, group_by: dest_state, metric: retail, aggregation: sum |
 | "Spend by carrier" | query_with_join | base: shipment, joins: [shipment_carrier, carrier], group_by: [carrier.carrier_name], aggregations: [{function: SUM, field: retail}] |
+| "Spend by mode" | query_with_join | base: shipment, joins: [shipment_mode], group_by: [shipment_mode.mode_name], aggregations: [{function: SUM, field: retail}] |
+| "Spend by equipment" | query_with_join | base: shipment, joins: [equipment_type], group_by: [equipment_type.equipment_name], aggregations: [{function: SUM, field: retail}] |
 | "Top lanes" | get_lanes | limit: 10 |
+
+### JOIN PATHS (IMPORTANT!)
+
+**For carrier names:**
+shipment.load_id → shipment_carrier.load_id → carrier.carrier_id
+\`\`\`
+query_with_join({
+  base_table: "shipment",
+  joins: [{"table": "shipment_carrier"}, {"table": "carrier"}],
+  group_by: ["carrier.carrier_name"],
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+})
+\`\`\`
+
+**For mode names:**
+shipment.mode_id → shipment_mode.mode_id
+\`\`\`
+query_with_join({
+  base_table: "shipment",
+  joins: [{"table": "shipment_mode"}],
+  group_by: ["shipment_mode.mode_name"],
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+})
+\`\`\`
+
+**For equipment names:**
+shipment.equipment_type_id → equipment_type.equipment_type_id
+\`\`\`
+query_with_join({
+  base_table: "shipment",
+  joins: [{"table": "equipment_type"}],
+  group_by: ["equipment_type.equipment_name"],
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+})
+\`\`\`
 
 ### WHEN TO USE DISCOVERY (only these cases)
 
@@ -261,21 +306,6 @@ For common questions, query DIRECTLY using the known schema below. Do NOT call d
 - User mentions unfamiliar table → discover_tables
 - Need field details for complex filtering → discover_fields
 - Complex multi-table joins → discover_joins
-
-### CARRIER QUERIES - REQUIRED JOIN PATH
-
-To get carrier names, you MUST join through shipment_carrier:
-\`\`\`
-shipment.load_id → shipment_carrier.load_id → shipment_carrier.carrier_id → carrier.carrier_id
-\`\`\`
-
-Example:
-query_with_join({
-  base_table: "shipment",
-  joins: [{"table": "shipment_carrier"}, {"table": "carrier"}],
-  group_by: ["carrier.carrier_name"],
-  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
-})
 
 ### RESPONSE STYLE
 - Lead with the DIRECT answer and specific numbers
@@ -305,7 +335,6 @@ async function compileContext(
     const sections: string[] = [HARDCODED_SYSTEM_PROMPT, getAccessControlPrompt(isAdmin)];
     const knowledgeIds: number[] = [];
 
-    // Add global knowledge
     if (ctx.global_knowledge?.length > 0) {
       let kSection = '## BUSINESS KNOWLEDGE\n';
       const terms = ctx.global_knowledge.filter(k => k.type === 'term');
@@ -342,7 +371,6 @@ async function compileContext(
       knowledgeIds.push(...ctx.global_knowledge.map(k => k.id));
     }
 
-    // Add customer knowledge
     if (ctx.customer_knowledge?.length > 0) {
       let cSection = '## CUSTOMER-SPECIFIC TERMS\n';
       for (const k of ctx.customer_knowledge) {
@@ -352,7 +380,6 @@ async function compileContext(
       knowledgeIds.push(...ctx.customer_knowledge.map(k => k.id));
     }
 
-    // Add global documents
     if (ctx.global_documents?.length > 0) {
       let dSection = '## REFERENCE DOCUMENTS\n';
       for (const d of ctx.global_documents) {
@@ -361,7 +388,6 @@ async function compileContext(
       sections.push(dSection);
     }
 
-    // Add customer profile
     if (ctx.customer_profile && Object.keys(ctx.customer_profile).length > 0) {
       const p = ctx.customer_profile;
       const parts: string[] = [];
@@ -560,7 +586,7 @@ function routeMode(question: string, preferences?: RequestBody['preferences']): 
 const MCP_TOOLS: Anthropic.Tool[] = [
   {
     name: "discover_tables",
-    description: "List all available database tables. Only use when you need to find tables beyond shipment, carrier, shipment_carrier.",
+    description: "List available database tables. Returns shipment, shipment_mode, equipment_type, carrier, etc.",
     input_schema: {
       type: "object" as const,
       properties: { category: { type: "string", enum: ["core", "reference", "analytics"] } },
@@ -617,15 +643,15 @@ const MCP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "query_with_join",
-    description: "Query across multiple tables with automatic joins. REQUIRED for carrier names. Join path: shipment → shipment_carrier → carrier.",
+    description: "Query across multiple tables with automatic joins. REQUIRED for carrier/mode/equipment names. Join paths: shipment→shipment_carrier→carrier, shipment→shipment_mode, shipment→equipment_type.",
     input_schema: {
       type: "object" as const,
       properties: {
         base_table: { type: "string", description: "Starting table, usually 'shipment'" },
-        joins: { type: "array", description: "Tables to join: [{\"table\": \"shipment_carrier\"}, {\"table\": \"carrier\"}]" },
-        select: { type: "array", items: { type: "string" }, description: "Fields to select, e.g. ['carrier.carrier_name']" },
+        joins: { type: "array", description: "Tables to join: [{\"table\": \"shipment_mode\"}] or [{\"table\": \"shipment_carrier\"}, {\"table\": \"carrier\"}]" },
+        select: { type: "array", items: { type: "string" }, description: "Fields to select, e.g. ['shipment_mode.mode_name']" },
         filters: { type: "array" },
-        group_by: { type: "array", items: { type: "string" }, description: "Fields to group by, e.g. ['carrier.carrier_name']" },
+        group_by: { type: "array", items: { type: "string" }, description: "Fields to group by, e.g. ['shipment_mode.mode_name']" },
         aggregations: { type: "array", description: "Aggregations, e.g. [{\"function\": \"SUM\", \"field\": \"retail\", \"alias\": \"total_spend\"}]" },
         order_by: { type: "string" },
         limit: { type: "number" }
@@ -635,7 +661,7 @@ const MCP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "aggregate",
-    description: "Simple group-by aggregation for 'X by Y' questions on a SINGLE table. Do NOT use for carrier queries.",
+    description: "Simple group-by aggregation for 'X by Y' questions on a SINGLE table. Do NOT use for carrier/mode/equipment queries - use query_with_join instead.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -663,7 +689,7 @@ const MCP_TOOLS: Anthropic.Tool[] = [
 ];
 
 // ============================================================================
-// TOOL EXECUTOR
+// TOOL EXECUTOR - v2.5 Fixed function names
 // ============================================================================
 
 async function executeMCPTool(
@@ -677,12 +703,22 @@ async function executeMCPTool(
 
   switch (toolName) {
     case 'discover_tables': {
-      const { data, error } = await supabase.rpc('mcp_get_tables', {
-        p_category: (toolInput.category as string) || null,
-        p_include_row_counts: false
+      // v2.5: Use mcp_discover_tables (new function with shipment_mode, equipment_type)
+      const { data, error } = await supabase.rpc('mcp_discover_tables', {
+        p_category: (toolInput.category as string) || null
       });
-      if (error) return { success: false, error: error.message };
-      return { success: true, tables: data || [], count: data?.length || 0 };
+      if (error) {
+        // Fallback to old function if new one doesn't exist
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc('mcp_get_tables', {
+          p_category: (toolInput.category as string) || null,
+          p_include_row_counts: false
+        });
+        if (fallbackError) return { success: false, error: fallbackError.message };
+        return { success: true, tables: fallbackData || [], count: fallbackData?.length || 0 };
+      }
+      // mcp_discover_tables returns {success, tables, count} directly
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return result;
     }
 
     case 'discover_fields': {
@@ -699,10 +735,11 @@ async function executeMCPTool(
 
     case 'discover_joins': {
       const tableName = toolInput.table_name as string;
-      if (!tableName) return { success: false, error: "table_name required" };
-      const { data, error } = await supabase.rpc('mcp_get_table_joins', { p_table_name: tableName });
+      // v2.5: mcp_get_table_joins now returns mode and equipment joins too
+      const { data, error } = await supabase.rpc('mcp_get_table_joins');
       if (error) return { success: false, error: error.message };
-      return { success: true, table_name: tableName, joins: data || [] };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: true, table_name: tableName, ...result };
     }
 
     case 'search_text': {
@@ -769,6 +806,7 @@ async function executeMCPTool(
         p_metric: toolInput.metric as string,
         p_aggregation: toolInput.aggregation as string,
         p_filters: toolInput.filters || [],
+        p_order_dir: 'desc',
         p_limit: (toolInput.limit as number) || 20
       });
       if (error) return { success: false, error: error.message };
@@ -793,7 +831,6 @@ async function executeMCPTool(
 
 // ============================================================================
 // PARALLEL TOOL EXECUTOR - v2.4
-// Executes multiple tool calls simultaneously for faster response
 // ============================================================================
 
 interface ToolExecution {
@@ -842,6 +879,8 @@ function formatFieldName(name: string | null | undefined): string {
 
   const specialCases: Record<string, string> = {
     'carrier_name': 'Carrier',
+    'mode_name': 'Mode',
+    'equipment_name': 'Equipment',
     'shipment_count': 'Shipments',
     'total_cost': 'Total Cost',
     'total_spend': 'Total Spend',
@@ -936,7 +975,7 @@ function findValueKey(row: Record<string, unknown>, keys: string[]): string | nu
 }
 
 function findLabelKey(row: Record<string, unknown>, keys: string[], excludeKey: string | null): string | null {
-  const priorityKeys = ['carrier_name', 'name', 'state', 'city', 'mode', 'status',
+  const priorityKeys = ['carrier_name', 'mode_name', 'equipment_name', 'name', 'state', 'city', 'mode', 'status',
                         'origin_state', 'dest_state', 'destination_state', 'lane'];
 
   for (const pk of priorityKeys) {
@@ -1164,7 +1203,7 @@ async function trackKnowledgeUsage(supabase: SupabaseClient, knowledgeIds: numbe
 }
 
 // ============================================================================
-// MAIN HANDLER - v2.4 with Smart Model Routing + Parallel Tools
+// MAIN HANDLER - v2.5 with Smart Model Routing + Parallel Tools + Fixed MCP calls
 // ============================================================================
 
 Deno.serve(async (req: Request) => {

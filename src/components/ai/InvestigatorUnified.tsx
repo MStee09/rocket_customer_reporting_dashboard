@@ -144,6 +144,9 @@ function SimpleMarkdown({ content }: { content: string }) {
   let currentParagraph: string[] = [];
   let inList = false;
   let listItems: string[] = [];
+  let inTable = false;
+  let tableRows: string[][] = [];
+  let tableHeader: string[] = [];
 
   const flushParagraph = () => {
     if (currentParagraph.length > 0) {
@@ -176,6 +179,52 @@ function SimpleMarkdown({ content }: { content: string }) {
     }
   };
 
+  const flushTable = () => {
+    if (tableRows.length > 0 || tableHeader.length > 0) {
+      elements.push(
+        <div key={elements.length} className="my-3 overflow-x-auto">
+          <table className="min-w-full border-collapse text-sm">
+            {tableHeader.length > 0 && (
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  {tableHeader.map((cell, i) => (
+                    <th key={i} className="px-3 py-2 text-left font-semibold text-slate-900">
+                      {renderInlineMarkdown(cell.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {tableRows.map((row, rowIdx) => (
+                <tr key={rowIdx} className="border-b border-slate-100">
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="px-3 py-2 text-slate-700">
+                      {renderInlineMarkdown(cell.trim())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableRows = [];
+      tableHeader = [];
+      inTable = false;
+    }
+  };
+
+  const parseTableRow = (line: string): string[] => {
+    // Split by | and filter out empty first/last elements from leading/trailing |
+    return line.split('|').map(cell => cell.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1 || (arr.length === 1));
+  };
+
+  const isTableSeparator = (line: string): boolean => {
+    // Matches lines like |---|---| or |:---:|:---:| (table separator)
+    return /^\|?[\s:-]+\|[\s|:-]*$/.test(line.trim());
+  };
+
   const renderInlineMarkdown = (text: string): React.ReactNode => {
     const parts: React.ReactNode[] = [];
     let remaining = text;
@@ -201,6 +250,34 @@ function SimpleMarkdown({ content }: { content: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
+
+    // Check for table row (starts with |)
+    if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
+      flushParagraph();
+      flushList();
+
+      // Skip separator rows (|---|---|)
+      if (isTableSeparator(trimmedLine)) {
+        continue;
+      }
+
+      const cells = parseTableRow(trimmedLine);
+      
+      if (!inTable) {
+        // First row is the header
+        inTable = true;
+        tableHeader = cells;
+      } else {
+        // Subsequent rows are data
+        tableRows.push(cells);
+      }
+      continue;
+    }
+
+    // If we were in a table and hit a non-table line, flush the table
+    if (inTable && !trimmedLine.startsWith('|')) {
+      flushTable();
+    }
 
     if (trimmedLine.startsWith('### ')) {
       flushParagraph();
@@ -258,6 +335,7 @@ function SimpleMarkdown({ content }: { content: string }) {
 
   flushParagraph();
   flushList();
+  flushTable();
 
   return <div className="text-slate-700 text-[15px]">{elements}</div>;
 }

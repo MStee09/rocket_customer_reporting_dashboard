@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, Package, DollarSign, TrendingUp, Users, Activity, AlertTriangle, Calculator } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,7 @@ import { CustomerActivityTable } from '../components/dashboard/CustomerActivityT
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
-import { AdminAnomalyInsights } from '../components/admin/AdminAnomalyInsights';
+import { AdminUnifiedInsightsCard } from '../components/admin/adminunifiedinsightscard';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../types/dashboard';
 import { useCustomerHealth } from '../hooks/useCustomerHealth';
@@ -41,7 +41,7 @@ export function AdminDashboardPage() {
   const [topCustomersData, setTopCustomersData] = useState<CustomerData[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true);
 
-  const getDateRange = () => {
+  const computedDateRange = useMemo(() => {
     const now = new Date();
     let start: Date;
     let end: Date = now;
@@ -90,13 +90,11 @@ export function AdminDashboardPage() {
         start = subMonths(now, 6);
     }
 
-    return {
-      start: format(start, 'yyyy-MM-dd'),
-      end: format(end, 'yyyy-MM-dd'),
-    };
-  };
+    return { start, end };
+  }, [dateRange]);
 
-  const { start: startDate, end: endDate } = getDateRange();
+  const startDate = format(computedDateRange.start, 'yyyy-MM-dd');
+  const endDate = format(computedDateRange.end, 'yyyy-MM-dd');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -232,7 +230,10 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="space-y-6">
-          <AdminAnomalyInsights onCustomerClick={handleCustomerClick} />
+          <AdminUnifiedInsightsCard
+            dateRange={computedDateRange}
+            onCustomerClick={handleCustomerClick}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             <MetricCard

@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v3.1
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v3.2
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
@@ -22,6 +22,11 @@
 //       - Error classification (schema_error, query_error, etc.)
 //       - Suggested fixes generated automatically
 //       - Deduplication for repeated errors
+// v3.2: FIELD LOCATION DISCOVERY
+//       - New find_field tool to locate fields across tables
+//       - mcp_field_metadata table maps fields to their tables
+//       - AI now knows pro_number is in shipment_carrier, etc.
+//       - System prompt updated with field location guidance
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -365,10 +370,27 @@ query_with_join({
 
 ### WHEN TO USE DISCOVERY (only these cases)
 
+- **IMPORTANT: Unknown field location** → use find_field FIRST to locate which table has it
+  - Example: User asks about "PRO number" → find_field("pro_number") → returns shipment_carrier table
+  - Example: User asks about "carrier name" → find_field("carrier_name") → returns shipment_carrier table  
+  - Example: User asks about "city" → find_field("city") → returns shipment_address table
 - Unknown product names → search_text first
 - User mentions unfamiliar table → discover_tables
 - Need field details for complex filtering → discover_fields
 - Complex multi-table joins → discover_joins
+
+### FIELD LOCATIONS (common fields NOT in shipment table)
+
+**In shipment_carrier table** (join on load_id):
+- pro_number, carrier_name, carrier_scac, driver_name, truck_number, trailer_number, carrier_pay
+
+**In shipment_address table** (join on load_id):
+- city, state, postal_code, company_name, address_type (1=origin, 2=destination)
+
+**In shipment_item table** (join on load_id):
+- description, weight, quantity, commodity, nmfc_code
+
+**If unsure where a field is, ALWAYS use find_field() first!**
 
 ### RESPONSE STYLE
 - Lead with the DIRECT answer and specific numbers
@@ -753,6 +775,17 @@ const MCP_TOOLS: Anthropic.Tool[] = [
       },
       required: []
     }
+  },
+  {
+    name: "find_field",
+    description: "IMPORTANT: Use this FIRST when you need to query a field that might be in a related table (not shipment). Returns which table contains the field and how to join to it. Use for: pro_number, carrier_name, city, state, description, weight, etc.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        field_name: { type: "string", description: "The field name to find, e.g. 'pro_number', 'carrier_name', 'city'" }
+      },
+      required: ["field_name"]
+    }
   }
 ];
 
@@ -952,7 +985,21 @@ async function executeMCPTool(
         return { success: false, error: error.message };
       }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
-      return { success: true, table: tableName, row_count: result?.row_count || 0, data: result?.data || [] };
+      const rowCount = result?.row_count || 0;
+      
+      // Log empty results as potential issues (filters may be wrong)
+      if (rowCount === 0 && toolInput.filters && (toolInput.filters as unknown[]).length > 0) {
+        await logToolError(
+          supabase,
+          `Query returned 0 results with filters: ${JSON.stringify(toolInput.filters)}`,
+          toolName,
+          toolInput,
+          customerId,
+          question
+        ).catch(() => {}); // Don't fail on logging
+      }
+      
+      return { success: true, table: tableName, row_count: rowCount, data: result?.data || [] };
     }
 
     case 'query_with_join': {
@@ -1009,6 +1056,20 @@ async function executeMCPTool(
       }
       const result = typeof data === 'string' ? JSON.parse(data) : data;
       return { success: true, data: result?.data || [] };
+    }
+
+    case 'find_field': {
+      const fieldName = toolInput.field_name as string;
+      if (!fieldName) return { success: false, error: "field_name required" };
+      const { data, error } = await supabase.rpc('mcp_find_field', {
+        p_field_name: fieldName
+      });
+      if (error) {
+        await logToolError(supabase, error.message, toolName, toolInput, customerId, question);
+        return { success: false, error: error.message };
+      }
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return result;
     }
 
     default:

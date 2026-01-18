@@ -245,28 +245,28 @@ export function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             <MetricCard
               label="Total Shipments"
-              value={metrics.totalShipments}
+              value={metrics?.totalShipments ?? 0}
               icon={Package}
               iconColor="info"
               isLoading={isLoadingMetrics}
             />
             <MetricCard
               label="Total Revenue"
-              value={formatCurrency(metrics.totalRevenue.toString())}
+              value={formatCurrency(String(metrics?.totalRevenue ?? 0))}
               icon={DollarSign}
               iconColor="success"
               isLoading={isLoadingMetrics}
             />
             <MetricCard
               label="Active Customers"
-              value={metrics.activeCustomers}
+              value={metrics?.activeCustomers ?? 0}
               icon={Users}
               iconColor="coral"
               isLoading={isLoadingMetrics}
             />
             <MetricCard
               label="Avg per Shipment"
-              value={formatCurrency(metrics.avgRevenuePerShipment.toString())}
+              value={formatCurrency(String(metrics?.avgRevenuePerShipment ?? 0))}
               icon={TrendingUp}
               iconColor="orange"
               isLoading={isLoadingMetrics}

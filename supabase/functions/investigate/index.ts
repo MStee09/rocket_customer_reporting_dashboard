@@ -331,8 +331,10 @@ query_with_join({
 
 ### RESPONSE STYLE
 - Lead with the DIRECT answer and specific numbers
-- Be concise
-- Suggest 1-2 follow-up questions`;
+- Be concise but COMPLETE - always finish your sentences and thoughts
+- Include key insights when relevant (1-2 bullet points)
+- Suggest 1-2 follow-up questions at the end
+- Never cut off mid-sentence or mid-thought`;
 
 async function compileContext(
   supabase: SupabaseClient,
@@ -1389,7 +1391,7 @@ Deno.serve(async (req: Request) => {
 
       const response = await anthropic.messages.create({
         model: currentModel,
-        max_tokens: routing.mode === 'analyze' ? 4096 : 2048,
+        max_tokens: routing.mode === 'analyze' ? 4096 : routing.mode === 'report' ? 4096 : 3000,
         system: compiledContext.systemPrompt,
         messages: currentMessages,
         tools: MCP_TOOLS,

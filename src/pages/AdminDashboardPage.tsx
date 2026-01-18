@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw, Package, DollarSign, TrendingUp, Users, Activity, AlertTriangle, Calculator } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, addMonths, addDays } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,7 @@ import { CustomerActivityTable } from '../components/dashboard/CustomerActivityT
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
-import { AdminUnifiedInsightsCard } from '../components/admin/adminunifiedinsightscard';
+import { AdminUnifiedInsightsCard } from '../components/admin/AdminUnifiedInsightsCard';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../types/dashboard';
 import { useCustomerHealth } from '../hooks/useCustomerHealth';
@@ -41,7 +41,7 @@ export function AdminDashboardPage() {
   const [topCustomersData, setTopCustomersData] = useState<CustomerData[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true);
 
-  const computedDateRange = useMemo(() => {
+  const getDateRange = () => {
     const now = new Date();
     let start: Date;
     let end: Date = now;
@@ -78,102 +78,108 @@ export function AdminDashboardPage() {
         start = now;
         end = addMonths(now, 12);
         break;
-      case 'next30':
-        start = now;
-        end = addDays(now, 30);
-        break;
-      case 'next90':
-        start = now;
-        end = addDays(now, 90);
-        break;
       default:
         start = subMonths(now, 6);
     }
 
-    return { start, end };
-  }, [dateRange]);
+    return {
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd'),
+    };
+  };
 
-  const startDate = format(computedDateRange.start, 'yyyy-MM-dd');
-  const endDate = format(computedDateRange.end, 'yyyy-MM-dd');
+  const { start: startDate, end: endDate } = getDateRange();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingMetrics(true);
-      setIsLoadingCustomers(true);
-
-      const { data: shipments } = await supabase
+  const fetchMetrics = async () => {
+    setIsLoadingMetrics(true);
+    try {
+      const { data, error } = await supabase
         .from('shipment')
-        .select('customer_id, retail')
+        .select('load_id, retail, customer_id')
         .gte('pickup_date', startDate)
         .lte('pickup_date', endDate);
 
-      const { data: customers } = await supabase
-        .from('customer')
-        .select('customer_id, company_name')
-        .eq('is_active', true);
+      if (error) throw error;
 
-      if (shipments) {
-        const totalShipments = shipments.length;
-        const totalRevenue = shipments.reduce((sum, s) => sum + (s.retail || 0), 0);
-        const uniqueCustomers = new Set(shipments.map(s => s.customer_id)).size;
-        const avgRevenuePerShipment = totalShipments > 0 ? totalRevenue / totalShipments : 0;
+      const totalShipments = data?.length || 0;
+      const totalRevenue = data?.reduce((sum, s) => sum + (s.retail || 0), 0) || 0;
+      const uniqueCustomers = new Set(data?.map(s => s.customer_id)).size;
 
-        setMetrics({
-          totalShipments,
-          totalRevenue,
-          activeCustomers: uniqueCustomers,
-          avgRevenuePerShipment,
-        });
-
-        if (customers) {
-          const customerMap = new Map(
-            customers.map((c) => [c.customer_id, c.company_name])
-          );
-
-          const customerStats = new Map<
-            number,
-            { shipmentCount: number; totalSpend: number }
-          >();
-
-          shipments.forEach((s) => {
-            const current = customerStats.get(s.customer_id) || {
-              shipmentCount: 0,
-              totalSpend: 0,
-            };
-            customerStats.set(s.customer_id, {
-              shipmentCount: current.shipmentCount + 1,
-              totalSpend: current.totalSpend + (s.retail || 0),
-            });
-          });
-
-          const topCustomers: CustomerData[] = Array.from(customerStats.entries())
-            .map(([customerId, stats]) => ({
-              customerId,
-              customerName: customerMap.get(customerId) || `Customer ${customerId}`,
-              shipmentCount: stats.shipmentCount,
-              totalSpend: stats.totalSpend,
-              avgCostPerShipment: stats.totalSpend / stats.shipmentCount,
-            }))
-            .sort((a, b) => b.totalSpend - a.totalSpend)
-            .slice(0, 10);
-
-          setTopCustomersData(topCustomers);
-        }
-      }
-
+      setMetrics({
+        totalShipments,
+        totalRevenue,
+        activeCustomers: uniqueCustomers,
+        avgRevenuePerShipment: totalShipments > 0 ? totalRevenue / totalShipments : 0,
+      });
+    } catch (err) {
+      console.error('Error fetching metrics:', err);
+    } finally {
       setIsLoadingMetrics(false);
-      setIsLoadingCustomers(false);
-    };
+    }
+  };
 
-    fetchData();
-  }, [startDate, endDate]);
+  const fetchTopCustomers = async () => {
+    setIsLoadingCustomers(true);
+    try {
+      const { data, error } = await supabase
+        .from('shipment')
+        .select(`
+          customer_id,
+          retail,
+          customer:customer_id (
+            company_name
+          )
+        `)
+        .gte('pickup_date', startDate)
+        .lte('pickup_date', endDate);
+
+      if (error) throw error;
+
+      // Aggregate by customer
+      const customerMap = new Map<number, { name: string; spend: number; shipments: number }>();
+      
+      data?.forEach((s: any) => {
+        const existing = customerMap.get(s.customer_id) || {
+          name: s.customer?.company_name || `Customer ${s.customer_id}`,
+          spend: 0,
+          shipments: 0,
+        };
+        existing.spend += s.retail || 0;
+        existing.shipments += 1;
+        customerMap.set(s.customer_id, existing);
+      });
+
+      const customers: CustomerData[] = Array.from(customerMap.entries())
+        .map(([id, data]) => ({
+          id,
+          name: data.name,
+          totalSpend: data.spend,
+          shipmentCount: data.shipments,
+          avgCost: data.shipments > 0 ? data.spend / data.shipments : 0,
+        }))
+        .sort((a, b) => b.totalSpend - a.totalSpend)
+        .slice(0, 10);
+
+      setTopCustomersData(customers);
+    } catch (err) {
+      console.error('Error fetching top customers:', err);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMetrics();
+    fetchTopCustomers();
+  }, [dateRange]);
+
+  const handleRefresh = () => {
+    fetchMetrics();
+    fetchTopCustomers();
+  };
 
   const handleCustomerClick = (customerId: number) => {
     setViewingAsCustomerId(customerId);
-  };
-
-  const handleRefresh = () => {
-    window.location.reload();
   };
 
   const handleRecalculateHealth = async () => {
@@ -187,17 +193,17 @@ export function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="container mx-auto px-6 py-8 max-w-[1600px]">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Admin Dashboard</h1>
-            <p className="text-slate-600">Overview of all customers and operations</p>
+            <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
+            <p className="text-slate-500">Overview of all customers and operations</p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rocket-500 text-sm"
+              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="last7">Last 7 Days</option>
               <option value="last30">Last 30 Days</option>
@@ -207,9 +213,6 @@ export function AdminDashboardPage() {
               <option value="thisMonth">This Month</option>
               <option value="thisQuarter">This Quarter</option>
               <option value="thisYear">This Year</option>
-              <option value="next30">Next 30 Days</option>
-              <option value="next90">Next 90 Days</option>
-              <option value="upcoming">Upcoming (Next Year)</option>
             </select>
             <button
               onClick={handleRecalculateHealth}
@@ -230,9 +233,13 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="space-y-6">
-          <AdminUnifiedInsightsCard
-            dateRange={computedDateRange}
-            onCustomerClick={handleCustomerClick}
+          {/* AI Insights Card - unified cross-customer view */}
+          <AdminUnifiedInsightsCard 
+            dateRange={{
+              start: new Date(startDate),
+              end: new Date(endDate),
+            }}
+            onCustomerClick={handleCustomerClick} 
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">

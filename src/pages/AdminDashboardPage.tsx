@@ -151,11 +151,11 @@ export function AdminDashboardPage() {
 
       const customers: CustomerData[] = Array.from(customerMap.entries())
         .map(([id, data]) => ({
-          id,
-          name: data.name,
+          customerId: id,
+          customerName: data.name,
           totalSpend: data.spend,
           shipmentCount: data.shipments,
-          avgCost: data.shipments > 0 ? data.spend / data.shipments : 0,
+          avgCostPerShipment: data.shipments > 0 ? data.spend / data.shipments : 0,
         }))
         .sort((a, b) => b.totalSpend - a.totalSpend)
         .slice(0, 10);

@@ -19,3 +19,4 @@ export { useAIReportStudio } from './useAIReportStudio';
 export { useAIUsageDashboard, useUserAIUsage } from './useAIUsageDashboard';
 export { useAnomalies } from './useAnomalies';
 export type { Anomaly } from './useAnomalies';
+export { useAnomalyDashboard } from './useAnomalyDashboard';

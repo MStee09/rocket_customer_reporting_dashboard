@@ -8,6 +8,7 @@ import { CustomerActivityTable } from '../components/dashboard/CustomerActivityT
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
+import { AnomalyDetectionPanel } from '../components/admin/AnomalyDetectionPanel';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../types/dashboard';
 import { useCustomerHealth } from '../hooks/useCustomerHealth';
@@ -304,7 +305,8 @@ export function AdminDashboardPage() {
                 onCustomerClick={handleCustomerClick}
               />
             </div>
-            <div>
+            <div className="space-y-6">
+              <AnomalyDetectionPanel onCustomerClick={handleCustomerClick} />
               <HealthAlertsPanel
                 alerts={healthAlerts}
                 isLoading={isLoadingHealth}

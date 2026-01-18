@@ -8,7 +8,6 @@ import { CustomerActivityTable } from '../components/dashboard/CustomerActivityT
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
-import { AnomalyDetectionPanel } from '../components/admin/AnomalyDetectionPanel';
 import { AdminAnomalyInsights } from '../components/admin/AdminAnomalyInsights';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../types/dashboard';
@@ -233,6 +232,8 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="space-y-6">
+          <AdminAnomalyInsights onCustomerClick={handleCustomerClick} />
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
             <MetricCard
               label="Total Shipments"
@@ -296,10 +297,6 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <AdminAnomalyInsights
-              className="lg:col-span-1"
-              onCustomerClick={handleCustomerClick}
-            />
             <div className="lg:col-span-2">
               <CustomerHealthMatrix
                 scores={healthScores}
@@ -309,12 +306,6 @@ export function AdminDashboardPage() {
                 onStatusFilter={filterByStatus}
                 onCustomerClick={handleCustomerClick}
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <AnomalyDetectionPanel onCustomerClick={handleCustomerClick} />
             </div>
             <div>
               <HealthAlertsPanel

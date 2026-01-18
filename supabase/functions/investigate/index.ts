@@ -1,3 +1,12 @@
+// ============================================================================
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.4
+// Phase 1: Context Compiler + Mode Router + Compile Mode
+// v2.1: Fixed generateVisualization for stat cards vs bar charts
+// v2.2: Polished visualization titles, labels, and formatting
+// v2.3: Optimized system prompt to reduce tool calls
+// v2.4: Smart model routing (Haiku/Sonnet) + parallel tool execution
+// ============================================================================
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
@@ -8,176 +17,616 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+// ============================================================================
+// MODELS - v2.4
+// ============================================================================
+
+const MODELS = {
+  HAIKU: "claude-haiku-4-5-20251001",
+  SONNET: "claude-sonnet-4-20250514"
+} as const;
+
+type ModelType = typeof MODELS[keyof typeof MODELS];
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type Mode = 'question' | 'widget' | 'report' | 'analyze' | 'compile';
+
 interface RequestBody {
   question: string;
   customerId: string;
   userId: string;
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
   preferences?: {
+    mode?: Mode;
     showReasoning?: boolean;
     forceMode?: 'quick' | 'deep' | 'visual';
+    maxTokens?: number;
+  };
+  context?: {
+    availableFields?: Array<{ name: string; type: string; description?: string }>;
+    widgetType?: string;
   };
 }
 
 interface ReasoningStep {
-  type: 'routing' | 'thinking' | 'tool_call' | 'tool_result';
+  type: 'routing' | 'thinking' | 'tool_call' | 'tool_result' | 'context' | 'model';
   content: string;
   toolName?: string;
 }
 
-interface FollowUpQuestion {
-  id: string;
-  question: string;
-}
-
-type VisualizationType = 'bar' | 'pie' | 'line' | 'area' | 'stat' | 'treemap' | 'table';
-
 interface Visualization {
   id: string;
-  type: VisualizationType;
+  type: 'bar' | 'pie' | 'line' | 'area' | 'stat' | 'treemap' | 'table';
   title: string;
   subtitle?: string;
   data: unknown;
   config?: Record<string, unknown>;
 }
 
+// ============================================================================
+// SMART MODEL ROUTER - v2.4
+// Conservative approach: only use Haiku for patterns we're confident about
+// ============================================================================
+
+interface ModelSelection {
+  model: ModelType;
+  reason: string;
+  confidence: number;
+}
+
+/**
+ * Determines which model to use based on question complexity.
+ *
+ * CONSERVATIVE APPROACH:
+ * - Haiku: Only for simple, well-defined patterns (totals, counts, simple breakdowns)
+ * - Sonnet: Everything else (analysis, comparisons, ambiguous questions)
+ *
+ * This minimizes risk of bad answers while still getting speed benefits.
+ */
+function selectModel(question: string, mode: Mode): ModelSelection {
+  const q = question.toLowerCase().trim();
+
+  // ALWAYS use Sonnet for these modes (complex reasoning required)
+  if (mode === 'analyze' || mode === 'report') {
+    return {
+      model: MODELS.SONNET,
+      reason: 'Complex mode requires Sonnet',
+      confidence: 1.0
+    };
+  }
+
+  // ALWAYS use Sonnet for complex question patterns
+  const complexPatterns = [
+    /why\s/i,
+    /compare|versus|vs\.?|compared to/i,
+    /explain|analyze|investigate/i,
+    /trend|pattern|change over/i,
+    /recommend|suggest|should\s+i/i,
+    /best|worst|most|least/i,
+    /what.*if|how.*would/i,
+    /correlat|relationship|impact/i,
+    /unusual|anomal|outlier|strange/i,
+    /multiple|several|various|all/i,
+  ];
+
+  for (const pattern of complexPatterns) {
+    if (pattern.test(q)) {
+      return {
+        model: MODELS.SONNET,
+        reason: `Complex pattern detected: ${pattern.source}`,
+        confidence: 0.9
+      };
+    }
+  }
+
+  // Use Haiku for these SIMPLE patterns (high confidence, clear intent)
+  const simplePatterns = [
+    {
+      pattern: /^(what('?s| is| are)?|show( me)?|get( me)?|give( me)?)\s+(my\s+)?(total|overall)\s+(spend|cost|retail|shipment|revenue)/i,
+      reason: 'Simple total aggregation'
+    },
+    {
+      pattern: /^how many\s+(shipment|load|order|delivery|pickup)/i,
+      reason: 'Simple count query'
+    },
+    {
+      pattern: /^(what('?s| is)?|show( me)?)\s+(my\s+)?(average|avg|mean)\s+(spend|cost|retail|shipment)/i,
+      reason: 'Simple average query'
+    },
+    {
+      pattern: /^(spend|cost|shipment|revenue|retail)\s+by\s+(carrier|state|month|week|city)/i,
+      reason: 'Simple group-by query'
+    },
+    {
+      pattern: /^(what('?s| is)?|show( me)?)\s+(my\s+)?(spend|cost|shipment).*(by|per|grouped by)\s+(carrier|state|month)/i,
+      reason: 'Simple breakdown query'
+    },
+    {
+      pattern: /^(show|get|list|what are)\s+(my\s+)?(top|biggest|largest)\s+\d*\s*(lane|route|carrier|state|customer)/i,
+      reason: 'Simple top-N query'
+    },
+    {
+      pattern: /^(what('?s| is)?|show)\s+(the\s+)?(total|sum)\s+/i,
+      reason: 'Simple sum query'
+    },
+  ];
+
+  for (const { pattern, reason } of simplePatterns) {
+    if (pattern.test(q)) {
+      return {
+        model: MODELS.HAIKU,
+        reason,
+        confidence: 0.95
+      };
+    }
+  }
+
+  // Default to Sonnet for anything we're not confident about
+  return {
+    model: MODELS.SONNET,
+    reason: 'Default to Sonnet for unrecognized patterns',
+    confidence: 0.7
+  };
+}
+
+// ============================================================================
+// RESTRICTED FIELDS (inline service)
+// ============================================================================
+
+const RESTRICTED_FIELDS = [
+  'cost', 'cost_amount', 'cost_per_mile', 'margin', 'margin_percent',
+  'profit', 'markup', 'carrier_cost', 'carrier_pay', 'carrier_rate',
+  'target_rate', 'buy_rate', 'net_revenue', 'commission'
+];
+
+function getAccessControlPrompt(isAdmin: boolean): string {
+  if (isAdmin) {
+    return `## ACCESS LEVEL: ADMIN
+You have full access to all fields including cost, margin, carrier_cost, profit, commission.`;
+  }
+  return `## ACCESS LEVEL: CUSTOMER
+RESTRICTED FIELDS (DO NOT USE): cost, margin, carrier_cost, profit, commission
+When customers say "cost" or "spend", they mean **retail** (what they pay for shipping).`;
+}
+
+// ============================================================================
+// CONTEXT COMPILER (inline service)
+// ============================================================================
+
+interface KnowledgeItem {
+  id: number; type: string; key: string; label?: string;
+  definition: string; ai_instructions?: string;
+  metadata?: Record<string, unknown>; times_used: number;
+}
+
+interface CustomerProfile {
+  priorities?: string[]; products?: Array<{ name: string; keywords: string[] }>;
+  key_markets?: string[]; terminology?: Array<{ term: string; means: string }>;
+  account_notes?: string;
+}
+
+interface AIContext {
+  global_knowledge: KnowledgeItem[];
+  customer_knowledge: KnowledgeItem[];
+  global_documents: Array<{ id: number; title: string; content: string }>;
+  customer_documents: Array<{ id: number; title: string; content: string }>;
+  customer_profile: CustomerProfile;
+}
+
+// ============================================================================
+// OPTIMIZED SYSTEM PROMPT - v2.3/2.4
+// ============================================================================
+
+const HARDCODED_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping.
+
+## CRITICAL: MINIMIZE TOOL CALLS
+
+For common questions, query DIRECTLY using the known schema below. Do NOT call discover_tables or discover_fields for standard queries.
+
+### KNOWN SCHEMA (use directly, no discovery needed)
+
+**shipment table** (main table):
+- retail (decimal) - customer's cost/spend/price
+- cost (decimal) - carrier cost (ADMIN ONLY)
+- margin (decimal) - profit margin (ADMIN ONLY)
+- miles, total_weight, total_pieces (numeric)
+- pickup_date, delivery_date, created_date (dates)
+- origin_city, origin_state, origin_zip
+- dest_city, dest_state, dest_zip
+- customer_id, load_id
+
+**carrier table** (join via shipment_carrier):
+- carrier_id, carrier_name, scac_code
+
+**shipment_carrier table** (bridge table):
+- load_id, carrier_id
+
+### ONE-CALL PATTERNS (use these directly!)
+
+| Question | Tool | Parameters |
+|----------|------|------------|
+| "Total spend" | query_table | table: shipment, aggregations: [{function: SUM, field: retail, alias: total_spend}] |
+| "How many shipments" | query_table | table: shipment, aggregations: [{function: COUNT, field: *, alias: count}] |
+| "Average cost" | query_table | table: shipment, aggregations: [{function: AVG, field: retail, alias: avg_cost}] |
+| "Spend by state" | aggregate | table: shipment, group_by: dest_state, metric: retail, aggregation: sum |
+| "Spend by carrier" | query_with_join | base: shipment, joins: [shipment_carrier, carrier], group_by: [carrier.carrier_name], aggregations: [{function: SUM, field: retail}] |
+| "Top lanes" | get_lanes | limit: 10 |
+
+### WHEN TO USE DISCOVERY (only these cases)
+
+- Unknown product names → search_text first
+- User mentions unfamiliar table → discover_tables
+- Need field details for complex filtering → discover_fields
+- Complex multi-table joins → discover_joins
+
+### CARRIER QUERIES - REQUIRED JOIN PATH
+
+To get carrier names, you MUST join through shipment_carrier:
+\`\`\`
+shipment.load_id → shipment_carrier.load_id → shipment_carrier.carrier_id → carrier.carrier_id
+\`\`\`
+
+Example:
+query_with_join({
+  base_table: "shipment",
+  joins: [{"table": "shipment_carrier"}, {"table": "carrier"}],
+  group_by: ["carrier.carrier_name"],
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+})
+
+### RESPONSE STYLE
+- Lead with the DIRECT answer and specific numbers
+- Be concise
+- Suggest 1-2 follow-up questions`;
+
+async function compileContext(
+  supabase: SupabaseClient,
+  customerId: string,
+  isAdmin: boolean
+): Promise<{ systemPrompt: string; knowledgeIds: number[]; tokenEstimate: number }> {
+  const customerIdInt = parseInt(customerId, 10);
+
+  try {
+    const { data, error } = await supabase.rpc('get_ai_context', {
+      p_customer_id: customerIdInt,
+      p_is_admin: isAdmin
+    });
+
+    if (error || !data) {
+      console.error('[Context] Error:', error);
+      const minPrompt = `${HARDCODED_SYSTEM_PROMPT}\n\n${getAccessControlPrompt(isAdmin)}`;
+      return { systemPrompt: minPrompt, knowledgeIds: [], tokenEstimate: Math.ceil(minPrompt.length / 4) };
+    }
+
+    const ctx = data as AIContext;
+    const sections: string[] = [HARDCODED_SYSTEM_PROMPT, getAccessControlPrompt(isAdmin)];
+    const knowledgeIds: number[] = [];
+
+    // Add global knowledge
+    if (ctx.global_knowledge?.length > 0) {
+      let kSection = '## BUSINESS KNOWLEDGE\n';
+      const terms = ctx.global_knowledge.filter(k => k.type === 'term');
+      const products = ctx.global_knowledge.filter(k => k.type === 'product');
+      const fields = ctx.global_knowledge.filter(k => k.type === 'field');
+
+      if (terms.length > 0) {
+        kSection += '\n### Terms\n';
+        for (const t of terms) {
+          kSection += `- **${t.label || t.key}**: ${t.definition}`;
+          if (t.ai_instructions) kSection += ` (${t.ai_instructions})`;
+          kSection += '\n';
+        }
+      }
+
+      if (products.length > 0) {
+        kSection += '\n### Products\n';
+        for (const p of products) {
+          const keywords = p.metadata?.keywords || [p.key];
+          kSection += `- **${p.label || p.key}**: Search for "${Array.isArray(keywords) ? keywords.join('", "') : keywords}"\n`;
+        }
+      }
+
+      if (fields.length > 0) {
+        kSection += '\n### Field Definitions\n';
+        for (const f of fields) {
+          kSection += `- **${f.label || f.key}**: ${f.definition}`;
+          if (f.ai_instructions) kSection += ` → ${f.ai_instructions}`;
+          kSection += '\n';
+        }
+      }
+
+      sections.push(kSection);
+      knowledgeIds.push(...ctx.global_knowledge.map(k => k.id));
+    }
+
+    // Add customer knowledge
+    if (ctx.customer_knowledge?.length > 0) {
+      let cSection = '## CUSTOMER-SPECIFIC TERMS\n';
+      for (const k of ctx.customer_knowledge) {
+        cSection += `- **${k.label || k.key}**: ${k.definition}\n`;
+      }
+      sections.push(cSection);
+      knowledgeIds.push(...ctx.customer_knowledge.map(k => k.id));
+    }
+
+    // Add global documents
+    if (ctx.global_documents?.length > 0) {
+      let dSection = '## REFERENCE DOCUMENTS\n';
+      for (const d of ctx.global_documents) {
+        dSection += `\n### ${d.title}\n${d.content}\n`;
+      }
+      sections.push(dSection);
+    }
+
+    // Add customer profile
+    if (ctx.customer_profile && Object.keys(ctx.customer_profile).length > 0) {
+      const p = ctx.customer_profile;
+      const parts: string[] = [];
+      if (p.priorities?.length) parts.push(`**Priorities**: ${p.priorities.join(', ')}`);
+      if (p.key_markets?.length) parts.push(`**Markets**: ${p.key_markets.join(', ')}`);
+      if (p.terminology?.length) {
+        const terms = p.terminology.map(t => `"${t.term}" = ${t.means}`).join(', ');
+        parts.push(`**Terms**: ${terms}`);
+      }
+      if (p.account_notes) parts.push(`**Notes**: ${p.account_notes}`);
+      if (parts.length > 0) {
+        sections.push(`## CUSTOMER CONTEXT\n\n${parts.join('\n')}`);
+      }
+    }
+
+    const fullPrompt = sections.join('\n\n');
+    return {
+      systemPrompt: fullPrompt,
+      knowledgeIds,
+      tokenEstimate: Math.ceil(fullPrompt.length / 4)
+    };
+  } catch (e) {
+    console.error('[Context] Exception:', e);
+    const minPrompt = `${HARDCODED_SYSTEM_PROMPT}\n\n${getAccessControlPrompt(isAdmin)}`;
+    return { systemPrompt: minPrompt, knowledgeIds: [], tokenEstimate: Math.ceil(minPrompt.length / 4) };
+  }
+}
+
+// ============================================================================
+// COMPILE MODE (inline service)
+// ============================================================================
+
+interface CompiledFilter {
+  field: string;
+  operator: string;
+  value: unknown;
+}
+
+interface CompileResult {
+  success: boolean;
+  compiledRule?: { filters: CompiledFilter[]; sort?: { field: string; direction: string }; limit?: number };
+  reasoning?: string;
+  confidence?: number;
+  suggestions?: string[];
+  error?: string;
+}
+
+const COMPILE_SYSTEM_PROMPT = `You are a filter compilation assistant. Convert natural language descriptions into structured filter rules.
+
+## OUTPUT FORMAT
+Respond with ONLY valid JSON:
+{
+  "compiledRule": {
+    "filters": [{ "field": "field_name", "operator": "operator", "value": "value" }],
+    "sort": { "field": "field_name", "direction": "asc|desc" },
+    "limit": number
+  },
+  "reasoning": "Brief explanation",
+  "confidence": 0.0-1.0,
+  "suggestions": []
+}
+
+## OPERATORS
+eq, neq, gt, gte, lt, lte, in, not_in, contains, between, is_null, is_not_null
+
+## GEOGRAPHIC REGIONS
+- "west coast" = ["CA", "OR", "WA", "NV", "AZ"]
+- "east coast" = ["NY", "NJ", "PA", "MA", "CT", "ME", "NH", "VT", "RI", "DE", "MD", "VA", "NC", "SC", "GA", "FL"]
+- "midwest" = ["IL", "OH", "MI", "IN", "WI", "MN", "IA", "MO", "ND", "SD", "NE", "KS"]
+- "south" = ["TX", "OK", "AR", "LA", "MS", "AL", "TN", "KY"]
+
+## RULES
+1. Return ONLY valid JSON
+2. Use customer terminology when provided
+3. "cost" or "spend" for customers = retail field
+4. Include confidence score`;
+
+async function compileFilters(
+  anthropic: Anthropic,
+  prompt: string,
+  knowledgeContext: string
+): Promise<CompileResult> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    let userPrompt = `Today: ${today}\n\nConvert to filter rules: "${prompt}"`;
+
+    if (knowledgeContext) {
+      userPrompt = `${knowledgeContext}\n\n${userPrompt}`;
+    }
+
+    const response = await anthropic.messages.create({
+      model: MODELS.HAIKU,
+      max_tokens: 1024,
+      system: COMPILE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }]
+    });
+
+    const textBlock = response.content.find(c => c.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') {
+      return { success: false, error: 'No response from AI' };
+    }
+
+    const parsed = JSON.parse(textBlock.text.trim());
+
+    if (parsed.error) {
+      return { success: false, error: parsed.error, suggestions: parsed.suggestions };
+    }
+
+    return {
+      success: true,
+      compiledRule: parsed.compiledRule,
+      reasoning: parsed.reasoning,
+      confidence: parsed.confidence,
+      suggestions: parsed.suggestions
+    };
+  } catch (error) {
+    const localResult = parseSimpleLogic(prompt);
+    if (localResult) {
+      return { success: true, compiledRule: localResult, reasoning: 'Local pattern match', confidence: 0.7 };
+    }
+    return { success: false, error: error instanceof Error ? error.message : 'Compilation failed' };
+  }
+}
+
+function parseSimpleLogic(prompt: string): { filters: CompiledFilter[] } | null {
+  const filters: CompiledFilter[] = [];
+  const lower = prompt.toLowerCase();
+
+  const overMatch = lower.match(/(?:over|greater than|more than|above)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  if (overMatch) {
+    filters.push({ field: 'retail', operator: 'gt', value: parseFloat(overMatch[1].replace(/,/g, '')) });
+  }
+
+  const underMatch = lower.match(/(?:under|less than|below)\s*\$?(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+  if (underMatch) {
+    filters.push({ field: 'retail', operator: 'lt', value: parseFloat(underMatch[1].replace(/,/g, '')) });
+  }
+
+  const fromMatch = prompt.match(/(?:from|origin)\s+([A-Z]{2})\b/i);
+  if (fromMatch) {
+    filters.push({ field: 'origin_state', operator: 'eq', value: fromMatch[1].toUpperCase() });
+  }
+
+  const toMatch = prompt.match(/(?:to|destination)\s+([A-Z]{2})\b/i);
+  if (toMatch) {
+    filters.push({ field: 'destination_state', operator: 'eq', value: toMatch[1].toUpperCase() });
+  }
+
+  if (lower.includes('delivered')) {
+    filters.push({ field: 'status_name', operator: 'eq', value: 'Delivered' });
+  } else if (lower.includes('late')) {
+    filters.push({ field: 'is_late', operator: 'eq', value: true });
+  }
+
+  return filters.length > 0 ? { filters } : null;
+}
+
+// ============================================================================
+// MODE ROUTER
+// ============================================================================
+
+function routeMode(question: string, preferences?: RequestBody['preferences']): {
+  mode: Mode; confidence: number; reason: string;
+} {
+  if (preferences?.mode) {
+    return { mode: preferences.mode, confidence: 1.0, reason: 'Explicit mode' };
+  }
+
+  if (preferences?.forceMode) {
+    const legacyMap: Record<string, Mode> = { 'quick': 'question', 'deep': 'analyze', 'visual': 'widget' };
+    return { mode: legacyMap[preferences.forceMode] || 'question', confidence: 0.9, reason: 'Legacy mode' };
+  }
+
+  const q = question.toLowerCase();
+
+  if (q.includes('compile') || q.includes('filter for') || q.includes('convert to')) {
+    return { mode: 'compile', confidence: 0.85, reason: 'Filter compilation' };
+  }
+  if (q.includes('report') || q.includes('generate report')) {
+    return { mode: 'report', confidence: 0.9, reason: 'Report generation' };
+  }
+  if (q.includes('widget') || q.includes('chart') || q.includes('visualization')) {
+    return { mode: 'widget', confidence: 0.85, reason: 'Visualization' };
+  }
+  if (/why|investigate|analyze|compare|versus|driving|causing/i.test(q)) {
+    return { mode: 'analyze', confidence: 0.85, reason: 'Deep analysis' };
+  }
+
+  return { mode: 'question', confidence: 0.7, reason: 'General Q&A' };
+}
+
+// ============================================================================
+// MCP TOOLS
+// ============================================================================
+
 const MCP_TOOLS: Anthropic.Tool[] = [
   {
     name: "discover_tables",
-    description: "List all available database tables. Call this FIRST to understand what data exists.",
+    description: "List all available database tables. Only use when you need to find tables beyond shipment, carrier, shipment_carrier.",
     input_schema: {
       type: "object" as const,
-      properties: {
-        category: {
-          type: "string",
-          enum: ["core", "reference", "analytics"],
-          description: "Filter by table category"
-        }
-      },
+      properties: { category: { type: "string", enum: ["core", "reference", "analytics"] } },
       required: []
     }
   },
   {
     name: "discover_fields",
-    description: "Get all fields for a specific table with their types, whether they can be grouped/aggregated, and AI instructions.",
+    description: "Get all fields for a specific table. Only use for tables NOT in the known schema above.",
     input_schema: {
       type: "object" as const,
-      properties: {
-        table_name: {
-          type: "string",
-          description: "Table name (e.g., 'shipment', 'carrier', 'shipment_item')"
-        }
-      },
+      properties: { table_name: { type: "string" } },
       required: ["table_name"]
     }
   },
   {
     name: "discover_joins",
-    description: "Get available join relationships for a table. Shows how tables connect.",
+    description: "Get available join relationships for a table.",
     input_schema: {
       type: "object" as const,
-      properties: {
-        table_name: { type: "string", description: "Table to find joins for" }
-      },
+      properties: { table_name: { type: "string" } },
       required: ["table_name"]
     }
   },
   {
     name: "search_text",
-    description: "Search for text across all searchable fields. Use to find specific carriers, products, references, etc. Returns which tables/fields contain matches.",
+    description: "Search for text across all searchable fields. Use to find specific carriers, products, references.",
     input_schema: {
       type: "object" as const,
       properties: {
-        query: {
-          type: "string",
-          description: "Text to search for (e.g., 'cargoglide', 'fedex', 'PO12345')"
-        },
-        match_type: {
-          type: "string",
-          enum: ["contains", "exact", "starts_with"],
-          description: "How to match (default: contains)"
-        }
+        query: { type: "string" },
+        match_type: { type: "string", enum: ["contains", "exact", "starts_with"] }
       },
       required: ["query"]
     }
   },
   {
     name: "query_table",
-    description: "Query a single table with filters and aggregations. Customer filtering is automatic.",
+    description: "Query a single table with filters and aggregations. Use for shipment table queries. Customer filtering is automatic.",
     input_schema: {
       type: "object" as const,
       properties: {
-        table_name: { type: "string", description: "Table to query" },
-        select: {
-          type: "array",
-          items: { type: "string" },
-          description: "Fields to select (default: all)"
-        },
-        filters: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              field: { type: "string" },
-              operator: { type: "string", enum: ["eq", "neq", "gt", "gte", "lt", "lte", "ilike", "in", "between", "is_null", "is_not_null"] },
-              value: {}
-            },
-            required: ["field", "operator", "value"]
-          },
-          description: "Filter conditions"
-        },
-        group_by: {
-          type: "array",
-          items: { type: "string" },
-          description: "Fields to group by"
-        },
-        aggregations: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              field: { type: "string" },
-              function: { type: "string", enum: ["sum", "avg", "min", "max", "count"] },
-              alias: { type: "string" }
-            },
-            required: ["field", "function"]
-          },
-          description: "Aggregations to perform"
-        },
-        order_by: { type: "string", description: "Field to order by" },
+        table_name: { type: "string" },
+        select: { type: "array", items: { type: "string" } },
+        filters: { type: "array" },
+        group_by: { type: "array", items: { type: "string" } },
+        aggregations: { type: "array" },
+        order_by: { type: "string" },
         order_dir: { type: "string", enum: ["asc", "desc"] },
-        limit: { type: "number", description: "Max rows (default: 100)" }
+        limit: { type: "number" }
       },
       required: ["table_name"]
     }
   },
   {
     name: "query_with_join",
-    description: "Query across multiple tables with automatic joins. Use for questions involving carrier names, addresses, item details, etc.",
+    description: "Query across multiple tables with automatic joins. REQUIRED for carrier names. Join path: shipment → shipment_carrier → carrier.",
     input_schema: {
       type: "object" as const,
       properties: {
-        base_table: { type: "string", description: "Primary table (usually 'shipment')" },
-        joins: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              table: { type: "string", description: "Table to join" },
-              type: { type: "string", enum: ["left", "inner"], description: "Join type (default: left)" }
-            },
-            required: ["table"]
-          },
-          description: "Tables to join (join conditions are automatic)"
-        },
-        select: {
-          type: "array",
-          items: { type: "string" },
-          description: "Fields to select (use table.field format)"
-        },
-        filters: { type: "array", description: "Filter conditions" },
-        group_by: { type: "array", items: { type: "string" } },
-        aggregations: { type: "array" },
+        base_table: { type: "string", description: "Starting table, usually 'shipment'" },
+        joins: { type: "array", description: "Tables to join: [{\"table\": \"shipment_carrier\"}, {\"table\": \"carrier\"}]" },
+        select: { type: "array", items: { type: "string" }, description: "Fields to select, e.g. ['carrier.carrier_name']" },
+        filters: { type: "array" },
+        group_by: { type: "array", items: { type: "string" }, description: "Fields to group by, e.g. ['carrier.carrier_name']" },
+        aggregations: { type: "array", description: "Aggregations, e.g. [{\"function\": \"SUM\", \"field\": \"retail\", \"alias\": \"total_spend\"}]" },
         order_by: { type: "string" },
         limit: { type: "number" }
       },
@@ -186,71 +635,36 @@ const MCP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "aggregate",
-    description: "Simple group-by aggregation. Shortcut for common 'X by Y' questions.",
+    description: "Simple group-by aggregation for 'X by Y' questions on a SINGLE table. Do NOT use for carrier queries.",
     input_schema: {
       type: "object" as const,
       properties: {
-        table_name: { type: "string", description: "Table to query" },
-        group_by: { type: "string", description: "Field to group by" },
-        metric: { type: "string", description: "Field to aggregate" },
+        table_name: { type: "string" },
+        group_by: { type: "string" },
+        metric: { type: "string" },
         aggregation: { type: "string", enum: ["sum", "avg", "min", "max", "count"] },
-        filters: { type: "array", description: "Optional filters" },
-        limit: { type: "number", description: "Max groups (default: 20)" }
+        filters: { type: "array" },
+        limit: { type: "number" }
       },
       required: ["table_name", "group_by", "metric", "aggregation"]
+    }
+  },
+  {
+    name: "get_lanes",
+    description: "Get top shipping lanes (origin → destination pairs) with shipment counts and total spend.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: { type: "number", description: "Number of top lanes to return (default 20)" }
+      },
+      required: []
     }
   }
 ];
 
-const MCP_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping. You investigate shipping data and provide actionable insights.
-
-## YOUR APPROACH: DISCOVER FIRST, THEN QUERY
-
-You have access to a Model Context Protocol (MCP) that lets you discover the database schema dynamically.
-
-### CRITICAL WORKFLOW
-1. **SEARCH FIRST** for any specific terms (carriers, products, references)
-   - "cargoglide shipments" -> search_text("cargoglide") to find where it exists
-   - "fedex costs" -> search_text("fedex") to locate carrier data
-
-2. **DISCOVER** the schema when needed
-   - discover_tables() -> see all available tables
-   - discover_fields("shipment") -> see fields in shipment table
-   - discover_joins("shipment") -> see how tables connect
-
-3. **QUERY** with the right approach
-   - Simple metrics: aggregate()
-   - Need carrier names: query_with_join() with carrier table
-   - Complex filters: query_table() with filters array
-
-### COMMON PATTERNS
-
-| Question | First Tool | Then |
-|----------|-----------|------|
-| "cargoglide average price" | search_text("cargoglide") | query_with_join to get matching shipments with carrier |
-| "cost by carrier" | query_with_join(shipment + carrier) | group by carrier_name |
-| "my top lanes" | aggregate(shipment, group_by: origin+dest) | |
-| "what carriers do I use" | query_with_join(shipment + carrier, group_by carrier) | |
-
-### IMPORTANT FIELD NOTES
-- **carrier_name** is in the 'carrier' table, NOT shipment. Always JOIN to get carrier names.
-- **retail** = customer's cost (what they pay)
-- **cost** = carrier cost (ADMIN ONLY - don't show to customers)
-- Use **shipment_carrier** table to get carrier info (JOIN shipment.load_id = shipment_carrier.load_id, then shipment_carrier.carrier_id = carrier.carrier_id)
-- The shipment_carrier table contains the ACTUAL hauling carrier
-
-### RESPONSE STYLE
-- Lead with a DIRECT answer and specific numbers
-- Show your reasoning briefly
-- Suggest 1-2 follow-up questions
-- If search returns no results, tell the user and suggest alternatives
-
-### EXAMPLE INVESTIGATION
-User: "What's the average price of cargoglide shipments?"
-
-1. search_text("cargoglide") -> Found in carrier.carrier_name
-2. query_with_join(base: shipment, joins: [carrier], filters: carrier_name ILIKE '%cargoglide%', aggregations: [avg(retail)])
-3. Answer: "CargoGlide shipments average $342.50 across 127 shipments..."`;
+// ============================================================================
+// TOOL EXECUTOR
+// ============================================================================
 
 async function executeMCPTool(
   supabase: SupabaseClient,
@@ -268,59 +682,32 @@ async function executeMCPTool(
         p_include_row_counts: false
       });
       if (error) return { success: false, error: error.message };
-      return {
-        success: true,
-        tables: data || [],
-        count: data?.length || 0,
-        hint: "Use discover_fields(table_name) to see fields, or search_text() to find specific data"
-      };
+      return { success: true, tables: data || [], count: data?.length || 0 };
     }
 
     case 'discover_fields': {
       const tableName = toolInput.table_name as string;
-      if (!tableName) return { success: false, error: "table_name is required" };
-
+      if (!tableName) return { success: false, error: "table_name required" };
       const { data, error } = await supabase.rpc('mcp_get_fields', {
         p_table_name: tableName,
         p_include_samples: true,
         p_admin_mode: isAdmin
       });
       if (error) return { success: false, error: error.message };
-
-      const fields = data || [];
-      return {
-        success: true,
-        table_name: tableName,
-        field_count: fields.length,
-        fields,
-        summary: {
-          groupable: fields.filter((f: Record<string, unknown>) => f.is_groupable).map((f: Record<string, unknown>) => f.field_name),
-          aggregatable: fields.filter((f: Record<string, unknown>) => f.is_aggregatable).map((f: Record<string, unknown>) => f.field_name),
-          searchable: fields.filter((f: Record<string, unknown>) => f.is_searchable).map((f: Record<string, unknown>) => f.field_name)
-        }
-      };
+      return { success: true, table_name: tableName, fields: data || [] };
     }
 
     case 'discover_joins': {
       const tableName = toolInput.table_name as string;
-      if (!tableName) return { success: false, error: "table_name is required" };
-
-      const { data, error } = await supabase.rpc('mcp_get_table_joins', {
-        p_table_name: tableName
-      });
+      if (!tableName) return { success: false, error: "table_name required" };
+      const { data, error } = await supabase.rpc('mcp_get_table_joins', { p_table_name: tableName });
       if (error) return { success: false, error: error.message };
-      return {
-        success: true,
-        table_name: tableName,
-        joins: data || [],
-        hint: "Use query_with_join() to query across these tables"
-      };
+      return { success: true, table_name: tableName, joins: data || [] };
     }
 
     case 'search_text': {
       const query = toolInput.query as string;
-      if (!query) return { success: false, error: "query is required" };
-
+      if (!query) return { success: false, error: "query required" };
       const { data, error } = await supabase.rpc('mcp_search_text', {
         p_search_query: query,
         p_customer_id: customerIdInt,
@@ -329,23 +716,13 @@ async function executeMCPTool(
         p_limit: 10
       });
       if (error) return { success: false, error: error.message };
-
       const result = typeof data === 'string' ? JSON.parse(data) : data;
-      return {
-        success: true,
-        query,
-        matches: result?.results || [],
-        total_matches: result?.total_matches || 0,
-        hint: result?.total_matches > 0
-          ? "Use query_with_join() to get full details for matching records"
-          : "No matches found. Try different spelling or search terms."
-      };
+      return { success: true, query, matches: result?.results || [], total_matches: result?.total_matches || 0 };
     }
 
     case 'query_table': {
       const tableName = toolInput.table_name as string;
-      if (!tableName) return { success: false, error: "table_name is required" };
-
+      if (!tableName) return { success: false, error: "table_name required" };
       const { data, error } = await supabase.rpc('mcp_query_table', {
         p_table_name: tableName,
         p_customer_id: customerIdInt,
@@ -359,21 +736,13 @@ async function executeMCPTool(
         p_limit: (toolInput.limit as number) || 100
       });
       if (error) return { success: false, error: error.message };
-
       const result = typeof data === 'string' ? JSON.parse(data) : data;
-      return {
-        success: result?.success ?? true,
-        table: tableName,
-        row_count: result?.row_count || 0,
-        data: result?.data || [],
-        query: result?.query
-      };
+      return { success: true, table: tableName, row_count: result?.row_count || 0, data: result?.data || [] };
     }
 
     case 'query_with_join': {
       const baseTable = toolInput.base_table as string;
-      if (!baseTable) return { success: false, error: "base_table is required" };
-
+      if (!baseTable) return { success: false, error: "base_table required" };
       const { data, error } = await supabase.rpc('mcp_query_with_join', {
         p_base_table: baseTable,
         p_customer_id: customerIdInt,
@@ -385,50 +754,36 @@ async function executeMCPTool(
         p_aggregations: toolInput.aggregations || []
       });
       if (error) return { success: false, error: error.message };
-
       const result = typeof data === 'string' ? JSON.parse(data) : data;
-      return {
-        success: result?.success ?? true,
-        base_table: baseTable,
-        joined_tables: result?.joined_tables || [],
-        row_count: result?.row_count || 0,
-        data: result?.data || [],
-        query: result?.query
-      };
+      return { success: true, base_table: baseTable, row_count: result?.row_count || 0, data: result?.data || [] };
     }
 
     case 'aggregate': {
       const tableName = toolInput.table_name as string;
-      const groupBy = toolInput.group_by as string;
-      const metric = toolInput.metric as string;
-      const aggregation = toolInput.aggregation as string;
-
-      if (!tableName || !groupBy || !metric || !aggregation) {
-        return { success: false, error: "table_name, group_by, metric, and aggregation are required" };
-      }
-
+      if (!tableName) return { success: false, error: "table_name required" };
       const { data, error } = await supabase.rpc('mcp_aggregate', {
         p_table_name: tableName,
         p_customer_id: customerIdInt,
         p_is_admin: isAdmin,
-        p_group_by: groupBy,
-        p_metric: metric,
-        p_aggregation: aggregation,
+        p_group_by: toolInput.group_by as string,
+        p_metric: toolInput.metric as string,
+        p_aggregation: toolInput.aggregation as string,
         p_filters: toolInput.filters || [],
         p_limit: (toolInput.limit as number) || 20
       });
       if (error) return { success: false, error: error.message };
-
       const result = typeof data === 'string' ? JSON.parse(data) : data;
-      return {
-        success: result?.success ?? true,
-        group_by: groupBy,
-        metric,
-        aggregation,
-        row_count: result?.row_count || 0,
-        data: result?.data || [],
-        query: result?.query
-      };
+      return { success: true, data: result?.data || [] };
+    }
+
+    case 'get_lanes': {
+      const { data, error } = await supabase.rpc('mcp_get_lanes', {
+        p_customer_id: customerIdInt,
+        p_limit: (toolInput.limit as number) || 20
+      });
+      if (error) return { success: false, error: error.message };
+      const result = typeof data === 'string' ? JSON.parse(data) : data;
+      return { success: true, data: result?.data || [] };
     }
 
     default:
@@ -436,125 +791,329 @@ async function executeMCPTool(
   }
 }
 
+// ============================================================================
+// PARALLEL TOOL EXECUTOR - v2.4
+// Executes multiple tool calls simultaneously for faster response
+// ============================================================================
+
+interface ToolExecution {
+  toolUse: Anthropic.ToolUseBlock;
+  result: unknown;
+  visualization: Visualization | null;
+}
+
+async function executeToolsInParallel(
+  supabase: SupabaseClient,
+  customerId: string,
+  isAdmin: boolean,
+  toolUseBlocks: Anthropic.ToolUseBlock[]
+): Promise<ToolExecution[]> {
+  const executions = await Promise.all(
+    toolUseBlocks.map(async (toolUse): Promise<ToolExecution> => {
+      const result = await executeMCPTool(
+        supabase,
+        customerId,
+        isAdmin,
+        toolUse.name,
+        toolUse.input as Record<string, unknown>
+      );
+
+      const visualization = generateVisualization(
+        toolUse.name,
+        toolUse.input as Record<string, unknown>,
+        result
+      );
+
+      return { toolUse, result, visualization };
+    })
+  );
+
+  return executions;
+}
+
+// ============================================================================
+// VISUALIZATION HELPERS - v2.2 Polished
+// ============================================================================
+
+function formatFieldName(name: string | null | undefined): string {
+  if (!name) return 'Value';
+
+  let clean = name.includes('.') ? name.split('.').pop() || name : name;
+
+  const specialCases: Record<string, string> = {
+    'carrier_name': 'Carrier',
+    'shipment_count': 'Shipments',
+    'total_cost': 'Total Cost',
+    'total_spend': 'Total Spend',
+    'total_retail': 'Total Spend',
+    'retail': 'Spend',
+    'cost': 'Cost',
+    'margin': 'Margin',
+    'avg_cost': 'Avg Cost',
+    'avg_retail': 'Avg Spend',
+    'origin_state': 'Origin State',
+    'dest_state': 'Destination State',
+    'destination_state': 'Destination State',
+    'origin_city': 'Origin City',
+    'dest_city': 'Destination City',
+    'pickup_date': 'Pickup Date',
+    'delivery_date': 'Delivery Date',
+    'load_id': 'Load ID',
+    'miles': 'Miles',
+    'total_weight': 'Weight',
+    'freight_class': 'Freight Class'
+  };
+
+  const lowerClean = clean.toLowerCase();
+  if (specialCases[lowerClean]) {
+    return specialCases[lowerClean];
+  }
+
+  return clean
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatAggregation(agg: string | null | undefined): string {
+  if (!agg) return 'Total';
+
+  const aggMap: Record<string, string> = {
+    'sum': 'Total',
+    'avg': 'Average',
+    'average': 'Average',
+    'count': 'Count',
+    'min': 'Minimum',
+    'max': 'Maximum'
+  };
+
+  return aggMap[agg.toLowerCase()] || agg.charAt(0).toUpperCase() + agg.slice(1);
+}
+
+function buildVisualizationTitle(
+  aggregation: string | null | undefined,
+  metric: string | null | undefined,
+  groupBy: string | null | undefined,
+  isStatCard: boolean
+): string {
+  const formattedMetric = formatFieldName(metric);
+  const formattedAgg = formatAggregation(aggregation);
+
+  if (isStatCard) {
+    if (formattedMetric.toLowerCase().includes(formattedAgg.toLowerCase())) {
+      return formattedMetric;
+    }
+    return `${formattedAgg} ${formattedMetric}`;
+  }
+
+  const formattedGroupBy = formatFieldName(groupBy);
+  return `${formattedMetric} by ${formattedGroupBy}`;
+}
+
+function isCurrencyMetric(metric: string | null | undefined, valueKey: string | null | undefined): boolean {
+  const toCheck = [metric, valueKey].filter(Boolean).join(' ').toLowerCase();
+
+  const currencyKeywords = [
+    'cost', 'retail', 'spend', 'price', 'margin', 'revenue',
+    'amount', 'total_cost', 'total_spend', 'total_retail',
+    'avg_cost', 'avg_retail', 'carrier_pay', 'charge'
+  ];
+
+  return currencyKeywords.some(kw => toCheck.includes(kw));
+}
+
+function findValueKey(row: Record<string, unknown>, keys: string[]): string | null {
+  const priorityKeys = ['value', 'total', 'count', 'sum', 'avg', 'total_cost', 'total_spend',
+                        'total_retail', 'shipment_count', 'avg_cost', 'avg_retail'];
+
+  for (const pk of priorityKeys) {
+    const found = keys.find(k => k.toLowerCase() === pk || k.toLowerCase().includes(pk));
+    if (found && (typeof row[found] === 'number' || !isNaN(parseFloat(String(row[found]))))) {
+      return found;
+    }
+  }
+
+  return keys.find(k => typeof row[k] === 'number') || null;
+}
+
+function findLabelKey(row: Record<string, unknown>, keys: string[], excludeKey: string | null): string | null {
+  const priorityKeys = ['carrier_name', 'name', 'state', 'city', 'mode', 'status',
+                        'origin_state', 'dest_state', 'destination_state', 'lane'];
+
+  for (const pk of priorityKeys) {
+    const found = keys.find(k => k.toLowerCase() === pk || k.toLowerCase().includes(pk));
+    if (found && found !== excludeKey && typeof row[found] === 'string') {
+      return found;
+    }
+  }
+
+  return keys.find(k => typeof row[k] === 'string' && k !== excludeKey) || keys[0];
+}
+
+// ============================================================================
+// VISUALIZATION GENERATOR - v2.2 Polished
+// ============================================================================
+
 function generateVisualization(
   toolName: string,
   toolInput: Record<string, unknown>,
   result: unknown
 ): Visualization | null {
-  const id = crypto.randomUUID();
-  const data = result as Record<string, unknown>;
+  const r = result as { success?: boolean; data?: unknown[] };
 
-  console.log('[generateVisualization] Input:', {
-    toolName,
-    dataSuccess: data.success,
-    hasData: !!data.data,
-    dataLength: Array.isArray(data.data) ? data.data.length : 0,
-    dataKeys: Object.keys(data),
-    toolInputKeys: Object.keys(toolInput)
-  });
-
-  if (!data.success || !data.data) {
-    console.log('[generateVisualization] Returning null: success=', data.success, 'hasData=', !!data.data);
+  if (!r?.success || !r?.data || !Array.isArray(r.data) || r.data.length === 0) {
+    console.log('[Viz] No data to visualize');
     return null;
   }
-  const rows = data.data as Array<Record<string, unknown>>;
-  if (!rows || rows.length === 0) return null;
 
-  if ((toolName === 'aggregate' || toolName === 'query_with_join' || toolName === 'query_table') &&
-      toolInput.aggregations || toolInput.group_by) {
+  const rows = r.data as Array<Record<string, unknown>>;
 
-    const groupBy = (toolInput.group_by as string[] | string)?.[0] || toolInput.group_by as string;
-    const metric = (toolInput.metric as string) || 'value';
+  console.log('[Viz] Processing:', {
+    toolName,
+    rowCount: rows.length,
+    hasGroupBy: !!toolInput.group_by,
+    firstRowKeys: Object.keys(rows[0] || {})
+  });
 
-    const firstRow = rows[0];
-    const valueKey = Object.keys(firstRow).find(k =>
-      k === 'value' || k === 'count' || k.includes('sum') || k.includes('avg')
-    ) || Object.keys(firstRow).find(k => typeof firstRow[k] === 'number');
+  const metric = toolInput.metric as string | undefined;
+  const aggregation = toolInput.aggregation as string | undefined;
+  const groupByRaw = toolInput.group_by;
+  const groupByField = Array.isArray(groupByRaw)
+    ? (groupByRaw[0] as string)?.split('.').pop()
+    : typeof groupByRaw === 'string'
+      ? groupByRaw.split('.').pop()
+      : null;
 
-    if (!valueKey) return null;
-
-    const labelKey = Object.keys(firstRow).find(k =>
-      typeof firstRow[k] === 'string' && k !== valueKey
-    ) || Object.keys(firstRow)[0];
+  if (toolName === 'get_lanes') {
+    const laneData = rows.slice(0, 15).map(row => {
+      const lane = row.lane ||
+        `${row.origin_city || '?'}, ${row.origin_state || '?'} → ${row.dest_city || '?'}, ${row.dest_state || '?'}`;
+      const value = Number(row.shipment_count || row.total_spend || 0);
+      return { label: String(lane), value };
+    });
 
     return {
-      id,
+      id: crypto.randomUUID(),
       type: 'bar',
-      title: `${formatFieldName(metric)} by ${formatFieldName(groupBy || labelKey)}`,
-      subtitle: `${rows.length} groups`,
+      title: 'Top Shipping Lanes',
+      subtitle: `${rows.length} lanes by volume`,
       data: {
-        data: rows.slice(0, 15).map(row => ({
-          label: String(row[labelKey] || 'Unknown'),
-          value: Number(row[valueKey]) || 0
-        })),
-        format: metric.includes('retail') || metric.includes('cost') ? 'currency' : 'number'
+        data: laneData,
+        format: 'number'
       },
-      config: { metric, groupBy }
+      config: {
+        xField: 'lane',
+        yField: 'shipment_count',
+        orientation: 'horizontal'
+      }
     };
   }
 
-  if (toolName === 'query_table' && rows.length === 1) {
+  if (rows.length === 1) {
     const row = rows[0];
     const keys = Object.keys(row);
-    if (keys.length <= 3) {
-      const valueKey = keys.find(k => typeof row[k] === 'number') || keys[0];
+
+    console.log('[Viz] Single row detected:', { keys, row });
+
+    const valueKey = findValueKey(row, keys);
+
+    if (valueKey) {
+      const rawValue = row[valueKey];
+      const value = typeof rawValue === 'number'
+        ? rawValue
+        : parseFloat(String(rawValue));
+
+      if (!isNaN(value)) {
+        const isCurrency = isCurrencyMetric(metric, valueKey);
+        const title = buildVisualizationTitle(aggregation, metric || valueKey, null, true);
+
+        console.log('[Viz] Creating STAT card:', { title, value, isCurrency });
+
+        return {
+          id: crypto.randomUUID(),
+          type: 'stat',
+          title,
+          data: {
+            value: value,
+            format: isCurrency ? 'currency' : 'number'
+          }
+        };
+      }
+    }
+
+    const firstKey = keys[0];
+    const firstValue = row[firstKey];
+    if (typeof firstValue === 'number') {
       return {
-        id,
+        id: crypto.randomUUID(),
         type: 'stat',
-        title: formatFieldName(valueKey),
+        title: formatFieldName(firstKey),
         data: {
-          value: Number(row[valueKey]) || 0,
-          format: valueKey.includes('retail') || valueKey.includes('cost') ? 'currency' : 'number'
+          value: firstValue,
+          format: isCurrencyMetric(null, firstKey) ? 'currency' : 'number'
         }
       };
     }
+
+    console.log('[Viz] Single row but no displayable value');
   }
 
+  if (rows.length > 1) {
+    const firstRow = rows[0];
+    const rowKeys = Object.keys(firstRow);
+
+    const valueKey = findValueKey(firstRow, rowKeys);
+    const labelKey = findLabelKey(firstRow, rowKeys, valueKey);
+
+    if (!valueKey) {
+      console.log('[Viz] No value key found for bar chart');
+      return null;
+    }
+
+    const isCurrency = isCurrencyMetric(metric, valueKey);
+    const title = buildVisualizationTitle(aggregation, metric || valueKey, groupByField || labelKey, false);
+
+    const chartData = rows.slice(0, 15).map(row => ({
+      label: String(row[labelKey!] || 'Unknown'),
+      value: Number(row[valueKey]) || 0
+    }));
+
+    chartData.sort((a, b) => b.value - a.value);
+
+    console.log('[Viz] Creating BAR chart:', {
+      title,
+      labelKey,
+      valueKey,
+      rowCount: rows.length,
+      isCurrency
+    });
+
+    return {
+      id: crypto.randomUUID(),
+      type: 'bar',
+      title,
+      subtitle: `${rows.length} ${formatFieldName(groupByField || labelKey).toLowerCase()}s`,
+      data: {
+        data: chartData,
+        format: isCurrency ? 'currency' : 'number'
+      },
+      config: {
+        xField: labelKey,
+        yField: valueKey,
+        metric: metric || valueKey,
+        groupBy: groupByField || labelKey,
+        orientation: 'horizontal',
+        showValues: true
+      }
+    };
+  }
+
+  console.log('[Viz] No visualization match');
   return null;
 }
 
-function formatFieldName(name: string): string {
-  if (!name) return 'Value';
-  return name
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function classifyQuestion(question: string): { mode: 'quick' | 'deep' | 'visual'; confidence: number; reason: string } {
-  const q = question.toLowerCase();
-
-  const quickPatterns = [
-    /^(what|how much|how many|who|which)\s+(is|are|was|were)\b/i,
-    /total|count|average|sum|highest|lowest/i,
-    /\?$/
-  ];
-
-  const visualPatterns = [
-    /show|chart|graph|visualize|plot|display|compare.*vs|distribution/i,
-    /by (carrier|state|mode|month|week)/i,
-    /breakdown|split|trend/i
-  ];
-
-  const deepPatterns = [
-    /why|how come|explain|analyze|investigate|dig into/i,
-    /root cause|problem|issue|anomal/i,
-    /understand|figure out/i
-  ];
-
-  for (const pattern of quickPatterns) {
-    if (pattern.test(q)) return { mode: 'quick', confidence: 0.8, reason: 'Simple factual question' };
-  }
-
-  for (const pattern of visualPatterns) {
-    if (pattern.test(q)) return { mode: 'visual', confidence: 0.85, reason: 'Visualization requested' };
-  }
-
-  for (const pattern of deepPatterns) {
-    if (pattern.test(q)) return { mode: 'deep', confidence: 0.9, reason: 'Analytical investigation needed' };
-  }
-
-  return { mode: 'deep', confidence: 0.6, reason: 'Default to thorough analysis' };
-}
+// ============================================================================
+// ADMIN CHECK
+// ============================================================================
 
 async function verifyAdminRole(supabase: SupabaseClient, userId: string): Promise<boolean> {
   try {
@@ -563,7 +1122,6 @@ async function verifyAdminRole(supabase: SupabaseClient, userId: string): Promis
       .select('user_role')
       .eq('user_id', userId)
       .single();
-
     if (error || !data) return false;
     return data.user_role === 'admin';
   } catch {
@@ -571,12 +1129,62 @@ async function verifyAdminRole(supabase: SupabaseClient, userId: string): Promis
   }
 }
 
+// ============================================================================
+// CIRCUIT BREAKER (simple inline version)
+// ============================================================================
+
+let failureCount = 0;
+let lastFailureTime = 0;
+const FAILURE_THRESHOLD = 5;
+const RESET_TIMEOUT = 60000;
+
+function canExecute(): boolean {
+  if (failureCount < FAILURE_THRESHOLD) return true;
+  if (Date.now() - lastFailureTime > RESET_TIMEOUT) {
+    failureCount = 0;
+    return true;
+  }
+  return false;
+}
+
+function recordSuccess(): void { failureCount = 0; }
+function recordFailure(): void { failureCount++; lastFailureTime = Date.now(); }
+
+// ============================================================================
+// TRACK KNOWLEDGE USAGE (safe wrapper)
+// ============================================================================
+
+async function trackKnowledgeUsage(supabase: SupabaseClient, knowledgeIds: number[]): Promise<void> {
+  if (knowledgeIds.length === 0) return;
+  try {
+    await supabase.rpc('increment_knowledge_usage', { p_knowledge_ids: knowledgeIds });
+  } catch (e) {
+    console.error('[Investigate] Knowledge tracking error:', e);
+  }
+}
+
+// ============================================================================
+// MAIN HANDLER - v2.4 with Smart Model Routing + Parallel Tools
+// ============================================================================
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   const startTime = Date.now();
+
+  if (!canExecute()) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Service temporarily unavailable',
+        answer: 'The AI service is temporarily unavailable. Please try again in a moment.',
+        metadata: { processingTimeMs: Date.now() - startTime, toolCallCount: 0, mode: 'error', tier: 'dynamic' }
+      }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   try {
     const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
@@ -590,13 +1198,7 @@ Deno.serve(async (req: Request) => {
     const body: RequestBody = await req.json();
     const { question, customerId, userId, conversationHistory = [], preferences = {} } = body;
 
-    console.log('[Investigate] Request received:', {
-      question: question?.substring(0, 100),
-      customerId,
-      userId,
-      preferences,
-      hasHistory: conversationHistory.length > 0
-    });
+    console.log('[Investigate] Request:', { question: question?.substring(0, 100), customerId, mode: preferences?.mode });
 
     if (!question || !customerId) {
       return new Response(
@@ -608,19 +1210,50 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
     const isAdmin = userId ? await verifyAdminRole(supabase, userId) : false;
 
-    const classification = classifyQuestion(question);
-    const mode = preferences.forceMode || classification.mode;
-    console.log(`[Investigate] Mode: ${mode}, Admin: ${isAdmin}, Question: ${question.slice(0, 100)}`);
+    const routing = routeMode(question, preferences);
+    console.log(`[Investigate] Mode: ${routing.mode}, Admin: ${isAdmin}`);
 
-    const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+    const compiledContext = await compileContext(supabase, customerId, isAdmin);
+    console.log(`[Investigate] Context: ${compiledContext.tokenEstimate} tokens, ${compiledContext.knowledgeIds.length} knowledge items`);
 
-    const reasoningSteps: ReasoningStep[] = [{
-      type: 'routing',
-      content: `Mode: ${mode} (${classification.reason})`
-    }];
+    if (routing.mode === 'compile') {
+      const compileResult = await compileFilters(anthropic, question, compiledContext.systemPrompt);
+
+      await trackKnowledgeUsage(supabase, compiledContext.knowledgeIds);
+
+      recordSuccess();
+      return new Response(JSON.stringify({
+        success: compileResult.success,
+        answer: compileResult.reasoning || (compileResult.success ? 'Filter compiled' : 'Failed'),
+        compiledRule: compileResult.compiledRule,
+        confidence: compileResult.confidence,
+        suggestions: compileResult.suggestions,
+        reasoning: [{ type: 'routing', content: 'Mode: compile' }],
+        metadata: {
+          processingTimeMs: Date.now() - startTime,
+          toolCallCount: 0,
+          mode: 'compile',
+          tier: 'compile',
+          model: MODELS.HAIKU,
+          contextTokens: compiledContext.tokenEstimate,
+          knowledgeItemsUsed: compiledContext.knowledgeIds.length
+        },
+        error: compileResult.error
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const modelSelection = selectModel(question, routing.mode);
+    console.log(`[Investigate] Model: ${modelSelection.model} (${modelSelection.reason})`);
+
+    const reasoningSteps: ReasoningStep[] = [
+      { type: 'routing', content: `Mode: ${routing.mode} (${routing.reason})` },
+      { type: 'context', content: `Loaded ${compiledContext.knowledgeIds.length} knowledge items` },
+      { type: 'model', content: `Using ${modelSelection.model === MODELS.HAIKU ? 'Haiku (fast)' : 'Sonnet (smart)'}: ${modelSelection.reason}` }
+    ];
     let toolCallCount = 0;
     const visualizations: Visualization[] = [];
 
@@ -629,158 +1262,124 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: question }
     ];
 
-    const maxTurns = mode === 'quick' ? 4 : mode === 'visual' ? 6 : 10;
+    const maxTurns = routing.mode === 'analyze' ? 10 : routing.mode === 'report' ? 8 : 6;
     let currentMessages = [...messages];
     let finalAnswer = "";
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let currentModel = modelSelection.model;
 
     for (let turn = 0; turn < maxTurns; turn++) {
-      console.log(`[Investigate] Turn ${turn + 1}/${maxTurns}`);
+      console.log(`[Investigate] Turn ${turn + 1}/${maxTurns} (${currentModel})`);
 
       const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: mode === 'quick' ? 2048 : 4096,
-        system: MCP_SYSTEM_PROMPT,
+        model: currentModel,
+        max_tokens: routing.mode === 'analyze' ? 4096 : 2048,
+        system: compiledContext.systemPrompt,
         messages: currentMessages,
         tools: MCP_TOOLS,
         tool_choice: { type: "auto" }
       });
 
+      totalInputTokens += response.usage?.input_tokens || 0;
+      totalOutputTokens += response.usage?.output_tokens || 0;
+
       for (const block of response.content) {
         if (block.type === 'text' && block.text) {
-          reasoningSteps.push({
-            type: 'thinking',
-            content: block.text.slice(0, 500)
-          });
+          reasoningSteps.push({ type: 'thinking', content: block.text.slice(0, 500) });
         }
       }
 
       if (response.stop_reason === "end_turn") {
         const textBlock = response.content.find(c => c.type === "text");
-        if (textBlock && textBlock.type === "text") {
-          finalAnswer = textBlock.text;
-        }
+        if (textBlock && textBlock.type === "text") finalAnswer = textBlock.text;
         break;
       }
 
-      const toolUseBlocks = response.content.filter(c => c.type === "tool_use");
+      const toolUseBlocks = response.content.filter(
+        (c): c is Anthropic.ToolUseBlock => c.type === "tool_use"
+      );
+
       if (toolUseBlocks.length === 0) {
         const textBlock = response.content.find(c => c.type === "text");
-        if (textBlock && textBlock.type === "text") {
-          finalAnswer = textBlock.text;
-        }
+        if (textBlock && textBlock.type === "text") finalAnswer = textBlock.text;
         break;
       }
 
       currentMessages.push({ role: "assistant", content: response.content });
 
+      console.log(`[Investigate] Executing ${toolUseBlocks.length} tool(s) in parallel`);
+
+      const executions = await executeToolsInParallel(
+        supabase,
+        customerId,
+        isAdmin,
+        toolUseBlocks
+      );
+
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const toolUse of toolUseBlocks) {
-        if (toolUse.type !== "tool_use") continue;
+      for (const execution of executions) {
+        toolCallCount++;
+        console.log(`[Investigate] Tool: ${execution.toolUse.name}`, JSON.stringify(execution.toolUse.input).slice(0, 300));
+        reasoningSteps.push({ type: 'tool_call', content: `Calling ${execution.toolUse.name}`, toolName: execution.toolUse.name });
 
-        const toolName = toolUse.name;
-        if (!toolName) {
-          console.error('[Investigate] Tool use block missing name:', toolUse);
-          continue;
+        if (execution.visualization) {
+          console.log('[Investigate] Visualization created:', { type: execution.visualization.type, title: execution.visualization.title });
+          visualizations.push(execution.visualization);
         }
 
-        toolCallCount++;
-        console.log(`[Investigate] Tool: ${toolName}`, JSON.stringify(toolUse.input).slice(0, 200));
-
-        reasoningSteps.push({
-          type: 'tool_call',
-          content: `Calling ${toolName}`,
-          toolName: toolName
-        });
-
-        const result = await executeMCPTool(
-          supabase,
-          customerId,
-          isAdmin,
-          toolName,
-          toolUse.input as Record<string, unknown>
-        );
-
-        console.log('[Investigate] Tool execution result:', {
-          toolName,
-          success: result?.success,
-          hasData: !!result?.data,
-          rowCount: result?.row_count || result?.data?.length || 0,
-          hasQuery: !!result?.query,
-          resultKeys: result ? Object.keys(result) : []
-        });
-
-        const viz = generateVisualization(toolName, toolUse.input as Record<string, unknown>, result);
-        if (viz) visualizations.push(viz);
-
-        const resultSummary = JSON.stringify(result).slice(0, 500);
-        reasoningSteps.push({
-          type: 'tool_result',
-          content: resultSummary,
-          toolName
-        });
-
+        reasoningSteps.push({ type: 'tool_result', content: JSON.stringify(execution.result).slice(0, 500), toolName: execution.toolUse.name });
         toolResults.push({
           type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: JSON.stringify(result)
+          tool_use_id: execution.toolUse.id,
+          content: JSON.stringify(execution.result)
         });
       }
 
       currentMessages.push({ role: "user", content: toolResults });
     }
 
-    const followUpQuestions: FollowUpQuestion[] = [];
-    const defaultFollowUps = [
-      "How does this compare to previous periods?",
-      "What's driving these numbers?",
-      "Can you break this down further?"
+    await trackKnowledgeUsage(supabase, compiledContext.knowledgeIds);
+
+    const followUpQuestions = [
+      { id: crypto.randomUUID(), question: "How does this compare to previous periods?" },
+      { id: crypto.randomUUID(), question: "What's driving these numbers?" },
+      { id: crypto.randomUUID(), question: "Can you break this down further?" }
     ];
-    for (const q of defaultFollowUps) {
-      followUpQuestions.push({ id: crypto.randomUUID(), question: q });
-    }
 
-    const processingTimeMs = Date.now() - startTime;
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        answer: finalAnswer,
-        reasoning: preferences.showReasoning !== false ? reasoningSteps : [],
-        followUpQuestions,
-        visualizations,
-        metadata: {
-          processingTimeMs,
-          toolCallCount,
-          mode,
-          classification: {
-            detected: classification.mode,
-            confidence: classification.confidence,
-            reason: classification.reason
-          }
-        }
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    recordSuccess();
+    return new Response(JSON.stringify({
+      success: true,
+      answer: finalAnswer,
+      visualizations,
+      reasoning: preferences?.showReasoning !== false ? reasoningSteps : undefined,
+      followUpQuestions,
+      metadata: {
+        processingTimeMs: Date.now() - startTime,
+        toolCallCount,
+        mode: routing.mode,
+        tier: 'dynamic',
+        model: currentModel,
+        modelReason: modelSelection.reason,
+        tokensUsed: { input: totalInputTokens, output: totalOutputTokens },
+        contextTokens: compiledContext.tokenEstimate,
+        knowledgeItemsUsed: compiledContext.knowledgeIds.length
+      }
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("[Investigate] Error:", error);
+    recordFailure();
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Investigation failed",
-        answer: "I encountered an error during the investigation. Please try again.",
-        reasoning: [],
-        followUpQuestions: [],
-        visualizations: [],
-        metadata: {
-          processingTimeMs: Date.now() - startTime,
-          toolCallCount: 0,
-          mode: 'deep'
-        }
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : "Investigation failed",
+      answer: "I encountered an error. Please try again.",
+      reasoning: [],
+      followUpQuestions: [],
+      visualizations: [],
+      metadata: { processingTimeMs: Date.now() - startTime, toolCallCount: 0, mode: 'error', tier: 'dynamic' }
+    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

@@ -146,6 +146,16 @@ function selectModel(question: string, mode: Mode): ModelSelection {
       reason: 'Simple top-N query'
     },
     {
+      // NEW: Catch "top 5 carriers by X" without prefix
+      pattern: /^top\s+\d+\s+(carrier|lane|state|route|customer|shipment)/i,
+      reason: 'Simple top-N query'
+    },
+    {
+      // NEW: Catch "which carriers have the most/highest X"
+      pattern: /^which\s+(carrier|lane|state)s?\s+(have|has|are|is)\s+(the\s+)?(most|highest|lowest|biggest)/i,
+      reason: 'Simple ranking query'
+    },
+    {
       pattern: /^(what('?s| is)?|show)\s+(the\s+)?(total|sum)\s+/i,
       reason: 'Simple sum query'
     },
@@ -855,7 +865,8 @@ async function executeToolsInParallel(
   supabase: SupabaseClient,
   customerId: string,
   isAdmin: boolean,
-  toolUseBlocks: Anthropic.ToolUseBlock[]
+  toolUseBlocks: Anthropic.ToolUseBlock[],
+  originalQuestion?: string
 ): Promise<ToolExecution[]> {
   const executions = await Promise.all(
     toolUseBlocks.map(async (toolUse): Promise<ToolExecution> => {
@@ -870,7 +881,8 @@ async function executeToolsInParallel(
       const visualization = generateVisualization(
         toolUse.name,
         toolUse.input as Record<string, unknown>,
-        result
+        result,
+        originalQuestion
       );
 
       return { toolUse, result, visualization };
@@ -972,7 +984,30 @@ function isCurrencyMetric(metric: string | null | undefined, valueKey: string | 
   return currencyKeywords.some(kw => toCheck.includes(kw));
 }
 
-function findValueKey(row: Record<string, unknown>, keys: string[]): string | null {
+function findValueKey(row: Record<string, unknown>, keys: string[], questionHint?: string): string | null {
+  // If question mentions specific metrics, prioritize those
+  if (questionHint) {
+    const q = questionHint.toLowerCase();
+    
+    // Check for count/volume intent
+    if (q.includes('shipment count') || q.includes('by volume') || q.includes('how many') || 
+        q.includes('number of') || q.match(/\bcount\b/) || q.match(/most shipments?/)) {
+      const countKey = keys.find(k => k.toLowerCase().includes('count') || k.toLowerCase() === 'shipment_count');
+      if (countKey && (typeof row[countKey] === 'number' || !isNaN(parseFloat(String(row[countKey]))))) {
+        return countKey;
+      }
+    }
+    
+    // Check for spend/cost intent
+    if (q.includes('spend') || q.includes('cost') || q.includes('revenue') || q.includes('expensive')) {
+      const spendKey = keys.find(k => k.toLowerCase().includes('spend') || k.toLowerCase().includes('retail') || k.toLowerCase().includes('cost'));
+      if (spendKey && (typeof row[spendKey] === 'number' || !isNaN(parseFloat(String(row[spendKey]))))) {
+        return spendKey;
+      }
+    }
+  }
+  
+  // Default priority (spend-focused since most questions are about money)
   const priorityKeys = ['value', 'total', 'count', 'sum', 'avg', 'total_cost', 'total_spend',
                         'total_retail', 'shipment_count', 'avg_cost', 'avg_retail'];
 
@@ -1006,13 +1041,14 @@ function findLabelKey(row: Record<string, unknown>, keys: string[], excludeKey: 
 }
 
 // ============================================================================
-// VISUALIZATION GENERATOR - v2.2 Polished
+// VISUALIZATION GENERATOR - v2.3 Question-Aware
 // ============================================================================
 
 function generateVisualization(
   toolName: string,
   toolInput: Record<string, unknown>,
-  result: unknown
+  result: unknown,
+  originalQuestion?: string
 ): Visualization | null {
   const r = result as { success?: boolean; data?: unknown[] };
 
@@ -1027,7 +1063,8 @@ function generateVisualization(
     toolName,
     rowCount: rows.length,
     hasGroupBy: !!toolInput.group_by,
-    firstRowKeys: Object.keys(rows[0] || {})
+    firstRowKeys: Object.keys(rows[0] || {}),
+    question: originalQuestion?.slice(0, 50)
   });
 
   const metric = toolInput.metric as string | undefined;
@@ -1038,6 +1075,10 @@ function generateVisualization(
     : typeof groupByRaw === 'string'
       ? groupByRaw.split('.').pop()
       : null;
+  
+  // Extract limit from question if mentioned (e.g., "top 5", "top 10")
+  const limitMatch = originalQuestion?.match(/top\s+(\d+)/i);
+  const questionLimit = limitMatch ? parseInt(limitMatch[1], 10) : null;
 
   if (toolName === 'get_lanes') {
     const laneData = rows.slice(0, 15).map(row => {
@@ -1070,7 +1111,7 @@ function generateVisualization(
 
     console.log('[Viz] Single row detected:', { keys, row });
 
-    const valueKey = findValueKey(row, keys);
+    const valueKey = findValueKey(row, keys, originalQuestion);
 
     if (valueKey) {
       const rawValue = row[valueKey];
@@ -1117,7 +1158,8 @@ function generateVisualization(
     const firstRow = rows[0];
     const rowKeys = Object.keys(firstRow);
 
-    const valueKey = findValueKey(firstRow, rowKeys);
+    // Use question hint to pick the right metric
+    const valueKey = findValueKey(firstRow, rowKeys, originalQuestion);
     const labelKey = findLabelKey(firstRow, rowKeys, valueKey);
 
     if (!valueKey) {
@@ -1126,12 +1168,16 @@ function generateVisualization(
     }
 
     const isCurrency = isCurrencyMetric(metric, valueKey);
-    const title = buildVisualizationTitle(aggregation, metric || valueKey, groupByField || labelKey, false);
+    
+    // Build title based on actual value key being visualized
+    const title = buildVisualizationTitle(aggregation, valueKey, groupByField || labelKey, false);
+
+    // Determine how many items to show - respect question limit or default to 15
+    const displayLimit = questionLimit || 15;
 
     // Filter out rows with null/empty labels and create chart data
-    const chartData = rows
+    let chartData = rows
       .filter(row => row[labelKey!] != null && String(row[labelKey!]).trim() !== '')
-      .slice(0, 15)
       .map(row => ({
         label: String(row[labelKey!]),
         value: Number(row[valueKey]) || 0
@@ -1139,20 +1185,28 @@ function generateVisualization(
 
     // Sort by value descending
     chartData.sort((a, b) => b.value - a.value);
+    
+    // Apply limit after sorting
+    chartData = chartData.slice(0, displayLimit);
 
     console.log('[Viz] Creating BAR chart:', {
       title,
       labelKey,
       valueKey,
       rowCount: rows.length,
+      displayLimit,
+      questionLimit,
       isCurrency
     });
+
+    // Update subtitle to reflect actual count shown
+    const subtitleCount = questionLimit ? `Top ${displayLimit}` : `${chartData.length}`;
 
     return {
       id: crypto.randomUUID(),
       type: 'bar',
       title,
-      subtitle: `${rows.length} ${formatFieldName(groupByField || labelKey).toLowerCase()}s`,
+      subtitle: `${subtitleCount} ${formatFieldName(groupByField || labelKey).toLowerCase()}s`,
       data: {
         data: chartData,
         format: isCurrency ? 'currency' : 'number'
@@ -1375,7 +1429,8 @@ Deno.serve(async (req: Request) => {
         supabase,
         customerId,
         isAdmin,
-        toolUseBlocks
+        toolUseBlocks,
+        question
       );
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];

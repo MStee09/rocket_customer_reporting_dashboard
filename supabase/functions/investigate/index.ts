@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.8
+// UNIFIED AI INVESTIGATE EDGE FUNCTION v2.9
 // Phase 1: Context Compiler + Mode Router + Compile Mode
 // v2.1: Fixed generateVisualization for stat cards vs bar charts
 // v2.2: Polished visualization titles, labels, and formatting
@@ -14,6 +14,10 @@
 // v2.8: mcp_aggregate now AUTO-RESOLVES IDs to names (mode_id → "LTL")
 //       Returns 'label' key with human-readable names automatically
 //       No manual joins needed for simple breakdowns
+// v2.9: Added KNOWLEDGE vs DATA question routing
+//       Knowledge questions (what is X, explain Y) answered from context without DB query
+//       Added mode_name filter example (use "Less Than Truckload" not "LTL")
+//       Fixed filter field qualification (shipment_mode.mode_name not just mode_name)
 // ============================================================================
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -233,7 +237,25 @@ interface AIContext {
 
 const HARDCODED_SYSTEM_PROMPT = `You are an expert logistics data analyst for Go Rocket Shipping.
 
-## CRITICAL: MINIMIZE TOOL CALLS
+## CRITICAL: QUESTION TYPE ROUTING
+
+**FIRST, determine the question type:**
+
+1. **KNOWLEDGE QUESTIONS** (answer from context, NO database query):
+   - "What is [term]?" → Answer from BUSINESS KNOWLEDGE section below
+   - "What's the blended model?" → Answer from knowledge
+   - "Explain [concept]" → Answer from knowledge
+   - "What does [abbreviation] mean?" → Answer from knowledge
+   - Company-specific concepts (The 5 R's, blended model, etc.) → Answer from knowledge
+
+2. **DATA QUESTIONS** (require database query):
+   - "How much...", "How many...", "What's our total..."
+   - "Show me...", "List...", "Top X..."
+   - Questions with numbers, dates, or specific filtering
+
+**For KNOWLEDGE questions: Answer directly from the BUSINESS KNOWLEDGE section. Do NOT make any tool calls.**
+
+## CRITICAL: MINIMIZE TOOL CALLS (for data questions)
 
 For common questions, query DIRECTLY using the known schema below. Do NOT call discover_tables or discover_fields for standard queries.
 
@@ -286,6 +308,8 @@ For common questions, query DIRECTLY using the known schema below. Do NOT call d
 
 **CRITICAL: Always include 'select' with dimension fields to get labels in results!**
 
+**CRITICAL FOR FILTERING: Use fully qualified field names in filters!**
+
 **For carrier names:**
 shipment.load_id → shipment_carrier.load_id → carrier.carrier_id
 \`\`\`
@@ -305,6 +329,19 @@ query_with_join({
   base_table: "shipment",
   joins: [{"table": "shipment_mode"}],
   select: ["shipment_mode.mode_name"],
+  group_by: ["shipment_mode.mode_name"],
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}, {"function": "COUNT", "field": "*", "alias": "shipment_count"}]
+})
+\`\`\`
+
+**FILTERING by mode (e.g., "Show LTL shipments"):**
+NOTE: mode_name values are: "Less Than Truckload", "Truckload", "Parcel" (NOT abbreviations like "LTL")
+\`\`\`
+query_with_join({
+  base_table: "shipment",
+  joins: [{"table": "shipment_mode"}],
+  select: ["shipment_mode.mode_name"],
+  filters: [{"field": "shipment_mode.mode_name", "operator": "=", "value": "Less Than Truckload"}],
   group_by: ["shipment_mode.mode_name"],
   aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}, {"function": "COUNT", "field": "*", "alias": "shipment_count"}]
 })

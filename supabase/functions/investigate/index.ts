@@ -267,12 +267,14 @@ For common questions, query DIRECTLY using the known schema below. Do NOT call d
 | "How many shipments" | query_table | table: shipment, aggregations: [{function: COUNT, field: *, alias: count}] |
 | "Average cost" | query_table | table: shipment, aggregations: [{function: AVG, field: retail, alias: avg_cost}] |
 | "Spend by state" | aggregate | table: shipment, group_by: dest_state, metric: retail, aggregation: sum |
-| "Spend by carrier" | query_with_join | base: shipment, joins: [shipment_carrier, carrier], group_by: [carrier.carrier_name], aggregations: [{function: SUM, field: retail}] |
-| "Spend by mode" | query_with_join | base: shipment, joins: [shipment_mode], group_by: [shipment_mode.mode_name], aggregations: [{function: SUM, field: retail}] |
-| "Spend by equipment" | query_with_join | base: shipment, joins: [equipment_type], group_by: [equipment_type.equipment_name], aggregations: [{function: SUM, field: retail}] |
+| "Spend by carrier" | query_with_join | base: shipment, joins: [shipment_carrier, carrier], select: [carrier.carrier_name], group_by: [carrier.carrier_name], aggregations: [{function: SUM, field: retail, alias: total_spend}] |
+| "Spend by mode" | query_with_join | base: shipment, joins: [shipment_mode], select: [shipment_mode.mode_name], group_by: [shipment_mode.mode_name], aggregations: [{function: SUM, field: retail, alias: total_spend}] |
+| "Spend by equipment" | query_with_join | base: shipment, joins: [equipment_type], select: [equipment_type.equipment_name], group_by: [equipment_type.equipment_name], aggregations: [{function: SUM, field: retail, alias: total_spend}] |
 | "Top lanes" | get_lanes | limit: 10 |
 
 ### JOIN PATHS (IMPORTANT!)
+
+**CRITICAL: Always include 'select' with dimension fields to get labels in results!**
 
 **For carrier names:**
 shipment.load_id → shipment_carrier.load_id → carrier.carrier_id
@@ -280,8 +282,9 @@ shipment.load_id → shipment_carrier.load_id → carrier.carrier_id
 query_with_join({
   base_table: "shipment",
   joins: [{"table": "shipment_carrier"}, {"table": "carrier"}],
+  select: ["carrier.carrier_name"],
   group_by: ["carrier.carrier_name"],
-  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}, {"function": "COUNT", "field": "*", "alias": "shipment_count"}]
 })
 \`\`\`
 
@@ -291,8 +294,9 @@ shipment.mode_id → shipment_mode.mode_id
 query_with_join({
   base_table: "shipment",
   joins: [{"table": "shipment_mode"}],
+  select: ["shipment_mode.mode_name"],
   group_by: ["shipment_mode.mode_name"],
-  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}, {"function": "COUNT", "field": "*", "alias": "shipment_count"}]
 })
 \`\`\`
 
@@ -302,8 +306,9 @@ shipment.equipment_type_id → equipment_type.equipment_type_id
 query_with_join({
   base_table: "shipment",
   joins: [{"table": "equipment_type"}],
+  select: ["equipment_type.equipment_name"],
   group_by: ["equipment_type.equipment_name"],
-  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}]
+  aggregations: [{"function": "SUM", "field": "retail", "alias": "total_spend"}, {"function": "COUNT", "field": "*", "alias": "shipment_count"}]
 })
 \`\`\`
 
@@ -650,13 +655,13 @@ const MCP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "query_with_join",
-    description: "Query across multiple tables with automatic joins. REQUIRED for carrier/mode/equipment names. Join paths: shipment→shipment_carrier→carrier, shipment→shipment_mode, shipment→equipment_type.",
+    description: "Query across multiple tables with automatic joins. REQUIRED for carrier/mode/equipment names. IMPORTANT: Always include dimension fields in 'select' to get labels in results! Join paths: shipment→shipment_carrier→carrier, shipment→shipment_mode, shipment→equipment_type.",
     input_schema: {
       type: "object" as const,
       properties: {
         base_table: { type: "string", description: "Starting table, usually 'shipment'" },
         joins: { type: "array", description: "Tables to join: [{\"table\": \"shipment_mode\"}] or [{\"table\": \"shipment_carrier\"}, {\"table\": \"carrier\"}]" },
-        select: { type: "array", items: { type: "string" }, description: "Fields to select, e.g. ['shipment_mode.mode_name']" },
+        select: { type: "array", items: { type: "string" }, description: "REQUIRED for labels! Fields to select, e.g. ['shipment_mode.mode_name'] - always include your group_by fields here" },
         filters: { type: "array" },
         group_by: { type: "array", items: { type: "string" }, description: "Fields to group by, e.g. ['shipment_mode.mode_name']" },
         aggregations: { type: "array", description: "Aggregations, e.g. [{\"function\": \"SUM\", \"field\": \"retail\", \"alias\": \"total_spend\"}]" },

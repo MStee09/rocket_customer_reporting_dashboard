@@ -12,28 +12,35 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { useAnomalyDashboard } from '../../hooks/useAnomalyDashboard';
-import { AdminAnomalySummary } from '../../services/anomalyDetectionService';
+import { useAdminAnomalies } from '../../hooks/useAdminAnomalies';
 
 interface AnomalyDetectionPanelProps {
   onCustomerClick?: (customerId: number) => void;
 }
 
 export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanelProps) {
-  const { summary, loading, scanning, triggerScan, refetch } = useAnomalyDashboard({
-    isAdmin: true,
-  });
+  const {
+    summary,
+    loading,
+    refetch,
+    runScan,
+    criticalCount,
+    warningCount,
+    customersAffected,
+  } = useAdminAnomalies();
 
   const [expanded, setExpanded] = useState(true);
   const [showAllCustomers, setShowAllCustomers] = useState(false);
-
-  const adminSummary = summary as AdminAnomalySummary | null;
+  const [scanning, setScanning] = useState(false);
 
   const handleRunScan = async () => {
+    setScanning(true);
     try {
-      await triggerScan(true);
+      await runScan(undefined, true);
     } catch (error) {
       console.error('Failed to run scan:', error);
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -48,8 +55,8 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
     );
   }
 
-  const hasCritical = (adminSummary?.critical_count ?? 0) > 0;
-  const hasWarnings = (adminSummary?.warning_count ?? 0) > 0;
+  const hasCritical = criticalCount > 0;
+  const hasWarnings = warningCount > 0;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -68,19 +75,19 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
           <div className="text-left">
             <h3 className="font-semibold text-gray-900">Anomaly Detection</h3>
             <p className="text-sm text-gray-500">
-              {adminSummary?.customers_affected ?? 0} customers with anomalies
+              {customersAffected} customers with anomalies
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {hasCritical && (
             <span className="px-2.5 py-1 bg-red-100 text-red-700 text-sm font-medium rounded-full">
-              {adminSummary?.critical_count} critical
+              {criticalCount} critical
             </span>
           )}
           {hasWarnings && (
             <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-sm font-medium rounded-full">
-              {adminSummary?.warning_count} warnings
+              {warningCount} warnings
             </span>
           )}
           {expanded ? (
@@ -98,22 +105,22 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-500" />
                 <span className="text-gray-600">Critical:</span>
-                <span className="font-semibold text-gray-900">{adminSummary?.critical_count ?? 0}</span>
+                <span className="font-semibold text-gray-900">{summary?.critical_count ?? 0}</span>
               </div>
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
                 <span className="text-gray-600">Warning:</span>
-                <span className="font-semibold text-gray-900">{adminSummary?.warning_count ?? 0}</span>
+                <span className="font-semibold text-gray-900">{summary?.warning_count ?? 0}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-blue-500" />
                 <span className="text-gray-600">Info:</span>
-                <span className="font-semibold text-gray-900">{adminSummary?.info_count ?? 0}</span>
+                <span className="font-semibold text-gray-900">{summary?.info_count ?? 0}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-gray-500" />
                 <span className="text-gray-600">Affected:</span>
-                <span className="font-semibold text-gray-900">{adminSummary?.customers_affected ?? 0}</span>
+                <span className="font-semibold text-gray-900">{summary?.customers_affected ?? 0}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -135,13 +142,13 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
             </div>
           </div>
 
-          {adminSummary?.anomalies_by_customer && adminSummary.anomalies_by_customer.length > 0 && (
+          {summary?.anomalies_by_customer && summary.anomalies_by_customer.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">Anomalies by Customer</h4>
               <div className="space-y-2">
                 {(showAllCustomers
-                  ? adminSummary.anomalies_by_customer
-                  : adminSummary.anomalies_by_customer.slice(0, 5)
+                  ? summary.anomalies_by_customer
+                  : summary.anomalies_by_customer.slice(0, 5)
                 ).map((customer) => (
                   <button
                     key={customer.customer_id}
@@ -173,25 +180,25 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
                     </div>
                   </button>
                 ))}
-                {adminSummary.anomalies_by_customer.length > 5 && (
+                {summary.anomalies_by_customer.length > 5 && (
                   <button
                     onClick={() => setShowAllCustomers(!showAllCustomers)}
                     className="w-full text-center py-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
                   >
                     {showAllCustomers
                       ? 'Show less'
-                      : `Show ${adminSummary.anomalies_by_customer.length - 5} more`}
+                      : `Show ${summary.anomalies_by_customer.length - 5} more`}
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {adminSummary?.recent_critical && adminSummary.recent_critical.length > 0 && (
+          {summary?.recent_critical && summary.recent_critical.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Critical & Warnings</h4>
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {adminSummary.recent_critical.slice(0, 8).map((anomaly) => (
+                {summary.recent_critical.slice(0, 8).map((anomaly) => (
                   <div
                     key={anomaly.id}
                     className={`p-3 rounded-lg border ${
@@ -243,7 +250,7 @@ export function AnomalyDetectionPanel({ onCustomerClick }: AnomalyDetectionPanel
             </div>
           )}
 
-          {(!adminSummary?.total_new || adminSummary.total_new === 0) && (
+          {(!summary?.total_new || summary.total_new === 0) && (
             <div className="text-center py-8 text-gray-500">
               <Info className="w-8 h-8 mx-auto mb-2 text-gray-400" />
               <p className="text-sm">No anomalies detected</p>

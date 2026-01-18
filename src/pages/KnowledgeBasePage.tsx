@@ -43,6 +43,7 @@ import { KnowledgeDocumentEditor } from '../components/KnowledgeDocumentEditor';
 import { AIIntelligence } from '../components/knowledge/AIIntelligence';
 import { CustomerProfilesTab } from '../components/knowledge-base/CustomerProfilesTab';
 import { LearningQueueTab } from '../components/knowledge-base/LearningQueueTab';
+import { ErrorQueueTab } from '../components/knowledge-base/ErrorQueueTab';
 import { getNotificationCounts } from '../services/learningNotificationService';
 import { AIAnalyticsDashboard } from '../components/admin/AIAnalyticsDashboard';
 import { SchemaChangeAlert } from '../components/admin/SchemaChangeAlert';
@@ -547,15 +548,17 @@ function DocumentRow({ document, onToggleActive, onDelete, onEdit, customers }: 
 export function KnowledgeBasePage() {
   const { user, customers, isAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics'>(() => {
+  const [activeTab, setActiveTab] = useState<'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics' | 'errors'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'documents') return 'documents';
     if (tab === 'profiles') return 'profiles';
     if (tab === 'learning') return 'learning';
     if (tab === 'analytics') return 'analytics';
+    if (tab === 'errors') return 'errors';
     return 'intelligence';
   });
   const [pendingCount, setPendingCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -566,7 +569,7 @@ export function KnowledgeBasePage() {
   const [showInactive, setShowInactive] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
-  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics') => {
+  const handleTabChange = (tab: 'intelligence' | 'documents' | 'profiles' | 'learning' | 'analytics' | 'errors') => {
     setActiveTab(tab);
     if (tab === 'intelligence') {
       setSearchParams({});
@@ -603,6 +606,24 @@ export function KnowledgeBasePage() {
     }
     loadPendingCount();
     const interval = setInterval(loadPendingCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load error count for Error Queue badge
+  useEffect(() => {
+    async function loadErrorCount() {
+      try {
+        const { data } = await supabase.rpc('get_ai_error_summary');
+        if (data) {
+          setErrorCount(data.total_new || 0);
+        }
+      } catch (e) {
+        // Error summary function may not exist yet
+        console.log('Error summary not available');
+      }
+    }
+    loadErrorCount();
+    const interval = setInterval(loadErrorCount, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -750,6 +771,22 @@ export function KnowledgeBasePage() {
           <BarChart3 className="w-4 h-4" />
           Analytics
         </button>
+        <button
+          onClick={() => handleTabChange('errors')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'errors'
+              ? 'border-rocket-600 text-rocket-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <AlertCircle className="w-4 h-4" />
+          Error Queue
+          {errorCount > 0 && (
+            <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+              {errorCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {activeTab === 'intelligence' ? (
@@ -758,6 +795,8 @@ export function KnowledgeBasePage() {
         <CustomerProfilesTab />
       ) : activeTab === 'learning' ? (
         <LearningQueueTab />
+      ) : activeTab === 'errors' ? (
+        <ErrorQueueTab />
       ) : activeTab === 'analytics' ? (
         <div className="space-y-6">
           <SchemaChangeAlert />

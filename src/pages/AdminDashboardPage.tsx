@@ -8,7 +8,7 @@ import { CustomerActivityTable } from '../components/dashboard/CustomerActivityT
 import { TopCustomersTable } from '../components/dashboard/TopCustomersTable';
 import { CustomerHealthMatrix } from '../components/admin/CustomerHealthMatrix';
 import { HealthAlertsPanel } from '../components/admin/HealthAlertsPanel';
-import { AdminUnifiedInsightsCard } from '../components/admin/AdminUnifiedInsightsCard';
+import { AdminUnifiedInsightsCard } from '../components/admin/adminunifiedinsightscard';
 import { formatCurrency } from '../utils/dateUtils';
 import { CustomerData } from '../types/dashboard';
 import { useCustomerHealth } from '../hooks/useCustomerHealth';

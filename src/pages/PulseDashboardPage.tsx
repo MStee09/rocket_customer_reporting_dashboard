@@ -1,5 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import { DashboardAlertProvider } from '../contexts/DashboardAlertContext';
@@ -11,13 +10,10 @@ import {
   PulseWidgetSection,
 } from '../components/pulse';
 import { UnifiedInsightsCard } from '../components/dashboard/UnifiedInsightsCard';
-import { AnomalyAlerts } from '../components/ai/AnomalyAlerts';
 import { AlertInspectorPanel } from '../components/dashboard/widgets';
 import { AdminDashboardPage } from './AdminDashboardPage';
-import type { Anomaly } from '../hooks/useAnomalies';
 
 export function PulseDashboardPage() {
-  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('last30');
   const { user, isAdmin, effectiveCustomerIds, isViewingAsCustomer, effectiveCustomerId } = useAuth();
 
@@ -44,11 +40,6 @@ export function PulseDashboardPage() {
     };
   }, [dateRange]);
 
-  const handleInvestigateAnomaly = useCallback((anomaly: Anomaly) => {
-    const query = `Investigate this anomaly: ${anomaly.title}. ${anomaly.description}. Why did ${anomaly.metric} change by ${anomaly.change_percent}%?`;
-    navigate(`/ai-studio?query=${encodeURIComponent(query)}`);
-  }, [navigate]);
-
   if (showAdminDashboard) {
     return <AdminDashboardPage />;
   }
@@ -73,13 +64,6 @@ export function PulseDashboardPage() {
                   start: new Date(startDate),
                   end: new Date(endDate),
                 }}
-              />
-            )}
-
-            {effectiveCustomerId && (
-              <AnomalyAlerts
-                customerId={String(effectiveCustomerId)}
-                onInvestigate={handleInvestigateAnomaly}
               />
             )}
 
